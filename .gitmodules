@@ -1,0 +1,3 @@
+[submodule "crown_ibp"]
+	path = crown_ibp
+	url = git@gitlab.com:mit-acl/ford_ugvs/crown_ibp.git
