@@ -1,0 +1,11 @@
+*.pth
+*.pyc
+*~
+*.swp
+__pycache__
+data
+*.h5
+*.hdf5
+*.egg-info
+*.DS_Store
+*.ipynb_checkpoints/

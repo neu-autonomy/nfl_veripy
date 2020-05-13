@@ -1,11 +1,10 @@
+import numpy as np
 np.set_printoptions(precision=2)
 from crown_ibp.conversions.keras2torch import keras2torch, get_keras_model
-from crown_ibp.bound_layers import BoundClosedLoopController
+from reach_lp.nn_bounds import BoundClosedLoopController
 import torch
 import time
 import pypoman
-# from importlib import reload
-# reload(crown_ibp.bound_layers)
 
 def init_state_range_to_polytope(init_state_range):
 
