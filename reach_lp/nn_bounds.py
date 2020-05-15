@@ -1,8 +1,14 @@
 import torch
 import numpy as np
 from torch.nn import Sequential, Conv2d, Linear, ReLU
-from crown_ibp.bound_layers import BoundSequential
+from crown_ibp.bound_layers import BoundSequential, BoundLinear, BoundReLU
+from crown_ibp.model_defs import Flatten
 import cvxpy as cp
+
+import logging
+logging.basicConfig(level=logging.INFO)
+# logging.basicConfig(level=logging.DEBUG)
+logger = logging.getLogger(__name__)
 
 class BoundClosedLoopController(BoundSequential):
     def __init__(self, *args):
@@ -79,28 +85,17 @@ class BoundClosedLoopController(BoundSequential):
             gamma = lower_sum_b
 
         lower_A_with_dyn = torch.matmul(self.A_out, self.A_dyn+self.b_dyn.bmm(xi))
-        # print("lower_A_with_dyn:", lower_A_with_dyn)
-        # lower_A_with_dyn = self.A_dyn+self.b_dyn*lower_A
         upper_A_with_dyn = torch.matmul(self.A_out, self.A_dyn+self.b_dyn.bmm(upsilon))
-
-        # print("lower_sum_b.size(): {}".format(lower_sum_b.size()))
-        # print("lower_sum_b: {}".format(lower_sum_b))
-
         lower_sum_b_with_dyn = torch.matmul(self.A_out, self.b_dyn * gamma)
-
-        # print("lower_sum_b_with_dyn.size(): {}".format(lower_sum_b_with_dyn.size()))
-        # print("lower_sum_b_with_dyn: {}".format(lower_sum_b_with_dyn))
-        # assert(0)
-
         upper_sum_b_with_dyn = torch.matmul(self.A_out, self.b_dyn * psi)
-        # lower_sum_b_with_dyn = self.b_dyn.bmm(lower_sum_b) + self.c_dyn
-        # upper_sum_b_with_dyn = self.b_dyn.bmm(upper_sum_b) + self.c_dyn
         return lower_A_with_dyn, upper_A_with_dyn, lower_sum_b_with_dyn, upper_sum_b_with_dyn
 
-    def full_backward_range(self, norm=np.inf, x_U=None, x_L=None, eps=None, C=None, upper=True, lower=True, A_out=None, A_in=None, b_in=None):
+    def full_backward_range(self, norm=np.inf, x_U=None, x_L=None, eps=None, C=None, upper=True, lower=True, A_out=None, A_in=None, b_in=None, closed_loop=True, u_limits=None):
         self.A_out = A_out # output constraints (facet of polytope)
         self.A_in = A_in # input polytope constraints (alternative to x \in eps_ball)
         self.b_in = b_in # input polytope constraints (alternative to x \in eps_ball)
+        self.closed_loop = closed_loop
+        self.u_limits = u_limits
         return super().full_backward_range(norm=norm, x_U=x_U, x_L=x_L, eps=eps, C=C, upper=upper, lower=lower)
 
     ## High level function, will be called outside
@@ -119,16 +114,26 @@ class BoundClosedLoopController(BoundSequential):
             return super().backward_range(norm=norm, x_U=x_U, x_L=x_L, eps=eps, C=C, upper=upper, lower=lower, modules=modules)
         else:
             lower_A, upper_A, lower_sum_b, upper_sum_b = self._prop_from_last_layer(C=C, x_U=x_U, modules=modules, upper=upper, lower=lower)
-            # lower_A_with_dyn, upper_A_with_dyn, lower_sum_b_with_dyn, upper_sum_b_with_dyn = lower_A, upper_A, lower_sum_b, upper_sum_b 
-            lower_A_with_dyn, upper_A_with_dyn, lower_sum_b_with_dyn, upper_sum_b_with_dyn = self._add_dynamics(lower_A, upper_A, lower_sum_b, upper_sum_b)
-            # print(lower_A_with_dyn, upper_A_with_dyn, lower_sum_b_with_dyn, upper_sum_b_with_dyn)
-            
-            if self.A_in is None or self.b_in is None:
-                lb = self._get_concrete_bound(lower_A_with_dyn, lower_sum_b_with_dyn, sign = -1, x_U=x_U, x_L=x_L, norm=norm)
-                ub = self._get_concrete_bound(upper_A_with_dyn, upper_sum_b_with_dyn, sign = +1, x_U=x_U, x_L=x_L, norm=norm)
+            ###########
+            # MAJOR HACK to extract lambda matrices from calculations
+            if self.closed_loop == False:
+                return lower_A, upper_A, lower_sum_b, upper_sum_b
+            ##########
+
+            if self.u_limits is not None:
+                lower_A_with_dyn, upper_A_with_dyn, lower_sum_b_with_dyn, upper_sum_b_with_dyn = self._add_dynamics(lower_A, upper_A, lower_sum_b, upper_sum_b)
+                lb = self._get_concrete_bound3(lower_A, upper_A, lower_sum_b, upper_sum_b, lower_A_with_dyn, lower_sum_b_with_dyn, sign = -1, x_U=x_U, x_L=x_L, norm=norm)
+                ub = self._get_concrete_bound3(lower_A, upper_A, lower_sum_b, upper_sum_b, upper_A_with_dyn, upper_sum_b_with_dyn, sign = +1, x_U=x_U, x_L=x_L, norm=norm)
             else:
-                lb = self._get_concrete_bound2(lower_A_with_dyn, lower_sum_b_with_dyn, sign = -1, x_U=x_U, x_L=x_L, norm=norm)
-                ub = self._get_concrete_bound2(upper_A_with_dyn, upper_sum_b_with_dyn, sign = +1, x_U=x_U, x_L=x_L, norm=norm)
+                # lower_A_with_dyn, upper_A_with_dyn, lower_sum_b_with_dyn, upper_sum_b_with_dyn = lower_A, upper_A, lower_sum_b, upper_sum_b 
+                lower_A_with_dyn, upper_A_with_dyn, lower_sum_b_with_dyn, upper_sum_b_with_dyn = self._add_dynamics(lower_A, upper_A, lower_sum_b, upper_sum_b)
+            
+                if self.A_in is None or self.b_in is None:
+                    lb = self._get_concrete_bound(lower_A_with_dyn, lower_sum_b_with_dyn, sign = -1, x_U=x_U, x_L=x_L, norm=norm)
+                    ub = self._get_concrete_bound(upper_A_with_dyn, upper_sum_b_with_dyn, sign = +1, x_U=x_U, x_L=x_L, norm=norm)
+                else:
+                    lb = self._get_concrete_bound2(lower_A_with_dyn, lower_sum_b_with_dyn, sign = -1, x_U=x_U, x_L=x_L, norm=norm)
+                    ub = self._get_concrete_bound2(upper_A_with_dyn, upper_sum_b_with_dyn, sign = +1, x_U=x_U, x_L=x_L, norm=norm)
 
             ub, lb = self._check_if_bnds_exist(ub=ub, lb=lb, x_U=x_U, x_L=x_L)
             return ub, upper_sum_b, lb, lower_sum_b
@@ -144,6 +149,8 @@ class BoundClosedLoopController(BoundSequential):
         # print(self.A_in.shape)
         # print(self.b_in.shape)
         # print(A.shape)
+
+        u_min = -1; u_max = 1
 
         A_constr = self.A_in
         b = self.b_in
@@ -171,6 +178,128 @@ class BoundClosedLoopController(BoundSequential):
         # print("bound:", bound)
         # print("sum_b:", sum_b)
         bound = bound + sum_b
+        return bound
+
+    # sign = +1: upper bound, sign = -1: lower bound
+    def _get_concrete_bound3(self, lower_A, upper_A, lower_sum_b, upper_sum_b, A, sum_b, x_U=None, x_L=None, norm=np.inf, sign = -1):
+        if A is None:
+            return None
+        A = A.view(A.size(0), A.size(1), -1)
+        logger.debug('Final A: %s', A.size())
+
+        A_constr = self.A_in
+        b = self.b_in
+        c = A.data.numpy().squeeze()
+        n = c.shape[0]
+
+        u_min, u_max = self.u_limits
+
+        num_inputs = 1
+        u = cp.Variable(num_inputs, name='u')
+        x = cp.Variable(n, name='x')
+
+        constraints = []
+
+        flip = torch.matmul(self.A_out, self.b_dyn) < 0
+        if flip:
+            # print("flip")
+            upsilon = lower_A
+            psi = lower_sum_b
+            xi = upper_A
+            gamma = upper_sum_b
+        else:
+            # print('dont flip')
+            upsilon = upper_A
+            psi = upper_sum_b
+            xi = lower_A
+            gamma = lower_sum_b
+
+        upper_A_np = upper_A.data.numpy().squeeze()
+        lower_A_np = lower_A.data.numpy().squeeze()
+        upper_sum_b_np = upper_sum_b.data.numpy().squeeze()
+        lower_sum_b_np = lower_sum_b.data.numpy().squeeze()
+
+        upsilon_np = upsilon.data.numpy().squeeze()
+        psi_np = psi.data.numpy().squeeze()
+        xi_np = xi.data.numpy().squeeze()
+        gamma_np = gamma.data.numpy().squeeze()
+
+        # print(upper_A_np.shape)
+        # print(x.shape)
+        # print(upper_sum_b_np.shape)
+        # print(u.shape)
+
+        # print((upper_A_np@x).shape)
+
+        # flip = torch.matmul(self.A_out, self.b_dyn) < 0
+        # if flip:
+        #     constraints += [u <= lower_A_np*x+lower_sum_b_np]
+        #     constraints += [u >= upper_A_np*x+upper_sum_b_np]
+        # else:
+        #     constraints += [u <= upper_A_np*x+upper_sum_b_np]
+        #     constraints += [u >= lower_A_np*x+lower_sum_b_np]
+
+        # np.array([upper_A_np@x+upper_sum_b_np, 0.01])
+
+        pi_u = upsilon_np@x+psi_np
+        pi_l = xi_np@x+gamma_np
+        # pi_u = upper_A_np@x+upper_sum_b_np
+        # pi_l = lower_A_np@x+lower_sum_b_np
+
+        # u_upper = cp.Variable(2)
+        # u_lower = cp.Variable(2)
+        # constraints += [u_upper[0] == pi_u]
+        # constraints += [u_upper[1] == u_max]
+        # constraints += [u_lower[0] == pi_l]
+        # constraints += [u_lower[1] == u_min]
+
+        # if flip:
+        #     constraints += [u >= pi_l]
+
+        # else:
+        #     constraints += [u <= pi_u]
+
+        if sign == 1:
+            constraints += [u <= pi_u]
+            # constraints += [u <= u_max]
+            # constraints += [u == pi_u]
+            # constraints += [u == cp.minimum(u_max, pi_u)]
+        elif sign == -1:
+            constraints += [u >= pi_l]
+            # constraints += [u >= u_min]
+            # constraints += [u == cp.maximum(u_min, pi_l)]
+
+        # if sign == -1:
+        #     constraints += [u <= pi_u]
+        #     # constraints += [u >= pi_l]
+
+        # elif sign == 1:
+        #     constraints += [u >= pi_l]
+        #     # constraints += [u <= pi_u]
+
+        # constraints += [u <= pi_u]
+        # constraints += [u >= pi_l]
+
+        # constraints += [u <= u_max]
+        # constraints += [u >= u_min]
+
+        A_dyn_np = self.A_dyn.data.numpy().squeeze()
+        b_dyn_np = self.b_dyn.data.numpy().squeeze()
+        A_out_np = self.A_out.data.numpy().squeeze()
+
+        cost = A_out_np@(A_dyn_np@x+b_dyn_np@u)
+
+        constraints += [A_constr @ x <= b]
+        if sign == 1:
+            objective = cp.Maximize(cost)
+        elif sign == -1:
+            objective = cp.Minimize(cost)
+
+        prob = cp.Problem(objective, constraints)
+        prob.solve()
+        bound = prob.value
+
+        bound = bound
         return bound
 
     # sign = +1: upper bound, sign = -1: lower bound

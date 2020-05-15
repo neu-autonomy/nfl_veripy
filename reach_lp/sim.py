@@ -3,9 +3,11 @@ import matplotlib.pyplot as plt
 from matplotlib import cm
 from matplotlib import patches as ptch
 from tqdm import tqdm
+from reach_lp.nn import control_nn
+import pypoman
 
 # Run simulation
-def run_simulation(At, bt, ct,
+def run_simulation(At, bt, ct, dt,
     t_max, init_state_range, goal_state_range,
     u_min, u_max, num_states,
     collect_data=False,
@@ -38,41 +40,46 @@ def run_simulation(At, bt, ct,
 
         while dataset_index < num_samples:
 
-        # Initial state
-        num_states = At.shape[0]
-        x = np.zeros((int((t_max)/dt)+1, num_states))
-        x[0,:] = np.random.uniform(
-        low=init_state_range[:,0], 
-        high=init_state_range[:,1])
+            # Initial state
+            num_states = At.shape[0]
+            x = np.zeros((int((t_max)/dt)+1, num_states))
+            x[0,:] = np.random.uniform(
+            low=init_state_range[:,0], 
+            high=init_state_range[:,1])
+            u_clipped = np.zeros((int((t_max)/dt)+1, 1))
+            this_colors = colors.copy()
 
-        t = 0
-        step = 0
-        while t < t_max:
-            t += dt
-            if collect_data:
-                u = control_mpc(x0=x[step,:], A=At, b=bt, Q=Q, R=R, P=Pinf, u_min=u_min, u_max=u_max)
-            else:
-                u = control_nn(x=x[step,:], model=model)
-            if clip_control:
-                u = np.clip(u, u_min, u_max)
-            if collect_data:
-                xs[dataset_index, :] = x[step,:]
-                us[dataset_index] = u
-            x[step+1,:] = np.dot(At, x[step, :]) + np.dot(bt,u)[:,0]
-            step += 1
-            dataset_index += 1
-            pbar.update(1)
-            if dataset_index == num_samples:
-                break
+            t = 0
+            step = 0
+            while t < t_max:
+                t += dt
+                if collect_data:
+                    u = control_mpc(x0=x[step,:], A=At, b=bt, Q=Q, R=R, P=Pinf, u_min=u_min, u_max=u_max)
+                else:
+                    u = control_nn(x=x[step,:], model=model)
+                if clip_control:
+                    u_raw = u
+                    u = np.clip(u, u_min, u_max)
+                    if u != u_raw:
+                        this_colors[step+1] = [0,0,0]
+                if collect_data:
+                    xs[dataset_index, :] = x[step,:]
+                    us[dataset_index] = u
+                x[step+1,:] = np.dot(At, x[step, :]) + np.dot(bt,u)[:,0]
+                step += 1
+                dataset_index += 1
+                pbar.update(1)
+                if dataset_index == num_samples:
+                    break
 
-        plt.scatter(x[:,0], x[:,1], c=colors)
-        # plt.plot(x[:,0], x[:,1])
+            plt.scatter(x[:,0], x[:,1], c=this_colors)
+            # plt.plot(x[:,0], x[:,1])
 
     if show_bounds:
         for i in range(len(all_bs)):
             this_A_in = A_in[i]
             this_all_bs = all_bs[i]
-                for this_bs in this_all_bs:
+            for this_bs in this_all_bs:
                 vertices = pypoman.compute_polygon_hull(this_A_in, this_bs)
                 bnd_color = bnd_colors[i]
                 plt.plot([v[0] for v in vertices]+[vertices[0][0]], [v[1] for v in vertices]+[vertices[0][1]], bnd_color)

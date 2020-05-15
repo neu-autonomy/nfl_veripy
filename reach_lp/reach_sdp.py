@@ -1,4 +1,7 @@
 import numpy as np
+import cvxpy as cp
+import itertools
+from tqdm import tqdm
 
 def getE_in(num_states, num_neurons, num_inputs):
     # Set up E_in to change the basis of P to NN coordinates
@@ -165,6 +168,8 @@ def reachSDP_1(model, A_inputs, b_inputs, At, bt, ct, A_in, u_min, u_max):
 
     # Number of vertices in input polyhedron
     m = A_inputs.shape[0]
+    num_states = At.shape[0]
+    num_inputs = bt.shape[1]
 
     # Get change of basis matrices
     E_in = getE_in(num_states, num_neurons, num_inputs)

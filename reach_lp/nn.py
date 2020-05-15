@@ -1,5 +1,8 @@
+import numpy as np
 from keras.models import Sequential
 from keras.layers import Dense
+from keras.models import model_from_json
+
 
 def create_model(neurons_per_layer):
     model = Sequential()
@@ -49,8 +52,18 @@ def load_model():
     print("Loaded model from disk")
     return model
 
-def control_nn(x, model):
-    return model.predict(np.expand_dims(x, axis=0))[0][0]
+def control_nn(x, model=None):
+    if model is None:
+        model = load_model()
+    if x.ndim == 1:
+        batch_x = np.expand_dims(x, axis=0)
+    else:
+        batch_x = x
+    us = model.predict(batch_x)
+    if x.ndim == 1:
+        return us[0][0]
+    else:
+        return us
 
 if __name__ == '__main__':
     neurons_per_layer = [10,5]
