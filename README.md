@@ -18,3 +18,9 @@ Now you can import things like:
 >>> from reach_lp.reach_lp import reachLP_1
 >>> import crown_ibp.bound_layers
 ```
+
+
+### tmp
+```bash
+source ~/code/gym-collision-avoidance/venv/bin/activate
+```

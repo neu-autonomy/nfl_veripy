@@ -60,8 +60,8 @@ def run_simulation(At, bt, ct, dt,
                 if clip_control:
                     u_raw = u
                     u = np.clip(u, u_min, u_max)
-                    if u != u_raw:
-                        this_colors[step+1] = [0,0,0]
+                    # if u != u_raw:
+                    #     this_colors[step+1] = [0,0,0]
                 if collect_data:
                     xs[dataset_index, :] = x[step,:]
                     us[dataset_index] = u

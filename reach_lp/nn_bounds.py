@@ -121,9 +121,9 @@ class BoundClosedLoopController(BoundSequential):
             ##########
 
             if self.u_limits is not None:
-                lower_A_with_dyn, upper_A_with_dyn, lower_sum_b_with_dyn, upper_sum_b_with_dyn = self._add_dynamics(lower_A, upper_A, lower_sum_b, upper_sum_b)
-                lb = self._get_concrete_bound3(lower_A, upper_A, lower_sum_b, upper_sum_b, lower_A_with_dyn, lower_sum_b_with_dyn, sign = -1, x_U=x_U, x_L=x_L, norm=norm)
-                ub = self._get_concrete_bound3(lower_A, upper_A, lower_sum_b, upper_sum_b, upper_A_with_dyn, upper_sum_b_with_dyn, sign = +1, x_U=x_U, x_L=x_L, norm=norm)
+                # lb = self._get_concrete_bound3(lower_A, upper_A, lower_sum_b, upper_sum_b, sign = -1)
+                lb = -5.
+                ub = self._get_concrete_bound3(lower_A, upper_A, lower_sum_b, upper_sum_b)
             else:
                 # lower_A_with_dyn, upper_A_with_dyn, lower_sum_b_with_dyn, upper_sum_b_with_dyn = lower_A, upper_A, lower_sum_b, upper_sum_b 
                 lower_A_with_dyn, upper_A_with_dyn, lower_sum_b_with_dyn, upper_sum_b_with_dyn = self._add_dynamics(lower_A, upper_A, lower_sum_b, upper_sum_b)
@@ -149,8 +149,6 @@ class BoundClosedLoopController(BoundSequential):
         # print(self.A_in.shape)
         # print(self.b_in.shape)
         # print(A.shape)
-
-        u_min = -1; u_max = 1
 
         A_constr = self.A_in
         b = self.b_in
@@ -181,125 +179,64 @@ class BoundClosedLoopController(BoundSequential):
         return bound
 
     # sign = +1: upper bound, sign = -1: lower bound
-    def _get_concrete_bound3(self, lower_A, upper_A, lower_sum_b, upper_sum_b, A, sum_b, x_U=None, x_L=None, norm=np.inf, sign = -1):
-        if A is None:
-            return None
-        A = A.view(A.size(0), A.size(1), -1)
-        logger.debug('Final A: %s', A.size())
-
-        A_constr = self.A_in
-        b = self.b_in
-        c = A.data.numpy().squeeze()
-        n = c.shape[0]
+    def _get_concrete_bound3(self, lower_A, upper_A, lower_sum_b, upper_sum_b):
 
         u_min, u_max = self.u_limits
 
         num_inputs = 1
-        u = cp.Variable(num_inputs, name='u')
-        x = cp.Variable(n, name='x')
+        num_states = 2
+        x = cp.Variable(num_states, name='x')
 
         constraints = []
-
-        flip = torch.matmul(self.A_out, self.b_dyn) < 0
-        if flip:
-            # print("flip")
-            upsilon = lower_A
-            psi = lower_sum_b
-            xi = upper_A
-            gamma = upper_sum_b
-        else:
-            # print('dont flip')
-            upsilon = upper_A
-            psi = upper_sum_b
-            xi = lower_A
-            gamma = lower_sum_b
+        constraints += [self.A_in @ x <= self.b_in]
 
         upper_A_np = upper_A.data.numpy().squeeze()
         lower_A_np = lower_A.data.numpy().squeeze()
         upper_sum_b_np = upper_sum_b.data.numpy().squeeze()
         lower_sum_b_np = lower_sum_b.data.numpy().squeeze()
 
-        upsilon_np = upsilon.data.numpy().squeeze()
-        psi_np = psi.data.numpy().squeeze()
-        xi_np = xi.data.numpy().squeeze()
-        gamma_np = gamma.data.numpy().squeeze()
-
-        # print(upper_A_np.shape)
-        # print(x.shape)
-        # print(upper_sum_b_np.shape)
-        # print(u.shape)
-
-        # print((upper_A_np@x).shape)
-
-        # flip = torch.matmul(self.A_out, self.b_dyn) < 0
-        # if flip:
-        #     constraints += [u <= lower_A_np*x+lower_sum_b_np]
-        #     constraints += [u >= upper_A_np*x+upper_sum_b_np]
-        # else:
-        #     constraints += [u <= upper_A_np*x+upper_sum_b_np]
-        #     constraints += [u >= lower_A_np*x+lower_sum_b_np]
-
-        # np.array([upper_A_np@x+upper_sum_b_np, 0.01])
-
-        pi_u = upsilon_np@x+psi_np
-        pi_l = xi_np@x+gamma_np
-        # pi_u = upper_A_np@x+upper_sum_b_np
-        # pi_l = lower_A_np@x+lower_sum_b_np
-
-        # u_upper = cp.Variable(2)
-        # u_lower = cp.Variable(2)
-        # constraints += [u_upper[0] == pi_u]
-        # constraints += [u_upper[1] == u_max]
-        # constraints += [u_lower[0] == pi_l]
-        # constraints += [u_lower[1] == u_min]
-
-        # if flip:
-        #     constraints += [u >= pi_l]
-
-        # else:
-        #     constraints += [u <= pi_u]
-
-        if sign == 1:
-            constraints += [u <= pi_u]
-            # constraints += [u <= u_max]
-            # constraints += [u == pi_u]
-            # constraints += [u == cp.minimum(u_max, pi_u)]
-        elif sign == -1:
-            constraints += [u >= pi_l]
-            # constraints += [u >= u_min]
-            # constraints += [u == cp.maximum(u_min, pi_l)]
-
-        # if sign == -1:
-        #     constraints += [u <= pi_u]
-        #     # constraints += [u >= pi_l]
-
-        # elif sign == 1:
-        #     constraints += [u >= pi_l]
-        #     # constraints += [u <= pi_u]
-
-        # constraints += [u <= pi_u]
-        # constraints += [u >= pi_l]
-
-        # constraints += [u <= u_max]
-        # constraints += [u >= u_min]
-
         A_dyn_np = self.A_dyn.data.numpy().squeeze()
         b_dyn_np = self.b_dyn.data.numpy().squeeze()
         A_out_np = self.A_out.data.numpy().squeeze()
 
-        cost = A_out_np@(A_dyn_np@x+b_dyn_np@u)
+        pi_l = lower_A_np@x+lower_sum_b_np
+        pi_u = upper_A_np@x+upper_sum_b_np
 
-        constraints += [A_constr @ x <= b]
-        if sign == 1:
-            objective = cp.Maximize(cost)
-        elif sign == -1:
-            objective = cp.Minimize(cost)
+        state_cost = A_out_np@(A_dyn_np@x)
 
+        if np.dot(A_out_np, b_dyn_np) >= 0:
+            
+            u = cp.minimum(u_max, pi_u)
+            u2 = u_min
+        else:
+            u = cp.maximum(u_min, pi_l)
+            u2 = u_max
+        u_cost = (A_out_np@b_dyn_np)*u
+        u2_cost = (A_out_np@b_dyn_np)*u2
+        cost = state_cost + u_cost
+        cost2 = state_cost + u2_cost
+
+        objective = cp.Maximize(cost)
+
+        # Solve problem respecting one bound on u
         prob = cp.Problem(objective, constraints)
         prob.solve()
         bound = prob.value
 
-        bound = bound
+        # Solve problem respecting other bound on u
+        # (if pi_u or pi_l exceeds other bound everywhere)
+        objective = cp.Maximize(cost2)
+        prob = cp.Problem(objective, constraints)
+        prob.solve()
+
+        if prob.value > bound:
+            bound = prob.value
+
+        # print("A_out_np:", A_out_np)
+        # print("x:", x.value)
+        # print(bound)
+        # print('---')
+
         return bound
 
     # sign = +1: upper bound, sign = -1: lower bound
@@ -356,108 +293,87 @@ if __name__ == '__main__':
     print("Loaded model from disk")
 
     torch_model = keras2torch(model, "torch_model")
+    
+    ###########################
+    # To get NN nominal prediction:
+    print('---')
+    print("Example of a simple forward pass for a single point input.")
+    x = [2.5, 0.2]
+    out = torch_model.forward(torch.Tensor([[x]]))
+    print("For x={}, NN output={}.".format(x,out))
+    print('---')
+    #
+    ###########################
+
+
+    ###########################
+    # To get NN output bounds:
+    print('---')
+    print("Example of bounding the NN output associated with an input set.")
     torch_model_ = BoundSequential.convert(torch_model, {"same-slope": True})
-    torch_model__ = BoundClosedLoopController.convert(torch_model, {"same-slope": True},
-        A_dyn=torch.Tensor([[[1., 1.], [0., 1.]]]), b_dyn=torch.Tensor([[[0.5], [1.0]]]), c_dyn=[])
-
-    # x = [2.5, 0.2]
-    # print("keras:", model.predict(np.expand_dims(np.array(x), axis=0)))
-    # print("torch:", torch_model.forward(torch.Tensor([[x]])))
-    # print("torch:", torch_model_.forward(torch.Tensor([[x]])))
-
-    # np.random.seed(0)
-    # all_eps = np.linspace(0, 1.0, num=10)
-    # for eps in all_eps:
-    #     for i in range(10):
-    #         x0_min = np.random.uniform(2.5, 3.0)
-    #         x0_max = x0_min + eps
-    #         x1_min = np.random.uniform(-0.5, 0.5)
-    #         x1_max = x1_min + eps
-
     x0_min, x0_max, x1_min, x1_max = [2.5, 3.0, -0.25, 0.25]
 
-    # x0_t1_max, tmp, x0_t1_min, tmp2 = torch_model__.full_backward_range(norm=np.inf,
-    #                             x_U=torch.Tensor([[x0_max, x1_max]]),
-    #                             x_L=torch.Tensor([[x0_min, x1_min]]),
-    #                             upper=True, lower=True, C=torch.Tensor([[[1]]]),
-    #                             A_out=torch.Tensor([[1,0]]))
-    # x0_t1_max_, tmp, x0_t1_min_, tmp2 = torch_model__.full_backward_range(norm=np.inf,
-    #                             x_U=torch.Tensor([[x0_max, x1_max]]),
-    #                             x_L=torch.Tensor([[x0_min, x1_min]]),
-    #                             upper=True, lower=True, C=torch.Tensor([[[1]]]),
-    #                             A_out=torch.Tensor([[-1,0]]))
-
-    x0_t1_max__, tmp, x0_t1_min__, tmp2 = torch_model__.full_backward_range(norm=np.inf,
+    # Evaluate CROWN bounds
+    out_max_crown, _, out_min_crown, _ = torch_model_.full_backward_range(norm=np.inf,
                                 x_U=torch.Tensor([[x0_max, x1_max]]),
                                 x_L=torch.Tensor([[x0_min, x1_min]]),
-                                upper=True, lower=True, C=torch.Tensor([[[1]]]),
-                                A_out=torch.Tensor([[1,0]]),
-                                A_in=np.array([[-1,  0],
-                                            [ 1,  0],
-                                            [ 0, -1],
-                                            [ 0,  1]]),
-                                b_in=np.array([-2.5 ,  3.  ,  0.25,  0.25]))
+                                upper=True, lower=True,
+                                C=torch.Tensor([[[1]]]),
+                                )
 
-    print('-------')
+    # Sample a grid of pts from the input set, to get exact NN output polytope
+    x0 = np.linspace(x0_min, x0_max, num=10)
+    x1 = np.linspace(x1_min, x1_max, num=10)
+    xx,yy = np.meshgrid(x0, x1)
+    pts = np.reshape(np.dstack([xx,yy]), (-1,2))
+    sampled_outputs = torch_model.forward(torch.Tensor(pts))
 
-    x0_t1_max___, tmp, x0_t1_min___, tmp2 = torch_model__.full_backward_range(norm=np.inf,
-                                x_U=torch.Tensor([[x0_max, x1_max]]),
-                                x_L=torch.Tensor([[x0_min, x1_min]]),
-                                upper=True, lower=True, C=torch.Tensor([[[1]]]),
-                                A_out=torch.Tensor([[-1,0]]),
-                                A_in=np.array([[-1,  0],
-                                            [ 1,  0],
-                                            [ 0, -1],
-                                            [ 0,  1]]),
-                                b_in=np.array([-2.5 ,  3.  ,  0.25,  0.25]))
+    # Print and compare the two bounds numerically    
+    sampled_output_min = np.min(sampled_outputs.data.numpy())
+    sampled_output_max = np.max(sampled_outputs.data.numpy())
+    crown_min = out_min_crown.data.numpy()[0,0]
+    crown_max = out_max_crown.data.numpy()[0,0]
+    print("The sampled outputs lie between: [{},{}]".format(
+        sampled_output_min, sampled_output_max))
+    print("CROWN bounds are: [{},{}]".format(
+        crown_min, crown_max))
+    conservatism_above = crown_max - sampled_output_max
+    conservatism_below = sampled_output_min - crown_min
+    print("Over-conservatism: [{},{}]".format(
+        conservatism_below, conservatism_above))
+    print("^ These should both be positive! {}".format(
+        "They are :)" if conservatism_above>=0 and conservatism_below>=0 else "*** THEY AREN'T ***"))
 
-    # x1_t1_max, tmp, x1_t1_min, tmp2 = torch_model__.full_backward_range(norm=np.inf,
+    # Plot vertical lines for CROWN bounds, x's for sampled outputs
+    plt.axvline(out_min_crown.data.numpy()[0,0], ls='--', label='CROWN Bounds')
+    plt.axvline(out_max_crown.data.numpy()[0,0], ls='--')
+    plt.scatter(sampled_outputs.data.numpy(), np.zeros(pts.shape[0]), marker='x', label="Samples")
+
+    plt.legend()
+    print("Showing plot...")
+    plt.show()
+    print('---')
+
+    #
+    ###########################
+
+
+    ###########################
+    # # To get closed loop system bounds (using dynamics):
+    # torch_model__ = BoundClosedLoopController.convert(torch_model, {"same-slope": True},
+    #     A_dyn=torch.Tensor([[[1., 1.], [0., 1.]]]), b_dyn=torch.Tensor([[[0.5], [1.0]]]), c_dyn=[])
+    # x0_min, x0_max, x1_min, x1_max = [2.5, 3.0, -0.25, 0.25]
+    # x0_t1_max, _, x0_t1_min, _ = torch_model__.full_backward_range(norm=np.inf,
     #                             x_U=torch.Tensor([[x0_max, x1_max]]),
     #                             x_L=torch.Tensor([[x0_min, x1_min]]),
     #                             upper=True, lower=True, C=torch.Tensor([[[1]]]),
-    #                             A_out=torch.Tensor([[0., 1.]]))
+    #                             A_out=torch.Tensor([[-1,0]]),
+    #                             A_in=np.array([[-1,  0],
+    #                                         [ 1,  0],
+    #                                         [ 0, -1],
+    #                                         [ 0,  1]]),
+    #                             b_in=np.array([-2.5 ,  3.  ,  0.25,  0.25]))
     # print("x0:", x0_t1_min.data.numpy()[0,0], x0_t1_max.data.numpy()[0,0])
-    # print("x0:", x0_t1_min_.data.numpy()[0,0], x0_t1_max_.data.numpy()[0,0])
-    print("x0:", x0_t1_min__.data.numpy()[0,0], x0_t1_max__.data.numpy()[0,0])
-    print('-------')
-    print("x0:", x0_t1_min___.data.numpy()[0,0], x0_t1_max___.data.numpy()[0,0])
-    # print("x0:", x0_t1_min__.data.numpy()[0,0], x0_t1_max__.data.numpy()[0,0])
-    # print("x1:", x1_t1_min.data.numpy()[0,0], x1_t1_max.data.numpy()[0,0])
 
-
-
-
-            # # print(out_min2.data.numpy())
-            # u_min_crown = out_min2.data.numpy()[0,0]
-            # u_max_crown = out_max2.data.numpy()[0,0]
-
-            # x0 = np.linspace(x0_min, x0_max, num=10)
-            # x1 = np.linspace(x1_min, x1_max, num=10)
-            # xx,yy = np.meshgrid(x0, x1)
-            # pts = np.reshape(np.dstack([xx,yy]), (-1,2))
-            # sampled_outputs_keras = model.predict(pts)
-            # sampled_outputs = torch_model_.forward(torch.Tensor(pts))
-            # u_max_true = np.max(sampled_outputs.data.numpy())
-            # u_min_true = np.min(sampled_outputs.data.numpy())
-            # u_max_keras = np.max(sampled_outputs_keras)
-            # u_min_keras = np.min(sampled_outputs_keras)
-
-            # print("True: [{},{}]".format(u_min_true, u_max_true))
-            # print("Kera: [{},{}]".format(u_min_keras, u_max_keras))
-            # print("CROW: [{},{}]".format(u_min_crown, u_max_crown))
-            # print('---')
-
-            # if u_min_true < u_min_crown-1e-5 or u_max_true > u_max_crown+1e-5:
-            #     assert(0)
-
-
-    # x0_min, x0_max, x1_min, x1_max = [0.2, 0.3, 0.1, 0.2]
-    # x0_min, x0_max, x1_min, x1_max = [0.79, 0.8, 1.19, 1.2]
-    
-
-    # plt.scatter(out_min.data.numpy()[0], [0], marker='x')
-    # plt.scatter(out_max.data.numpy()[0], [0], marker='x')
-    # plt.scatter(out_min2.data.numpy()[0], [0], marker='o')
-    # plt.scatter(out_max2.data.numpy()[0], [0], marker='o')
-    # plt.scatter(sampled_outputs.data.numpy(), np.zeros(pts.shape[0]), marker='x')
-    # plt.show()
+    #
+    ###########################
