@@ -73,9 +73,10 @@ def simulation_guided_partition(model, input_range, num_outputs, viz=False, boun
     
     return u_e
 
-def uniform_partition(model, input_range, num_outputs, viz=False, bound_method="ibp"):
+def uniform_partition(model, input_range, num_outputs, viz=False, bound_method="ibp", num_partitions=None):
     num_inputs = input_range.shape[0]
-    num_partitions = 16*np.ones((num_inputs,), dtype=int)
+    if num_partitions is None:
+        num_partitions = 16*np.ones((num_inputs,), dtype=int)
     slope = np.divide((input_range[:,1] - input_range[:,0]), num_partitions)
     
     ranges = []
@@ -176,94 +177,41 @@ def sect(input_range, num_sects=3, select='random'):
         input_ranges[i+1,input_dim_to_sect,0] = new_endpt
     return input_ranges
 
-def xiang2020example(bound_method="ibp"):
+def xiang2020example(input_range=None, model=None, bound_method="ibp"):
     
-    torch_model = model_xiang_2020_robot_arm()
-    torch_model_ = BoundSequential.convert(torch_model, {"same-slope": True})
+    if model is None:
+        torch_model = model_xiang_2020_robot_arm()
+        torch_model_ = BoundSequential.convert(torch_model, {"same-slope": True})
+        num_outputs = 2
 
-    input_range = np.array([ # (num_inputs, 2)
-                      [np.pi/3, 2*np.pi/3], # x0min, x0max
-                      [np.pi/3, 2*np.pi/3] # x1min, x1max
-    ])
-    num_outputs = 2
+    if input_range is None:
+        input_range = np.array([ # (num_inputs, 2)
+                          [np.pi/3, 2*np.pi/3], # x0min, x0max
+                          [np.pi/3, 2*np.pi/3] # x1min, x1max
+        ])
     
     output_range_simulation_guided = simulation_guided_partition(torch_model_, input_range, num_outputs, viz=True, bound_method=bound_method)
     output_range_uniform = uniform_partition(torch_model_, input_range, num_outputs, viz=True, bound_method=bound_method)
 
 
-def xiang2017example():
-    '''
-    Goal: Confirm that IBP yields the same bounds as Xiang's method for propagating uncertainty via maximum sensitivity
-    '''
-    
-    torch_model = model_xiang_2017()
-    torch_model = model_xiang_2020_robot_arm()
+def xiang2017example(input_range=None, model=None, num_partitions=None):
+    if model is None:
+        torch_model = model_xiang_2017()
+        torch_model_ = BoundSequential.convert(torch_model, {"same-slope": True})
+        num_outputs = 2
 
-    # Example querying a single pt
-    x = torch.Tensor([0,0])
-    # print(torch_model(x))
+    if input_range is None:
+        input_range = np.array([ # (num_inputs, 2)
+                          [0., 1.], # x0min, x0max
+                          [0., 1.] # x1min, x1max
+        ])
 
-    # Define input set
-    x0_min, x0_max, x1_min, x1_max = [np.pi/3, 2*np.pi/3, np.pi/3, 2*np.pi/3]
-    # x0_min, x0_max, x1_min, x1_max = [0, 1, 0, 1]
+    if num_partitions is None:
+        num_inputs = input_range.shape[0]
+        num_partitions = 5*np.ones((num_inputs,), dtype=int)
 
-    # Sample a grid of pts from the input set, to get exact NN output polytope
-    x0 = np.linspace(x0_min, x0_max, num=100)
-    x1 = np.linspace(x1_min, x1_max, num=100)
-    xx,yy = np.meshgrid(x0, x1)
-    pts = np.reshape(np.dstack([xx,yy]), (-1,2))
-    sampled_outputs = torch_model.forward(torch.Tensor(pts)).data.numpy()
-
-    plt.scatter(sampled_outputs[:,0], sampled_outputs[:,1], marker='.', label="Samples")
-
-    torch_model_ = BoundSequential.convert(torch_model, {"same-slope": True})
-
-    # Evaluate IBP bounds
-    out_max_ibp_x0, out_min_ibp_x0 = torch_model_.interval_range(norm=np.inf,
-                                x_U=torch.Tensor([[x0_max, x1_max]]),
-                                x_L=torch.Tensor([[x0_min, x1_min]]),
-                                C=torch.Tensor([[[1, 0]]]),
-                                )[:2]
-    out_max_ibp_x1, out_min_ibp_x1 = torch_model_.interval_range(norm=np.inf,
-                                x_U=torch.Tensor([[x0_max, x1_max]]),
-                                x_L=torch.Tensor([[x0_min, x1_min]]),
-                                C=torch.Tensor([[[0, 1]]]),
-                                )[:2]
-    # print(out_max_ibp_x0, out_max_ibp_x1)
-    # print(out_min_ibp_x0, out_min_ibp_x1)
-
-    plt.axvline(out_min_ibp_x0.data.numpy()[0,0], ls='--')
-    plt.axvline(out_max_ibp_x0.data.numpy()[0,0], ls='--')
-    plt.axhline(out_min_ibp_x1.data.numpy()[0,0], ls='--')
-    plt.axhline(out_max_ibp_x1.data.numpy()[0,0], ls='--')
-
-    num_x0 = 3; num_x1 = 3;
-    for i in range(num_x0):
-        for j in range(num_x1):
-            x0_slope = (x0_max - x0_min)/num_x0
-            x1_slope = (x1_max - x1_min)/num_x1
-            init_state_range_ = np.array([[x0_min+x0_slope*i, x0_min+x0_slope*(i+1)],
-                                        [x1_min+x1_slope*j, x1_min+x1_slope*(j+1)]])
-            # Evaluate IBP bounds
-            out_max_ibp_x0, out_min_ibp_x0 = torch_model_.interval_range(norm=np.inf,
-                                        x_U=torch.Tensor([init_state_range_[:,1]]),
-                                        x_L=torch.Tensor([init_state_range_[:,0]]),
-                                        C=torch.Tensor([[[1, 0]]]),
-                                        )[:2]
-            out_max_ibp_x1, out_min_ibp_x1 = torch_model_.interval_range(norm=np.inf,
-                                        x_U=torch.Tensor([init_state_range_[:,1]]),
-                                        x_L=torch.Tensor([init_state_range_[:,0]]),
-                                        C=torch.Tensor([[[0, 1]]]),
-                                        )[:2]
-            # plt.axvline(out_min_ibp_x0.data.numpy()[0,0])
-            # plt.axvline(out_max_ibp_x0.data.numpy()[0,0])
-            # plt.axhline(out_min_ibp_x1.data.numpy()[0,0])
-            # plt.axhline(out_max_ibp_x1.data.numpy()[0,0])
-            rect = Rectangle([out_min_ibp_x0, out_min_ibp_x1], out_max_ibp_x0-out_min_ibp_x0, out_max_ibp_x1-out_min_ibp_x1,
-                linewidth=1,edgecolor='r',facecolor='none')
-            plt.gca().add_patch(rect)
-
-    plt.show()
+    bound_method = "ibp"
+    output_range_uniform = uniform_partition(torch_model_, input_range, num_outputs, viz=True, bound_method=bound_method, num_partitions=num_partitions)
 
 if __name__ == '__main__':
 	xiang2017example()
