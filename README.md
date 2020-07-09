@@ -11,6 +11,8 @@ In the root of this directory:
 ```bash
 python -m pip install -e .
 python -m pip install -e crown_ibp
+python -m pip install -e partition
+python -m pip install -e robust_sdp
 ```
 
 Now you can import things like:

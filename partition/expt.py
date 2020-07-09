@@ -61,14 +61,14 @@ def torch2net(torch_model):
     return net
 
 
-def robust_sdp(net=None, epsilon=0.1, viz=False, input_range=None):
+def robust_sdp(net=None, epsilon=0.1, viz=False, input_range=None, verbose=True):
 
     if net is None:
         in_dim, out_dim = 2, 2
         hidden_dim = 5
         net = Network([in_dim, hidden_dim, out_dim], 'relu', 'rand', load_weights=False)
 
-    lower, upper, out_data = test_robustness(net, epsilon=epsilon, input_range=input_range, parallel=True)
+    lower, upper, out_data = test_robustness(net, epsilon=epsilon, input_range=input_range, parallel=True, verbose=verbose)
     if viz:
         plot_robust_sdp(lower, upper, out_data)
 
@@ -87,8 +87,6 @@ def plot_robust_sdp(lower, upper, out_data):
 def example_robust_sdp(viz=False):
     torch_model = model_xiang_2020_robot_arm()
     net = torch2net(torch_model)
-    print(net)
-    print('success.')
 
     # data = np.array([[1.5, 2.5], [2.,3.], [3.,5.]])
     # torch_out = torch_model(torch.Tensor([data]))
@@ -101,7 +99,7 @@ def example_robust_sdp(viz=False):
                           [np.pi/3, 2*np.pi/3], # x0min, x0max
                           [np.pi/3, 2*np.pi/3] # x1min, x1max
         ])
-    robust_sdp(net=net, input_range=input_range, viz=viz)
+    robust_sdp(net=net, input_range=input_range, viz=viz, verbose=True)
 
 if __name__ == '__main__':
     example_robust_sdp(viz=True)

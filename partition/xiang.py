@@ -3,6 +3,8 @@ import numpy as np
 from partition.models import model_xiang_2017, model_xiang_2020_robot_arm
 from crown_ibp.bound_layers import BoundSequential
 
+from partition.expt import robust_sdp, torch2net
+
 import matplotlib.pyplot as plt
 from matplotlib.patches import Rectangle
 from itertools import product
@@ -99,7 +101,10 @@ def uniform_partition(model, input_range, num_outputs, viz=False, bound_method="
     if viz:
         N = 1000
         sampled_inputs = np.random.uniform(input_range[:,0], input_range[:,1], (N,num_inputs,))
-        sampled_outputs = model(torch.Tensor(sampled_inputs), method_opt=None).data.numpy()
+        if bound_method in ["crown", "ibp"]:
+            sampled_outputs = model(torch.Tensor(sampled_inputs), method_opt=None).data.numpy()
+        elif bound_method == "sdp":
+            sampled_outputs = model.forward_prop(sampled_inputs.T).T
         visualize_partitions(sampled_outputs, u_e, input_range, interior_M=ranges)
     
     return u_e
@@ -146,18 +151,22 @@ def get_output_range(model, input_range, num_outputs, bound_method="ibp"):
     method_dict = {
         "crown": "full_backward_range",
         "ibp": "interval_range",
+        "sdp": "sdp"
     }
-    output_range = np.empty((num_outputs,2))
-    for out_index in range(num_outputs):
-        C = torch.zeros((1,1,num_outputs))
-        C[0,0,out_index] = 1
-        out_max, out_min = model(norm=np.inf,
-                                    x_U=torch.Tensor([input_range[:,1]]),
-                                    x_L=torch.Tensor([input_range[:,0]]),
-                                    C=C,
-                                    method_opt=method_dict[bound_method],
-                                    )[:2]
-        output_range[out_index,:] = [out_min, out_max]
+    if bound_method in ["crown", "ibp"]:
+        output_range = np.empty((num_outputs,2))
+        for out_index in range(num_outputs):
+            C = torch.zeros((1,1,num_outputs))
+            C[0,0,out_index] = 1
+            out_max, out_min = model(norm=np.inf,
+                                        x_U=torch.Tensor([input_range[:,1]]),
+                                        x_L=torch.Tensor([input_range[:,0]]),
+                                        C=C,
+                                        method_opt=method_dict[bound_method],
+                                        )[:2]
+            output_range[out_index,:] = [out_min, out_max]
+    elif bound_method == "sdp":
+        output_range = robust_sdp(net=model, input_range=input_range, verbose=False, viz=False)
     return output_range
 
 def bisect(input_range):
@@ -177,12 +186,15 @@ def sect(input_range, num_sects=3, select='random'):
         input_ranges[i+1,input_dim_to_sect,0] = new_endpt
     return input_ranges
 
-def xiang2020example(input_range=None, model=None, bound_method="ibp"):
+def xiang2020example(input_range=None, model=None, bound_method="ibp", partition_methods=["simulation_guided", "uniform"]):
     
     if model is None:
         torch_model = model_xiang_2020_robot_arm()
         torch_model_ = BoundSequential.convert(torch_model, {"same-slope": True})
         num_outputs = 2
+
+        if bound_method == "sdp":
+            torch_model_ = torch2net(torch_model)
 
     if input_range is None:
         input_range = np.array([ # (num_inputs, 2)
@@ -190,9 +202,14 @@ def xiang2020example(input_range=None, model=None, bound_method="ibp"):
                           [np.pi/3, 2*np.pi/3] # x1min, x1max
         ])
     
-    output_range_simulation_guided = simulation_guided_partition(torch_model_, input_range, num_outputs, viz=True, bound_method=bound_method)
-    output_range_uniform = uniform_partition(torch_model_, input_range, num_outputs, viz=True, bound_method=bound_method)
-
+    for partition_method in partition_methods:
+        if partition_method == "simulation_guided":
+            output_range_simulation_guided = simulation_guided_partition(torch_model_, input_range, num_outputs, viz=True, bound_method=bound_method)
+        elif partition_method == "uniform":
+            output_range_uniform = uniform_partition(torch_model_, input_range, num_outputs, viz=True, bound_method=bound_method)
+        else:
+            print("Don't know that partition_method.")
+            assert(0)
 
 def xiang2017example(input_range=None, model=None, num_partitions=None):
     if model is None:
@@ -216,8 +233,10 @@ def xiang2017example(input_range=None, model=None, num_partitions=None):
 if __name__ == '__main__':
 	xiang2017example()
 
-	print("CROWN...")
-	xiang2020example(bound_method="crown")
+    print("CROWN...")
+    xiang2020example(bound_method="crown")
 	print("IBP...")
 	xiang2020example(bound_method="ibp")
+    print("SDP...")
+    xiang2020example(bound_method="sdp", partition_methods=["uniform"])
 
