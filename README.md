@@ -52,4 +52,7 @@ julia
 # Press `]`
 add https://github.com/sisl/NeuralVerification.jl
 ```
-
+- Install pyjulia
+```bash
+python -m pip install julia
+```
