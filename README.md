@@ -37,3 +37,19 @@ This will pop up with:
 ```bash
 source ~/code/gym-collision-avoidance/venv/bin/activate
 ```
+
+### getting julia code to work
+
+- Install julia via https://julialang.org/downloads
+- Be sure to create a pointer to the executable (https://julialang.org/downloads/platform/)
+```bash
+# For OSX:
+ln -s /Applications/Julia-<version>.app/Contents/Resources/julia/bin/julia /usr/local/bin/julia
+```
+- Install NeuralVerification.jl from Stanford's github
+```bash
+julia
+# Press `]`
+add https://github.com/sisl/NeuralVerification.jl
+```
+

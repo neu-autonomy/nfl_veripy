@@ -5,6 +5,10 @@ from crown_ibp.bound_layers import BoundSequential
 
 from partition.expt import robust_sdp, torch2net
 
+use_julia = False
+if use_julia:
+    from partition.jul import julia_output_range, torch2julianet, query_model
+
 import matplotlib.pyplot as plt
 from matplotlib.patches import Rectangle
 from itertools import product
@@ -105,6 +109,11 @@ def uniform_partition(model, input_range, num_outputs, viz=False, bound_method="
             sampled_outputs = model(torch.Tensor(sampled_inputs), method_opt=None).data.numpy()
         elif bound_method == "sdp":
             sampled_outputs = model.forward_prop(sampled_inputs.T).T
+        elif bound_method in ["MaxSens"]:
+            sampled_outputs = query_model(model, data=sampled_inputs)
+        else:
+            print("dont support that bound_method.")
+            assert(0)
         visualize_partitions(sampled_outputs, u_e, input_range, interior_M=ranges)
     
     return u_e
@@ -151,7 +160,8 @@ def get_output_range(model, input_range, num_outputs, bound_method="ibp"):
     method_dict = {
         "crown": "full_backward_range",
         "ibp": "interval_range",
-        "sdp": "sdp"
+        "sdp": "sdp",
+        "MaxSens": "MaxSens",
     }
     if bound_method in ["crown", "ibp"]:
         output_range = np.empty((num_outputs,2))
@@ -167,6 +177,8 @@ def get_output_range(model, input_range, num_outputs, bound_method="ibp"):
             output_range[out_index,:] = [out_min, out_max]
     elif bound_method == "sdp":
         output_range = robust_sdp(net=model, input_range=input_range, verbose=False, viz=False)
+    elif bound_method in ["MaxSens"]:
+        output_range = julia_output_range(net=model, input_range=input_range)
     return output_range
 
 def bisect(input_range):
@@ -190,23 +202,35 @@ def xiang2020example(input_range=None, model=None, bound_method="ibp", partition
     
     if model is None:
         torch_model = model_xiang_2020_robot_arm()
-        torch_model_ = BoundSequential.convert(torch_model, {"same-slope": True})
+        num_inputs = 2
         num_outputs = 2
 
-        if bound_method == "sdp":
+        if bound_method in ["crown", "ibp"]:
+            torch_model_ = BoundSequential.convert(torch_model, {"same-slope": True})
+        elif bound_method == "sdp":
             torch_model_ = torch2net(torch_model)
+        elif bound_method in ["MaxSens"]:
+            torch_model_ = torch2julianet(torch_model)
+        else:
+            print("Dont support that bound_method yet.")
+            assert(0)
+
+        
 
     if input_range is None:
         input_range = np.array([ # (num_inputs, 2)
                           [np.pi/3, 2*np.pi/3], # x0min, x0max
                           [np.pi/3, 2*np.pi/3] # x1min, x1max
         ])
-    
+
     for partition_method in partition_methods:
         if partition_method == "simulation_guided":
             output_range_simulation_guided = simulation_guided_partition(torch_model_, input_range, num_outputs, viz=True, bound_method=bound_method)
         elif partition_method == "uniform":
             output_range_uniform = uniform_partition(torch_model_, input_range, num_outputs, viz=True, bound_method=bound_method)
+        elif partition_method == "none":
+            output_range_none = uniform_partition(torch_model_, input_range, num_outputs, viz=True, bound_method=bound_method,
+                num_partitions=np.ones((num_inputs,), dtype=int))
         else:
             print("Don't know that partition_method.")
             assert(0)
@@ -231,12 +255,15 @@ def xiang2017example(input_range=None, model=None, num_partitions=None):
     output_range_uniform = uniform_partition(torch_model_, input_range, num_outputs, viz=True, bound_method=bound_method, num_partitions=num_partitions)
 
 if __name__ == '__main__':
-	xiang2017example()
+    xiang2017example()
+
+    # print("Julia...")
+    # xiang2020example(bound_method="MaxSens", partition_methods=["none"])
 
     print("CROWN...")
     xiang2020example(bound_method="crown")
-	print("IBP...")
-	xiang2020example(bound_method="ibp")
+    print("IBP...")
+    xiang2020example(bound_method="ibp", partition_methods=["none"])
     print("SDP...")
     xiang2020example(bound_method="sdp", partition_methods=["uniform"])
 

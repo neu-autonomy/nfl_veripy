@@ -11,3 +11,4 @@ data
 *.ipynb_checkpoints/
 
 */torch_model
+tmp.txt
