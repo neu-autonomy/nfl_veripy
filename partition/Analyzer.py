@@ -131,9 +131,21 @@ class Analyzer:
 #         df.append()
 
 if __name__ == '__main__':
+    # Import all deps
     from partition.xiang import model_xiang_2020_robot_arm
     import numpy as np
     from partition.Partition import *
+    from partition.Propagator import *
+    partitioner_dict = {
+        "None": NoPartitioner,
+        "Uniform": UniformPartitioner,
+    }
+    propagator_dict = {
+        "IBP": IBPPropagator,
+    }
+
+
+    # Choose experiment settings
     torch_model = model_xiang_2020_robot_arm()
     input_range = np.array([ # (num_inputs, 2)
                       [np.pi/3, 2*np.pi/3], # x0min, x0max
@@ -144,14 +156,7 @@ if __name__ == '__main__':
     partitioner_hyperparams = {}
     propagator_hyperparams = {}
 
-    partitioner_dict = {
-        "None": NoPartitioner,
-        "Uniform": UniformPartitioner,
-    }
-    propagator_dict = {
-        "IBP": IBPPropagator,
-    }
-
+    # Run analysis & generate a plot
     analyzer = Analyzer(torch_model)
     analyzer.partitioner = partitioner_dict[partitioner](**partitioner_hyperparams)
     analyzer.propagator = propagator_dict[propagator](**propagator_hyperparams)
