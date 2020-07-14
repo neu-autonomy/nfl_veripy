@@ -125,27 +125,13 @@ def get_exact_output_range(df):
     output_range_exact = row_exact["output_range_estimate"].values[0]
     return output_range_exact
 
-def plot(df):
-    output_range_exact = get_exact_output_range(df)
-    for partitioner in df["partitioner"].unique():
-        for propagator in df["propagator"].unique():
-            if propagator == "EXACT" or partitioner == "EXACT": continue
-            df_ = df[(df["partitioner"] == partitioner) & (df["propagator"] == propagator)]
-            plt.semilogx(df_["num_partitions"].values, df_["output_area_error"], label=propagator+'-'+partitioner)
-    
-    plt.xlabel('Num Partitions')
-    plt.ylabel('Approximation Error')
-    plt.ylim(bottom=0)
-    plt.legend()
-    plt.show()
-
 def plot(df, stat):
     output_range_exact = get_exact_output_range(df)
     for partitioner in df["partitioner"].unique():
         for propagator in df["propagator"].unique():
             if propagator == "EXACT" or partitioner == "EXACT": continue
             df_ = df[(df["partitioner"] == partitioner) & (df["propagator"] == propagator)]
-            plt.semilogx(df_[stat].values, df_["output_area_error"],
+            plt.loglog(df_[stat].values, df_["output_area_error"],
                 marker=algs[partitioner]["marker"],
                 color=cm.get_cmap("tab20c")(4*algs[propagator]["color_ind"]+algs[partitioner]["color_ind"]),
                 label=propagator+'-'+partitioner)
@@ -191,7 +177,7 @@ algs ={
 if __name__ == '__main__':
 
     # Run an experiment
-    df = experiment()
+    # df = experiment()
 
     # If you want to plot w/o re-running the experiments, comment out the experiment line.
     if 'df' not in locals():
