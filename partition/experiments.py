@@ -1,6 +1,6 @@
 from importlib import reload
 import partition
-import partition.Partition
+import partition.Partitioner
 import partition.Analyzer
 import partition.Propagator
 from partition.xiang import model_xiang_2020_robot_arm
@@ -8,16 +8,25 @@ import numpy as np
 import pandas as pd
 import itertools
 import matplotlib.pyplot as plt
+from matplotlib import cm
+from datetime import datetime
+import os
+import glob
 
 partitioner_dict = {
-    "None": partition.Partition.NoPartitioner,
-    "Uniform": partition.Partition.UniformPartitioner,
-    "SimGuided": partition.Partition.SimGuidedPartitioner,
+    "None": partition.Partitioner.NoPartitioner,
+    "Uniform": partition.Partitioner.UniformPartitioner,
+    "SimGuided": partition.Partitioner.SimGuidedPartitioner,
+    "GreedySimGuided": partition.Partitioner.GreedySimGuidedPartitioner,
 }
 propagator_dict = {
     "IBP": partition.Propagator.IBPPropagator,
     "CROWN": partition.Propagator.CROWNPropagator,
 }
+
+save_dir = "{}/results".format(os.path.dirname(os.path.abspath(__file__)))
+os.makedirs(save_dir, exist_ok=True)
+
 def experiment():
     
     # Choose the model and input range
@@ -28,7 +37,7 @@ def experiment():
     ])
     
     # Select which algorithms and hyperparameters to evaluate
-    partitioners = ["Uniform", "SimGuided"]
+    partitioners = ["Uniform", "SimGuided", "GreedySimGuided"]
     propagators = ["IBP", "CROWN"]
     partitioner_hyperparams_to_use = {
         "Uniform":
@@ -39,7 +48,12 @@ def experiment():
             {
                 "tolerance_eps": [1.0, 0.5, 0.2, 0.1, 0.05, 0.01],
                 "num_simulations": [1000]
-            }
+            },
+        "GreedySimGuided":
+            {
+                "tolerance_eps": [1.0, 0.5, 0.2, 0.1, 0.05, 0.01],
+                "num_simulations": [1000]
+            },
     }
 
     # Auto-run combinations of algorithms & hyperparams, log results to pandas dataframe
@@ -63,6 +77,10 @@ def experiment():
         "propagator": "EXACT",
         "partitioner": "EXACT",
     }, ignore_index=True)
+
+    # Save the df in the "results" dir (so you don't have to re-run the expt)
+    current_datetime = datetime.now().strftime("%m-%d-%Y_%H-%M-%S")
+    df.to_pickle("{}/{}.pkl".format(save_dir, current_datetime))
 
     return df
 
@@ -122,7 +140,11 @@ def plot(df):
         for propagator in df["propagator"].unique():
             if propagator == "EXACT" or partitioner == "EXACT": continue
             df_ = df[(df["partitioner"] == partitioner) & (df["propagator"] == propagator)]
-            plt.semilogx(df_["num_propagator_calls"].values, df_["output_area_error"], '-'+algs[partitioner]["marker"], label=propagator+'-'+partitioner)
+
+            plt.semilogx(df_["num_propagator_calls"].values, df_["output_area_error"],
+                marker=algs[partitioner]["marker"],
+                color=cm.get_cmap("tab20c")(4*algs[propagator]["color_ind"]+algs[partitioner]["color_ind"]),
+                label=propagator+'-'+partitioner)
     
     plt.xlabel('Num Propagtor Calls')
     plt.ylabel('Approximation Error')
@@ -136,7 +158,10 @@ def plot2(df):
         for propagator in df["propagator"].unique():
             if propagator == "EXACT" or partitioner == "EXACT": continue
             df_ = df[(df["partitioner"] == partitioner) & (df["propagator"] == propagator)]
-            plt.semilogx(df_["num_partitions"].values, df_["output_area_error"],'-'+algs[partitioner]["marker"], label=propagator+'-'+partitioner)
+            plt.semilogx(df_["num_partitions"].values, df_["output_area_error"],
+                marker=algs[partitioner]["marker"],
+                color=cm.get_cmap("tab20c")(4*algs[propagator]["color_ind"]+algs[partitioner]["color_ind"]),
+                label=propagator+'-'+partitioner)
     
     plt.xlabel('Num Partitions')
     plt.ylabel('Approximation Error')
@@ -144,20 +169,56 @@ def plot2(df):
     plt.legend()
     plt.show()
 
-algs ={
-    "UniformPartitioner": {
-        "marker": "x",
-        "name": "Uniform"
-    },
-    "SimGuidedPartitioner": {
-        "marker": "o",
-        "name": "SimGuided"
-    }
+algs = {
+
+    
 }
 
 
+algs ={
+    "UniformPartitioner": {
+        "marker": "x",
+        "color_ind": 0,
+        "name": "Uniform",
+    },
+    "SimGuidedPartitioner": {
+        "marker": "o",
+        "color_ind": 1,
+        "name": "SimGuided",
+    },
+    "GreedySimGuidedPartitioner": {
+        "marker": "^",
+        "color_ind": 2,
+        "name": "GreedySimGuided",
+    },
+    "IBPPropagator": {
+        "color_ind": 0,
+        "name": "IBPPropagator",
+    },
+    "CROWNPropagator": {
+        "color_ind": 1,
+        "name": "CROWNPropagator",
+    },
+}
+
+"tab20c"
+
 if __name__ == '__main__':
+
+    # Run an experiment
     df = experiment()
+
+    # If you want to plot w/o re-running the experiments, comment out the experiment line.
+    if 'df' not in locals():
+        # If you know the path
+        latest_file = save_dir+"14-07-2020_18-56-40.pkl"
+
+        # If you want to look up most recently made df
+        list_of_files = glob.glob(save_dir+"/*.pkl")
+        latest_file = max(list_of_files, key=os.path.getctime)
+
+        df = pd.read_pickle(latest_file)
+
     add_approx_error_to_df(df)
     plot(df)
     plot2(df)
