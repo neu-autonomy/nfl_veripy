@@ -14,8 +14,8 @@ class NoPartitioner(Partitioner):
     def __init__(self):
         Partitioner.__init__(self)
 
-    def get_output_range(self, input_range):
-        output_range, info = self.propagator.get_output_range(input_range)
+    def get_output_range(self, input_range, propagator):
+        output_range, info = propagator.get_output_range(input_range)
         return output_range, info
 
 class UniformPartitioner(Partitioner):
@@ -27,24 +27,33 @@ class UniformPartitioner(Partitioner):
         info = {}
         num_propagator_calls = 0
 
-        num_inputs = input_range.shape[0]
-        num_outputs = 2
+        input_shape = input_range.shape[:-1]
         if num_partitions is None:
-            num_partitions = self.num_partitions*np.ones((num_inputs,), dtype=int)
-        slope = np.divide((input_range[:,1] - input_range[:,0]), num_partitions)
+            num_partitions = np.ones(input_shape, dtype=int)
+            if input_shape == self.num_partitions.shape:
+                num_partitions = self.num_partitions
+            elif len(input_shape) > 1:
+                num_partitions[0,0] = self.num_partitions
+            else:
+                num_partitions *= self.num_partitions
+        slope = np.divide((input_range[...,1] - input_range[...,0]), num_partitions)
         
         ranges = []
+        output_range = None
         
-        output_range = np.empty((num_outputs, 2))
-        output_range[:,0] = np.inf
-        output_range[:,1] = -np.inf
-        for element in product(*[range(num) for num in num_partitions]):
+        for element in product(*[range(num) for num in num_partitions.flatten()]):
+            element_ = np.array(element).reshape(input_shape)
             input_range_ = np.empty_like(input_range)
-            input_range_[:,0] = input_range[:,0]+np.multiply(element, slope)
-            input_range_[:,1] = input_range[:,0]+np.multiply(np.array(element)+1, slope)
+            input_range_[...,0] = input_range[...,0]+np.multiply(element_, slope)
+            input_range_[...,1] = input_range[...,0]+np.multiply(element_+1, slope)
             output_range_, info_ = propagator.get_output_range(input_range_)
             num_propagator_calls += 1
             
+            if output_range is None:
+                output_range = np.empty(output_range_.shape)
+                output_range[:,0] = np.inf
+                output_range[:,1] = -np.inf
+
             tmp = np.dstack([output_range, output_range_])
             output_range[:,1] = np.max(tmp[:,1,:], axis=1)
             output_range[:,0] = np.min(tmp[:,0,:], axis=1)
@@ -117,6 +126,7 @@ class SimGuidedPartitioner(Partitioner):
                     M.append((input_range_, output_range_))
                     break
 
+            visualize(output_range_)
 
         # Line 24
         if len(M) > 0:

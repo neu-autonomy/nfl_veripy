@@ -13,6 +13,7 @@ python -m pip install -e .
 python -m pip install -e crown_ibp
 python -m pip install -e partition
 python -m pip install -e robust_sdp
+python -m pip install -e auto_LIRPA
 ```
 
 Now you can import things like:
