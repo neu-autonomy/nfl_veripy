@@ -150,7 +150,7 @@ if __name__ == '__main__':
     # Import all deps
     from partition.xiang import model_xiang_2020_robot_arm
     import numpy as np
-    from partition.Partition import *
+    from partition.Partitioner import *
     from partition.Propagator import *
     partitioner_dict = {
         "None": NoPartitioner,

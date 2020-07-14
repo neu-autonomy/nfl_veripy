@@ -102,12 +102,10 @@ class SimGuidedPartitioner(Partitioner):
         u_e[:,0] = np.inf
         u_e[:,1] = -np.inf
         while len(M) != 0:
-            print('loop')
             input_range_, output_range_ = M.pop(0) # Line 9
 
             if np.all((output_range_sim[...,0] - output_range_[...,0]) <= 0) and \
                 np.all((output_range_sim[...,1] - output_range_[...,1]) >= 0):
-                print('here, inside')
                 # Line 11
                 tmp = np.dstack([u_e, output_range_])
                 u_e[:,1] = np.max(tmp[:,1,:], axis=1)
@@ -116,7 +114,6 @@ class SimGuidedPartitioner(Partitioner):
             else:
                 # Line 14
                 if np.max(input_range_[...,1] - input_range_[...,0]) > self.tolerance_eps:
-                    print('here, split')
                     # Line 15
                     input_ranges_ = sect(input_range_, 2, select=sect_method)
                     # Lines 16-17
@@ -125,7 +122,6 @@ class SimGuidedPartitioner(Partitioner):
                         num_propagator_calls += 1
                         M.append((input_range_, output_range_)) # Line 18
                 else: # Lines 19-20
-                    print('here, break')
                     M.append((input_range_, output_range_))
                     break
 
