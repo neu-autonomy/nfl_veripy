@@ -72,6 +72,10 @@ class SimGuidedPartitioner(Partitioner):
         self.num_simulations = num_simulations
         self.tolerance_eps = tolerance_eps
 
+    def grab_from_M(self, M, output_range_sim):
+        input_range_, output_range_ = M.pop(0) 
+        return input_range_, output_range_
+
     def get_output_range(self, input_range, propagator):
 
         # Algorithm 1 of (Xiang, 2020): https://arxiv.org/pdf/2004.12273.pdf
@@ -102,7 +106,7 @@ class SimGuidedPartitioner(Partitioner):
         u_e[:,0] = np.inf
         u_e[:,1] = -np.inf
         while len(M) != 0:
-            input_range_, output_range_ = M.pop(0) # Line 9
+            input_range_, output_range_ = self.grab_from_M(M, output_range_sim) # (Line 9)
 
             if np.all((output_range_sim[...,0] - output_range_[...,0]) <= 0) and \
                 np.all((output_range_sim[...,1] - output_range_[...,1]) >= 0):
@@ -145,5 +149,24 @@ class SimGuidedPartitioner(Partitioner):
         info["num_partitions"] = len(M) + len(interior_M)
         
         return u_e, info
+
+class GreedySimGuidedPartitioner(SimGuidedPartitioner):
+    def __init__(self, num_simulations=1000, tolerance_eps=0.01):
+        SimGuidedPartitioner.__init__(self, num_simulations=num_simulations, tolerance_eps=tolerance_eps)
+
+    def grab_from_M(self, M, output_range_sim):
+        if len(M) == 1:
+            input_range_, output_range_ = M.pop(0)
+        else:
+            # look thru all output_range_s and see which are furthest from sim output range
+            M_numpy = np.dstack([output_range_ for (_, output_range_) in M])
+            z = np.empty_like(M_numpy)
+            z[:,0,:] = (output_range_sim[:,0] - M_numpy[:,0,:].T).T
+            z[:,1,:] = (M_numpy[:,1,:].T - output_range_sim[:,1]).T
+            worst_index = np.unravel_index(z.argmax(), shape=z.shape)
+            worst_M_index = worst_index[-1]
+            input_range_, output_range_ = M.pop(worst_M_index)
+
+        return input_range_, output_range_
 
 

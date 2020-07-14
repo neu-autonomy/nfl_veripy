@@ -156,6 +156,7 @@ if __name__ == '__main__':
         "None": NoPartitioner,
         "Uniform": UniformPartitioner,
         "SimGuided": SimGuidedPartitioner,
+        "GreedySimGuided": GreedySimGuidedPartitioner,
     }
     propagator_dict = {
         "IBP": IBPPropagator,
@@ -214,7 +215,8 @@ if __name__ == '__main__':
     ])
     # partitioner = "Uniform"
     # partitioner_hyperparams = {"num_partitions": 4}
-    partitioner = "SimGuided"
+    # partitioner = "SimGuided"
+    partitioner = "GreedySimGuided"
     partitioner_hyperparams = {"tolerance_eps": 0.01}
     propagator = "IBP (LIRPA)"
     propagator_hyperparams = {"input_shape": input_range.shape[:-1]}
@@ -225,6 +227,8 @@ if __name__ == '__main__':
     analyzer.propagator = propagator_dict[propagator](**propagator_hyperparams)
     output_range, analyzer_info = analyzer.get_output_range(input_range)
     print("Estimated output_range:\n", output_range)
+    print("Number of propagator calls:", analyzer_info["num_propagator_calls"])
+    print("Number of partitions:", analyzer_info["num_partitions"])
     analyzer.visualize(input_range, output_range, **analyzer_info)
     print("done.")
 
