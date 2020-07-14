@@ -3,8 +3,8 @@ import torch
 import numpy as np
 
 class Propagator:
-    def __init__(self):
-        return
+    def __init__(self, input_shape=None):
+        self.input_shape = input_shape
 
     @property
     def network(self):
@@ -19,8 +19,8 @@ class Propagator:
 #######################
 
 class CROWNIBPCodebasePropagator(Propagator):
-    def __init__(self):
-        Propagator.__init__(self)
+    def __init__(self, input_shape=None):
+        Propagator.__init__(self, input_shape=input_shape)
         self.method_opt = None
 
     def torch2network(self, torch_model):
@@ -47,13 +47,13 @@ class CROWNIBPCodebasePropagator(Propagator):
         return output_range, {}
 
 class IBPPropagator(CROWNIBPCodebasePropagator):
-    def __init__(self):
-        CROWNIBPCodebasePropagator.__init__(self)
+    def __init__(self, input_shape=None):
+        CROWNIBPCodebasePropagator.__init__(self, input_shape=input_shape)
         self.method_opt = "interval_range"
 
 class CROWNPropagator(CROWNIBPCodebasePropagator):
-    def __init__(self):
-        CROWNIBPCodebasePropagator.__init__(self)
+    def __init__(self, input_shape=None):
+        CROWNIBPCodebasePropagator.__init__(self, input_shape=input_shape)
         self.method_opt = "full_backward_range"
 
 
@@ -64,17 +64,13 @@ class CROWNPropagator(CROWNIBPCodebasePropagator):
 
 
 class AutoLIRPAPropagator(Propagator):
-    def __init__(self):
-        Propagator.__init__(self)
+    def __init__(self, input_shape=None):
+        Propagator.__init__(self, input_shape=input_shape)
 
     def torch2network(self, torch_model):
         from auto_LiRPA import BoundedModule
 
-        for m in torch_model.parameters():
-            shape = m.shape[-1]
-            break
-
-        my_input = torch.empty((1,shape))
+        my_input = torch.empty((1,)+self.input_shape)
         if hasattr(torch_model, "core"):
             torch_model = torch_model.core
         model = BoundedModule(torch_model, my_input)
@@ -106,16 +102,16 @@ class AutoLIRPAPropagator(Propagator):
         return output_range, {}
 
 class CROWNAutoLIRPAPropagator(AutoLIRPAPropagator):
-    def __init__(self):
-        AutoLIRPAPropagator.__init__(self)
+    def __init__(self, input_shape=None):
+        AutoLIRPAPropagator.__init__(self, input_shape=input_shape)
 
     def compute_bounds(self):
         lb, ub = self.network.compute_bounds(IBP=False, method="backward")
         return lb, ub
 
 class IBPAutoLIRPAPropagator(AutoLIRPAPropagator):
-    def __init__(self):
-        AutoLIRPAPropagator.__init__(self)
+    def __init__(self, input_shape=None):
+        AutoLIRPAPropagator.__init__(self, input_shape=input_shape)
         self.method = "IBP"
 
     def compute_bounds(self):
@@ -123,8 +119,8 @@ class IBPAutoLIRPAPropagator(AutoLIRPAPropagator):
         return lb, ub
 
 class CROWNIBPAutoLIRPAPropagator(AutoLIRPAPropagator):
-    def __init__(self):
-        AutoLIRPAPropagator.__init__(self)
+    def __init__(self, input_shape=None):
+        AutoLIRPAPropagator.__init__(self, input_shape=input_shape)
         self.method = "CROWN-IBP"
 
     def compute_bounds(self):
