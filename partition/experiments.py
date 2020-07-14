@@ -12,6 +12,7 @@ from matplotlib import cm
 from datetime import datetime
 import os
 import glob
+import time
 
 partitioner_dict = {
     "None": partition.Partitioner.NoPartitioner,
@@ -22,6 +23,7 @@ partitioner_dict = {
 propagator_dict = {
     "IBP": partition.Propagator.IBPPropagator,
     "CROWN": partition.Propagator.CROWNPropagator,
+    "SDP": partition.Propagator.SDPPropagator,
 }
 
 save_dir = "{}/results".format(os.path.dirname(os.path.abspath(__file__)))
@@ -38,7 +40,7 @@ def experiment():
     
     # Select which algorithms and hyperparameters to evaluate
     partitioners = ["Uniform", "SimGuided", "GreedySimGuided"]
-    propagators = ["IBP", "CROWN"]
+    propagators = ["IBP", "CROWN", "SDP"]
     partitioner_hyperparams_to_use = {
         "Uniform":
             {
@@ -88,10 +90,13 @@ def run_and_add_row(analyzer, input_range, partitioner, propagator, partitioner_
     print("Partitioner: {}, Propagator: {}, {}, {}".format(partitioner, propagator, partitioner_hyperparams, propagator_hyperparams))
     analyzer.partitioner = partitioner_dict[partitioner](**partitioner_hyperparams)
     analyzer.propagator = propagator_dict[propagator](**propagator_hyperparams)
+    t_start = time.time()
     output_range, analyzer_info = analyzer.get_output_range(input_range)
+    t_end = time.time()
     # analyzer.visualize(input_range, output_range, **analyzer_info)
 
     stats = {
+        "computation_time": t_end - t_start,
         "output_range_estimate": output_range,
         "input_range": input_range,
         "propagator": type(analyzer.propagator).__name__,
@@ -134,46 +139,22 @@ def plot(df):
     plt.legend()
     plt.show()
 
-def plot(df):
+def plot(df, stat):
     output_range_exact = get_exact_output_range(df)
     for partitioner in df["partitioner"].unique():
         for propagator in df["propagator"].unique():
             if propagator == "EXACT" or partitioner == "EXACT": continue
             df_ = df[(df["partitioner"] == partitioner) & (df["propagator"] == propagator)]
-
-            plt.semilogx(df_["num_propagator_calls"].values, df_["output_area_error"],
+            plt.semilogx(df_[stat].values, df_["output_area_error"],
                 marker=algs[partitioner]["marker"],
                 color=cm.get_cmap("tab20c")(4*algs[propagator]["color_ind"]+algs[partitioner]["color_ind"]),
                 label=propagator+'-'+partitioner)
-    
-    plt.xlabel('Num Propagtor Calls')
+
+    plt.xlabel(stat)
     plt.ylabel('Approximation Error')
     plt.ylim(bottom=0)
     plt.legend()
     plt.show()
-
-def plot2(df):
-    output_range_exact = get_exact_output_range(df)
-    for partitioner in df["partitioner"].unique():
-        for propagator in df["propagator"].unique():
-            if propagator == "EXACT" or partitioner == "EXACT": continue
-            df_ = df[(df["partitioner"] == partitioner) & (df["propagator"] == propagator)]
-            plt.semilogx(df_["num_partitions"].values, df_["output_area_error"],
-                marker=algs[partitioner]["marker"],
-                color=cm.get_cmap("tab20c")(4*algs[propagator]["color_ind"]+algs[partitioner]["color_ind"]),
-                label=propagator+'-'+partitioner)
-    
-    plt.xlabel('Num Partitions')
-    plt.ylabel('Approximation Error')
-    plt.ylim(bottom=0)
-    plt.legend()
-    plt.show()
-
-algs = {
-
-    
-}
-
 
 algs ={
     "UniformPartitioner": {
@@ -199,6 +180,10 @@ algs ={
         "color_ind": 1,
         "name": "CROWNPropagator",
     },
+    "SDPPropagator": {
+        "color_ind": 2,
+        "name": "SDPPropagator",
+    },
 }
 
 "tab20c"
@@ -220,6 +205,8 @@ if __name__ == '__main__':
         df = pd.read_pickle(latest_file)
 
     add_approx_error_to_df(df)
-    plot(df)
-    plot2(df)
+    plot(df, stat="num_partitions")
+    plot(df, stat="num_propagator_calls")
+    plot(df, stat="computation_time")
+
 

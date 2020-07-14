@@ -107,12 +107,6 @@ class Analyzer:
         output_range = self.samples_to_range(sampled_outputs)
         return output_range
 
-# class SDPAnalysis(Analysis):
-
-#     def get_output_range(self, input_range, verbose=False):
-#         output_range = robust_sdp(net=model, input_range=input_range, verbose=verbose, viz=False)
-#         return output_range
-
 # class JuliaAnalysis(Analysis):
 
 #     def get_output_range(self, input_range, verbose=False):
@@ -164,6 +158,7 @@ if __name__ == '__main__':
         "CROWN (LIRPA)": CROWNAutoLIRPAPropagator,
         "IBP (LIRPA)": IBPAutoLIRPAPropagator,
         "CROWN-IBP (LIRPA)": CROWNIBPAutoLIRPAPropagator,
+        "SDP": SDPPropagator,
     }
 
     # Choose experiment settings
@@ -213,12 +208,13 @@ if __name__ == '__main__':
                       [np.pi/3, 2*np.pi/3], # x0min, x0max
                       [np.pi/3, 2*np.pi/3] # x1min, x1max
     ])
-    # partitioner = "Uniform"
-    # partitioner_hyperparams = {"num_partitions": 4}
+    partitioner = "Uniform"
+    partitioner_hyperparams = {"num_partitions": 4}
     # partitioner = "SimGuided"
-    partitioner = "GreedySimGuided"
-    partitioner_hyperparams = {"tolerance_eps": 0.01}
-    propagator = "IBP (LIRPA)"
+    # partitioner = "GreedySimGuided"
+    # partitioner_hyperparams = {"tolerance_eps": 0.01}
+    propagator = "SDP"
+    # propagator = "IBP (LIRPA)"
     propagator_hyperparams = {"input_shape": input_range.shape[:-1]}
 
     # Run analysis & generate a plot
