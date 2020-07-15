@@ -3,7 +3,7 @@ import partition
 import partition.Partitioner
 import partition.Analyzer
 import partition.Propagator
-from partition.xiang import model_xiang_2020_robot_arm
+from partition.xiang import model_xiang_2020_robot_arm, model_gh1
 import numpy as np
 import pandas as pd
 import itertools
@@ -19,11 +19,14 @@ partitioner_dict = {
     "Uniform": partition.Partitioner.UniformPartitioner,
     "SimGuided": partition.Partitioner.SimGuidedPartitioner,
     "GreedySimGuided": partition.Partitioner.GreedySimGuidedPartitioner,
+    "AdaptiveSimGuided": partition.Partitioner.AdaptiveSimGuidedPartitioner,
+    "BoundarySimGuided": partition.Partitioner.BoundarySimGuidedPartitioner,
+
 }
 propagator_dict = {
     "IBP": partition.Propagator.IBPPropagator,
     "CROWN": partition.Propagator.CROWNPropagator,
-    "SDP": partition.Propagator.SDPPropagator,
+    #"SDP": partition.Propagator.SDPPropagator,
 }
 
 save_dir = "{}/results".format(os.path.dirname(os.path.abspath(__file__)))
@@ -32,15 +35,17 @@ os.makedirs(save_dir, exist_ok=True)
 def experiment():
     
     # Choose the model and input range
+    torch_model = model_gh1()
     torch_model = model_xiang_2020_robot_arm()
+
     input_range = np.array([ # (num_inputs, 2)
                       [np.pi/3, 2*np.pi/3], # x0min, x0max
                       [np.pi/3, 2*np.pi/3] # x1min, x1max
     ])
     
     # Select which algorithms and hyperparameters to evaluate
-    partitioners = ["Uniform", "SimGuided", "GreedySimGuided"]
-    propagators = ["IBP", "CROWN", "SDP"]
+    partitioners = ["Uniform", "SimGuided", "GreedySimGuided", "AdaptiveSimGuided"]
+    propagators = ["IBP", "CROWN"]
     partitioner_hyperparams_to_use = {
         "Uniform":
             {
@@ -55,6 +60,16 @@ def experiment():
             {
                 "tolerance_eps": [1.0, 0.5, 0.2, 0.1, 0.05, 0.01],
                 "num_simulations": [1000]
+            },
+        "AdaptiveSimGuided":
+        #"BoundarySimGuided":
+
+            {
+                "tolerance_eps": [1.0, 0.5, 0.2, 0.1, 0.05,0.03],
+                "tolerance_expanding_step": [0.0001],
+                "k_NN": [1],
+                "N": [20],
+                "tolerance_range": [0.65]
             },
     }
 
@@ -158,6 +173,11 @@ algs ={
         "color_ind": 2,
         "name": "GreedySimGuided",
     },
+    "AdaptiveSimGuidedPartitioner": {
+        "marker": "*",
+        "color_ind": 3,
+        "name": "BoundarySimGuided",
+    },
     "IBPPropagator": {
         "color_ind": 0,
         "name": "IBPPropagator",
@@ -177,7 +197,7 @@ algs ={
 if __name__ == '__main__':
 
     # Run an experiment
-    # df = experiment()
+    df = experiment()
 
     # If you want to plot w/o re-running the experiments, comment out the experiment line.
     if 'df' not in locals():
