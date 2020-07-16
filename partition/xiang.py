@@ -1,6 +1,6 @@
 import torch
 import numpy as np
-from partition.models import model_xiang_2017, model_xiang_2020_robot_arm
+from partition.models import model_xiang_2017, model_xiang_2020_robot_arm, model_gh1
 from crown_ibp.bound_layers import BoundSequential
 
 from partition.expt import robust_sdp, torch2net
