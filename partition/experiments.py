@@ -50,10 +50,14 @@ def experiment():
         "Uniform":
             {
                 "num_partitions": [1,2,4,8,16,32]
+               # "num_partitions": [16,16,16,16,16,16,16,16,16,16]
+
             },
         "SimGuided":
             {
                 "tolerance_eps": [1.0, 0.5, 0.2, 0.1, 0.05, 0.01],
+                #"tolerance_eps": [0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01,0.01,0.01,0.01],
+
                 "num_simulations": [1000]
             },
         "GreedySimGuided":
@@ -65,11 +69,11 @@ def experiment():
         #"BoundarySimGuided":
 
             {
-                "tolerance_eps": [1.0, 0.5, 0.2, 0.1, 0.05,0.03],
-                "tolerance_expanding_step": [0.0001],
-                "k_NN": [1],
-                "N": [20],
-                "tolerance_range": [0.65]
+                "tolerance_eps": [1.0, 0.5, 0.2, 0.1, 0.05, 0.01],
+                #"tolerance_expanding_step": [0.001],
+                #"k_NN": [1],
+                "num_simulations": [1000],
+                #"tolerance_range": [0.05]
             },
     }
 
