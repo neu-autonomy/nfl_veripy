@@ -70,14 +70,29 @@ class UniformPartitioner(Partitioner):
         return output_range, info
 
 class SimGuidedPartitioner(Partitioner):
-    def __init__(self, num_simulations=1000, tolerance_eps=0.01):
+    def __init__(self, num_simulations=1000, tolerance_eps=0.01, interior_condition="linf"):
         Partitioner.__init__(self)
         self.num_simulations = num_simulations
         self.tolerance_eps = tolerance_eps
+        self.interior_condition = interior_condition
 
     def grab_from_M(self, M, output_range_sim):
         input_range_, output_range_ = M.pop(0) 
         return input_range_, output_range_
+
+    def check_if_partition_within_sim_bnds(self, output_range, output_range_sim):
+        if self.interior_condition == "linf":
+            # Check if output_range's linf ball is within
+            # output_range_sim's linf ball
+            inside = np.all((output_range_sim[...,0] - output_range[...,0]) <= 0) and \
+                        np.all((output_range_sim[...,1] - output_range[...,1]) >= 0)
+        elif self.interior_condition == "lower_bnds":
+            # Check if output_range's lower bnds are above each of
+            # output_range_sim's lower bnds
+            inside = np.all((output_range_sim[...,0] - output_range[...,0]) <= 0)
+        else:
+            raise NotImplementedError
+        return inside
 
     def get_output_range(self, input_range, propagator):
 
@@ -111,8 +126,7 @@ class SimGuidedPartitioner(Partitioner):
         while len(M) != 0:
             input_range_, output_range_ = self.grab_from_M(M, output_range_sim) # (Line 9)
 
-            if np.all((output_range_sim[...,0] - output_range_[...,0]) <= 0) and \
-                np.all((output_range_sim[...,1] - output_range_[...,1]) >= 0):
+            if self.check_if_partition_within_sim_bnds(output_range_, output_range_sim):
                 # Line 11
                 tmp = np.dstack([u_e, output_range_])
                 u_e[:,1] = np.max(tmp[:,1,:], axis=1)

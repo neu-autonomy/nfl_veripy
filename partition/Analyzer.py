@@ -86,7 +86,6 @@ class Analyzer:
         axes[0].set_xlabel("Input Dim: {}".format(input_dims[0]))
         axes[0].set_ylabel("Input Dim: {}".format(input_dims[1]))
 
-        print(kwargs["save_name"])
         if "save_name" in kwargs and kwargs["save_name"] is not None:
             plt.savefig(kwargs["save_name"])
         plt.show()
@@ -109,45 +108,14 @@ class Analyzer:
         output_range = self.samples_to_range(sampled_outputs)
         return output_range
 
-# class JuliaAnalysis(Analysis):
-
-#     def get_output_range(self, input_range, verbose=False):
-#         output_range = julia_output_range(net=model, input_range=input_range)
-#         return output_range
-
-# def experiment():
-#     from partition.xiang import model_xiang_2020_robot_arm
-#     import numpy as np
-#     from partition.Partition import *
-#     from partition.Analysis import *
-#     torch_model = model_xiang_2020_robot_arm()
-#     input_range = np.array([ # (num_inputs, 2)
-#                       [np.pi/3, 2*np.pi/3], # x0min, x0max
-#                       [np.pi/3, 2*np.pi/3] # x1min, x1max
-#     ])
-
-#     partitioner = "Uniform"
-#     propagator = "IBP"
-#     partitioner_hyperparams = {}
-#     propagator_hyperparams = {}
-
-#     df = pd.DataFrame()
-#     for i in [1,2,4,10,20]:
-#         partitioner_hyperparams["num_partitions"] = i
-
-#         analyzer = Analyzer(torch_model)
-#         analyzer.partitioner = partitioner_dict[partitioner](**partitioner_hyperparams)
-#         analyzer.propagator = propagator_dict[propagator](**propagator_hyperparams)
-#         output_range, analyzer_info = analyzer.get_output_range(input_range)
-
-#         df.append()
-
 if __name__ == '__main__':
     # Import all deps
     from partition.models import model_xiang_2020_robot_arm, model_simple
     import numpy as np
     from partition.Partitioner import *
     from partition.Propagator import *
+
+    np.random.seed(seed=0)
     partitioner_dict = {
         "None": NoPartitioner,
         "Uniform": UniformPartitioner,
@@ -210,11 +178,11 @@ if __name__ == '__main__':
                       [np.pi/3, 2*np.pi/3], # x0min, x0max
                       [np.pi/3, 2*np.pi/3] # x1min, x1max
     ])
-    partitioner = "Uniform"
-    partitioner_hyperparams = {"num_partitions": 4}
-    # partitioner = "SimGuided"
+    # partitioner = "Uniform"
+    # partitioner_hyperparams = {"num_partitions": 4}
+    partitioner = "SimGuided"
     # partitioner = "GreedySimGuided"
-    # partitioner_hyperparams = {"tolerance_eps": 0.01}
+    partitioner_hyperparams = {"tolerance_eps": 0.02, "interior_condition": "linf"}
     # propagator = "SDP"
     propagator = "IBP (LIRPA)"
     propagator_hyperparams = {"input_shape": input_range.shape[:-1]}

@@ -4,6 +4,8 @@ setup(name='reach_lp',
       version='0.0.1',
       install_requires=[
           'torch',
+          'alphashape',
+          'sklearn'
           ],
       packages=find_packages()
 )
