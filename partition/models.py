@@ -60,7 +60,7 @@ def model_simple():
         Linear(2,2),
         Tanh(),
         Linear(2,2)
-    )
+        )
     state_dict = model.state_dict()
     state_dict['0.weight'].copy_(torch.nn.Parameter(data=torch.Tensor(
             [
@@ -78,3 +78,102 @@ def model_simple():
         [0., 0.]), requires_grad=True))
     return model
 
+def model_gh1():
+    model = Sequential(
+        Linear(2, 6),
+        ReLU(),
+        Linear(6, 2),
+    )
+    state_dict = model.state_dict()
+    state_dict['0.weight'].copy_(torch.nn.Parameter(data=torch.Tensor(
+            [
+                [-1.8, 0.001],
+                [-1.4, 0.002],
+                [-4, 5],
+                [-4, -1 ],
+                [-2, 1.3],
+                [ -1, -1.2],
+             ]), requires_grad=True))
+    state_dict['0.bias'].copy_(torch.nn.Parameter(data=torch.Tensor(
+            [ 5, 5, 7,  8, -6, 15]), requires_grad=True))
+    state_dict['2.weight'].copy_(torch.nn.Parameter(data=torch.Tensor(
+        [
+            [ 1,2.04445, -1.86677, 2 , -1.47312, 0],
+            [1, -2,  -1 , -5,  8.,  -2],
+        ]), requires_grad=True))
+    state_dict['2.bias'].copy_(torch.nn.Parameter(data=torch.Tensor(
+        [-0.3, 1]), requires_grad=True))
+
+    return model
+
+def model_gh2():
+    model = Sequential(
+    Linear(2, 6),
+    ReLU(),
+    Linear(6, 5),
+    ReLU(),
+    Linear(5, 2),
+
+
+        )
+    state_dict = model.state_dict()
+    state_dict['0.weight'].copy_(torch.nn.Parameter(data=torch.Tensor(
+            [
+                [-1.8, 0.1],
+                [-1.4, 0.2],
+                [-2, 5],
+                [-4, -1 ],
+                [-2, 1.3],
+                [ -1, -1.6],
+             ]), requires_grad=True))
+    state_dict['0.bias'].copy_(torch.nn.Parameter(data=torch.Tensor(
+            [5, 5, 7,  8, -6, 15]), requires_grad=True))
+    state_dict['2.weight'].copy_(torch.nn.Parameter(data=torch.Tensor(
+        [
+            [ 1,2.03, -1.2, 2 , -1.47312, 0],
+            [-1.3, 21,  1.3 , -5,  8.,  -2],
+            [1, -2, -4 , -5,  8.,  -2],
+            [1, -2,  1.4 , -1,  4.3,  -2],
+            [1.3, 2,  5.6 , -3.4,  2.5,  6.4],
+
+        ]), requires_grad=True))
+    state_dict['2.bias'].copy_(torch.nn.Parameter(data=torch.Tensor(
+        [-0.3, 3,0.3,4.1, 1]), requires_grad=True))
+    state_dict['4.weight'].copy_(torch.nn.Parameter(data=torch.Tensor(
+        [
+            [ 1,2.04445, -1.86677, 2 , -1.47312],
+            [1, -2,  -1 , -5,  8],
+        ]), requires_grad=True))
+    state_dict['4.bias'].copy_(torch.nn.Parameter(data=torch.Tensor(
+        [-0.3, 1]), requires_grad=True))
+
+    return model
+
+
+def model_gh3():
+    model = Sequential(
+        Linear(2, 6),
+        ReLU(),
+        Linear(6, 2),
+    )
+    state_dict = model.state_dict()
+    state_dict['0.weight'].copy_(torch.nn.Parameter(data=torch.Tensor(
+            [
+                [-1.8, 0.001],
+                [-1.4, 0.002],
+                [-4, 5],
+                [-4, -1 ],
+                [-2, 3.3],
+                [ -3, -1.2],
+             ]), requires_grad=True))
+    state_dict['0.bias'].copy_(torch.nn.Parameter(data=torch.Tensor(
+            [ 5, 5, 7,  8, -6, 15]), requires_grad=True))
+    state_dict['2.weight'].copy_(torch.nn.Parameter(data=torch.Tensor(
+        [
+            [ 1,2.04445, -1.86677, 2 , -1.47312, 0],
+            [1, -2,  -1 , -5,  8.,  -2],
+        ]), requires_grad=True))
+    state_dict['2.bias'].copy_(torch.nn.Parameter(data=torch.Tensor(
+        [-0.3, 1]), requires_grad=True))
+
+    return model
