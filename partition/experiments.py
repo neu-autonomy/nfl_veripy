@@ -40,7 +40,7 @@ def experiment():
     
     # Select which algorithms and hyperparameters to evaluate
     partitioners = ["Uniform", "SimGuided", "GreedySimGuided"]
-    propagators = ["IBP", "CROWN", "SDP"]
+    propagators = ["IBP", "CROWN"]
     partitioner_hyperparams_to_use = {
         "Uniform":
             {
@@ -93,7 +93,10 @@ def run_and_add_row(analyzer, input_range, partitioner, propagator, partitioner_
     t_start = time.time()
     output_range, analyzer_info = analyzer.get_output_range(input_range)
     t_end = time.time()
-    # analyzer.visualize(input_range, output_range, **analyzer_info)
+    pars = '_'.join([str(key)+"_"+str(value) for key, value in partitioner_hyperparams.items()])
+    pars2 = '_'.join([str(key)+"_"+str(value) for key, value in propagator_hyperparams.items()])
+    analyzer_info["save_name"] = save_dir+"/imgs/"+partitioner+"_"+propagator+"_"+pars+"_"+pars2+".png"
+    analyzer.visualize(input_range, output_range, **analyzer_info)
 
     stats = {
         "computation_time": t_end - t_start,
@@ -171,8 +174,6 @@ algs ={
         "name": "SDPPropagator",
     },
 }
-
-"tab20c"
 
 if __name__ == '__main__':
 

@@ -86,7 +86,9 @@ class Analyzer:
         axes[0].set_xlabel("Input Dim: {}".format(input_dims[0]))
         axes[0].set_ylabel("Input Dim: {}".format(input_dims[1]))
 
-
+        print(kwargs["save_name"])
+        if "save_name" in kwargs and kwargs["save_name"] is not None:
+            plt.savefig(kwargs["save_name"])
         plt.show()
 
     def get_sampled_outputs(self, input_range, N=1000):
@@ -142,7 +144,7 @@ class Analyzer:
 
 if __name__ == '__main__':
     # Import all deps
-    from partition.xiang import model_xiang_2020_robot_arm
+    from partition.models import model_xiang_2020_robot_arm, model_simple
     import numpy as np
     from partition.Partitioner import *
     from partition.Propagator import *
@@ -213,8 +215,8 @@ if __name__ == '__main__':
     # partitioner = "SimGuided"
     # partitioner = "GreedySimGuided"
     # partitioner_hyperparams = {"tolerance_eps": 0.01}
-    propagator = "SDP"
-    # propagator = "IBP (LIRPA)"
+    # propagator = "SDP"
+    propagator = "IBP (LIRPA)"
     propagator_hyperparams = {"input_shape": input_range.shape[:-1]}
 
     # Run analysis & generate a plot
