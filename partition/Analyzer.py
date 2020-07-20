@@ -1,6 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.patches import Rectangle
+from partition.network_utils import get_sampled_outputs, samples_to_range
 
 class Analyzer:
     def __init__(self, torch_model):
@@ -91,17 +92,10 @@ class Analyzer:
         plt.show()
 
     def get_sampled_outputs(self, input_range, N=1000):
-        input_shape = input_range.shape[:-1]
-        sampled_inputs = np.random.uniform(input_range[...,0], input_range[...,1], (N,)+input_shape)
-        sampled_outputs = self.propagator.forward_pass(sampled_inputs)
-        return sampled_outputs
+        return get_sampled_outputs(input_range, self.propagator, N=N)
 
     def samples_to_range(self, sampled_outputs):
-        num_outputs = sampled_outputs.shape[-1]
-        output_range = np.empty((num_outputs, 2))
-        output_range[:,1] = np.max(sampled_outputs, axis=0)
-        output_range[:,0] = np.min(sampled_outputs, axis=0)
-        return output_range
+        return samples_to_range(sampled_outputs)
 
     def get_exact_output_range(self, input_range):
         sampled_outputs = self.get_sampled_outputs(input_range)
@@ -188,9 +182,16 @@ if __name__ == '__main__':
     ])
     # partitioner = "Uniform"
     # partitioner_hyperparams = {"num_partitions": [4,4,1,1,1]}
-    partitioner = "SimGuided"
-    # partitioner = "GreedySimGuided"
-    partitioner_hyperparams = {"tolerance_eps": 0.02, "interior_condition": "convex_hull"}
+    # partitioner = "SimGuided"
+    partitioner = "GreedySimGuided"
+    partitioner_hyperparams = {
+        "tolerance_eps": 0.02,
+        "interior_condition": "lower_bnds",
+        # "interior_condition": "linf",
+        # "interior_condition": "convex_hull",
+        "make_animation": True,
+        "show_animation": True,
+    }
     # propagator = "SDP"
     propagator = "IBP (LIRPA)"
     propagator_hyperparams = {"input_shape": input_range.shape[:-1]}
