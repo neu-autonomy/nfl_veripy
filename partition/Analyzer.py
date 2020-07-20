@@ -110,7 +110,7 @@ class Analyzer:
 
 if __name__ == '__main__':
     # Import all deps
-    from partition.models import model_xiang_2020_robot_arm, model_simple
+    from partition.models import model_xiang_2020_robot_arm, model_simple, model_dynamics
     import numpy as np
     from partition.Partitioner import *
     from partition.Propagator import *
@@ -173,16 +173,24 @@ if __name__ == '__main__':
     ##############
     # Simple FF network
     ###############
+    # torch_model = model_dynamics()
+    # input_range = np.array([ # (num_inputs, 2)
+    #                   [np.pi/3, 2*np.pi/3], # x0min, x0max
+    #                   [np.pi/3, 2*np.pi/3], # x1min, x1max
+    #                   [np.pi/3, np.pi/3], # x1min, x1max
+    #                   [np.pi/3, np.pi/3], # x1min, x1max
+    #                   [0, 0], # amin, amax
+    # ])
     torch_model = model_xiang_2020_robot_arm()
     input_range = np.array([ # (num_inputs, 2)
                       [np.pi/3, 2*np.pi/3], # x0min, x0max
-                      [np.pi/3, 2*np.pi/3] # x1min, x1max
+                      [np.pi/3, 2*np.pi/3], # x1min, x1max
     ])
     # partitioner = "Uniform"
-    # partitioner_hyperparams = {"num_partitions": 4}
+    # partitioner_hyperparams = {"num_partitions": [4,4,1,1,1]}
     partitioner = "SimGuided"
     # partitioner = "GreedySimGuided"
-    partitioner_hyperparams = {"tolerance_eps": 0.02, "interior_condition": "linf"}
+    partitioner_hyperparams = {"tolerance_eps": 0.02, "interior_condition": "convex_hull"}
     # propagator = "SDP"
     propagator = "IBP (LIRPA)"
     propagator_hyperparams = {"input_shape": input_range.shape[:-1]}

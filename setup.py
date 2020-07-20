@@ -5,7 +5,8 @@ setup(name='reach_lp',
       install_requires=[
           'torch',
           'alphashape',
-          'sklearn'
+          'sklearn',
+          'scipy'
           ],
       packages=find_packages()
 )

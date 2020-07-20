@@ -90,6 +90,15 @@ class SimGuidedPartitioner(Partitioner):
             # Check if output_range's lower bnds are above each of
             # output_range_sim's lower bnds
             inside = np.all((output_range_sim[...,0] - output_range[...,0]) <= 0)
+        elif self.interior_condition == "convex_hull":
+            # Check if the rectangle of output_range lies within the
+            # convex hull of the sim pts
+            ndim = output_range.shape[0]
+            pts = np.empty((ndim**2, ndim+1))
+            pts[:,-1] = 1.
+            for i, pt in enumerate(product(*output_range)):
+                pts[i,:-1] = pt
+            inside = np.all(np.matmul(self.sim_convex_hull.equations, pts.T) <= 0)
         else:
             raise NotImplementedError
         return inside
@@ -114,6 +123,10 @@ class SimGuidedPartitioner(Partitioner):
         # (Line 5)
         sampled_inputs = np.random.uniform(input_range[...,0], input_range[...,1], (self.num_simulations,)+input_shape)
         sampled_outputs = propagator.forward_pass(sampled_inputs)
+
+        if self.interior_condition == "convex_hull":
+            from scipy.spatial import ConvexHull
+            self.sim_convex_hull = ConvexHull(sampled_outputs)
 
         # Compute [u_sim], aka bounds on the sampled outputs (Line 6)
         output_range_sim = np.empty(sampled_outputs.shape[1:]+(2,))
