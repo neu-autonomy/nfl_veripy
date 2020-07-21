@@ -1,6 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.patches import Rectangle
+from partition.network_utils import get_sampled_outputs, samples_to_range
 
 class Analyzer:
     def __init__(self, torch_model):
@@ -86,66 +87,29 @@ class Analyzer:
         axes[0].set_xlabel("Input Dim: {}".format(input_dims[0]))
         axes[0].set_ylabel("Input Dim: {}".format(input_dims[1]))
 
-
+        if "save_name" in kwargs and kwargs["save_name"] is not None:
+            plt.savefig(kwargs["save_name"])
         plt.show()
 
     def get_sampled_outputs(self, input_range, N=1000):
-        input_shape = input_range.shape[:-1]
-        sampled_inputs = np.random.uniform(input_range[...,0], input_range[...,1], (N,)+input_shape)
-        sampled_outputs = self.propagator.forward_pass(sampled_inputs)
-        return sampled_outputs
+        return get_sampled_outputs(input_range, self.propagator, N=N)
 
     def samples_to_range(self, sampled_outputs):
-        num_outputs = sampled_outputs.shape[-1]
-        output_range = np.empty((num_outputs, 2))
-        output_range[:,1] = np.max(sampled_outputs, axis=0)
-        output_range[:,0] = np.min(sampled_outputs, axis=0)
-        return output_range
+        return samples_to_range(sampled_outputs)
 
     def get_exact_output_range(self, input_range):
         sampled_outputs = self.get_sampled_outputs(input_range)
         output_range = self.samples_to_range(sampled_outputs)
         return output_range
 
-# class JuliaAnalysis(Analysis):
-
-#     def get_output_range(self, input_range, verbose=False):
-#         output_range = julia_output_range(net=model, input_range=input_range)
-#         return output_range
-
-# def experiment():
-#     from partition.xiang import model_xiang_2020_robot_arm
-#     import numpy as np
-#     from partition.Partition import *
-#     from partition.Analysis import *
-#     torch_model = model_xiang_2020_robot_arm()
-#     input_range = np.array([ # (num_inputs, 2)
-#                       [np.pi/3, 2*np.pi/3], # x0min, x0max
-#                       [np.pi/3, 2*np.pi/3] # x1min, x1max
-#     ])
-
-#     partitioner = "Uniform"
-#     propagator = "IBP"
-#     partitioner_hyperparams = {}
-#     propagator_hyperparams = {}
-
-#     df = pd.DataFrame()
-#     for i in [1,2,4,10,20]:
-#         partitioner_hyperparams["num_partitions"] = i
-
-#         analyzer = Analyzer(torch_model)
-#         analyzer.partitioner = partitioner_dict[partitioner](**partitioner_hyperparams)
-#         analyzer.propagator = propagator_dict[propagator](**propagator_hyperparams)
-#         output_range, analyzer_info = analyzer.get_output_range(input_range)
-
-#         df.append()
-
 if __name__ == '__main__':
     # Import all deps
-    from partition.xiang import model_xiang_2020_robot_arm
+    from partition.models import model_xiang_2020_robot_arm, model_simple, model_dynamics
     import numpy as np
     from partition.Partitioner import *
     from partition.Propagator import *
+
+    np.random.seed(seed=0)
     partitioner_dict = {
         "None": NoPartitioner,
         "Uniform": UniformPartitioner,
@@ -205,18 +169,33 @@ if __name__ == '__main__':
     ##############
     # Simple FF network
     ###############
+    # torch_model = model_dynamics()
+    # input_range = np.array([ # (num_inputs, 2)
+    #                   [np.pi/3, 2*np.pi/3], # x0min, x0max
+    #                   [np.pi/3, 2*np.pi/3], # x1min, x1max
+    #                   [np.pi/3, np.pi/3], # x1min, x1max
+    #                   [np.pi/3, np.pi/3], # x1min, x1max
+    #                   [0, 0], # amin, amax
+    # ])
     torch_model = model_xiang_2020_robot_arm()
     input_range = np.array([ # (num_inputs, 2)
                       [np.pi/3, 2*np.pi/3], # x0min, x0max
-                      [np.pi/3, 2*np.pi/3] # x1min, x1max
+                      [np.pi/3, 2*np.pi/3], # x1min, x1max
     ])
-    partitioner = "Uniform"
-    partitioner_hyperparams = {"num_partitions": 4}
+    # partitioner = "Uniform"
+    # partitioner_hyperparams = {"num_partitions": [4,4,1,1,1]}
     # partitioner = "SimGuided"
-    # partitioner = "GreedySimGuided"
-    # partitioner_hyperparams = {"tolerance_eps": 0.01}
-    propagator = "SDP"
-    # propagator = "IBP (LIRPA)"
+    partitioner = "GreedySimGuided"
+    partitioner_hyperparams = {
+        "tolerance_eps": 0.02,
+        "interior_condition": "lower_bnds",
+        # "interior_condition": "linf",
+        # "interior_condition": "convex_hull",
+        "make_animation": True,
+        "show_animation": True,
+    }
+    # propagator = "SDP"
+    propagator = "IBP (LIRPA)"
     propagator_hyperparams = {"input_shape": input_range.shape[:-1]}
 
     # Run analysis & generate a plot

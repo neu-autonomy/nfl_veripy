@@ -4,7 +4,11 @@ from partition.xiang import sect, bisect
 from partition.object_boundary import getboundary
 from sklearn.neighbors import KDTree
 from sklearn.neighbors import NearestNeighbors
-
+import matplotlib.pyplot as plt
+from matplotlib.patches import Rectangle
+from partition.network_utils import get_sampled_outputs, samples_to_range
+import imageio
+import os
 
 class Partitioner():
     def __init__(self):
@@ -70,14 +74,199 @@ class UniformPartitioner(Partitioner):
         return output_range, info
 
 class SimGuidedPartitioner(Partitioner):
-    def __init__(self, num_simulations=1000, tolerance_eps=0.01):
+    def __init__(self, num_simulations=1000, tolerance_eps=0.01, interior_condition="linf", make_animation=False, show_animation=False):
         Partitioner.__init__(self)
         self.num_simulations = num_simulations
         self.tolerance_eps = tolerance_eps
+        self.interior_condition = interior_condition
+        self.make_animation = make_animation or show_animation
+        self.show_animation = show_animation
+
+    def get_sampled_outputs(self, input_range, propagator, N=1000):
+        return get_sampled_outputs(input_range, propagator, N=N)
+
+    def samples_to_range(self, sampled_outputs):
+        return samples_to_range(sampled_outputs)
 
     def grab_from_M(self, M, output_range_sim):
         input_range_, output_range_ = M.pop(0) 
         return input_range_, output_range_
+
+    def check_if_partition_within_sim_bnds(self, output_range, output_range_sim):
+        if self.interior_condition == "linf":
+            # Check if output_range's linf ball is within
+            # output_range_sim's linf ball
+            inside = np.all((output_range_sim[...,0] - output_range[...,0]) <= 0) and \
+                        np.all((output_range_sim[...,1] - output_range[...,1]) >= 0)
+        elif self.interior_condition == "lower_bnds":
+            # Check if output_range's lower bnds are above each of
+            # output_range_sim's lower bnds
+            inside = np.all((output_range_sim[...,0] - output_range[...,0]) <= 0)
+        elif self.interior_condition == "convex_hull":
+            # Check if the rectangle of output_range lies within the
+            # convex hull of the sim pts
+            ndim = output_range.shape[0]
+            pts = np.empty((ndim**2, ndim+1))
+            pts[:,-1] = 1.
+            for i, pt in enumerate(product(*output_range)):
+                pts[i,:-1] = pt
+            inside = np.all(np.matmul(self.sim_convex_hull.equations, pts.T) <= 0)
+        else:
+            raise NotImplementedError
+        return inside
+
+    def setup_visualization(self, input_range, output_range, output_range_exact, propagator):
+        self.animate_fig, self.animate_axes = plt.subplots(1,2)
+        num_input_dimensions_to_plot = 2
+        input_shape = input_range.shape[:-1]
+        lengths = input_range[...,1].flatten() - input_range[...,0].flatten()
+        flat_dims = np.argpartition(lengths, -num_input_dimensions_to_plot)[-num_input_dimensions_to_plot:]
+        flat_dims.sort()
+        input_dims = [np.unravel_index(flat_dim, input_range.shape[:-1]) for flat_dim in flat_dims]
+        self.input_dims_ = tuple([tuple([input_dims[j][i] for j in range(len(input_dims))]) for i in range(len(input_dims[0]))])
+
+        scale = 0.05
+        x_off = max((input_range[input_dims[0]+(1,)] - input_range[input_dims[0]+(0,)])*(scale), 1e-5)
+        y_off = max((input_range[input_dims[1]+(1,)] - input_range[input_dims[1]+(0,)])*(scale), 1e-5)
+        self.animate_axes[0].set_xlim(input_range[input_dims[0]+(0,)] - x_off, input_range[input_dims[0]+(1,)]+x_off)
+        self.animate_axes[0].set_ylim(input_range[input_dims[1]+(0,)] - y_off, input_range[input_dims[1]+(1,)]+y_off)
+        self.animate_axes[0].set_xlabel("Input Dim: {}".format(input_dims[0]))
+        self.animate_axes[0].set_ylabel("Input Dim: {}".format(input_dims[1]))
+
+        # Make a rectangle for the Exact boundaries
+        sampled_outputs = self.get_sampled_outputs(input_range, propagator)
+        self.animate_axes[1].scatter(sampled_outputs[:,0], sampled_outputs[:,1], c='k', marker='.', zorder=2)
+        
+        # Exact range
+        color = 'black'
+        linewidth = 2
+        if self.interior_condition == "linf":
+            output_range_exact = self.samples_to_range(sampled_outputs)
+            rect = Rectangle(output_range_exact[:2,0], output_range_exact[0,1]-output_range_exact[0,0], output_range_exact[1,1]-output_range_exact[1,0],
+                            fc='none', linewidth=linewidth,edgecolor=color)
+            self.animate_axes[1].add_patch(rect)
+            self.default_patch = [rect]
+            self.default_lines = []
+        elif self.interior_condition == "lower_bnds":
+            output_range_exact = self.samples_to_range(sampled_outputs)
+            line1 = self.animate_axes[1].axhline(output_range_exact[input_dims[1]+(0,)], linewidth=linewidth,color=color)
+            line2 = self.animate_axes[1].axvline(output_range_exact[input_dims[0]+(0,)], linewidth=linewidth,color=color)
+            self.default_patch = []
+            self.default_lines = [line1, line2]
+        elif self.interior_condition == "convex_hull":
+            from scipy.spatial import ConvexHull
+            hull = ConvexHull(sampled_outputs)
+            line = self.animate_axes[1].plot(sampled_outputs[hull.vertices,0], sampled_outputs[hull.vertices,1], color=color, linewidth=linewidth)
+            self.default_patch = []
+            self.default_lines = line
+        else:
+            raise NotImplementedError
+
+    def visualize(self, M, interior_M, u_e, iteration):
+        self.animate_axes[0].patches = []
+        self.animate_axes[1].patches = self.default_patch.copy()
+        self.animate_axes[0].lines = []
+        self.animate_axes[1].lines = self.default_lines.copy()
+        input_dims_ = self.input_dims_
+
+        # Rectangles that might still be outside the sim pts
+        for (input_range_, output_range_) in M:
+            rect = Rectangle(output_range_[:2,0], output_range_[0,1]-output_range_[0,0], output_range_[1,1]-output_range_[1,0],
+                    fc='none', linewidth=1,edgecolor='m')
+            self.animate_axes[1].add_patch(rect)
+
+            input_range__ = input_range_[input_dims_]
+            rect = Rectangle(input_range__[:,0], input_range__[0,1]-input_range__[0,0], input_range__[1,1]-input_range__[1,0],
+                    fc='none', linewidth=1,edgecolor='m')
+            self.animate_axes[0].add_patch(rect)
+
+        # Rectangles that are within the sim pts
+        for (input_range_, output_range_) in interior_M:
+            rect = Rectangle(output_range_[:2,0], output_range_[0,1]-output_range_[0,0], output_range_[1,1]-output_range_[1,0],
+                    fc='none', linewidth=1,edgecolor='b')
+            self.animate_axes[1].add_patch(rect)
+
+            input_range__ = input_range_[input_dims_]
+            rect = Rectangle(input_range__[:,0], input_range__[0,1]-input_range__[0,0], input_range__[1,1]-input_range__[1,0],
+                    fc='none', linewidth=1,edgecolor='b')
+            self.animate_axes[0].add_patch(rect)
+
+        linewidth = 1
+        color = 'green'
+        if self.interior_condition == "linf":
+            # Make a rectangle for the estimated boundaries
+            output_range_estimate = self.squash_down_to_one_range(u_e, M)
+            rect = Rectangle(output_range_estimate[:2,0], output_range_estimate[0,1]-output_range_estimate[0,0], output_range_estimate[1,1]-output_range_estimate[1,0],
+                            fc='none', linewidth=linewidth,edgecolor=color)
+            self.animate_axes[1].add_patch(rect)
+        elif self.interior_condition == "lower_bnds":
+            output_range_estimate = self.squash_down_to_one_range(u_e, M)
+            self.animate_axes[1].axhline(output_range_estimate[1,0],
+                linewidth=linewidth,color=color)
+            self.animate_axes[1].axvline(output_range_estimate[0,0],
+                linewidth=linewidth,color=color)
+        elif self.interior_condition == "convex_hull":
+            from scipy.spatial import ConvexHull
+            hull = self.squash_down_to_convex_hull(M+interior_M)
+            self.animate_axes[1].plot(
+                np.append(hull.points[hull.vertices,0], hull.points[hull.vertices[0],0]),
+                np.append(hull.points[hull.vertices,1], hull.points[hull.vertices[0],1]),
+                color=color, linewidth=linewidth)
+        else:
+            raise NotImplementedError
+
+        if self.show_animation:
+            plt.pause(0.01)
+
+        animation_save_dir = "{}/results/tmp/".format(os.path.dirname(os.path.abspath(__file__)))
+        os.makedirs(animation_save_dir, exist_ok=True)
+        plt.savefig(animation_save_dir+"tmp_{}.png".format(str(iteration).zfill(6)))
+
+    def compile_animation(self, iteration):
+        animation_save_dir = "{}/results/tmp/".format(os.path.dirname(os.path.abspath(__file__)))
+        filenames = [animation_save_dir+"tmp_{}.png".format(str(i).zfill(6)) for i in range(iteration)]
+        images = []
+        for filename in filenames:
+            images.append(imageio.imread(filename))
+            if filename == filenames[-1]:
+                for i in range(10):
+                    images.append(imageio.imread(filename))
+            os.remove(filename)
+
+        # Save the gif in a new animations sub-folder
+        animation_filename = "tmp.gif"
+        animation_save_dir = "{}/results/animations/".format(os.path.dirname(os.path.abspath(__file__)))
+        os.makedirs(animation_save_dir, exist_ok=True)
+        animation_filename = animation_save_dir+animation_filename
+        imageio.mimsave(animation_filename, images)
+
+
+    def squash_down_to_one_range(self, u_e, M):
+        u_e_ = u_e.copy()
+        if len(M) > 0:
+            # Squash all of M down to one range
+            M_numpy = np.dstack([output_range_ for (_, output_range_) in M])
+            M_range = np.empty_like(u_e_)
+            M_range[:,1] = np.max(M_numpy[:,1,:], axis=1)
+            M_range[:,0] = np.min(M_numpy[:,0,:], axis=1)
+        
+            # Combine M (remaining ranges) with u_e (interior ranges)
+            tmp = np.dstack([u_e_, M_range])
+            u_e_[:,1] = np.max(tmp[:,1,:], axis=1)
+            u_e_[:,0] = np.min(tmp[:,0,:], axis=1)
+        return u_e_
+
+    def squash_down_to_convex_hull(self, all_M):
+        from scipy.spatial import ConvexHull
+        ndim = all_M[0][0].shape[0]
+        pts = np.empty((len(all_M)*ndim**2, ndim))
+        i = 0
+        for (input_range, output_range) in all_M:
+            for pt in product(*output_range):
+                pts[i,:] = pt
+                i += 1
+        hull = ConvexHull(pts)
+        return hull
 
     def get_output_range(self, input_range, propagator):
 
@@ -100,19 +289,26 @@ class SimGuidedPartitioner(Partitioner):
         sampled_inputs = np.random.uniform(input_range[...,0], input_range[...,1], (self.num_simulations,)+input_shape)
         sampled_outputs = propagator.forward_pass(sampled_inputs)
 
+        if self.interior_condition == "convex_hull":
+            from scipy.spatial import ConvexHull
+            self.sim_convex_hull = ConvexHull(sampled_outputs)
+
         # Compute [u_sim], aka bounds on the sampled outputs (Line 6)
         output_range_sim = np.empty(sampled_outputs.shape[1:]+(2,))
         output_range_sim[:,1] = np.max(sampled_outputs, axis=0)
         output_range_sim[:,0] = np.min(sampled_outputs, axis=0)
+
+        if self.make_animation:
+            self.setup_visualization(input_range, output_range, output_range_sim, propagator)
         
         u_e = np.empty_like(output_range_sim)
         u_e[:,0] = np.inf
         u_e[:,1] = -np.inf
+        iteration = 0
         while len(M) != 0:
             input_range_, output_range_ = self.grab_from_M(M, output_range_sim) # (Line 9)
 
-            if np.all((output_range_sim[...,0] - output_range_[...,0]) <= 0) and \
-                np.all((output_range_sim[...,1] - output_range_[...,1]) >= 0):
+            if self.check_if_partition_within_sim_bnds(output_range_, output_range_sim):
                 # Line 11
                 tmp = np.dstack([u_e, output_range_])
                 u_e[:,1] = np.max(tmp[:,1,:], axis=1)
@@ -131,44 +327,54 @@ class SimGuidedPartitioner(Partitioner):
                 else: # Lines 19-20
                     M.append((input_range_, output_range_))
                     break
+            if self.make_animation:
+                self.visualize(M, interior_M, u_e, iteration)
+            iteration += 1
 
         # Line 24
-        if len(M) > 0:
-            # Squash all of M down to one range
-            M_numpy = np.dstack([output_range_ for (_, output_range_) in M])
-            M_range = np.empty_like(u_e)
-            M_range[:,1] = np.max(M_numpy[:,1,:], axis=1)
-            M_range[:,0] = np.min(M_numpy[:,0,:], axis=1)
-        
-            # Combine M (remaining ranges) with u_e (interior ranges)
-            tmp = np.dstack([u_e, M_range])
-            u_e[:,1] = np.max(tmp[:,1,:], axis=1)
-            u_e[:,0] = np.min(tmp[:,0,:], axis=1)
+        u_e = self.squash_down_to_one_range(u_e, M)
 
         info["all_partitions"] = M+interior_M
         info["exterior_partitions"] = M
         info["interior_partitions"] = interior_M
         info["num_propagator_calls"] = num_propagator_calls
         info["num_partitions"] = len(M) + len(interior_M)
+
+        if self.make_animation:
+            self.compile_animation(iteration)
         
         return u_e, info
 
 class GreedySimGuidedPartitioner(SimGuidedPartitioner):
-    def __init__(self, num_simulations=1000, tolerance_eps=0.01):
-        SimGuidedPartitioner.__init__(self, num_simulations=num_simulations, tolerance_eps=tolerance_eps)
+    def __init__(self, num_simulations=1000, tolerance_eps=0.01, interior_condition="linf", make_animation=False, show_animation=False):
+        SimGuidedPartitioner.__init__(self, num_simulations=num_simulations, tolerance_eps=tolerance_eps, interior_condition=interior_condition, make_animation=make_animation, show_animation=show_animation)
 
     def grab_from_M(self, M, output_range_sim):
+        # TODO(MFE): make this aware of interior_condition!!!
         if len(M) == 1:
             input_range_, output_range_ = M.pop(0)
         else:
-            # look thru all output_range_s and see which are furthest from sim output range
-            M_numpy = np.dstack([output_range_ for (_, output_range_) in M])
-            z = np.empty_like(M_numpy)
-            z[:,0,:] = (output_range_sim[:,0] - M_numpy[:,0,:].T).T
-            z[:,1,:] = (M_numpy[:,1,:].T - output_range_sim[:,1]).T
-            worst_index = np.unravel_index(z.argmax(), shape=z.shape)
-            worst_M_index = worst_index[-1]
-            input_range_, output_range_ = M.pop(worst_M_index)
+            if self.interior_condition == "linf":
+                # look thru all output_range_s and see which are furthest from sim output range
+                M_numpy = np.dstack([output_range_ for (_, output_range_) in M])
+                z = np.empty_like(M_numpy)
+                z[:,0,:] = (output_range_sim[:,0] - M_numpy[:,0,:].T).T
+                z[:,1,:] = (M_numpy[:,1,:].T - output_range_sim[:,1]).T
+                worst_index = np.unravel_index(z.argmax(), shape=z.shape)
+                worst_M_index = worst_index[-1]
+                input_range_, output_range_ = M.pop(worst_M_index)
+            elif self.interior_condition == "lower_bnds":
+                # look thru all lower bnds and see which are furthest from sim lower bnds
+                M_numpy = np.dstack([output_range_[:,0] for (_, output_range_) in M])
+                z = np.empty_like(M_numpy)
+                z = (output_range_sim[:,0] - M_numpy.T).T
+                worst_index = np.unravel_index(z.argmax(), shape=z.shape)
+                worst_M_index = worst_index[-1]
+                input_range_, output_range_ = M.pop(worst_M_index)
+            elif self.interior_condition == "convex_hull":
+                raise NotImplementedError
+            else:
+                raise NotImplementedError
 
         return input_range_, output_range_
 

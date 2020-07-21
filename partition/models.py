@@ -55,6 +55,28 @@ def model_xiang_2020_robot_arm():
 
     return model
 
+def model_simple():
+    model = Sequential(
+        Linear(2,2),
+        Tanh(),
+        Linear(2,2)
+        )
+    state_dict = model.state_dict()
+    state_dict['0.weight'].copy_(torch.nn.Parameter(data=torch.Tensor(
+            [
+                [1., 1.],
+                [0., 1.],
+             ]), requires_grad=True))
+    state_dict['0.bias'].copy_(torch.nn.Parameter(data=torch.Tensor(
+            [ 0.,  0.]), requires_grad=True))
+    state_dict['2.weight'].copy_(torch.nn.Parameter(data=torch.Tensor(
+        [
+            [ 1., 0.],
+            [ -0.2,  1.],
+        ]), requires_grad=True))
+    state_dict['2.bias'].copy_(torch.nn.Parameter(data=torch.Tensor(
+        [0., 0.]), requires_grad=True))
+    return model
 
 def model_gh1():
     model = Sequential(
