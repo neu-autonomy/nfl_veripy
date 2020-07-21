@@ -151,6 +151,8 @@ if __name__ == '__main__':
         "Uniform": UniformPartitioner,
         "SimGuided": SimGuidedPartitioner,
         "GreedySimGuided": GreedySimGuidedPartitioner,
+        "AdaptiveSimGuided": GreedySimGuidedPartitioner,
+
     }
     propagator_dict = {
         "IBP": IBPPropagator,
