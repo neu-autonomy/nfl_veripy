@@ -124,19 +124,11 @@ if __name__ == '__main__':
     ##############
     # Simple FF network
     ###############
-    torch_model = model_dynamics()
+    torch_model = model_xiang_2020_robot_arm()
     input_range = np.array([ # (num_inputs, 2)
                       [np.pi/3, 2*np.pi/3], # x0min, x0max
                       [np.pi/3, 2*np.pi/3], # x1min, x1max
-                      [np.pi/3, np.pi/3], # x1min, x1max
-                      [np.pi/3, np.pi/3], # x1min, x1max
-                      [0, 0], # amin, amax
     ])
-    # torch_model = model_xiang_2020_robot_arm()
-    # input_range = np.array([ # (num_inputs, 2)
-    #                   [np.pi/3, 2*np.pi/3], # x0min, x0max
-    #                   [np.pi/3, 2*np.pi/3], # x1min, x1max
-    # ])
     # partitioner = "Uniform"
     # partitioner_hyperparams = {"num_partitions": [4,4,1,1,1]}
     partitioner_hyperparams = {
