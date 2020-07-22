@@ -3,7 +3,7 @@ import partition
 import partition.Partitioner
 import partition.Analyzer
 import partition.Propagator
-from partition.xiang import model_xiang_2020_robot_arm, model_gh1
+from partition.models import model_xiang_2020_robot_arm, model_gh1
 import numpy as np
 import pandas as pd
 import itertools
@@ -19,8 +19,8 @@ partitioner_dict = {
     "Uniform": partition.Partitioner.UniformPartitioner,
     "SimGuided": partition.Partitioner.SimGuidedPartitioner,
     "GreedySimGuided": partition.Partitioner.GreedySimGuidedPartitioner,
-    "AdaptiveSimGuided": partition.Partitioner.AdaptiveSimGuidedPartitioner,
-    "BoundarySimGuided": partition.Partitioner.BoundarySimGuidedPartitioner,
+    # "AdaptiveSimGuided": partition.Partitioner.AdaptiveSimGuidedPartitioner,
+    # "BoundarySimGuided": partition.Partitioner.BoundarySimGuidedPartitioner,
 
 }
 propagator_dict = {
@@ -44,7 +44,7 @@ def experiment():
     ])
     
     # Select which algorithms and hyperparameters to evaluate
-    partitioners = ["Uniform", "SimGuided", "GreedySimGuided", "AdaptiveSimGuided"]
+    partitioners = ["Uniform", "SimGuided", "GreedySimGuided"]
     propagators = ["IBP", "CROWN"]
     partitioner_hyperparams_to_use = {
         "Uniform":
@@ -82,12 +82,12 @@ def experiment():
     analyzer = partition.Analyzer.Analyzer(torch_model)
     for partitioner, propagator in itertools.product(partitioners, propagators):
         partitioner_keys = list(partitioner_hyperparams_to_use[partitioner].keys())
-        partitioner_hyperparams = {}
+        partitioner_hyperparams = {"type": partitioner}
         for partitioner_vals in itertools.product(*list(partitioner_hyperparams_to_use[partitioner].values())):
             for partitioner_i in range(len(partitioner_keys)):
                 partitioner_hyperparams[partitioner_keys[partitioner_i]] = partitioner_vals[partitioner_i]
-            propagator_hyperparams = {}
-            data_row = run_and_add_row(analyzer, input_range, partitioner, propagator, partitioner_hyperparams, propagator_hyperparams)
+            propagator_hyperparams = {"type": propagator}
+            data_row = run_and_add_row(analyzer, input_range, partitioner_hyperparams, propagator_hyperparams)
             df = df.append(data_row, ignore_index=True)
     
     # Also record the "exact" bounds (via sampling) in the same dataframe
@@ -105,17 +105,18 @@ def experiment():
 
     return df
 
-def run_and_add_row(analyzer, input_range, partitioner, propagator, partitioner_hyperparams, propagator_hyperparams):
-    print("Partitioner: {}, Propagator: {}, {}, {}".format(partitioner, propagator, partitioner_hyperparams, propagator_hyperparams))
-    analyzer.partitioner = partitioner_dict[partitioner](**partitioner_hyperparams)
-    analyzer.propagator = propagator_dict[propagator](**propagator_hyperparams)
+def run_and_add_row(analyzer, input_range, partitioner_hyperparams, propagator_hyperparams):
+    print("Partitioner: {},\n Propagator: {}".format(partitioner_hyperparams, propagator_hyperparams))
+    analyzer.partitioner = partitioner_hyperparams
+    analyzer.propagator = propagator_hyperparams
     t_start = time.time()
     output_range, analyzer_info = analyzer.get_output_range(input_range)
     t_end = time.time()
     pars = '_'.join([str(key)+"_"+str(value) for key, value in partitioner_hyperparams.items()])
     pars2 = '_'.join([str(key)+"_"+str(value) for key, value in propagator_hyperparams.items()])
-    analyzer_info["save_name"] = save_dir+"/imgs/"+partitioner+"_"+propagator+"_"+pars+"_"+pars2+".png"
-    analyzer.visualize(input_range, output_range, **analyzer_info)
+
+    analyzer_info["save_name"] = save_dir+"/imgs/"+partitioner_hyperparams['type']+"_"+propagator_hyperparams['type']+"_"+pars+"_"+pars2+".png"
+    # analyzer.visualize(input_range, output_range, **analyzer_info)
 
     stats = {
         "computation_time": t_end - t_start,
