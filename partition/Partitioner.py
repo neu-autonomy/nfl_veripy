@@ -162,7 +162,7 @@ class SimGuidedPartitioner(Partitioner):
         else:
             raise NotImplementedError
 
-    def visualize(self, M, interior_M, u_e, iteration):
+    def visualize(self, M, interior_M, u_e, iteration=0):
         self.animate_axes[0].patches = []
         self.animate_axes[1].patches = self.default_patch.copy()
         self.animate_axes[0].lines = []

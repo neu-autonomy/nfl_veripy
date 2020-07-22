@@ -3,6 +3,23 @@ import matplotlib.pyplot as plt
 from matplotlib.patches import Rectangle
 from partition.network_utils import get_sampled_outputs, samples_to_range
 
+from partition.Partitioner import NoPartitioner, UniformPartitioner, SimGuidedPartitioner, GreedySimGuidedPartitioner
+from partition.Propagator import IBPPropagator, CROWNPropagator, CROWNAutoLIRPAPropagator, IBPAutoLIRPAPropagator, CROWNIBPAutoLIRPAPropagator, SDPPropagator
+partitioner_dict = {
+    "None": NoPartitioner,
+    "Uniform": UniformPartitioner,
+    "SimGuided": SimGuidedPartitioner,
+    "GreedySimGuided": GreedySimGuidedPartitioner,
+}
+propagator_dict = {
+    "IBP": IBPPropagator,
+    "CROWN": CROWNPropagator,
+    "CROWN (LIRPA)": CROWNAutoLIRPAPropagator,
+    "IBP (LIRPA)": IBPAutoLIRPAPropagator,
+    "CROWN-IBP (LIRPA)": CROWNIBPAutoLIRPAPropagator,
+    "SDP": SDPPropagator,
+}
+
 class Analyzer:
     def __init__(self, torch_model):
         self.torch_model = torch_model
@@ -15,16 +32,20 @@ class Analyzer:
         return self._partitioner
 
     @partitioner.setter
-    def partitioner(self, partitioner):
-        self._partitioner = partitioner
+    def partitioner(self, hyperparams):
+        if hyperparams is None: return
+        partitioner = hyperparams.pop('type', None)
+        self._partitioner = partitioner_dict[partitioner](**hyperparams)
 
     @property
     def propagator(self):
         return self._propagator
 
     @propagator.setter
-    def propagator(self, propagator):
-        self._propagator = propagator
+    def propagator(self, hyperparams):
+        if hyperparams is None: return
+        propagator = hyperparams.pop('type', None)
+        self._propagator = propagator_dict[propagator](**hyperparams)
         if propagator is not None:
             self._propagator.network = self.torch_model
 
@@ -33,59 +54,11 @@ class Analyzer:
         return output_range, info
 
     def visualize(self, input_range, output_range_estimate, **kwargs):
-        # def visualize_partitions(sampled_outputs, estimated_output_range, input_range, output_range_sim=None, interior_M=None, M=None):
-        fig, axes = plt.subplots(1,2)
-
-        num_input_dimensions_to_plot = 2
-        input_shape = input_range.shape[:-1]
-        lengths = input_range[...,1].flatten() - input_range[...,0].flatten()
-        flat_dims = np.argpartition(lengths, -num_input_dimensions_to_plot)[-num_input_dimensions_to_plot:]
-        flat_dims.sort()
-        input_dims = [np.unravel_index(flat_dim, input_range.shape[:-1]) for flat_dim in flat_dims]
-        input_dims_ = tuple([tuple([input_dims[j][i] for j in range(len(input_dims))]) for i in range(len(input_dims[0]))])
-
-        if "all_partitions" in kwargs:
-        # if interior_M is not None and len(interior_M) > 0:
-            for (input_range_, output_range_) in kwargs["all_partitions"]:
-                rect = Rectangle(output_range_[:2,0], output_range_[0,1]-output_range_[0,0], output_range_[1,1]-output_range_[1,0],
-                        fc='none', linewidth=1,edgecolor='m')
-                axes[1].add_patch(rect)
-
-                input_range__ = input_range_[input_dims_]
-                rect = Rectangle(input_range__[:,0], input_range__[0,1]-input_range__[0,0], input_range__[1,1]-input_range__[1,0],
-                        fc='none', linewidth=1,edgecolor='m')
-                axes[0].add_patch(rect)
-        # if M is not None and len(M) > 0:
-        #     for (input_range_, output_range_) in M:
-        #         rect = Rectangle(output_range_[:,0], output_range_[0,1]-output_range_[0,0], output_range_[1,1]-output_range_[1,0],
-        #                 fc='none', linewidth=1,edgecolor='b')
-        #         axes[1].add_patch(rect)
-
-        #         rect = Rectangle(input_range_[:,0], input_range_[0,1]-input_range_[0,0], input_range_[1,1]-input_range_[1,0],
-        #                 fc='none', linewidth=1,edgecolor='b')
-        #         axes[0].add_patch(rect)
-
-        # Make a rectangle for the estimated boundaries
-        rect = Rectangle(output_range_estimate[:2,0], output_range_estimate[0,1]-output_range_estimate[0,0], output_range_estimate[1,1]-output_range_estimate[1,0],
-                        fc='none', linewidth=2,edgecolor='g')
-        axes[1].add_patch(rect)
-
-        # Make a rectangle for the Exact boundaries
         sampled_outputs = self.get_sampled_outputs(input_range)
         output_range_exact = self.samples_to_range(sampled_outputs)
-        print("Sampled (exact) output range: \n", output_range_exact)
-        axes[1].scatter(sampled_outputs[:,0], sampled_outputs[:,1], c='k', zorder=2)
-        rect = Rectangle(output_range_exact[:2,0], output_range_exact[0,1]-output_range_exact[0,0], output_range_exact[1,1]-output_range_exact[1,0],
-                        fc='none', linewidth=1,edgecolor='k')
-        axes[1].add_patch(rect)
 
-        scale = 0.05
-        x_off = max((input_range[input_dims[0]+(1,)] - input_range[input_dims[0]+(0,)])*(scale), 1e-5)
-        y_off = max((input_range[input_dims[1]+(1,)] - input_range[input_dims[1]+(0,)])*(scale), 1e-5)
-        axes[0].set_xlim(input_range[input_dims[0]+(0,)] - x_off, input_range[input_dims[0]+(1,)]+x_off)
-        axes[0].set_ylim(input_range[input_dims[1]+(0,)] - y_off, input_range[input_dims[1]+(1,)]+y_off)
-        axes[0].set_xlabel("Input Dim: {}".format(input_dims[0]))
-        axes[0].set_ylabel("Input Dim: {}".format(input_dims[1]))
+        self.partitioner.setup_visualization(input_range, output_range_estimate, output_range_exact, self.propagator)
+        self.partitioner.visualize(kwargs["exterior_partitions"], kwargs["interior_partitions"], output_range_estimate)
 
         if "save_name" in kwargs and kwargs["save_name"] is not None:
             plt.savefig(kwargs["save_name"])
@@ -106,26 +79,8 @@ if __name__ == '__main__':
     # Import all deps
     from partition.models import model_xiang_2020_robot_arm, model_simple, model_dynamics
     import numpy as np
-    from partition.Partitioner import *
-    from partition.Propagator import *
 
     np.random.seed(seed=0)
-    partitioner_dict = {
-        "None": NoPartitioner,
-        "Uniform": UniformPartitioner,
-        "SimGuided": SimGuidedPartitioner,
-        "GreedySimGuided": GreedySimGuidedPartitioner,
-        "AdaptiveSimGuided": GreedySimGuidedPartitioner,
-
-    }
-    propagator_dict = {
-        "IBP": IBPPropagator,
-        "CROWN": CROWNPropagator,
-        "CROWN (LIRPA)": CROWNAutoLIRPAPropagator,
-        "IBP (LIRPA)": IBPAutoLIRPAPropagator,
-        "CROWN-IBP (LIRPA)": CROWNIBPAutoLIRPAPropagator,
-        "SDP": SDPPropagator,
-    }
 
     # Choose experiment settings
     ##############
@@ -169,39 +124,39 @@ if __name__ == '__main__':
     ##############
     # Simple FF network
     ###############
-    # torch_model = model_dynamics()
-    # input_range = np.array([ # (num_inputs, 2)
-    #                   [np.pi/3, 2*np.pi/3], # x0min, x0max
-    #                   [np.pi/3, 2*np.pi/3], # x1min, x1max
-    #                   [np.pi/3, np.pi/3], # x1min, x1max
-    #                   [np.pi/3, np.pi/3], # x1min, x1max
-    #                   [0, 0], # amin, amax
-    # ])
-    torch_model = model_xiang_2020_robot_arm()
+    torch_model = model_dynamics()
     input_range = np.array([ # (num_inputs, 2)
                       [np.pi/3, 2*np.pi/3], # x0min, x0max
                       [np.pi/3, 2*np.pi/3], # x1min, x1max
+                      [np.pi/3, np.pi/3], # x1min, x1max
+                      [np.pi/3, np.pi/3], # x1min, x1max
+                      [0, 0], # amin, amax
     ])
+    # torch_model = model_xiang_2020_robot_arm()
+    # input_range = np.array([ # (num_inputs, 2)
+    #                   [np.pi/3, 2*np.pi/3], # x0min, x0max
+    #                   [np.pi/3, 2*np.pi/3], # x1min, x1max
+    # ])
     # partitioner = "Uniform"
     # partitioner_hyperparams = {"num_partitions": [4,4,1,1,1]}
-    # partitioner = "SimGuided"
-    partitioner = "GreedySimGuided"
     partitioner_hyperparams = {
+        "type": "GreedySimGuided",
         "tolerance_eps": 0.02,
-        "interior_condition": "lower_bnds",
-        # "interior_condition": "linf",
+        # "interior_condition": "lower_bnds",
+        "interior_condition": "linf",
         # "interior_condition": "convex_hull",
         "make_animation": True,
         "show_animation": True,
     }
-    # propagator = "SDP"
-    propagator = "IBP (LIRPA)"
-    propagator_hyperparams = {"input_shape": input_range.shape[:-1]}
+    propagator_hyperparams = {
+        "type": "IBP (LIRPA)",
+        "input_shape": input_range.shape[:-1],
+    }
 
     # Run analysis & generate a plot
     analyzer = Analyzer(torch_model)
-    analyzer.partitioner = partitioner_dict[partitioner](**partitioner_hyperparams)
-    analyzer.propagator = propagator_dict[propagator](**propagator_hyperparams)
+    analyzer.partitioner = partitioner_hyperparams
+    analyzer.propagator = propagator_hyperparams
     output_range, analyzer_info = analyzer.get_output_range(input_range)
     print("Estimated output_range:\n", output_range)
     print("Number of propagator calls:", analyzer_info["num_propagator_calls"])

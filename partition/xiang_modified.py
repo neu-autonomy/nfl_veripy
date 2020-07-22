@@ -92,11 +92,13 @@ def simulation_guided_partition_gh_plus(model, input_range, num_outputs, viz=Fal
     kdt = KDTree(sampled_output_, leaf_size=30, metric='euclidean')
     center_NN=kdt.query(sampled_output_center.reshape(1,-1), k=k_NN, return_distance=False)
     #print(center_NN)
-    fig, axes = plt.subplots(1,2)
-    plt.plot(sampled_output_[:,0],sampled_output_[:,1],'ob')
-    plt.plot(boundary_points[:,0],boundary_points[:,1],'og')
-    plt.plot(sampled_output_[center_NN,0], sampled_output_[center_NN,1],'or')
-    plt.plot(sampled_output_center[0], sampled_output_center[1],'om') 
+    viz=0
+    if viz:
+        fig, axes = plt.subplots(1,2)
+        plt.plot(sampled_output_[:,0],sampled_output_[:,1],'ob')
+        plt.plot(boundary_points[:,0],boundary_points[:,1],'og')
+        plt.plot(sampled_output_[center_NN,0], sampled_output_[center_NN,1],'or')
+        plt.plot(sampled_output_center[0], sampled_output_center[1],'om') 
    # plt.show()   
     #plt.show()9
     NN_range_x=[]
@@ -138,13 +140,13 @@ def simulation_guided_partition_gh_plus(model, input_range, num_outputs, viz=Fal
         if np.all((output_range_sim[:,0] - output_range_new[:,0]) <= 0) and \
         np.all((output_range_sim[:,1] - output_range_new[:,1]) >= 0):
             terminating_condition=False
-            print('delta does not change')
+            #print('delta does not change')
 
         else:
             input_range_new= input_range_new-delta_step.reshape((num_inputs, 2))
             delta_step=delta_step/2
 
-            print('delta is decreasing')
+            #print('delta is decreasing')
             tol = 5
             if np.max(abs(delta_step))<tolerance_step:
                # break
@@ -153,78 +155,7 @@ def simulation_guided_partition_gh_plus(model, input_range, num_outputs, viz=Fal
                 diff=(input_range-input_range_new)
 
                 max_range= (np.max(abs(diff)))
-                if max_range<tolerance_range:# or abs(max_range-prev_range)<tol:
-                                 
-                        #range_diff= input_range -input_range_new
-                    if input_range[0,0] !=input_range_new[0,0]: 
-
-                            ##  approach 2 only
-                        input_range_ = np.array([[input_range[0,0] ,input_range_new[0,0]],[input_range[1,0], input_range[1,1]]])
-                        output_range_= get_output_range(model, input_range_, num_outputs, bound_method=bound_method)
-                        num_calls_propagator += 1
-   
-                        M.append((input_range_,output_range_)) 
-     
-                           # if input_range[1,0] !=input_range_new[1,0]: 
-
-
-                                #input_range_ = np.array([[input_range[0,0] ,input_range_new[0,0]],[input_range[1,0], input_range_new[1,0]]])
-                                #output_range_= get_output_range(model, input_range_, num_outputs, bound_method=bound_method)
-                               # M.append((input_range_,output_range_)) 
-
-                            #if input_range[0,1] !=input_range_new[0,1]: 
-                                #input_range_ = np.array([[input_range[0,0],input_range_new[0,0]],[input_range_new[1,0],input_range_new[1,1]]])
-                                #output_range_= get_output_range(model, input_range_, num_outputs, bound_method=bound_method)
-                               # M.append((input_range_,output_range_)) 
-                        
-
-                               # input_range_ = np.array([[input_range_new[0,0],input_range_new[0,1]],[input_range[1,0],input_range_new[1,0]]])
-                                #output_range_= get_output_range(model, input_range_, num_outputs, bound_method=bound_method)
-                               # M.append((input_range_,output_range_)) 
-                        
-                           # if input_range[1,1] !=input_range_new[1,1]: 
-                           
-                      
-                               # input_range_ = np.array([[input_range[0,0],input_range_new[0,0]],[input_range_new[1,1],input_range[1,1]]])
-                               # output_range_= get_output_range(model, input_range_, num_outputs, bound_method=bound_method)
-                               # M.append((input_range_,output_range_)) 
-
-                    if[input_range_new[0,1]!=input_range[0,1]]:
-
-                           #### approch2 only
-                        input_range_ = np.array([[input_range_new[0,1],input_range[0,1]],[input_range[1,0],input_range[1,1]]])
-                        output_range_= get_output_range(model, input_range_, num_outputs, bound_method=bound_method)
-                        num_calls_propagator += 1
-
-                        M.append((input_range_,output_range_))
-                           # input_range_ = np.array([[input_range_new[0,1],input_range[0,1]],[input_range_new[1,0],input_range_new[1,1]]])
-                           # output_range_= get_output_range(model, input_range_, num_outputs, bound_method=bound_method)
-                           # M.append((input_range_,output_range_)) 
-                            #if [input_range_new[1,0]!=input_range[1,0]]:
-                               # input_range_ = np.array([[input_range_new[0,1],input_range[0,1]],[input_range[1,0],input_range_new[1,0]]])
-                              #  output_range_= get_output_range(model, input_range_, num_outputs, bound_method=bound_method)
-                              #  M.append((input_range_,output_range_)) 
-
-                        
-                    if[input_range_new[1,1]!=input_range[1,1]]:
-                        ### common partition between two approaches
-
-                        input_range_ = np.array([[input_range_new[0,0],input_range_new[0,1]],[input_range_new[1,1],input_range[1,1]]])
-                        output_range_= get_output_range(model, input_range_, num_outputs, bound_method=bound_method)
-                        num_calls_propagator += 1
-
-                        M.append((input_range_,output_range_))
-                           
-
-                    if[input_range_new[1,0]!=input_range[1,0]]:
-                        ### common partition between two approaches
-
-                        input_range_ = np.array([[input_range_new[0,0],input_range_new[0,1]],[input_range[1,0],input_range_new[1,0]]])
-                        output_range_= get_output_range(model, input_range_, num_outputs, bound_method=bound_method)
-                        
-                        num_calls_propagator += 1
-    
-                        M.append((input_range_,output_range_)) 
+                if max_range<tolerance_range:# or abs(max_range-prev_range)<tol
        
                     break
                 else:
@@ -242,76 +173,6 @@ def simulation_guided_partition_gh_plus(model, input_range, num_outputs, viz=Fal
                     if idx<0:
                         print('All boxes are explored')
 
-                        
-                        #range_diff= input_range -input_range_new
-                        if input_range[0,0] !=input_range_new[0,0]: 
-
-                            ##  approach 2 only
-                            input_range_ = np.array([[input_range[0,0] ,input_range_new[0,0]],[input_range[1,0], input_range[1,1]]])
-                            output_range_= get_output_range(model, input_range_, num_outputs, bound_method=bound_method)
-                            num_calls_propagator += 1
-    
-                            M.append((input_range_,output_range_)) 
-     
-                           # if input_range[1,0] !=input_range_new[1,0]: 
-
-
-                                #input_range_ = np.array([[input_range[0,0] ,input_range_new[0,0]],[input_range[1,0], input_range_new[1,0]]])
-                                #output_range_= get_output_range(model, input_range_, num_outputs, bound_method=bound_method)
-                               # M.append((input_range_,output_range_)) 
-
-                            #if input_range[0,1] !=input_range_new[0,1]: 
-                                #input_range_ = np.array([[input_range[0,0],input_range_new[0,0]],[input_range_new[1,0],input_range_new[1,1]]])
-                                #output_range_= get_output_range(model, input_range_, num_outputs, bound_method=bound_method)
-                               # M.append((input_range_,output_range_)) 
-                        
-
-                               # input_range_ = np.array([[input_range_new[0,0],input_range_new[0,1]],[input_range[1,0],input_range_new[1,0]]])
-                                #output_range_= get_output_range(model, input_range_, num_outputs, bound_method=bound_method)
-                               # M.append((input_range_,output_range_)) 
-                        
-                           # if input_range[1,1] !=input_range_new[1,1]: 
-                           
-                      
-                               # input_range_ = np.array([[input_range[0,0],input_range_new[0,0]],[input_range_new[1,1],input_range[1,1]]])
-                               # output_range_= get_output_range(model, input_range_, num_outputs, bound_method=bound_method)
-                               # M.append((input_range_,output_range_)) 
-
-                        if[input_range_new[0,1]!=input_range[0,1]]:
-
-                           #### approch2 only
-                            input_range_ = np.array([[input_range_new[0,1],input_range[0,1]],[input_range[1,0],input_range[1,1]]])
-                            output_range_= get_output_range(model, input_range_, num_outputs, bound_method=bound_method)
-                            num_calls_propagator += 1
-   
-                            M.append((input_range_,output_range_))
-                           # input_range_ = np.array([[input_range_new[0,1],input_range[0,1]],[input_range_new[1,0],input_range_new[1,1]]])
-                           # output_range_= get_output_range(model, input_range_, num_outputs, bound_method=bound_method)
-                           # M.append((input_range_,output_range_)) 
-                            #if [input_range_new[1,0]!=input_range[1,0]]:
-                               # input_range_ = np.array([[input_range_new[0,1],input_range[0,1]],[input_range[1,0],input_range_new[1,0]]])
-                              #  output_range_= get_output_range(model, input_range_, num_outputs, bound_method=bound_method)
-                              #  M.append((input_range_,output_range_)) 
-
-                        
-                        if[input_range_new[1,1]!=input_range[1,1]]:
-                        ### common partition between two approaches
-
-                            input_range_ = np.array([[input_range_new[0,0],input_range_new[0,1]],[input_range_new[1,1],input_range[1,1]]])
-                            output_range_= get_output_range(model, input_range_, num_outputs, bound_method=bound_method)
-                            num_calls_propagator += 1
-
-                            M.append((input_range_,output_range_))
-                           
-
-                        if[input_range_new[1,0]!=input_range[1,0]]:
-                        ### common partition between two approaches
-
-                            input_range_ = np.array([[input_range_new[0,0],input_range_new[0,1]],[input_range[1,0],input_range_new[1,0]]])
-                            output_range_= get_output_range(model, input_range_, num_outputs, bound_method=bound_method)
-                            num_calls_propagator += 1
-
-                            M.append((input_range_,output_range_)) 
        
 
                         break
@@ -319,9 +180,50 @@ def simulation_guided_partition_gh_plus(model, input_range, num_outputs, viz=Fal
                         prev_range = max_range
                         delta_step =set_delta_step(input_range, diff_rolled,idx, stage=2)  
                         if np.max(abs(delta_step))<tolerance_step:
+
+                            print('oh here!!!')
                             break
 
+    
+                        
+                        #range_diff= input_range -input_range_new
+    if input_range[0,0] !=input_range_new[0,0]: 
+
+                            ##  approach 2 only
+        input_range_ = np.array([[input_range[0,0] ,input_range_new[0,0]],[input_range[1,0], input_range[1,1]]])
+        output_range_= get_output_range(model, input_range_, num_outputs, bound_method=bound_method)
+        num_calls_propagator += 1
+    
+        M.append((input_range_,output_range_)) 
+      
+
+    if[input_range_new[0,1]!=input_range[0,1]]:
+
+                           #### approch2 only
+        input_range_ = np.array([[input_range_new[0,1],input_range[0,1]],[input_range[1,0],input_range[1,1]]])
+        output_range_= get_output_range(model, input_range_, num_outputs, bound_method=bound_method)
+        num_calls_propagator += 1
    
+        M.append((input_range_,output_range_))
+                       
+                        
+    if[input_range_new[1,1]!=input_range[1,1]]:
+
+        input_range_ = np.array([[input_range_new[0,0],input_range_new[0,1]],[input_range_new[1,1],input_range[1,1]]])
+        output_range_= get_output_range(model, input_range_, num_outputs, bound_method=bound_method)
+        num_calls_propagator += 1
+
+        M.append((input_range_,output_range_))
+                           
+
+    if[input_range_new[1,0]!=input_range[1,0]]:
+                        ### common partition between two approaches
+
+        input_range_ = np.array([[input_range_new[0,0],input_range_new[0,1]],[input_range[1,0],input_range_new[1,0]]])
+        output_range_= get_output_range(model, input_range_, num_outputs, bound_method=bound_method)
+        num_calls_propagator += 1
+
+        M.append((input_range_,output_range_)) 
     u_e = np.empty((num_outputs, 2))
     u_e[:,0] = np.inf
     u_e[:,1] = -np.inf
@@ -366,15 +268,17 @@ def simulation_guided_partition_gh_plus(model, input_range, num_outputs, viz=Fal
         tmp = np.dstack([u_e, M_range])
         u_e[:,1] = np.max(tmp[:,1,:], axis=1)
         u_e[:,0] = np.min(tmp[:,0,:], axis=1)
-    if viz:
-        N = 1000
-        sampled_inputs_eval = np.random.uniform(input_range[:,0], input_range[:,1], (N,num_inputs,))
-        sampled_outputs_eval = model(torch.Tensor(sampled_inputs_eval), method_opt=None).data.numpy()
-        sampled_outputs_range = np.empty((num_outputs, 2))
-        sampled_outputs_range[:,0] = np.min(sampled_outputs_eval, axis=0)
-        sampled_outputs_range[:,1] = np.max(sampled_outputs_eval, axis=0)
+    N = 1000
 
-        visualize_partitions(0,output_range_no_partition,sampled_outputs_eval, u_e, input_range, sampled_outputs_range, interior_M=interior_M,M=M)
+    sampled_inputs = np.random.uniform(input_range[:,0], input_range[:,1], (N,num_inputs,))
+    sampled_outputs_eval = model(torch.Tensor(sampled_inputs), method_opt=None).data.numpy()
+    sampled_outputs_range = np.empty((num_outputs, 2))
+    sampled_outputs_range[:,0] = np.min(sampled_outputs_eval, axis=0)
+    sampled_outputs_range[:,1] = np.max(sampled_outputs_eval, axis=0)
+    viz=0   
+    if viz:
+      
+        visualize_partitions(0,output_range_no_partition,sampled_outputs_eval, u_e, input_range, sampled_outputs_range, interior_M=ranges,M=None)
     
     # Line 24
 
@@ -385,15 +289,15 @@ def simulation_guided_partition_gh_plus(model, input_range, num_outputs, viz=Fal
    # boundary_output_partitions= getboundary(M_numpy,0.0)
     #print(polygon_area(M_numpy[0,:],M_numpy[1,:] ))
 
-    rect = Rectangle(input_range[:,0], input_range[0,1]-input_range[0,0], input_range[1,1]-input_range[1,0],fc='none', linewidth=1,edgecolor='r')  
-    axes[1].add_patch(rect)
-    rect = Rectangle(input_range_initial[:,0], input_range_initial[0,1]-input_range_initial[0,0], input_range_initial[1,1]-input_range_initial[1,0],fc='none', linewidth=3,edgecolor='m')
-    axes[1].add_patch(rect)
-    rect = Rectangle(input_range_new[:,0], input_range_new[0,1]-input_range_new[0,0], input_range_new[1,1]-input_range_new[1,0],fc='none', linewidth=1,edgecolor='g')
-    axes[1].add_patch(rect)
-    axes[1].set_xlim(input_range[0,0], input_range[0,1])
-    axes[1].set_ylim(input_range[1,0], input_range[1,1])
-    plt.show()
+        rect = Rectangle(input_range[:,0], input_range[0,1]-input_range[0,0], input_range[1,1]-input_range[1,0],fc='none', linewidth=1,edgecolor='r')  
+        axes[1].add_patch(rect)
+        rect = Rectangle(input_range_initial[:,0], input_range_initial[0,1]-input_range_initial[0,0], input_range_initial[1,1]-input_range_initial[1,0],fc='none', linewidth=3,edgecolor='m')
+        axes[1].add_patch(rect)
+        rect = Rectangle(input_range_new[:,0], input_range_new[0,1]-input_range_new[0,0], input_range_new[1,1]-input_range_new[1,0],fc='none', linewidth=1,edgecolor='g')
+        axes[1].add_patch(rect)
+        axes[1].set_xlim(input_range[0,0], input_range[0,1])
+        axes[1].set_ylim(input_range[1,0], input_range[1,1])
+        plt.show()
     
     print('********* printing results ......')
     print('number of partitions_gh:')
@@ -638,16 +542,17 @@ def simulation_guided_partition(model, input_range, num_outputs, viz=False, boun
         tmp = np.dstack([u_e, M_range])
         u_e[:,1] = np.max(tmp[:,1,:], axis=1)
         u_e[:,0] = np.min(tmp[:,0,:], axis=1)
-    if viz:
-        N = 1000
-      
-        sampled_inputs_eval = np.random.uniform(input_range[:,0], input_range[:,1], (N,num_inputs,))
-        sampled_outputs_eval = model(torch.Tensor(sampled_inputs_eval), method_opt=None).data.numpy()
-        sampled_outputs_range = np.empty((num_outputs, 2))
-        sampled_outputs_range[:,0] = np.min(sampled_outputs_eval, axis=0)
-        sampled_outputs_range[:,1] = np.max(sampled_outputs_eval, axis=0)
+    N = 1000
 
-        visualize_partitions(0,output_range_no_partition,sampled_outputs_eval, u_e, input_range, sampled_outputs_range, interior_M=interior_M,M=M)
+    sampled_inputs = np.random.uniform(input_range[:,0], input_range[:,1], (N,num_inputs,))
+    sampled_outputs_eval = model(torch.Tensor(sampled_inputs), method_opt=None).data.numpy()
+    sampled_outputs_range = np.empty((num_outputs, 2))
+    sampled_outputs_range[:,0] = np.min(sampled_outputs_eval, axis=0)
+    sampled_outputs_range[:,1] = np.max(sampled_outputs_eval, axis=0)
+    viz=0   
+    if viz:
+      
+        visualize_partitions(0,output_range_no_partition,sampled_outputs_eval, u_e, input_range, sampled_outputs_range, interior_M=ranges,M=None)
     
     print('********* printing results ......')
     print('number of partitions_sg:')
@@ -889,14 +794,17 @@ def uniform_partition(model, input_range, num_outputs, viz=False, bound_method="
         u_e[:,0] = np.min(tmp[:,0,:], axis=1)
         
         ranges.append((input_range_, output_range_))
-    
+    N = 1000
+
+    sampled_inputs = np.random.uniform(input_range[:,0], input_range[:,1], (N,num_inputs,))
+    sampled_outputs_eval = model(torch.Tensor(sampled_inputs), method_opt=None).data.numpy()
+    sampled_outputs_range = np.empty((num_outputs, 2))
+    sampled_outputs_range[:,0] = np.min(sampled_outputs_eval, axis=0)
+    sampled_outputs_range[:,1] = np.max(sampled_outputs_eval, axis=0)
+    viz=0
     if viz:
-        N = 1000
-        sampled_inputs = np.random.uniform(input_range[:,0], input_range[:,1], (N,num_inputs,))
-        sampled_outputs_eval = model(torch.Tensor(sampled_inputs), method_opt=None).data.numpy()
-        sampled_outputs_range = np.empty((num_outputs, 2))
-        sampled_outputs_range[:,0] = np.min(sampled_outputs_eval, axis=0)
-        sampled_outputs_range[:,1] = np.max(sampled_outputs_eval, axis=0)
+      
+        
         visualize_partitions(0,output_range_no_partition,sampled_outputs_eval, u_e, input_range, sampled_outputs_range, interior_M=ranges,M=None)
     
     print('********* printing results ......')
@@ -1103,7 +1011,7 @@ def xiang2020example(input_range=None, model=None, bound_method="ibp"):
     print(a.shape)    
     if model is None:
         torch_model = model_xiang_2020_robot_arm()
-        torch_model = model_gh1()
+        #torch_model = model_gh1()
         torch_model_ = BoundSequential.convert(torch_model, {"same-slope": True})
         num_outputs = 2
 
@@ -1116,7 +1024,7 @@ def xiang2020example(input_range=None, model=None, bound_method="ibp"):
     #output_range_simulation_guided_gh= simulation_guided_partition_gh(torch_model_, input_range, num_outputs, viz=True,  boundary_shape="convex", bound_method=bound_method)
     output_range_simulation_guided = simulation_guided_partition(torch_model_, input_range, num_outputs, viz=True, bound_method=bound_method)
     output_range_uniform = uniform_partition(torch_model_, input_range, num_outputs, viz=True, bound_method=bound_method)
-    output_range_bouandary = simulation_guided_partition_boundary(torch_model_, input_range, num_outputs, viz=True, boundary_shape="convex", bound_method=bound_method)
+    #output_range_bouandary = simulation_guided_partition_boundary(torch_model_, input_range, num_outputs, viz=True, boundary_shape="convex", bound_method=bound_method)
 
     #print(output_range_simulation_guided_gh)
     #print(output_range_simulation_guided)
@@ -1146,6 +1054,6 @@ if __name__ == '__main__':
 
 	print("CROWN...")
 	xiang2020example(bound_method="crown")
-	print("IBP...")
-	xiang2020example(bound_method="ibp")
+	#print("IBP...")
+	#xiang2020example(bound_method="ibp")
 
