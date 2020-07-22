@@ -47,35 +47,48 @@ def experiment():
     partitioners = ["Uniform", "SimGuided", "GreedySimGuided", "AdaptiveSimGuided"]
     propagators = ["IBP", "CROWN"]
     partitioner_hyperparams_to_use = {
-        "Uniform":
+      
             {
-                "num_partitions": [1,2,4,8,16,32]
+                "type": "Uniform",
+                "num_partitions": [1,2,4,8,16,32],
                # "num_partitions": [16,16,16,16,16,16,16,16,16,16]
+                "make_animation": False,
+                "show_animation": False,
 
             },
-        "SimGuided":
+        
             {
+                "type":"SimGuided",
                 "tolerance_eps": [1.0, 0.5, 0.2, 0.1, 0.05, 0.01],
                 #"tolerance_eps": [0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01,0.01,0.01,0.01],
-
-                "num_simulations": [1000]
+                "num_simulations": [1000],
+                "make_animation": False,
+                "show_animation": False,
             },
-        "GreedySimGuided":
+        
             {
+                "type": "GreedySimGuided",
+             # "interior_condition": "lower_bnds",
+                "interior_condition": "linf",
+             # "interior_condition": "convex_hull",
+                "make_animation": False,
+                "show_animation": False,
                 "tolerance_eps": [1.0, 0.5, 0.2, 0.1, 0.05, 0.01],
                 "num_simulations": [1000]
             },
-        "AdaptiveSimGuided":
-        #"BoundarySimGuided":
-
             {
+                "type":"AdaptiveSimGuided",
                 "tolerance_eps": [1.0, 0.5, 0.2, 0.1, 0.05, 0.01],
                 #"tolerance_expanding_step": [0.001],
                 #"k_NN": [1],
                 "num_simulations": [1000],
+                "make_animation": False,
+                "show_animation": False,
                 #"tolerance_range": [0.05]
             },
     }
+
+
 
     # Auto-run combinations of algorithms & hyperparams, log results to pandas dataframe
     df = pd.DataFrame()
@@ -105,7 +118,7 @@ def experiment():
 
     return df
 
-def run_and_add_row(analyzer, input_range, partitioner, propagator, partitioner_hyperparams, propagator_hyperparams):
+def run_and_add_row(analyzer, input_range, partitioner, propagator, partitioner_hyperparams=None, propagator_hyperparams=None):
     print("Partitioner: {}, Propagator: {}, {}, {}".format(partitioner, propagator, partitioner_hyperparams, propagator_hyperparams))
     analyzer.partitioner = partitioner_dict[partitioner](**partitioner_hyperparams)
     analyzer.propagator = propagator_dict[propagator](**propagator_hyperparams)

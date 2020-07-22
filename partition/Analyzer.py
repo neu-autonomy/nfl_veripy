@@ -3,13 +3,14 @@ import matplotlib.pyplot as plt
 from matplotlib.patches import Rectangle
 from partition.network_utils import get_sampled_outputs, samples_to_range
 
-from partition.Partitioner import NoPartitioner, UniformPartitioner, SimGuidedPartitioner, GreedySimGuidedPartitioner
+from partition.Partitioner import NoPartitioner, UniformPartitioner, SimGuidedPartitioner, GreedySimGuidedPartitioner, AdaptiveSimGuidedPartitioner
 from partition.Propagator import IBPPropagator, CROWNPropagator, CROWNAutoLIRPAPropagator, IBPAutoLIRPAPropagator, CROWNIBPAutoLIRPAPropagator, SDPPropagator
 partitioner_dict = {
     "None": NoPartitioner,
     "Uniform": UniformPartitioner,
     "SimGuided": SimGuidedPartitioner,
     "GreedySimGuided": GreedySimGuidedPartitioner,
+    "AdaptiveSimGuided": AdaptiveSimGuidedPartitioner,
 }
 propagator_dict = {
     "IBP": IBPPropagator,
@@ -145,8 +146,8 @@ if __name__ == '__main__':
         # "interior_condition": "lower_bnds",
         "interior_condition": "linf",
         # "interior_condition": "convex_hull",
-        "make_animation": True,
-        "show_animation": True,
+        "make_animation": False,
+        "show_animation": False,
     }
     propagator_hyperparams = {
         "type": "IBP (LIRPA)",
