@@ -5,7 +5,6 @@ import numpy as np
 def model_dynamics(env_name='CartPole-v0'):
     from partition.dynamics import load_model
     from crown_ibp.conversions.keras2torch import keras2torch
-    env_name = 'CartPole-v0'
     model = load_model(env_name+"_model")
     torch_model = keras2torch(model, "torch_model")
     return torch_model
@@ -40,7 +39,7 @@ def model_xiang_2017():
 def model_xiang_2020_robot_arm():
     model = Sequential(
         Linear(2, 5),
-        ReLU(),
+        Tanh(),
         Linear(5, 2),
     )
     state_dict = model.state_dict()

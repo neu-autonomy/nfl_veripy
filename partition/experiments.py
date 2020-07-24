@@ -14,28 +14,13 @@ import os
 import glob
 import time
 
-partitioner_dict = {
-    "None": partition.Partitioner.NoPartitioner,
-    "Uniform": partition.Partitioner.UniformPartitioner,
-    "SimGuided": partition.Partitioner.SimGuidedPartitioner,
-    "GreedySimGuided": partition.Partitioner.GreedySimGuidedPartitioner,
-    # "AdaptiveSimGuided": partition.Partitioner.AdaptiveSimGuidedPartitioner,
-    # "BoundarySimGuided": partition.Partitioner.BoundarySimGuidedPartitioner,
-
-}
-propagator_dict = {
-    "IBP": partition.Propagator.IBPPropagator,
-    "CROWN": partition.Propagator.CROWNPropagator,
-    #"SDP": partition.Propagator.SDPPropagator,
-}
-
 save_dir = "{}/results".format(os.path.dirname(os.path.abspath(__file__)))
 os.makedirs(save_dir, exist_ok=True)
 
 def experiment():
     
     # Choose the model and input range
-    torch_model = model_gh1()
+    # torch_model = model_gh1()
     torch_model = model_xiang_2020_robot_arm()
 
     input_range = np.array([ # (num_inputs, 2)
@@ -44,25 +29,24 @@ def experiment():
     ])
     
     # Select which algorithms and hyperparameters to evaluate
-    partitioners = ["Uniform", "SimGuided", "GreedySimGuided"]
-    propagators = ["IBP", "CROWN"]
+    partitioners = ["SimGuided", "GreedySimGuided"]
+    propagators = ["CROWN_LIRPA"]
     partitioner_hyperparams_to_use = {
         "Uniform":
             {
                 "num_partitions": [1,2,4,8,16,32]
-               # "num_partitions": [16,16,16,16,16,16,16,16,16,16]
-
             },
         "SimGuided":
             {
-                "tolerance_eps": [1.0, 0.5, 0.2, 0.1, 0.05, 0.01],
-                #"tolerance_eps": [0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01,0.01,0.01,0.01],
-
+                "termination_condition_type": ["input_cell_size"],
+                "termination_condition_value": [1.0, 0.5, 0.2, 0.1, 0.05, 0.01],
                 "num_simulations": [1000]
             },
         "GreedySimGuided":
             {
-                "tolerance_eps": [1.0, 0.5, 0.2, 0.1, 0.05, 0.01],
+                "termination_condition_type": ["input_cell_size"],
+                # "termination_condition_value": [1.0, 0.5, 0.2, 0.1, 0.05, 0.01],
+                "termination_condition_value": [1.0, 0.5, 0.2, 0.1, 0.05, 0.01, 0.005, 0.001],
                 "num_simulations": [1000]
             },
         "AdaptiveSimGuided":
@@ -86,7 +70,7 @@ def experiment():
         for partitioner_vals in itertools.product(*list(partitioner_hyperparams_to_use[partitioner].values())):
             for partitioner_i in range(len(partitioner_keys)):
                 partitioner_hyperparams[partitioner_keys[partitioner_i]] = partitioner_vals[partitioner_i]
-            propagator_hyperparams = {"type": propagator}
+            propagator_hyperparams = {"type": propagator, "input_shape": input_range.shape[:-1]}
             data_row = run_and_add_row(analyzer, input_range, partitioner_hyperparams, propagator_hyperparams)
             df = df.append(data_row, ignore_index=True)
     
@@ -107,16 +91,17 @@ def experiment():
 
 def run_and_add_row(analyzer, input_range, partitioner_hyperparams, propagator_hyperparams):
     print("Partitioner: {},\n Propagator: {}".format(partitioner_hyperparams, propagator_hyperparams))
+    np.random.seed(0)
     analyzer.partitioner = partitioner_hyperparams
     analyzer.propagator = propagator_hyperparams
     t_start = time.time()
     output_range, analyzer_info = analyzer.get_output_range(input_range)
     t_end = time.time()
-    pars = '_'.join([str(key)+"_"+str(value) for key, value in partitioner_hyperparams.items()])
-    pars2 = '_'.join([str(key)+"_"+str(value) for key, value in propagator_hyperparams.items()])
+    pars = '_'.join([str(key)+"_"+str(value) for key, value in partitioner_hyperparams.items() if key not in ["make_animation", "show_animation", "type"]])
+    pars2 = '_'.join([str(key)+"_"+str(value) for key, value in propagator_hyperparams.items() if key not in ["input_shape", "type"]])
 
     analyzer_info["save_name"] = save_dir+"/imgs/"+partitioner_hyperparams['type']+"_"+propagator_hyperparams['type']+"_"+pars+"_"+pars2+".png"
-    # analyzer.visualize(input_range, output_range, **analyzer_info)
+    analyzer.visualize(input_range, output_range, show=False, **analyzer_info)
 
     stats = {
         "computation_time": t_end - t_start,
@@ -125,7 +110,7 @@ def run_and_add_row(analyzer, input_range, partitioner_hyperparams, propagator_h
         "propagator": type(analyzer.propagator).__name__,
         "partitioner": type(analyzer.partitioner).__name__,
     }
-    data_row = {**stats, **analyzer_info}
+    data_row = {**stats, **analyzer_info, **partitioner_hyperparams, **propagator_hyperparams}
     return data_row
 
 def add_approx_error_to_df(df):
@@ -152,7 +137,8 @@ def plot(df, stat):
     output_range_exact = get_exact_output_range(df)
     for partitioner in df["partitioner"].unique():
         for propagator in df["propagator"].unique():
-            if propagator == "EXACT" or partitioner == "EXACT": continue
+            if propagator == "EXACT" or partitioner == "EXACT":
+                continue
             df_ = df[(df["partitioner"] == partitioner) & (df["propagator"] == propagator)]
             plt.loglog(df_[stat].values, df_["output_area_error"],
                 marker=algs[partitioner]["marker"],
@@ -161,7 +147,6 @@ def plot(df, stat):
 
     plt.xlabel(stat)
     plt.ylabel('Approximation Error')
-    plt.ylim(bottom=0)
     plt.legend()
     plt.show()
 
@@ -194,6 +179,14 @@ algs ={
         "color_ind": 1,
         "name": "CROWNPropagator",
     },
+    "IBPAutoLIRPAPropagator": {
+        "color_ind": 0,
+        "name": "IBPPropagator",
+    },
+    "CROWNAutoLIRPAPropagator": {
+        "color_ind": 1,
+        "name": "CROWNPropagator",
+    },
     "SDPPropagator": {
         "color_ind": 2,
         "name": "SDPPropagator",
@@ -203,7 +196,7 @@ algs ={
 if __name__ == '__main__':
 
     # Run an experiment
-    df = experiment()
+    # df = experiment()
 
     # If you want to plot w/o re-running the experiments, comment out the experiment line.
     if 'df' not in locals():
@@ -218,7 +211,7 @@ if __name__ == '__main__':
 
     add_approx_error_to_df(df)
     plot(df, stat="num_partitions")
-    plot(df, stat="num_propagator_calls")
-    plot(df, stat="computation_time")
+    # plot(df, stat="num_propagator_calls")
+    # plot(df, stat="computation_time")
 
 

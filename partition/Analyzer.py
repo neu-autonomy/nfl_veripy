@@ -2,6 +2,10 @@ import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.patches import Rectangle
 from partition.network_utils import get_sampled_outputs, samples_to_range
+import os
+
+plt.rcParams['mathtext.fontset'] = 'stix'
+plt.rcParams['font.family'] = 'STIXGeneral'
 
 from partition.Partitioner import NoPartitioner, UniformPartitioner, SimGuidedPartitioner, GreedySimGuidedPartitioner, AdaptiveSimGuidedPartitioner
 from partition.Propagator import IBPPropagator, CROWNPropagator, CROWNAutoLIRPAPropagator, IBPAutoLIRPAPropagator, CROWNIBPAutoLIRPAPropagator, SDPPropagator
@@ -15,11 +19,14 @@ partitioner_dict = {
 propagator_dict = {
     "IBP": IBPPropagator,
     "CROWN": CROWNPropagator,
-    "CROWN (LIRPA)": CROWNAutoLIRPAPropagator,
-    "IBP (LIRPA)": IBPAutoLIRPAPropagator,
-    "CROWN-IBP (LIRPA)": CROWNIBPAutoLIRPAPropagator,
+    "CROWN_LIRPA": CROWNAutoLIRPAPropagator,
+    "IBP_LIRPA": IBPAutoLIRPAPropagator,
+    "CROWN-IBP_LIRPA": CROWNIBPAutoLIRPAPropagator,
     "SDP": SDPPropagator,
 }
+
+save_dir = "{}/results/analyzer/".format(os.path.dirname(os.path.abspath(__file__)))
+os.makedirs(save_dir, exist_ok=True)
 
 class Analyzer:
     def __init__(self, torch_model):
@@ -56,16 +63,27 @@ class Analyzer:
         output_range, info = self.partitioner.get_output_range(input_range, self.propagator)
         return output_range, info
 
-    def visualize(self, input_range, output_range_estimate, **kwargs):
-        sampled_outputs = self.get_sampled_outputs(input_range)
-        output_range_exact = self.samples_to_range(sampled_outputs)
+    def visualize(self, input_range, output_range_estimate, show=True, **kwargs):
+        # sampled_outputs = self.get_sampled_outputs(input_range)
+        # output_range_exact = self.samples_to_range(sampled_outputs)
 
-        self.partitioner.setup_visualization(input_range, output_range_estimate, output_range_exact, self.propagator)
-        self.partitioner.visualize(kwargs["exterior_partitions"], kwargs["interior_partitions"], output_range_estimate)
+        self.partitioner.setup_visualization(input_range, output_range_estimate, self.propagator)
+        self.partitioner.visualize(kwargs.get("exterior_partitions", kwargs.get("all_partitions", [])), kwargs.get("interior_partitions", []), output_range_estimate)
+
+        self.partitioner.animate_axes[0].legend(bbox_to_anchor=(0,1.02,1,0.2), loc="lower left",
+                mode="expand", borderaxespad=0, ncol=1)
+        self.partitioner.animate_axes[1].legend(bbox_to_anchor=(0,1.02,1,0.2), loc="lower left",
+                mode="expand", borderaxespad=0, ncol=1)
+
+        self.partitioner.animate_fig.tight_layout()
 
         if "save_name" in kwargs and kwargs["save_name"] is not None:
             plt.savefig(kwargs["save_name"])
-        plt.show()
+
+        if show:
+            plt.show()
+        else:
+            plt.close()
 
     def get_sampled_outputs(self, input_range, N=1000):
         return get_sampled_outputs(input_range, self.propagator, N=N)
@@ -135,16 +153,26 @@ if __name__ == '__main__':
     # partitioner = "Uniform"
     # partitioner_hyperparams = {"num_partitions": [4,4,1,1,1]}
     partitioner_hyperparams = {
+        # "type": "SimGuided",
         "type": "GreedySimGuided",
-        "tolerance_eps": 0.02,
+
+        "termination_condition_type": "input_cell_size",
+        "termination_condition_value": 0.1,
+        # "termination_condition_type": "num_propagator_calls",
+        # "termination_condition_value": 50,
+        # "termination_condition_type": "pct_improvement",
+        # "termination_condition_value": 0.001,
+        # "termination_condition_type": "pct_error",
+        # "termination_condition_value": 0.5,
+
         # "interior_condition": "lower_bnds",
-        "interior_condition": "linf",
-        # "interior_condition": "convex_hull",
+        # "interior_condition": "linf",
+        "interior_condition": "convex_hull",
         "make_animation": False,
         "show_animation": False,
     }
     propagator_hyperparams = {
-        "type": "IBP (LIRPA)",
+        "type": "IBP_LIRPA",
         "input_shape": input_range.shape[:-1],
     }
 
@@ -156,5 +184,11 @@ if __name__ == '__main__':
     print("Estimated output_range:\n", output_range)
     print("Number of propagator calls:", analyzer_info["num_propagator_calls"])
     print("Number of partitions:", analyzer_info["num_partitions"])
+
+    pars = '_'.join([str(key)+"_"+str(value) for key, value in partitioner_hyperparams.items() if key not in ["make_animation", "show_animation", "type"]])
+    pars2 = '_'.join([str(key)+"_"+str(value) for key, value in propagator_hyperparams.items() if key not in ["input_shape", "type"]])
+    analyzer_info["save_name"] = save_dir+partitioner_hyperparams['type']+"_"+propagator_hyperparams['type']+"_"+pars+"_"+pars2+".png"
+
     analyzer.visualize(input_range, output_range, **analyzer_info)
+
     print("done.")
