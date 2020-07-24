@@ -515,7 +515,7 @@ class AdaptiveSimGuidedPartitioner(Partitioner):
        # input_range_, output_range_ = M.pop(0) 
         #return input_range_, output_range_
     def set_delta_step(self,range_,center_value, idx, stage=1):
-        c=0.5
+        c=0.65
         if stage==1:
             k=-1
             num_inputs=idx
@@ -549,6 +549,8 @@ class AdaptiveSimGuidedPartitioner(Partitioner):
         info = {}
 
        # tolerance_eps = 0.05
+
+       ### old param tolerance_range = 0.01, c= 0.8, 2/3
         tolerance_step=0.0001
         tolerance_range=0.005
         num_propagator_calls=0
@@ -607,7 +609,7 @@ class AdaptiveSimGuidedPartitioner(Partitioner):
                 terminating_condition==False
             else:
                 input_range_new= input_range_new-delta_step.reshape((num_inputs, 2))
-                delta_step=delta_step/2
+                delta_step=1*delta_step/2
 
                 if np.max(abs(delta_step))<tolerance_step:
 
@@ -676,7 +678,7 @@ class AdaptiveSimGuidedPartitioner(Partitioner):
         while len(M) != 0:
             input_range_, output_range_ = M.pop(0) # Line 9
             if np.all((output_range_sim[:,0] - output_range_[:,0]) <= 0) and \
-                np.all((output_range_sim[:,1] - output_range_[:,1]) >= 0):
+               np.all((output_range_sim[:,1] - output_range_[:,1]) >= 0):
             # Line 11
                 tmp = np.dstack([u_e, output_range_])
                 u_e[:,1] = np.max(tmp[:,1,:], axis=1)

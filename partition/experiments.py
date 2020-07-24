@@ -19,7 +19,7 @@ partitioner_dict = {
     "Uniform": partition.Partitioner.UniformPartitioner,
     "SimGuided": partition.Partitioner.SimGuidedPartitioner,
     "GreedySimGuided": partition.Partitioner.GreedySimGuidedPartitioner,
-    # "AdaptiveSimGuided": partition.Partitioner.AdaptiveSimGuidedPartitioner,
+    "AdaptiveSimGuided": partition.Partitioner.AdaptiveSimGuidedPartitioner,
     # "BoundarySimGuided": partition.Partitioner.BoundarySimGuidedPartitioner,
 
 }
@@ -44,7 +44,7 @@ def experiment():
     ])
     
     # Select which algorithms and hyperparameters to evaluate
-    partitioners = ["Uniform", "SimGuided", "GreedySimGuided"]
+    partitioners = ["Uniform", "SimGuided", "GreedySimGuided", "AdaptiveSimGuided"]
     propagators = ["IBP", "CROWN"]
     partitioner_hyperparams_to_use = {
         "Uniform":
