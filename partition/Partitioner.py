@@ -9,6 +9,7 @@ from matplotlib.patches import Rectangle
 from partition.network_utils import get_sampled_outputs, samples_to_range
 import imageio
 import os
+from sklearn.metrics import pairwise_distances
 
 label_dict = {
     "linf": "$\ell_\infty$-ball",
@@ -60,8 +61,8 @@ class Partitioner():
 
     def squash_down_to_convex_hull(self, M, sim_hull_pts):
         from scipy.spatial import ConvexHull
-        ndim = M[0][0].shape[0]
-        pts = np.empty((len(M)*ndim**2, ndim))
+        ndim = M[0][1].shape[0]
+        pts = np.empty((len(M)*(2**(ndim)), ndim))
         i = 0
         for (input_range, output_range) in M:
             for pt in product(*output_range):
@@ -71,36 +72,49 @@ class Partitioner():
         hull.add_points(sim_hull_pts)
         return hull
 
-    def setup_visualization(self, input_range, output_range, propagator):
+    def setup_visualization(self, input_range, output_range, propagator, show_samples=True, outputs_to_highlight=None, inputs_to_highlight=None):
         self.animate_fig, self.animate_axes = plt.subplots(1,2)
 
-        # self.animate_axes[0].set_title("NN Input")
-        # self.animate_axes[1].set_title("NN Output")
-
-        num_input_dimensions_to_plot = 2
-        input_shape = input_range.shape[:-1]
-        lengths = input_range[...,1].flatten() - input_range[...,0].flatten()
-        flat_dims = np.argpartition(lengths, -num_input_dimensions_to_plot)[-num_input_dimensions_to_plot:]
-        flat_dims.sort()
-        input_dims = [np.unravel_index(flat_dim, input_range.shape[:-1]) for flat_dim in flat_dims]
+        if inputs_to_highlight is None:
+            # Automatically detect which input dims to show based on input_range
+            num_input_dimensions_to_plot = 2
+            input_shape = input_range.shape[:-1]
+            lengths = input_range[...,1].flatten() - input_range[...,0].flatten()
+            flat_dims = np.argpartition(lengths, -num_input_dimensions_to_plot)[-num_input_dimensions_to_plot:]
+            flat_dims.sort()
+            input_dims = [np.unravel_index(flat_dim, input_range.shape[:-1]) for flat_dim in flat_dims]
+            input_names = ["NN Input Dimension: {}".format(input_dims[0][0]), "NN Input Dimension: {}".format(input_dims[1][0])]
+        else:
+            input_dims = [x['dim'] for x in inputs_to_highlight]
+            input_names = [x['name'] for x in inputs_to_highlight]
         self.input_dims_ = tuple([tuple([input_dims[j][i] for j in range(len(input_dims))]) for i in range(len(input_dims[0]))])
+
+        if outputs_to_highlight is None:
+            output_dims = [(0,),(1,)]
+            output_names = ["NN Output Dimension 0", "NN Output Dimension 1"]
+        else:
+            output_dims = [x['dim'] for x in outputs_to_highlight]
+            output_names = [x['name'] for x in outputs_to_highlight]
+        self.output_dims_ = tuple([tuple([output_dims[j][i] for j in range(len(output_dims))]) for i in range(len(output_dims[0]))])
 
         scale = 0.05
         x_off = max((input_range[input_dims[0]+(1,)] - input_range[input_dims[0]+(0,)])*(scale), 1e-5)
         y_off = max((input_range[input_dims[1]+(1,)] - input_range[input_dims[1]+(0,)])*(scale), 1e-5)
         self.animate_axes[0].set_xlim(input_range[input_dims[0]+(0,)] - x_off, input_range[input_dims[0]+(1,)]+x_off)
         self.animate_axes[0].set_ylim(input_range[input_dims[1]+(0,)] - y_off, input_range[input_dims[1]+(1,)]+y_off)
-        self.animate_axes[0].set_xlabel("NN Input Dimension: {}".format(input_dims[0][0]))
-        self.animate_axes[0].set_ylabel("NN Input Dimension: {}".format(input_dims[1][0]))
-        self.animate_axes[1].set_xlabel("NN Output Dimension: {}".format(0))
-        self.animate_axes[1].set_ylabel("NN Output Dimension: {}".format(1))
+        self.animate_axes[0].set_xlabel(input_names[0])
+        self.animate_axes[0].set_ylabel(input_names[1])
+        self.animate_axes[1].set_xlabel(output_names[0])
+        self.animate_axes[1].set_ylabel(output_names[1])
 
         # Make a rectangle for the Exact boundaries
         sampled_outputs = self.get_sampled_outputs(input_range, propagator)
-        self.animate_axes[1].scatter(sampled_outputs[:,0], sampled_outputs[:,1], c='k', marker='.', zorder=2,
-            label="Sampled Outputs")
+        if show_samples:
+            self.animate_axes[1].scatter(sampled_outputs[...,output_dims[0]], sampled_outputs[...,output_dims[1]], c='k', marker='.', zorder=2,
+                label="Sampled Outputs")
 
         # Full input range
+        # TODO: this doesn't use the computed input_dims...
         input_range__ = input_range[self.input_dims_]
         input_rect = Rectangle(input_range__[:2,0], input_range__[0,1]-input_range__[0,0], input_range__[1,1]-input_range__[1,0],
                         fc='none', linewidth=2,edgecolor='k', zorder=3,
@@ -116,24 +130,28 @@ class Partitioner():
         linewidth = 3
         if self.interior_condition == "linf":
             output_range_exact = self.samples_to_range(sampled_outputs)
-            rect = Rectangle(output_range_exact[:2,0], output_range_exact[0,1]-output_range_exact[0,0], output_range_exact[1,1]-output_range_exact[1,0],
+            # TODO: this doesn't use the output_dims...
+            rect = Rectangle(output_range_exact[output_dims+(0,)], output_range_exact[output_dims[0]+(1,)]-output_range_exact[output_dims[0]+(0,)], output_range_exact[output_dims[1]+(1,)]-output_range_exact[output_dims[1]+(0,)],
                             fc='none', linewidth=linewidth,edgecolor=color,
                             label="True Bounds ({})".format(label_dict[self.interior_condition]))
             self.animate_axes[1].add_patch(rect)
             self.default_patches[1].append(rect)
         elif self.interior_condition == "lower_bnds":
             output_range_exact = self.samples_to_range(sampled_outputs)
-            line1 = self.animate_axes[1].axhline(output_range_exact[input_dims[1]+(0,)], linewidth=linewidth,color=color,
+            # TODO: this doesn't use the output_dims...
+
+            line1 = self.animate_axes[1].axhline(output_range_exact[output_dims[1]+(0,)], linewidth=linewidth,color=color,
                 label="True Bounds ({})".format(label_dict[self.interior_condition]))
-            line2 = self.animate_axes[1].axvline(output_range_exact[input_dims[0]+(0,)], linewidth=linewidth,color=color)
+            line2 = self.animate_axes[1].axvline(output_range_exact[output_dims[0]+(0,)], linewidth=linewidth,color=color)
             self.default_lines[1].append(line1)
             self.default_lines[1].append(line2)
         elif self.interior_condition == "convex_hull":
             from scipy.spatial import ConvexHull
             self.true_hull = ConvexHull(sampled_outputs)
+            self.true_hull_ = ConvexHull(sampled_outputs[...,output_dims].squeeze())
             line = self.animate_axes[1].plot(
-                np.append(sampled_outputs[self.true_hull.vertices,0], sampled_outputs[self.true_hull.vertices[0],0]),
-                np.append(sampled_outputs[self.true_hull.vertices,1], sampled_outputs[self.true_hull.vertices[0],1]),
+                np.append(sampled_outputs[self.true_hull_.vertices][...,output_dims[0]], sampled_outputs[self.true_hull_.vertices[0]][...,output_dims[0]]),
+                np.append(sampled_outputs[self.true_hull_.vertices][...,output_dims[1]], sampled_outputs[self.true_hull_.vertices[0]][...,output_dims[1]]),
                 color=color, linewidth=linewidth,
                 label="True Bounds ({})".format(label_dict[self.interior_condition]))
             self.default_lines[1].append(line[0])
@@ -158,7 +176,8 @@ class Partitioner():
                 input_label = None
                 output_label = None
 
-            rect = Rectangle(output_range_[:2,0], output_range_[0,1]-output_range_[0,0], output_range_[1,1]-output_range_[1,0],
+            output_range__ = output_range_[self.output_dims_]
+            rect = Rectangle(output_range__[:,0], output_range__[0,1]-output_range__[0,0], output_range__[1,1]-output_range__[1,0],
                     fc='none', linewidth=1,edgecolor='tab:blue',
                     label=output_label)
             self.animate_axes[1].add_patch(rect)
@@ -171,7 +190,8 @@ class Partitioner():
 
         # Rectangles that are within the sim pts
         for (input_range_, output_range_) in interior_M:
-            rect = Rectangle(output_range_[:2,0], output_range_[0,1]-output_range_[0,0], output_range_[1,1]-output_range_[1,0],
+            output_range__ = output_range_[self.output_dims_]
+            rect = Rectangle(output_range__[:2,0], output_range__[0,1]-output_range__[0,0], output_range__[1,1]-output_range__[1,0],
                     fc='none', linewidth=1,edgecolor='tab:purple')
             self.animate_axes[1].add_patch(rect)
 
@@ -185,20 +205,23 @@ class Partitioner():
         if self.interior_condition == "linf":
             # Make a rectangle for the estimated boundaries
             output_range_estimate = self.squash_down_to_one_range(u_e, M)
-            rect = Rectangle(output_range_estimate[:2,0], output_range_estimate[0,1]-output_range_estimate[0,0], output_range_estimate[1,1]-output_range_estimate[1,0],
+            output_range_estimate_ = output_range_estimate[self.output_dims_]
+            rect = Rectangle(output_range_estimate_[:2,0], output_range_estimate_[0,1]-output_range_estimate_[0,0], output_range_estimate_[1,1]-output_range_estimate_[1,0],
                             fc='none', linewidth=linewidth,edgecolor=color,
                             label="Estimated Bounds ({})".format(label_dict[self.interior_condition]))
             self.animate_axes[1].add_patch(rect)
         elif self.interior_condition == "lower_bnds":
             output_range_estimate = self.squash_down_to_one_range(u_e, M)
-            self.animate_axes[1].axhline(output_range_estimate[1,0],
+            output_range_estimate_ = output_range_estimate[self.output_dims_]
+            self.animate_axes[1].axhline(output_range_estimate_[1,0],
                 linewidth=linewidth,color=color,
                 label="Estimated Bounds ({})".format(label_dict[self.interior_condition]))
-            self.animate_axes[1].axvline(output_range_estimate[0,0],
+            self.animate_axes[1].axvline(output_range_estimate_[0,0],
                 linewidth=linewidth,color=color)
         elif self.interior_condition == "convex_hull":
             from scipy.spatial import ConvexHull
-            hull = self.squash_down_to_convex_hull(M, self.true_hull.points)
+            M_ = [(input_range_, output_range_[self.output_dims_]) for (input_range_, output_range_) in M]
+            hull = self.squash_down_to_convex_hull(M_, self.true_hull_.points)
             self.animate_axes[1].plot(
                 np.append(hull.points[hull.vertices,0], hull.points[hull.vertices[0],0]),
                 np.append(hull.points[hull.vertices,1], hull.points[hull.vertices[0],1]),
@@ -578,7 +601,6 @@ class GreedySimGuidedPartitioner(SimGuidedPartitioner):
             termination_condition_type=termination_condition_type, termination_condition_value=termination_condition_value)
 
     def grab_from_M(self, M, output_range_sim):
-        # TODO(MFE): make this aware of interior_condition!!!
         if len(M) == 1:
             input_range_, output_range_ = M.pop(0)
         else:
@@ -588,8 +610,24 @@ class GreedySimGuidedPartitioner(SimGuidedPartitioner):
                 z = np.empty_like(M_numpy)
                 z[:,0,:] = (output_range_sim[:,0] - M_numpy[:,0,:].T).T
                 z[:,1,:] = (M_numpy[:,1,:].T - output_range_sim[:,1]).T
-                worst_index = np.unravel_index(z.argmax(), shape=z.shape)
-                worst_M_index = worst_index[-1]
+
+                version = 'orig'
+                # version = 'random'
+                # version = 'improvement'
+                if version == 'improvement':
+                    pass
+                elif version == 'random':
+                    # This will randomly select one of the boundaries randomly
+                    # and choose the element that is causing that boundary
+                    worst_M_index = np.random.choice(np.unique(z.argmax(axis=-1)))
+                elif version == 'orig':
+                    # This selects whatver output range is furthest from
+                    # a boundary --> however, it can get too fixated on a single
+                    # bndry, esp when there's a sharp corner, suggesting
+                    # we might need to sample more, because our idea of where the
+                    # sim bndry is might be too far inward
+                    worst_index = np.unravel_index(z.argmax(), shape=z.shape)
+                    worst_M_index = worst_index[-1]
                 input_range_, output_range_ = M.pop(worst_M_index)
             elif self.interior_condition == "lower_bnds":
                 # look thru all lower bnds and see which are furthest from sim lower bnds
@@ -600,13 +638,20 @@ class GreedySimGuidedPartitioner(SimGuidedPartitioner):
                 worst_M_index = worst_index[-1]
                 input_range_, output_range_ = M.pop(worst_M_index)
             elif self.interior_condition == "convex_hull":
-                # look thru all output_range_s and see which are furthest from sim output range
-                M_numpy = np.dstack([output_range_ for (_, output_range_) in M])
-                z = np.empty_like(M_numpy)
-                z[:,0,:] = (output_range_sim[:,0] - M_numpy[:,0,:].T).T
-                z[:,1,:] = (M_numpy[:,1,:].T - output_range_sim[:,1]).T
-                worst_index = np.unravel_index(z.argmax(), shape=z.shape)
-                worst_M_index = worst_index[-1]
+                estimated_hull = self.squash_down_to_convex_hull(M, self.sim_convex_hull.points)
+                outer_pts = estimated_hull.points[estimated_hull.vertices]
+                inner_pts = self.sim_convex_hull.points[self.sim_convex_hull.vertices]
+                paired_distances = pairwise_distances(outer_pts, inner_pts)
+                min_distances = np.min(paired_distances, axis=1)
+                worst_index = np.unravel_index(np.argmax(min_distances), shape=min_distances.shape)
+
+                worst_hull_pt_index = estimated_hull.vertices[worst_index[0]]
+
+                # each outer_range in M adds 2**ndim pts to the convex hull,
+                # ==> can id which rect it came from by integer dividing
+                # since we add outer_range pts to convhull.pts in order
+                num_pts_per_output_range = 2**np.product(M[0][1].shape[:-1])
+                worst_M_index = worst_hull_pt_index // num_pts_per_output_range
                 input_range_, output_range_ = M.pop(worst_M_index)
             else:
                 raise NotImplementedError

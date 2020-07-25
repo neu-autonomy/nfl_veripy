@@ -63,11 +63,11 @@ class Analyzer:
         output_range, info = self.partitioner.get_output_range(input_range, self.propagator)
         return output_range, info
 
-    def visualize(self, input_range, output_range_estimate, show=True, **kwargs):
+    def visualize(self, input_range, output_range_estimate, show=True, show_samples=False, **kwargs):
         # sampled_outputs = self.get_sampled_outputs(input_range)
         # output_range_exact = self.samples_to_range(sampled_outputs)
 
-        self.partitioner.setup_visualization(input_range, output_range_estimate, self.propagator)
+        self.partitioner.setup_visualization(input_range, output_range_estimate, self.propagator, show_samples=show_samples)
         self.partitioner.visualize(kwargs.get("exterior_partitions", kwargs.get("all_partitions", [])), kwargs.get("interior_partitions", []), output_range_estimate)
 
         self.partitioner.animate_axes[0].legend(bbox_to_anchor=(0,1.02,1,0.2), loc="lower left",
@@ -156,10 +156,10 @@ if __name__ == '__main__':
         # "type": "SimGuided",
         "type": "GreedySimGuided",
 
-        "termination_condition_type": "input_cell_size",
-        "termination_condition_value": 0.1,
-        # "termination_condition_type": "num_propagator_calls",
-        # "termination_condition_value": 50,
+        # "termination_condition_type": "input_cell_size",
+        # "termination_condition_value": 0.1,
+        "termination_condition_type": "num_propagator_calls",
+        "termination_condition_value": 200,
         # "termination_condition_type": "pct_improvement",
         # "termination_condition_value": 0.001,
         # "termination_condition_type": "pct_error",
@@ -168,8 +168,8 @@ if __name__ == '__main__':
         # "interior_condition": "lower_bnds",
         # "interior_condition": "linf",
         "interior_condition": "convex_hull",
-        "make_animation": False,
-        "show_animation": False,
+        "make_animation": True,
+        "show_animation": True,
     }
     propagator_hyperparams = {
         "type": "IBP_LIRPA",
