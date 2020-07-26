@@ -64,8 +64,9 @@ class CROWNPropagator(CROWNIBPCodebasePropagator):
 
 
 class AutoLIRPAPropagator(Propagator):
-    def __init__(self, input_shape=None):
+    def __init__(self, input_shape=None, bound_opts={}):
         Propagator.__init__(self, input_shape=input_shape)
+        self.bound_opts = bound_opts
 
     def torch2network(self, torch_model):
         from auto_LiRPA import BoundedModule
@@ -73,7 +74,8 @@ class AutoLIRPAPropagator(Propagator):
         my_input = torch.empty((1,)+self.input_shape)
         if hasattr(torch_model, "core"):
             torch_model = torch_model.core
-        model = BoundedModule(torch_model, my_input)
+
+        model = BoundedModule(torch_model, my_input, bound_opts=self.bound_opts)
         return model
 
     def forward_pass(self, input_data):
@@ -102,12 +104,16 @@ class AutoLIRPAPropagator(Propagator):
         return output_range, {}
 
 class CROWNAutoLIRPAPropagator(AutoLIRPAPropagator):
-    def __init__(self, input_shape=None):
-        AutoLIRPAPropagator.__init__(self, input_shape=input_shape)
+    def __init__(self, input_shape=None, bound_opts={}):
+        AutoLIRPAPropagator.__init__(self, input_shape=input_shape, bound_opts=bound_opts)
 
     def compute_bounds(self):
         lb, ub = self.network.compute_bounds(IBP=False, method="backward")
         return lb, ub
+
+class FastLinAutoLIRPAPropagator(CROWNAutoLIRPAPropagator):
+    def __init__(self, input_shape=None):
+        CROWNAutoLIRPAPropagator.__init__(self, input_shape=input_shape, bound_opts={"relu": "same-slope"})
 
 class IBPAutoLIRPAPropagator(AutoLIRPAPropagator):
     def __init__(self, input_shape=None):
