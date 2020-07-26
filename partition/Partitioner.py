@@ -363,10 +363,10 @@ class NoPartitioner(Partitioner):
 #         return output_range, info
 
 class UniformPartitioner(Partitioner):
-    def __init__(self, num_partitions=16):
+    def __init__(self, num_partitions=16, interior_condition="linf"):
         Partitioner.__init__(self)
         self.num_partitions = num_partitions
-        self.interior_condition = "linf"
+        self.interior_condition = interior_condition
         self.show_animation = False
         self.make_animation = False
 
