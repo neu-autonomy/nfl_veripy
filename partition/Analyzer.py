@@ -168,8 +168,8 @@ if __name__ == '__main__':
         # "interior_condition": "lower_bnds",
         # "interior_condition": "linf",
         "interior_condition": "convex_hull",
-        "make_animation": True,
-        "show_animation": True,
+        "make_animation": False,
+        "show_animation": False,
     }
     propagator_hyperparams = {
         "type": "IBP_LIRPA",
