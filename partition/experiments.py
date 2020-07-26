@@ -196,7 +196,7 @@ algs ={
 if __name__ == '__main__':
 
     # Run an experiment
-    # df = experiment()
+    df = experiment()
 
     # If you want to plot w/o re-running the experiments, comment out the experiment line.
     if 'df' not in locals():
