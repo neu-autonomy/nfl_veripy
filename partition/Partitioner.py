@@ -130,19 +130,18 @@ class Partitioner():
         linewidth = 3
         if self.interior_condition == "linf":
             output_range_exact = self.samples_to_range(sampled_outputs)
-            # TODO: this doesn't use the output_dims...
-            rect = Rectangle(output_range_exact[output_dims+(0,)], output_range_exact[output_dims[0]+(1,)]-output_range_exact[output_dims[0]+(0,)], output_range_exact[output_dims[1]+(1,)]-output_range_exact[output_dims[1]+(0,)],
+            output_range_exact_ = output_range_exact[self.output_dims_]
+            rect = Rectangle(output_range_exact_[:2,0], output_range_exact_[0,1]-output_range_exact_[0,0], output_range_exact_[1,1]-output_range_exact_[1,0],
                             fc='none', linewidth=linewidth,edgecolor=color,
                             label="True Bounds ({})".format(label_dict[self.interior_condition]))
             self.animate_axes[1].add_patch(rect)
             self.default_patches[1].append(rect)
         elif self.interior_condition == "lower_bnds":
             output_range_exact = self.samples_to_range(sampled_outputs)
-            # TODO: this doesn't use the output_dims...
-
-            line1 = self.animate_axes[1].axhline(output_range_exact[output_dims[1]+(0,)], linewidth=linewidth,color=color,
+            output_range_exact_ = output_range_exact[self.output_dims_]
+            line1 = self.animate_axes[1].axhline(output_range_exact_[1,0], linewidth=linewidth,color=color,
                 label="True Bounds ({})".format(label_dict[self.interior_condition]))
-            line2 = self.animate_axes[1].axvline(output_range_exact[output_dims[0]+(0,)], linewidth=linewidth,color=color)
+            line2 = self.animate_axes[1].axvline(output_range_exact_[0,0], linewidth=linewidth,color=color)
             self.default_lines[1].append(line1)
             self.default_lines[1].append(line2)
         elif self.interior_condition == "convex_hull":

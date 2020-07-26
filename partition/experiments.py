@@ -29,8 +29,8 @@ def experiment():
     ])
     
     # Select which algorithms and hyperparameters to evaluate
-    partitioners = ["SimGuided", "GreedySimGuided"]
-    propagators = ["CROWN_LIRPA"]
+    partitioners = ["Uniform", "SimGuided", "GreedySimGuided"]
+    propagators = ["IBP_LIRPA", "CROWN_LIRPA"]
     partitioner_hyperparams_to_use = {
         "Uniform":
             {
@@ -38,15 +38,21 @@ def experiment():
             },
         "SimGuided":
             {
-                "termination_condition_type": ["input_cell_size"],
-                "termination_condition_value": [1.0, 0.5, 0.2, 0.1, 0.05, 0.01],
+                "termination_condition_type": ["num_propagator_calls"],
+                "termination_condition_value": [1,2,4,8,16,32,64,128, 256, 512],
+                # "termination_condition_type": ["input_cell_size"],
+                # "termination_condition_value": [1.0, 0.5, 0.2, 0.1, 0.05, 0.01],
                 "num_simulations": [1000]
             },
         "GreedySimGuided":
             {
-                "termination_condition_type": ["input_cell_size"],
-                # "termination_condition_value": [1.0, 0.5, 0.2, 0.1, 0.05, 0.01],
-                "termination_condition_value": [1.0, 0.5, 0.2, 0.1, 0.05, 0.01, 0.005, 0.001],
+                "termination_condition_type": ["num_propagator_calls"],
+                "termination_condition_value": [1,2,4,8,16,32,64,128, 256, 512],
+
+                # "termination_condition_type": ["input_cell_size"],
+                # # "termination_condition_value": [1.0, 0.5, 0.2, 0.1, 0.05, 0.01],
+                # "termination_condition_value": [1.0, 0.5, 0.2, 0.1, 0.05, 0.01, 0.005, 0.001],
+                # "termination_condition_value": [1.0, 0.5, 0.2, 0.1, 0.05, 0.01, 0.005, 0.001, 1e-4, 1e-5],
                 "num_simulations": [1000]
             },
         "AdaptiveSimGuided":

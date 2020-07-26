@@ -8,7 +8,7 @@ plt.rcParams['mathtext.fontset'] = 'stix'
 plt.rcParams['font.family'] = 'STIXGeneral'
 
 from partition.Partitioner import NoPartitioner, UniformPartitioner, SimGuidedPartitioner, GreedySimGuidedPartitioner, AdaptiveSimGuidedPartitioner
-from partition.Propagator import IBPPropagator, CROWNPropagator, CROWNAutoLIRPAPropagator, IBPAutoLIRPAPropagator, CROWNIBPAutoLIRPAPropagator, SDPPropagator
+from partition.Propagator import IBPPropagator, CROWNPropagator, CROWNAutoLIRPAPropagator, IBPAutoLIRPAPropagator, CROWNIBPAutoLIRPAPropagator, SDPPropagator, FastLinAutoLIRPAPropagator
 partitioner_dict = {
     "None": NoPartitioner,
     "Uniform": UniformPartitioner,
@@ -22,6 +22,7 @@ propagator_dict = {
     "CROWN_LIRPA": CROWNAutoLIRPAPropagator,
     "IBP_LIRPA": IBPAutoLIRPAPropagator,
     "CROWN-IBP_LIRPA": CROWNIBPAutoLIRPAPropagator,
+    "FastLin_LIRPA": FastLinAutoLIRPAPropagator,
     "SDP": SDPPropagator,
 }
 
