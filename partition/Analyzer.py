@@ -155,14 +155,14 @@ if __name__ == '__main__':
     # partitioner_hyperparams = {"num_partitions": [4,4,1,1,1]}
     partitioner_hyperparams = {
         # "type": "SimGuided",
-        "type": "GreedySimGuided",
+        "type": "SimGuided",
 
-        # "termination_condition_type": "input_cell_size",
-        # "termination_condition_value": 0.1,
-        "termination_condition_type": "num_propagator_calls",
-        "termination_condition_value": 200,
-        # "termination_condition_type": "pct_improvement",
-        # "termination_condition_value": 0.001,
+         "termination_condition_type": "input_cell_size",
+         "termination_condition_value": 0.01,
+       # "termination_condition_type": "num_propagator_calls",
+       # "termination_condition_value": 1000,
+       #  "termination_condition_type": "pct_improvement",
+       #  "termination_condition_value": 0.001,
         # "termination_condition_type": "pct_error",
         # "termination_condition_value": 0.5,
 
