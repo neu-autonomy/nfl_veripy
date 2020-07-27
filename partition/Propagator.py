@@ -32,17 +32,15 @@ class CROWNIBPCodebasePropagator(Propagator):
         return self.network(torch.Tensor(input_data), method_opt=None).data.numpy()
 
     def get_output_range(self, input_range, verbose=False):
+        print("[WARNING] CROWNIBPCodebasePropagator.get_output_range is hard-coded for NNs with only 2 outputs...")
         num_outputs = 2
         output_range = np.empty((num_outputs,2))
         for out_index in range(num_outputs):
             C = torch.zeros((1,1,num_outputs))
             C[0,0,out_index] = 1
-            out_max, out_min = self.network(norm=np.inf,
-                                        x_U=torch.Tensor([input_range[:,1]]),
-                                        x_L=torch.Tensor([input_range[:,0]]),
-                                        C=C,
-                                        method_opt=self.method_opt,
-                                        )[:2]
+            x_U = torch.Tensor([input_range[:,1]])
+            x_L = torch.Tensor([input_range[:,0]])
+            out_max, out_min = self.network(norm=np.inf, x_U=x_U, x_L=x_L, C=C, method_opt=self.method_opt)[:2]
             output_range[out_index,:] = [out_min, out_max]
         return output_range, {}
 

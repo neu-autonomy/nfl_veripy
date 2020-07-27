@@ -6,6 +6,7 @@ import os
 
 plt.rcParams['mathtext.fontset'] = 'stix'
 plt.rcParams['font.family'] = 'STIXGeneral'
+plt.rcParams['font.size'] = '20'
 
 from partition.Partitioner import NoPartitioner, UniformPartitioner, SimGuidedPartitioner, GreedySimGuidedPartitioner, AdaptiveSimGuidedPartitioner
 from partition.Propagator import IBPPropagator, CROWNPropagator, CROWNAutoLIRPAPropagator, IBPAutoLIRPAPropagator, CROWNIBPAutoLIRPAPropagator, SDPPropagator, FastLinAutoLIRPAPropagator
@@ -64,11 +65,11 @@ class Analyzer:
         output_range, info = self.partitioner.get_output_range(input_range, self.propagator)
         return output_range, info
 
-    def visualize(self, input_range, output_range_estimate, show=True, show_samples=False, **kwargs):
+    def visualize(self, input_range, output_range_estimate, show=True, show_samples=True, **kwargs):
         # sampled_outputs = self.get_sampled_outputs(input_range)
         # output_range_exact = self.samples_to_range(sampled_outputs)
 
-        self.partitioner.setup_visualization(input_range, output_range_estimate, self.propagator, show_samples=show_samples)
+        self.partitioner.setup_visualization(input_range, output_range_estimate, self.propagator, show_samples=show_samples, inputs_to_highlight=kwargs.get('inputs_to_highlight', None), outputs_to_highlight=kwargs.get('outputs_to_highlight', None))
         self.partitioner.visualize(kwargs.get("exterior_partitions", kwargs.get("all_partitions", [])), kwargs.get("interior_partitions", []), output_range_estimate)
 
         self.partitioner.animate_axes[0].legend(bbox_to_anchor=(0,1.02,1,0.2), loc="lower left",
