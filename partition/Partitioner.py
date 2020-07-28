@@ -18,6 +18,9 @@ label_dict = {
     "lower_bnds": "Lower Bounds",
 }
 
+
+
+
 class Partitioner():
     def __init__(self):
         return
@@ -74,6 +77,7 @@ class Partitioner():
             hull.add_points(sim_hull_pts)
         return hull
 
+
     def setup_visualization(self, input_range, output_range, propagator, show_samples=True, outputs_to_highlight=None, inputs_to_highlight=None, show_input=True, show_output=True):
         num_subplots = int(show_input)+int(show_output)
         self.animate_fig, self.animate_axes = plt.subplots(1,num_subplots)
@@ -88,6 +92,7 @@ class Partitioner():
 
         self.input_axis = 0
         self.output_axis = int(show_input)
+
 
         if inputs_to_highlight is None:
             # Automatically detect which input dims to show based on input_range
@@ -293,11 +298,76 @@ class Partitioner():
         return error
 
 class NoPartitioner(Partitioner):
-    def __init__(self):
+
+    def __init__(self, num_simulations=1000, termination_condition_type="input_cell_size", termination_condition_value=0.1, interior_condition="linf", make_animation=False, show_animation=False):
         Partitioner.__init__(self)
+        self.num_simulations = num_simulations
+        self.termination_condition_type = termination_condition_type
+        self.termination_condition_value = termination_condition_value
+        self.interior_condition = interior_condition
+        self.make_animation = make_animation or show_animation
+        self.show_animation = show_animation
+
+
+
+
+    def get_error(self, output_range_exact, output_range_estimate):
+        if self.interior_condition == "linf":
+            true_area = np.product(output_range_exact[...,1] - output_range_exact[...,0])
+            estimated_area = np.product(output_range_estimate[...,1] - output_range_estimate[...,0])
+            error = (estimated_area - true_area) / true_area
+        elif self.interior_condition == "lower_bnds":
+            # Need to put lower bnd error into proper scale --> one idea is to use
+            # length in each dimension of output (i.e., if you get 0.1 away
+            # from lower bnd in a dimension that has range 100, that's more impressive
+            # than in a dimension that has range 0.01)
+            lower_bnd_error_area = np.product(output_range_exact[...,0] - output_range_estimate[...,0])
+            true_area = np.product(output_range_exact[...,1] - output_range_exact[...,0])
+            error = lower_bnd_error_area / true_area
+        elif self.interior_condition == "convex_hull":
+
+            true_area = output_range_exact.area
+            estimated_area = np.product(output_range_estimate[...,1] - output_range_estimate[...,0])
+
+            #true_area = self.boundary_area(output_range_exact)
+            #estimated_area = self.boundary_area(output_range_estimate)
+            error = (estimated_area - true_area) / true_area
+        else:
+            raise NotImplementedError
+        return error
+
 
     def get_output_range(self, input_range, propagator):
+        input_shape = input_range.shape[:-1]
+
+        sampled_inputs = np.random.uniform(input_range[...,0], input_range[...,1], (self.num_simulations,)+input_shape)
+        sampled_outputs = propagator.forward_pass(sampled_inputs)
+
+        if self.interior_condition == "convex_hull":
+            from scipy.spatial import ConvexHull
+            self.sim_convex_hull = ConvexHull(sampled_outputs)
+
+        # Compute [u_sim], aka bounds on the sampled outputs (Line 6)
+        output_range_sim = np.empty(sampled_outputs.shape[1:]+(2,))
+        output_range_sim[:,1] = np.max(sampled_outputs, axis=0)
+        output_range_sim[:,0] = np.min(sampled_outputs, axis=0)
+
+
+        t_start = time.time()
         output_range, info = propagator.get_output_range(input_range)
+        t_end = time.time()
+
+
+        if self.interior_condition in ["lower_bnds", "linf"]:
+            estimated_error = self.get_error(output_range_sim, output_range)
+        elif self.interior_condition == "convex_hull":
+            estimated_error = self.get_error(self.sim_convex_hull, output_range)
+
+        info["all_partitions"] = output_range
+        info["num_propagator_calls"] = 1
+        info["num_partitions"] = 1
+        info["computation_time"] = t_end - t_start    
+        info["estimation_error"] = estimated_error
         return output_range, info
 
 class UnGuidedPartitioner(Partitioner):
@@ -452,15 +522,62 @@ class UnGuidedPartitioner(Partitioner):
         
         return u_e, info
 
+
 class UniformPartitioner(Partitioner):
-    def __init__(self, num_partitions=16, interior_condition="linf"):
+    def __init__(self, num_simulations=1000, num_partitions=16,termination_condition_type="input_cell_size", termination_condition_value=0.1, interior_condition="linf", make_animation=False, show_animation=False):
         Partitioner.__init__(self)
         self.num_partitions = num_partitions
+        self.termination_condition_type = termination_condition_type
+        self.termination_condition_value = termination_condition_value
         self.interior_condition = interior_condition
-        self.show_animation = False
-        self.make_animation = False
+        self.make_animation = make_animation or show_animation
+        self.show_animation = show_animation
+        self.num_simulations = num_simulations
+
+    def get_error(self, output_range_exact, output_range_estimate):
+        if self.interior_condition == "linf":
+            true_area = np.product(output_range_exact[...,1] - output_range_exact[...,0])
+            estimated_area = np.product(output_range_estimate[...,1] - output_range_estimate[...,0])
+            error = (estimated_area - true_area) / true_area
+        elif self.interior_condition == "lower_bnds":
+            # Need to put lower bnd error into proper scale --> one idea is to use
+            # length in each dimension of output (i.e., if you get 0.1 away
+            # from lower bnd in a dimension that has range 100, that's more impressive
+            # than in a dimension that has range 0.01)
+            lower_bnd_error_area = np.product(output_range_exact[...,0] - output_range_estimate[...,0])
+            true_area = np.product(output_range_exact[...,1] - output_range_exact[...,0])
+            error = lower_bnd_error_area / true_area
+        elif self.interior_condition == "convex_hull":
+
+            true_area = output_range_exact.area
+            estimated_area = np.product(output_range_estimate[...,1] - output_range_estimate[...,0])
+
+            #true_area = self.boundary_area(output_range_exact)
+            #estimated_area = self.boundary_area(output_range_estimate)
+            error = (estimated_area - true_area) / true_area
+        else:
+            raise NotImplementedError
+        return error
+
 
     def get_output_range(self, input_range, propagator, num_partitions=None):
+        input_shape = input_range.shape[:-1]
+
+        sampled_inputs = np.random.uniform(input_range[...,0], input_range[...,1], (self.num_simulations,)+input_shape)
+        sampled_outputs = propagator.forward_pass(sampled_inputs)
+
+        if self.interior_condition == "convex_hull":
+            from scipy.spatial import ConvexHull
+            self.sim_convex_hull = ConvexHull(sampled_outputs)
+
+        # Compute [u_sim], aka bounds on the sampled outputs (Line 6)
+        output_range_sim = np.empty(sampled_outputs.shape[1:]+(2,))
+        output_range_sim[:,1] = np.max(sampled_outputs, axis=0)
+        output_range_sim[:,0] = np.min(sampled_outputs, axis=0)
+
+
+        t_start= time.time()
+
         info = {}
         num_propagator_calls = 0
 
@@ -496,10 +613,18 @@ class UniformPartitioner(Partitioner):
             output_range[:,0] = np.min(tmp[:,0,:], axis=1)
             
             ranges.append((input_range_, output_range_))
+            t_end = time.time()
+
+        if self.interior_condition in ["lower_bnds", "linf"]:
+            estimated_error = self.get_error(output_range_sim, output_range)
+        elif self.interior_condition == "convex_hull":
+            estimated_error = self.get_error(self.sim_convex_hull, output_range)
 
         info["all_partitions"] = ranges
         info["num_propagator_calls"] = num_propagator_calls
         info["num_partitions"] = np.product(num_partitions)
+        info["computation_time"] = t_end - t_start    
+        info["estimation_error"] = estimated_error
 
         return output_range, info
 
@@ -512,6 +637,36 @@ class SimGuidedPartitioner(Partitioner):
         self.interior_condition = interior_condition
         self.make_animation = make_animation or show_animation
         self.show_animation = show_animation
+
+
+
+    def get_error(self, output_range_exact, output_range_estimate):
+        if self.interior_condition == "linf":
+            true_area = np.product(output_range_exact[...,1] - output_range_exact[...,0])
+            estimated_area = np.product(output_range_estimate[...,1] - output_range_estimate[...,0])
+            error = (estimated_area - true_area) / true_area
+        elif self.interior_condition == "lower_bnds":
+            # Need to put lower bnd error into proper scale --> one idea is to use
+            # length in each dimension of output (i.e., if you get 0.1 away
+            # from lower bnd in a dimension that has range 100, that's more impressive
+            # than in a dimension that has range 0.01)
+            lower_bnd_error_area = np.product(output_range_exact[...,0] - output_range_estimate[...,0])
+            true_area = np.product(output_range_exact[...,1] - output_range_exact[...,0])
+            error = lower_bnd_error_area / true_area
+        elif self.interior_condition == "convex_hull":
+            true_area = output_range_exact.area
+            estimated_area = output_range_estimate.area
+
+            #true_area = self.boundary_area(output_range_exact)
+            #estimated_area = self.boundary_area(output_range_estimate)
+            error = (estimated_area - true_area) / true_area
+        else:
+            raise NotImplementedError
+        return error
+
+
+
+
 
     def grab_from_M(self, M, output_range_sim):
         input_range_, output_range_ = M.pop(0) 
@@ -559,6 +714,7 @@ class SimGuidedPartitioner(Partitioner):
         imageio.mimsave(animation_filename, images)
 
     def get_output_range(self, input_range, propagator):
+        t_start_overall = time.time()
 
         propagator_computation_time = 0
 
@@ -683,20 +839,29 @@ class SimGuidedPartitioner(Partitioner):
 
         # Line 24
         u_e = self.squash_down_to_one_range(output_range_sim, M)
+        t_end_overall = time.time()
+
         if self.interior_condition == "convex_hull":
             info["estimated_hull"] = self.squash_down_to_convex_hull(M+interior_M, self.sim_convex_hull.points)
 
-        # info["computation_time"] = t_end - t_start
-        info["propagator_computation_time"] = propagator_computation_time
-
         if self.interior_condition == "convex_hull":
             info["exact_hull"] = self.sim_convex_hull
+
+        if self.interior_condition in ["lower_bnds", "linf"]:
+            estimated_range = self.squash_down_to_one_range(output_range_sim, M)
+            estimated_error = self.get_error(output_range_sim, estimated_range)
+        elif self.interior_condition == "convex_hull":
+            estimated_hull = self.squash_down_to_convex_hull(M, self.sim_convex_hull.points)
+            estimated_error = self.get_error(self.sim_convex_hull, estimated_hull)
 
         info["all_partitions"] = M+interior_M
         info["exterior_partitions"] = M
         info["interior_partitions"] = interior_M
         info["num_propagator_calls"] = num_propagator_calls
         info["num_partitions"] = len(M) + len(interior_M)
+        info["estimation_error"] = estimated_error
+        info["computation_time"] = t_end_overall - t_start_overall
+        info["propagator_computation_time"] = propagator_computation_time
 
         if self.make_animation:
             self.compile_animation(iteration)
@@ -769,15 +934,17 @@ class GreedySimGuidedPartitioner(SimGuidedPartitioner):
 
 
 class AdaptiveSimGuidedPartitioner(Partitioner):
-    def __init__(self, num_simulations=1000, termination_condition_type="input_cell_size", termination_condition_value=0.1, interior_condition="linf", make_animation=False, show_animation=False):
-        Partitioner.__init__(self)
+    def __init__(self, num_simulations=1000, interior_condition="linf", make_animation=False, show_animation=False, termination_condition_type="interior_cell_size", termination_condition_value=0.02):
+
+
         self.num_simulations = num_simulations
         self.termination_condition_type = termination_condition_type
         self.termination_condition_value = termination_condition_value
         self.interior_condition = interior_condition
         self.make_animation = make_animation or show_animation
         self.show_animation = show_animation
-
+                    
+    
     def get_error(self, output_range_exact, output_range_estimate):
         if self.interior_condition == "linf":
             true_area = np.product(output_range_exact[...,1] - output_range_exact[...,0])
@@ -792,12 +959,17 @@ class AdaptiveSimGuidedPartitioner(Partitioner):
             true_area = np.product(output_range_exact[...,1] - output_range_exact[...,0])
             error = lower_bnd_error_area / true_area
         elif self.interior_condition == "convex_hull":
+
             true_area = output_range_exact.area
             estimated_area = output_range_estimate.area
+
+           # true_area = self.boundary_area(output_range_exact)
+           # estimated_area = self.boundary_area(output_range_estimate)
             error = (estimated_area - true_area) / true_area
         else:
             raise NotImplementedError
         return error
+
         #self.tolerance_step= tolerance_expanding_step
         #self.k_NN= k_NN
         #self.tolerance_range= tolerance_range
@@ -805,7 +977,6 @@ class AdaptiveSimGuidedPartitioner(Partitioner):
    # def grab_from_M(self, M, output_range_sim):
        # input_range_, output_range_ = M.pop(0) 
         #return input_range_, output_range_
-
 
 
     def grab_from_M(self, M, output_range_sim):
@@ -868,7 +1039,7 @@ class AdaptiveSimGuidedPartitioner(Partitioner):
 
 
     def set_delta_step(self,range_,center_value, idx, stage=1):
-        c=0.65
+        c=0.1
         if stage==1:
             k=-1
             num_inputs=idx
@@ -927,10 +1098,11 @@ class AdaptiveSimGuidedPartitioner(Partitioner):
     def get_output_range(self, input_range, propagator, verbose=False):
 
        # tolerance_eps = 0.05
+        t_start = time.time()
 
        ### old param tolerance_range = 0.01, c= 0.8, 2/3
-        tolerance_step=0.0001
-        tolerance_range=0.005
+        tolerance_step=0.0005
+        tolerance_range=0.0001
         num_propagator_calls=0
         k_NN=1
         num_inputs = input_range.shape[0]
@@ -976,9 +1148,7 @@ class AdaptiveSimGuidedPartitioner(Partitioner):
         center_NN=kdt.query(sampled_output_center.reshape(1,-1), k=k_NN, return_distance=False)
     
 
-        print()
         input_range_new=np.empty_like(input_range)
-        print('*********',center_NN)
         input_range_new[:,0] = np.min(sampled_inputs[center_NN], axis=0)
         input_range_new[:,1] = np.max(sampled_inputs[center_NN], axis=0)
  
@@ -1138,11 +1308,26 @@ class AdaptiveSimGuidedPartitioner(Partitioner):
         # Line 24
         u_e = self.squash_down_to_one_range(output_range_sim, M)
 
+        t_end = time.time()
+
+        if self.interior_condition in ["lower_bnds", "linf"]:
+            estimated_range = self.squash_down_to_one_range(output_range_sim, M)
+            estimated_error = self.get_error(output_range_sim, estimated_range)
+        elif self.interior_condition == "convex_hull":
+            estimated_hull = self.squash_down_to_convex_hull(M, self.sim_convex_hull.points)
+            estimated_error = self.get_error(self.sim_convex_hull, estimated_hull)
+
         info["all_partitions"] = M+interior_M
         info["exterior_partitions"] = M
         info["interior_partitions"] = interior_M
         info["num_propagator_calls"] = num_propagator_calls
         info["num_partitions"] = len(M) + len(interior_M)
+        info["computation_time"] =  t_end - t_start
+        info["estimation_error"] =  estimated_error
+
+
+    
+
 
         if self.make_animation:
             self.compile_animation(iteration)
