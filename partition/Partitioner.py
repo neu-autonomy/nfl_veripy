@@ -384,7 +384,7 @@ class UniformPartitioner(Partitioner):
             else:
                 num_partitions *= self.num_partitions
         slope = np.divide((input_range[...,1] - input_range[...,0]), num_partitions)
-        
+
         ranges = []
         output_range = None
         

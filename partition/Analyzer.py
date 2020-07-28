@@ -9,7 +9,7 @@ plt.rcParams['font.family'] = 'STIXGeneral'
 plt.rcParams['font.size'] = '20'
 
 from partition.Partitioner import NoPartitioner, UniformPartitioner, SimGuidedPartitioner, GreedySimGuidedPartitioner, AdaptiveSimGuidedPartitioner
-from partition.Propagator import IBPPropagator, CROWNPropagator, CROWNAutoLIRPAPropagator, IBPAutoLIRPAPropagator, CROWNIBPAutoLIRPAPropagator, SDPPropagator, FastLinAutoLIRPAPropagator
+from partition.Propagator import IBPPropagator, CROWNPropagator, CROWNAutoLIRPAPropagator, IBPAutoLIRPAPropagator, CROWNIBPAutoLIRPAPropagator, SDPPropagator, FastLinAutoLIRPAPropagator, ExhaustiveAutoLIRPAPropagator
 partitioner_dict = {
     "None": NoPartitioner,
     "Uniform": UniformPartitioner,
@@ -24,6 +24,7 @@ propagator_dict = {
     "IBP_LIRPA": IBPAutoLIRPAPropagator,
     "CROWN-IBP_LIRPA": CROWNIBPAutoLIRPAPropagator,
     "FastLin_LIRPA": FastLinAutoLIRPAPropagator,
+    "Exhaustive_LIRPA": ExhaustiveAutoLIRPAPropagator,
     "SDP": SDPPropagator,
 }
 
