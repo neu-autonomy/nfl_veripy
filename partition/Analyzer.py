@@ -87,6 +87,8 @@ class Analyzer:
         else:
             plt.close()
 
+
+
     def get_sampled_outputs(self, input_range, N=1000):
         return get_sampled_outputs(input_range, self.propagator, N=N)
 
@@ -98,6 +100,9 @@ class Analyzer:
         output_range = self.samples_to_range(sampled_outputs)
         return output_range
 
+    def tradeoff_plot(self, input_range, output_range_estimate, show=True, show_samples=True, **kwargs):
+
+        return
 if __name__ == '__main__':
     # Import all deps
     from partition.models import model_xiang_2020_robot_arm, model_simple, model_dynamics
@@ -156,16 +161,18 @@ if __name__ == '__main__':
     # partitioner_hyperparams = {"num_partitions": [4,4,1,1,1]}
     partitioner_hyperparams = {
         # "type": "SimGuided",
-        "type": "SimGuided",
+       #"type": "GreedySimGuided",
+       # "type": "AdaptiveSimGuided",
+        "type":  "None",
 
-         "termination_condition_type": "input_cell_size",
-         "termination_condition_value": 0.01,
+        # "termination_condition_type": "input_cell_size",
+        # "termination_condition_value": 0.01,
        # "termination_condition_type": "num_propagator_calls",
        # "termination_condition_value": 1000,
        #  "termination_condition_type": "pct_improvement",
        #  "termination_condition_value": 0.001,
-        # "termination_condition_type": "pct_error",
-        # "termination_condition_value": 0.5,
+         "termination_condition_type": "pct_error",
+         "termination_condition_value": 0.5,
 
         # "interior_condition": "lower_bnds",
         # "interior_condition": "linf",
@@ -174,7 +181,7 @@ if __name__ == '__main__':
         "show_animation": False,
     }
     propagator_hyperparams = {
-        "type": "IBP_LIRPA",
+        "type": "SDP",
         "input_shape": input_range.shape[:-1],
     }
 
@@ -190,7 +197,10 @@ if __name__ == '__main__':
     pars = '_'.join([str(key)+"_"+str(value) for key, value in partitioner_hyperparams.items() if key not in ["make_animation", "show_animation", "type"]])
     pars2 = '_'.join([str(key)+"_"+str(value) for key, value in propagator_hyperparams.items() if key not in ["input_shape", "type"]])
     analyzer_info["save_name"] = save_dir+partitioner_hyperparams['type']+"_"+propagator_hyperparams['type']+"_"+pars+"_"+pars2+".png"
+    
+  #  analyzer.visualize(input_range, output_range, **analyzer_info)
 
-    analyzer.visualize(input_range, output_range, **analyzer_info)
+    #analyzer.tradeoff_plot(input_range, output_range, **analyzer_info)
+
 
     print("done.")
