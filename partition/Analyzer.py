@@ -63,7 +63,7 @@ class Analyzer:
         if propagator is not None:
             self._propagator.network = self.torch_model
 
-    def get_output_range(self, input_range):
+    def get_output_range(self, input_range, verbose=False):
         output_range, info = self.partitioner.get_output_range(input_range, self.propagator)
         return output_range, info
 
@@ -104,6 +104,11 @@ class Analyzer:
         sampled_outputs = self.get_sampled_outputs(input_range)
         output_range = self.samples_to_range(sampled_outputs)
         return output_range
+
+    def get_exact_hull(self, input_range):
+        from scipy.spatial import ConvexHull
+        sampled_outputs = self.get_sampled_outputs(input_range)
+        return ConvexHull(sampled_outputs)
 
 if __name__ == '__main__':
     # Import all deps
@@ -163,15 +168,18 @@ if __name__ == '__main__':
     # partitioner_hyperparams = {"num_partitions": [4,4,1,1,1]}
     partitioner_hyperparams = {
         # "type": "Uniform",
-        # "type": "SimGuided",
+        "type": "SimGuided",
         # "type": "GreedySimGuided",
         # "type": "AdaptiveSimGuided",
-        "type": "UnGuided",
+        # "type": "UnGuided",
+
+        "termination_condition_type": "verify",
+        "termination_condition_value": [np.array([1., 0.]), np.array([100.])],
 
          # "termination_condition_type": "input_cell_size",
          # "termination_condition_value": 0.01,
-       "termination_condition_type": "num_propagator_calls",
-       "termination_condition_value": 100,
+       # "termination_condition_type": "num_propagator_calls",
+       # "termination_condition_value": 100,
        #  "termination_condition_type": "pct_improvement",
        #  "termination_condition_value": 0.001,
         # "termination_condition_type": "pct_error",
@@ -185,7 +193,7 @@ if __name__ == '__main__':
         # "show_animation": False,
     }
     propagator_hyperparams = {
-        "type": "CROWN_LIRPA",
+        "type": "IBP_LIRPA",
         "input_shape": input_range.shape[:-1],
     }
 

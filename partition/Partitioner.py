@@ -10,6 +10,7 @@ from partition.network_utils import get_sampled_outputs, samples_to_range
 import imageio
 import os
 from sklearn.metrics import pairwise_distances
+import time
 
 label_dict = {
     "linf": "$\ell_\infty$-ball",
@@ -59,7 +60,7 @@ class Partitioner():
             u_e[:,0] = np.min(tmp[:,0,:], axis=1)
         return u_e
 
-    def squash_down_to_convex_hull(self, M, sim_hull_pts):
+    def squash_down_to_convex_hull(self, M, sim_hull_pts=None):
         from scipy.spatial import ConvexHull
         ndim = M[0][1].shape[0]
         pts = np.empty((len(M)*(2**(ndim)), ndim))
@@ -69,7 +70,8 @@ class Partitioner():
                 pts[i,:] = pt
                 i += 1
         hull = ConvexHull(pts, incremental=True)
-        hull.add_points(sim_hull_pts)
+        if sim_hull_pts is not None:
+            hull.add_points(sim_hull_pts)
         return hull
 
     def setup_visualization(self, input_range, output_range, propagator, show_samples=True, outputs_to_highlight=None, inputs_to_highlight=None, show_input=True, show_output=True):
@@ -330,7 +332,8 @@ class UnGuidedPartitioner(Partitioner):
         animation_filename = animation_save_dir+animation_filename
         imageio.mimsave(animation_filename, images)
 
-    def get_output_range(self, input_range, propagator):
+    def get_output_range(self, input_range, propagator, verbose=False):
+        propagator_computation_time = 0
 
         # Algorithm 1 of (Xiang, 2020): https://arxiv.org/pdf/2004.12273.pdf
         sect_method = 'max'
@@ -340,7 +343,10 @@ class UnGuidedPartitioner(Partitioner):
         num_propagator_calls = 0
 
         # Get initial output reachable set (Line 3)
-        output_range, _ = propagator.get_output_range(input_range)
+        t_start = time.time()
+        output_range, _ = propagator.get_output_range(input_range, verbose=verbose)
+        t_end = time.time()
+        propagator_computation_time += t_end - t_start
         num_propagator_calls += 1
 
         M = [(input_range, output_range)] # (Line 4)
@@ -412,7 +418,10 @@ class UnGuidedPartitioner(Partitioner):
                 input_ranges_ = sect(input_range_, 2, select=sect_method)
                 # Lines 16-17
                 for input_range_ in input_ranges_:
-                    output_range_, _ = propagator.get_output_range(input_range_)
+                    t_start = time.time()
+                    output_range_, _ = propagator.get_output_range(input_range_, verbose=verbose)
+                    t_end = time.time()
+                    propagator_computation_time += t_end - t_start
                     num_propagator_calls += 1
                     M.append((input_range_, output_range_)) # Line 18
             else: # Lines 19-20
@@ -425,6 +434,12 @@ class UnGuidedPartitioner(Partitioner):
 
         # Line 24
         u_e = self.squash_down_to_one_range(output_range_sim, M)
+        if self.interior_condition == "convex_hull":
+            info["estimated_hull"] = self.squash_down_to_convex_hull(M+interior_M)
+
+        t_end = time.time()
+        # info["computation_time"] = t_end - t_start
+        info["propagator_computation_time"] = propagator_computation_time
 
         info["all_partitions"] = M+interior_M
         info["exterior_partitions"] = M
@@ -545,6 +560,8 @@ class SimGuidedPartitioner(Partitioner):
 
     def get_output_range(self, input_range, propagator):
 
+        propagator_computation_time = 0
+
         # Algorithm 1 of (Xiang, 2020): https://arxiv.org/pdf/2004.12273.pdf
         sect_method = 'max'
         input_shape = input_range.shape[:-1]
@@ -553,7 +570,10 @@ class SimGuidedPartitioner(Partitioner):
         num_propagator_calls = 0
 
         # Get initial output reachable set (Line 3)
+        t_start = time.time()
         output_range, _ = propagator.get_output_range(input_range)
+        t_end = time.time()
+        propagator_computation_time += t_end - t_start
         num_propagator_calls += 1
 
         M = [(input_range, output_range)] # (Line 4)
@@ -564,6 +584,7 @@ class SimGuidedPartitioner(Partitioner):
         sampled_inputs = np.random.uniform(input_range[...,0], input_range[...,1], (self.num_simulations,)+input_shape)
         sampled_outputs = propagator.forward_pass(sampled_inputs)
 
+
         if self.interior_condition == "convex_hull":
             from scipy.spatial import ConvexHull
             self.sim_convex_hull = ConvexHull(sampled_outputs)
@@ -573,6 +594,12 @@ class SimGuidedPartitioner(Partitioner):
         output_range_sim[:,1] = np.max(sampled_outputs, axis=0)
         output_range_sim[:,0] = np.min(sampled_outputs, axis=0)
         u_e = output_range.copy()
+
+        if self.termination_condition_type == "verify":
+            print(np.matmul(self.termination_condition_value[0], sampled_outputs.T))
+            violated = np.all(np.matmul(self.termination_condition_value[0], sampled_outputs.T) > self.termination_condition_value[1])
+            if violated:
+                return "UNSAT"
 
         if self.make_animation:
             self.setup_visualization(input_range, output_range, propagator)
@@ -613,6 +640,24 @@ class SimGuidedPartitioner(Partitioner):
                         estimated_hull = self.squash_down_to_convex_hull(M+[(input_range_, output_range_)], self.sim_convex_hull.points)
                         error = self.get_error(self.sim_convex_hull, estimated_hull)
                     terminate = error <= self.termination_condition_value
+                elif self.termination_condition_type == "verify":
+                    M_ = M+[(input_range_, output_range_)]
+                    ndim = M_[0][1].shape[0]
+                    pts = np.empty((len(M_)*(2**(ndim)), ndim))
+                    i = 0
+                    for (input_range, output_range) in M:
+                        for pt in product(*output_range):
+                            pts[i,:] = pt
+                            i += 1
+                    # print(pts)
+                    # output_ranges_ = [x[1] for x in M+[(input_range_, output_range_)]]
+                    # ndim = output_ranges_[0].shape[0]
+                    # pts = np.empty((ndim**2, ndim+1))
+                    # pts[:,-1] = 1.
+                    # for i, pt in enumerate(product(*output_ranges_)):
+                    #     pts[i,:-1] = pt
+                    # inside = np.all(np.matmul(self.termination_condition_value[0], pts.T) <= self.termination_condition_value[1])
+
                 else:
                     raise NotImplementedError
                 #################
@@ -622,7 +667,10 @@ class SimGuidedPartitioner(Partitioner):
                     input_ranges_ = sect(input_range_, 2, select=sect_method)
                     # Lines 16-17
                     for input_range_ in input_ranges_:
+                        t_start = time.time()
                         output_range_, _ = propagator.get_output_range(input_range_)
+                        t_end = time.time()
+                        propagator_computation_time += t_end - t_start
                         num_propagator_calls += 1
                         M.append((input_range_, output_range_)) # Line 18
                 else: # Lines 19-20
@@ -635,6 +683,14 @@ class SimGuidedPartitioner(Partitioner):
 
         # Line 24
         u_e = self.squash_down_to_one_range(output_range_sim, M)
+        if self.interior_condition == "convex_hull":
+            info["estimated_hull"] = self.squash_down_to_convex_hull(M+interior_M, self.sim_convex_hull.points)
+
+        # info["computation_time"] = t_end - t_start
+        info["propagator_computation_time"] = propagator_computation_time
+
+        if self.interior_condition == "convex_hull":
+            info["exact_hull"] = self.sim_convex_hull
 
         info["all_partitions"] = M+interior_M
         info["exterior_partitions"] = M
@@ -690,7 +746,8 @@ class GreedySimGuidedPartitioner(SimGuidedPartitioner):
                 worst_M_index = worst_index[-1]
                 input_range_, output_range_ = M.pop(worst_M_index)
             elif self.interior_condition == "convex_hull":
-                estimated_hull = self.squash_down_to_convex_hull(M, self.sim_convex_hull.points)
+                # estimated_hull = self.squash_down_to_convex_hull(M, self.sim_convex_hull.points)
+                estimated_hull = self.squash_down_to_convex_hull(M)
                 outer_pts = estimated_hull.points[estimated_hull.vertices]
                 inner_pts = self.sim_convex_hull.points[self.sim_convex_hull.vertices]
                 paired_distances = pairwise_distances(outer_pts, inner_pts)
@@ -867,7 +924,7 @@ class AdaptiveSimGuidedPartitioner(Partitioner):
         return inside
 
 
-    def get_output_range(self, input_range, propagator):
+    def get_output_range(self, input_range, propagator, verbose=False):
 
        # tolerance_eps = 0.05
 
@@ -935,7 +992,7 @@ class AdaptiveSimGuidedPartitioner(Partitioner):
 
         while terminating_condition==False:
  
-            output_range_new, _= propagator.get_output_range(input_range_new)
+            output_range_new, _= propagator.get_output_range(input_range_new, verbose=verbose)
             num_propagator_calls += 1
             if self.termination_condition_type == "num_propagator_calls" and \
              (num_propagator_calls== (self.termination_condition_value)*0.8):
@@ -978,7 +1035,7 @@ class AdaptiveSimGuidedPartitioner(Partitioner):
         if input_range[0,0] !=input_range_new[0,0]: 
    
             input_range_ = np.array([[input_range[0,0] ,input_range_new[0,0]],[input_range[1,0], input_range[1,1]]])
-            output_range_,_ = propagator.get_output_range(input_range_)
+            output_range_,_ = propagator.get_output_range(input_range_, verbose=verbose)
             num_propagator_calls += 1
     
             M.append((input_range_,output_range_)) 
@@ -988,7 +1045,7 @@ class AdaptiveSimGuidedPartitioner(Partitioner):
 
                            #### approch2 only
             input_range_ = np.array([[input_range_new[0,1],input_range[0,1]],[input_range[1,0],input_range[1,1]]])
-            output_range_,_ = propagator.get_output_range(input_range_)
+            output_range_,_ = propagator.get_output_range(input_range_, verbose=verbose)
             num_propagator_calls += 1
    
             M.append((input_range_,output_range_))
@@ -997,7 +1054,7 @@ class AdaptiveSimGuidedPartitioner(Partitioner):
         if[input_range_new[1,1]!=input_range[1,1]]:
 
             input_range_ = np.array([[input_range_new[0,0],input_range_new[0,1]],[input_range_new[1,1],input_range[1,1]]])
-            output_range_,_ = propagator.get_output_range(input_range_)
+            output_range_,_ = propagator.get_output_range(input_range_, verbose=verbose)
             num_propagator_calls += 1
 
             M.append((input_range_,output_range_))
@@ -1007,7 +1064,7 @@ class AdaptiveSimGuidedPartitioner(Partitioner):
                         ### common partition between two approaches
 
             input_range_ = np.array([[input_range_new[0,0],input_range_new[0,1]],[input_range[1,0],input_range_new[1,0]]])
-            output_range_,_ = propagator.get_output_range(input_range_)
+            output_range_,_ = propagator.get_output_range(input_range_, verbose=verbose)
             num_propagator_calls += 1
 
             M.append((input_range_,output_range_))      
@@ -1064,7 +1121,7 @@ class AdaptiveSimGuidedPartitioner(Partitioner):
                     input_ranges_ = sect(input_range_, 2, select=sect_method)
                     # Lines 16-17
                     for input_range_ in input_ranges_:
-                        output_range_, _ = propagator.get_output_range(input_range_)
+                        output_range_, _ = propagator.get_output_range(input_range_, verbose=verbose)
                         num_propagator_calls += 1
                         M.append((input_range_, output_range_)) # Line 18
                 else: # Lines 19-20

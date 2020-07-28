@@ -3,7 +3,7 @@ import partition
 import partition.Partitioner
 import partition.Analyzer
 import partition.Propagator
-from partition.models import model_xiang_2020_robot_arm, model_gh1
+from partition.models import model_xiang_2020_robot_arm, model_gh1, model_gh2, model_big
 import numpy as np
 import pandas as pd
 import itertools
@@ -23,8 +23,9 @@ os.makedirs(img_save_dir, exist_ok=True)
 def experiment():
     
     # Choose the model and input range
-    # torch_model = model_gh1()
-    torch_model = model_xiang_2020_robot_arm(activation="relu")
+    # torch_model = model_gh2()
+    # torch_model = model_big()
+    torch_model = model_xiang_2020_robot_arm(activation="tanh")
 
     input_range = np.array([ # (num_inputs, 2)
                       [np.pi/3, 2*np.pi/3], # x0min, x0max
@@ -32,9 +33,12 @@ def experiment():
     ])
     
     # Select which algorithms and hyperparameters to evaluate
-    partitioners = ["Uniform", "SimGuided", "GreedySimGuided", "UnGuided"]
-    propagators = ["SDP"]
-    # propagators = ["IBP_LIRPA", "CROWN_LIRPA", "FastLin_LIRPA"]
+    # partitioners = ["SimGuided", "GreedySimGuided", "UnGuided"]
+    # partitioners = ["AdaptiveSimGuided", "SimGuided", "GreedySimGuided", "UnGuided"]
+    # partitioners = ["UnGuided"]
+    partitioners = ["SimGuided", "GreedySimGuided", "UnGuided"]
+    # propagators = ["SDP"]
+    propagators = ["IBP_LIRPA", "CROWN_LIRPA"]
     partitioner_hyperparams_to_use = {
         "Uniform":
             {
@@ -43,38 +47,42 @@ def experiment():
         "UnGuided":
             {
                 "termination_condition_type": ["num_propagator_calls"],
-                "termination_condition_value": [1,2,4,8,16,32,64,128, 256, 512],
+                "termination_condition_value": [1,2,4,8,16,32,64,128, 256, 512, 1024],
                 # "termination_condition_type": ["input_cell_size"],
                 # "termination_condition_value": [1.0, 0.5, 0.2, 0.1, 0.05, 0.01],
-                "num_simulations": [1000]
+                "num_simulations": [1000],
+                "interior_condition": ["convex_hull"],
             },
         "SimGuided":
             {
                 "termination_condition_type": ["num_propagator_calls"],
-                "termination_condition_value": [1,2,4,8,16,32,64,128, 256, 512],
+                "termination_condition_value": [1,2,4,8,16,32,64,128, 256, 512, 1024],
                 # "termination_condition_type": ["input_cell_size"],
                 # "termination_condition_value": [1.0, 0.5, 0.2, 0.1, 0.05, 0.01],
-                "num_simulations": [1000]
+                "num_simulations": [1000],
+                "interior_condition": ["convex_hull"],
             },
         "GreedySimGuided":
             {
                 "termination_condition_type": ["num_propagator_calls"],
-                "termination_condition_value": [1,2,4,8,16,32,64,128, 256, 512],
+                "termination_condition_value": [1,2,4,8,16,32,64,128, 256, 512, 1024],
 
                 # "termination_condition_type": ["input_cell_size"],
                 # # "termination_condition_value": [1.0, 0.5, 0.2, 0.1, 0.05, 0.01],
                 # "termination_condition_value": [1.0, 0.5, 0.2, 0.1, 0.05, 0.01, 0.005, 0.001],
                 # "termination_condition_value": [1.0, 0.5, 0.2, 0.1, 0.05, 0.01, 0.005, 0.001, 1e-4, 1e-5],
-                "num_simulations": [1000]
+                "num_simulations": [1000],
+                "interior_condition": ["convex_hull"],
             },
         "AdaptiveSimGuided":
-        #"BoundarySimGuided":
-
             {
-                "tolerance_eps": [1.0, 0.5, 0.2, 0.1, 0.05, 0.01],
+                "termination_condition_type": ["num_propagator_calls"],
+                "termination_condition_value": [1,2,4,8,16,32,64,128],
+                # "tolerance_eps": [1.0, 0.5, 0.2, 0.1, 0.05, 0.01],
                 #"tolerance_expanding_step": [0.001],
                 #"k_NN": [1],
                 "num_simulations": [1000],
+                "interior_condition": ["convex_hull"],
                 #"tolerance_range": [0.05]
             },
     }
@@ -115,6 +123,14 @@ def run_and_add_row(analyzer, input_range, partitioner_hyperparams, propagator_h
     t_start = time.time()
     output_range, analyzer_info = analyzer.get_output_range(input_range)
     t_end = time.time()
+    
+    np.random.seed(0)
+    exact_hull = analyzer_info.get("exact_hull", analyzer.get_exact_hull(input_range))
+    error = analyzer.partitioner.get_error(exact_hull, analyzer_info["estimated_hull"])
+    print(error)
+    print(t_end-t_start)
+    print(analyzer_info["propagator_computation_time"])
+
     pars = '_'.join([str(key)+"_"+str(value) for key, value in sorted(partitioner_hyperparams.items(), key=lambda kv: kv[0]) if key not in ["make_animation", "show_animation", "type"]])
     pars2 = '_'.join([str(key)+"_"+str(value) for key, value in sorted(propagator_hyperparams.items(), key=lambda kv: kv[0]) if key not in ["input_shape", "type"]])
 
@@ -123,11 +139,15 @@ def run_and_add_row(analyzer, input_range, partitioner_hyperparams, propagator_h
 
     stats = {
         "computation_time": t_end - t_start,
+        "propagator_computation_time": t_end - t_start,
         "output_range_estimate": output_range,
         "input_range": input_range,
         "propagator": type(analyzer.propagator).__name__,
         "partitioner": type(analyzer.partitioner).__name__,
+        "error": error,
     }
+    analyzer_info.pop("exact_hull", None)
+    analyzer_info.pop("estimated_hull", None)
     data_row = {**stats, **analyzer_info, **partitioner_hyperparams, **propagator_hyperparams}
     return data_row
 
@@ -160,7 +180,7 @@ def plot(df, stat):
             if partitioner == "UniformPartitioner":
                 continue
             df_ = df[(df["partitioner"] == partitioner) & (df["propagator"] == propagator)]
-            plt.loglog(df_[stat].values, df_["output_area_error"],
+            plt.loglog(df_[stat].values, df_["error"],
                 marker=algs[partitioner]["marker"],
                 color=cm.get_cmap("tab20c")(4*algs[propagator]["color_ind"]+algs[partitioner]["color_ind"]),
                 label=propagator+'-'+partitioner)
@@ -225,7 +245,7 @@ algs ={
 if __name__ == '__main__':
 
     # Run an experiment
-    df = experiment()
+    # df = experiment()
 
     # If you want to plot w/o re-running the experiments, comment out the experiment line.
     if 'df' not in locals():
@@ -238,9 +258,10 @@ if __name__ == '__main__':
 
         df = pd.read_pickle(latest_file)
 
-    add_approx_error_to_df(df)
+    # add_approx_error_to_df(df)
     # plot(df, stat="num_partitions")
-    plot(df, stat="num_propagator_calls")
+    # plot(df, stat="num_propagator_calls")
     # plot(df, stat="computation_time")
+    plot(df, stat="propagator_computation_time")
 
 
