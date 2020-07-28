@@ -6,16 +6,17 @@ import os
 
 plt.rcParams['mathtext.fontset'] = 'stix'
 plt.rcParams['font.family'] = 'STIXGeneral'
-plt.rcParams['font.size'] = '20'
+plt.rcParams['font.size'] = '16'
 
-from partition.Partitioner import NoPartitioner, UniformPartitioner, SimGuidedPartitioner, GreedySimGuidedPartitioner, AdaptiveSimGuidedPartitioner
-from partition.Propagator import IBPPropagator, CROWNPropagator, CROWNAutoLIRPAPropagator, IBPAutoLIRPAPropagator, CROWNIBPAutoLIRPAPropagator, SDPPropagator, FastLinAutoLIRPAPropagator
+from partition.Partitioner import NoPartitioner, UniformPartitioner, SimGuidedPartitioner, GreedySimGuidedPartitioner, AdaptiveSimGuidedPartitioner, UnGuidedPartitioner
+from partition.Propagator import IBPPropagator, CROWNPropagator, CROWNAutoLIRPAPropagator, IBPAutoLIRPAPropagator, CROWNIBPAutoLIRPAPropagator, SDPPropagator, FastLinAutoLIRPAPropagator, ExhaustiveAutoLIRPAPropagator
 partitioner_dict = {
     "None": NoPartitioner,
     "Uniform": UniformPartitioner,
     "SimGuided": SimGuidedPartitioner,
     "GreedySimGuided": GreedySimGuidedPartitioner,
     "AdaptiveSimGuided": AdaptiveSimGuidedPartitioner,
+    "UnGuided": UnGuidedPartitioner,
 }
 propagator_dict = {
     "IBP": IBPPropagator,
@@ -24,6 +25,7 @@ propagator_dict = {
     "IBP_LIRPA": IBPAutoLIRPAPropagator,
     "CROWN-IBP_LIRPA": CROWNIBPAutoLIRPAPropagator,
     "FastLin_LIRPA": FastLinAutoLIRPAPropagator,
+    "Exhaustive_LIRPA": ExhaustiveAutoLIRPAPropagator,
     "SDP": SDPPropagator,
 }
 
@@ -65,17 +67,22 @@ class Analyzer:
         output_range, info = self.partitioner.get_output_range(input_range, self.propagator)
         return output_range, info
 
-    def visualize(self, input_range, output_range_estimate, show=True, show_samples=True, **kwargs):
+    def visualize(self, input_range, output_range_estimate, show=True, show_samples=True, show_legend=True, show_input=True, show_output=True, **kwargs):
         # sampled_outputs = self.get_sampled_outputs(input_range)
         # output_range_exact = self.samples_to_range(sampled_outputs)
 
-        self.partitioner.setup_visualization(input_range, output_range_estimate, self.propagator, show_samples=show_samples, inputs_to_highlight=kwargs.get('inputs_to_highlight', None), outputs_to_highlight=kwargs.get('outputs_to_highlight', None))
-        self.partitioner.visualize(kwargs.get("exterior_partitions", kwargs.get("all_partitions", [])), kwargs.get("interior_partitions", []), output_range_estimate)
+        self.partitioner.setup_visualization(input_range, output_range_estimate, self.propagator, show_samples=show_samples, inputs_to_highlight=kwargs.get('inputs_to_highlight', None), outputs_to_highlight=kwargs.get('outputs_to_highlight', None),
+            show_input=show_input, show_output=show_output)
+        self.partitioner.visualize(kwargs.get("exterior_partitions", kwargs.get("all_partitions", [])), kwargs.get("interior_partitions", []), output_range_estimate,
+            show_input=show_input, show_output=show_output)
 
-        self.partitioner.animate_axes[0].legend(bbox_to_anchor=(0,1.02,1,0.2), loc="lower left",
-                mode="expand", borderaxespad=0, ncol=1)
-        self.partitioner.animate_axes[1].legend(bbox_to_anchor=(0,1.02,1,0.2), loc="lower left",
-                mode="expand", borderaxespad=0, ncol=1)
+        if show_legend:
+            if show_input:
+                self.partitioner.animate_axes[self.partitioner.input_axis].legend(bbox_to_anchor=(0,1.02,1,0.2), loc="lower left",
+                        mode="expand", borderaxespad=0, ncol=1)
+            if show_output:
+                self.partitioner.animate_axes[self.partitioner.output_axis].legend(bbox_to_anchor=(0,1.02,1,0.2), loc="lower left",
+                        mode="expand", borderaxespad=0, ncol=2)
 
         self.partitioner.animate_fig.tight_layout()
 
@@ -160,7 +167,9 @@ if __name__ == '__main__':
     # partitioner = "Uniform"
     # partitioner_hyperparams = {"num_partitions": [4,4,1,1,1]}
     partitioner_hyperparams = {
+        # "type": "Uniform",
         # "type": "SimGuided",
+
        #"type": "GreedySimGuided",
        # "type": "AdaptiveSimGuided",
         "type":  "None",
@@ -174,14 +183,33 @@ if __name__ == '__main__':
          "termination_condition_type": "pct_error",
          "termination_condition_value": 0.5,
 
+        # "type": "GreedySimGuided",
+        # "type": "AdaptiveSimGuided",
+        "type": "UnGuided",
+
+         # "termination_condition_type": "input_cell_size",
+         # "termination_condition_value": 0.01,
+       "termination_condition_type": "num_propagator_calls",
+       "termination_condition_value": 100,
+       #  "termination_condition_type": "pct_improvement",
+       #  "termination_condition_value": 0.001,
+        # "termination_condition_type": "pct_error",
+        # "termination_condition_value": 0.1,
+        # "num_partitions": 32,
+
+
         # "interior_condition": "lower_bnds",
-        # "interior_condition": "linf",
-        "interior_condition": "convex_hull",
-        "make_animation": False,
-        "show_animation": False,
+        "interior_condition": "linf",
+        # "interior_condition": "convex_hull",
+        # "make_animation": False,
+        # "show_animation": False,
     }
     propagator_hyperparams = {
-        "type": "SDP",
+
+
+
+        "type": "CROWN_LIRPA",
+
         "input_shape": input_range.shape[:-1],
     }
 
@@ -190,17 +218,24 @@ if __name__ == '__main__':
     analyzer.partitioner = partitioner_hyperparams
     analyzer.propagator = propagator_hyperparams
     output_range, analyzer_info = analyzer.get_output_range(input_range)
+
+    np.random.seed(seed=0)
+    output_range_exact = analyzer.get_exact_output_range(input_range)
+
+    # error = analyzer.partitioner.get_error(output_range_exact, output_range)
     print("Estimated output_range:\n", output_range)
+    # print("True output_range:\n", output_range_exact)
+    # print("Error: ", error)
+    print("\n")
     print("Number of propagator calls:", analyzer_info["num_propagator_calls"])
     print("Number of partitions:", analyzer_info["num_partitions"])
 
-    pars = '_'.join([str(key)+"_"+str(value) for key, value in partitioner_hyperparams.items() if key not in ["make_animation", "show_animation", "type"]])
-    pars2 = '_'.join([str(key)+"_"+str(value) for key, value in propagator_hyperparams.items() if key not in ["input_shape", "type"]])
-    analyzer_info["save_name"] = save_dir+partitioner_hyperparams['type']+"_"+propagator_hyperparams['type']+"_"+pars+"_"+pars2+".png"
-    
-  #  analyzer.visualize(input_range, output_range, **analyzer_info)
 
-    #analyzer.tradeoff_plot(input_range, output_range, **analyzer_info)
+    pars = '_'.join([str(key)+"_"+str(value) for key, value in sorted(partitioner_hyperparams.items(), key=lambda kv: kv[0]) if key not in ["make_animation", "show_animation", "type"]])
+    pars2 = '_'.join([str(key)+"_"+str(value) for key, value in sorted(propagator_hyperparams.items(), key=lambda kv: kv[0]) if key not in ["input_shape", "type"]])
+    analyzer_info["save_name"] = save_dir+partitioner_hyperparams['type']+"_"+propagator_hyperparams['type']+"_"+pars+"_"+pars2+".pdf"
+
+    analyzer.visualize(input_range, output_range, show_legend=True, show_input=True, show_output=True, **analyzer_info)
 
 
     print("done.")

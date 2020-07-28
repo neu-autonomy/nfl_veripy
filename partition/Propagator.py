@@ -1,6 +1,6 @@
-
 import torch
 import numpy as np
+import partition.network_utils
 
 class Propagator:
     def __init__(self, input_shape=None):
@@ -104,6 +104,7 @@ class AutoLIRPAPropagator(Propagator):
 class CROWNAutoLIRPAPropagator(AutoLIRPAPropagator):
     def __init__(self, input_shape=None, bound_opts={}):
         AutoLIRPAPropagator.__init__(self, input_shape=input_shape, bound_opts=bound_opts)
+        self.method = "CROWN"
 
     def compute_bounds(self):
         lb, ub = self.network.compute_bounds(IBP=False, method="backward")
@@ -112,6 +113,7 @@ class CROWNAutoLIRPAPropagator(AutoLIRPAPropagator):
 class FastLinAutoLIRPAPropagator(CROWNAutoLIRPAPropagator):
     def __init__(self, input_shape=None):
         CROWNAutoLIRPAPropagator.__init__(self, input_shape=input_shape, bound_opts={"relu": "same-slope"})
+        self.method = "Fast-Lin"
 
 class IBPAutoLIRPAPropagator(AutoLIRPAPropagator):
     def __init__(self, input_shape=None):
@@ -131,6 +133,25 @@ class CROWNIBPAutoLIRPAPropagator(AutoLIRPAPropagator):
         # not completely sure how to blend CROWN and IBP here
         # see L96 on https://github.com/KaidiXu/auto_LiRPA/blob/master/examples/vision/simple_training.py
         raise NotImplementedError
+
+class ExhaustiveAutoLIRPAPropagator(AutoLIRPAPropagator):
+    def __init__(self, input_shape=None):
+        AutoLIRPAPropagator.__init__(self, input_shape=input_shape)
+        self.method = "exhaustive"
+
+    def get_sampled_outputs(self, input_range, N=1000):
+        return partition.network_utils.get_sampled_outputs(input_range, self, N=N)
+
+    def samples_to_range(self, sampled_outputs):
+        return partition.network_utils.samples_to_range(sampled_outputs)
+
+    def get_exact_output_range(self, input_range):
+        sampled_outputs = self.get_sampled_outputs(input_range)
+        output_range = self.samples_to_range(sampled_outputs)
+        return output_range, {}
+
+    def get_output_range(self, input_range):
+        return self.get_exact_output_range(input_range)
 
 #######################
 # SDP Codebase

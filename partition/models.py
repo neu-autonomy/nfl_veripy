@@ -1,6 +1,8 @@
 import torch
-from torch.nn import Sequential, Conv2d, Linear, ReLU, Tanh
+from torch.nn import Sequential, Conv2d, Linear, ReLU, Tanh, Sigmoid
 import numpy as np
+
+activations = {"tanh": Tanh, "relu": ReLU, "sigmoid": Sigmoid}
 
 def model_dynamics(env_name='CartPole-v0'):
     from partition.dynamics import load_model
@@ -9,10 +11,10 @@ def model_dynamics(env_name='CartPole-v0'):
     torch_model = keras2torch(model, "torch_model")
     return torch_model
 
-def model_xiang_2017():
+def model_xiang_2017(activation="tanh"):
     model = Sequential(
         Linear(2, 5),
-        Tanh(),
+        activations[activation](),
         Linear(5, 2),
     )
     state_dict = model.state_dict()
@@ -36,10 +38,11 @@ def model_xiang_2017():
 
     return model
 
-def model_xiang_2020_robot_arm():
+def model_xiang_2020_robot_arm(activation="tanh"):
+
     model = Sequential(
         Linear(2, 5),
-        Tanh(),
+        activations[activation](),
         Linear(5, 2),
     )
     state_dict = model.state_dict()

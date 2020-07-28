@@ -17,15 +17,17 @@ class RLAnalyzer(Analyzer):
 
     def get_output_range(self, input_range):
 
-        num_partitions = self.partitioner.num_partitions.copy()
+        # num_partitions = self.partitioner.num_partitions.copy()
+        # num_partitions = self.partitioner.num_partitions
         output_range, info = super().get_output_range(input_range)
 
-        # ASSUMPTION: the partitioner is uniform --> also run it with 1 partition so we can plot the diff --> major hack...
-        self.partitioner.num_partitions = 1
-        output_range_default, _ = super().get_output_range(input_range)
-        info["output_range_default"] = output_range_default
+        # # ASSUMPTION: the partitioner is uniform --> also run it with 1 partition so we can plot the diff --> major hack...
+        # self.partitioner.num_partitions = 1
+        # output_range_default, _ = super().get_output_range(input_range)
+        # info["output_range_default"] = output_range_default
 
-        self.partitioner.num_partitions = num_partitions.copy()
+        # # self.partitioner.num_partitions = num_partitions.copy()
+        # self.partitioner.num_partitions = num_partitions
         return output_range, info
 
     def visualize(self, input_range, output_range_estimate, **kwargs):
@@ -71,7 +73,6 @@ class RLAnalyzer(Analyzer):
                             xytext=(center_x, output_range_default_[1,0]), textcoords='data',
                             arrowprops=dict(arrowstyle="simple", fc="tab:gray", ec="tab:gray"),
                             )
-
             else:
                 raise NotImplementedError
 
