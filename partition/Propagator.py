@@ -90,7 +90,7 @@ class AutoLIRPAPropagator(Propagator):
         # Make the input a BoundedTensor with perturbation
         my_input = BoundedTensor(torch.Tensor([center]), ptb)
         # Forward propagation using BoundedTensor
-        # prediction = self.network(my_input)
+        prediction = self.network(my_input)
         # Compute LiRPA bounds
         lb, ub = self.compute_bounds()
 

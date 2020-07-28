@@ -14,14 +14,17 @@ import os
 import glob
 import time
 
-save_dir = "{}/results".format(os.path.dirname(os.path.abspath(__file__)))
+save_dir = "{}/results/experiments".format(os.path.dirname(os.path.abspath(__file__)))
 os.makedirs(save_dir, exist_ok=True)
+img_save_dir = save_dir+"/imgs/"
+os.makedirs(img_save_dir, exist_ok=True)
+
 
 def experiment():
     
     # Choose the model and input range
     # torch_model = model_gh1()
-    torch_model = model_xiang_2020_robot_arm()
+    torch_model = model_xiang_2020_robot_arm(activation="relu")
 
     input_range = np.array([ # (num_inputs, 2)
                       [np.pi/3, 2*np.pi/3], # x0min, x0max
@@ -29,12 +32,21 @@ def experiment():
     ])
     
     # Select which algorithms and hyperparameters to evaluate
-    partitioners = ["Uniform", "SimGuided", "GreedySimGuided"]
-    propagators = ["IBP_LIRPA", "CROWN_LIRPA"]
+    partitioners = ["Uniform", "SimGuided", "GreedySimGuided", "UnGuided"]
+    propagators = ["SDP"]
+    # propagators = ["IBP_LIRPA", "CROWN_LIRPA", "FastLin_LIRPA"]
     partitioner_hyperparams_to_use = {
         "Uniform":
             {
                 "num_partitions": [1,2,4,8,16,32]
+            },
+        "UnGuided":
+            {
+                "termination_condition_type": ["num_propagator_calls"],
+                "termination_condition_value": [1,2,4,8,16,32,64,128, 256, 512],
+                # "termination_condition_type": ["input_cell_size"],
+                # "termination_condition_value": [1.0, 0.5, 0.2, 0.1, 0.05, 0.01],
+                "num_simulations": [1000]
             },
         "SimGuided":
             {
@@ -103,11 +115,11 @@ def run_and_add_row(analyzer, input_range, partitioner_hyperparams, propagator_h
     t_start = time.time()
     output_range, analyzer_info = analyzer.get_output_range(input_range)
     t_end = time.time()
-    pars = '_'.join([str(key)+"_"+str(value) for key, value in partitioner_hyperparams.items() if key not in ["make_animation", "show_animation", "type"]])
-    pars2 = '_'.join([str(key)+"_"+str(value) for key, value in propagator_hyperparams.items() if key not in ["input_shape", "type"]])
+    pars = '_'.join([str(key)+"_"+str(value) for key, value in sorted(partitioner_hyperparams.items(), key=lambda kv: kv[0]) if key not in ["make_animation", "show_animation", "type"]])
+    pars2 = '_'.join([str(key)+"_"+str(value) for key, value in sorted(propagator_hyperparams.items(), key=lambda kv: kv[0]) if key not in ["input_shape", "type"]])
 
-    analyzer_info["save_name"] = save_dir+"/imgs/"+partitioner_hyperparams['type']+"_"+propagator_hyperparams['type']+"_"+pars+"_"+pars2+".png"
-    analyzer.visualize(input_range, output_range, show=False, **analyzer_info)
+    analyzer_info["save_name"] = img_save_dir+partitioner_hyperparams['type']+"_"+propagator_hyperparams['type']+"_"+pars+"_"+pars2+".png"
+    analyzer.visualize(input_range, output_range, show=False, show_legend=False, **analyzer_info)
 
     stats = {
         "computation_time": t_end - t_start,
@@ -145,6 +157,8 @@ def plot(df, stat):
         for propagator in df["propagator"].unique():
             if propagator == "EXACT" or partitioner == "EXACT":
                 continue
+            if partitioner == "UniformPartitioner":
+                continue
             df_ = df[(df["partitioner"] == partitioner) & (df["propagator"] == propagator)]
             plt.loglog(df_[stat].values, df_["output_area_error"],
                 marker=algs[partitioner]["marker"],
@@ -161,6 +175,11 @@ algs ={
         "marker": "x",
         "color_ind": 0,
         "name": "Uniform",
+    },
+    "UnGuidedPartitioner": {
+        "marker": "+",
+        "color_ind": 0,
+        "name": "Unguided",
     },
     "SimGuidedPartitioner": {
         "marker": "o",
@@ -193,6 +212,10 @@ algs ={
         "color_ind": 1,
         "name": "CROWNPropagator",
     },
+    "FastLinAutoLIRPAPropagator": {
+        "color_ind": 3,
+        "name": "CROWNPropagator",
+    },
     "SDPPropagator": {
         "color_ind": 2,
         "name": "SDPPropagator",
@@ -216,8 +239,8 @@ if __name__ == '__main__':
         df = pd.read_pickle(latest_file)
 
     add_approx_error_to_df(df)
-    plot(df, stat="num_partitions")
-    # plot(df, stat="num_propagator_calls")
+    # plot(df, stat="num_partitions")
+    plot(df, stat="num_propagator_calls")
     # plot(df, stat="computation_time")
 
 
