@@ -1098,7 +1098,7 @@ class AdaptiveSimGuidedPartitioner(Partitioner):
     def get_output_range(self, input_range, propagator, verbose=False):
 
        # tolerance_eps = 0.05
-        t_start = time.time()
+        t_start_overall = time.time()
 
        ### old param tolerance_range = 0.01, c= 0.8, 2/3
         tolerance_step=0.0005
@@ -1115,6 +1115,7 @@ class AdaptiveSimGuidedPartitioner(Partitioner):
         info = {}
 
         num_propagator_calls = 0
+        propagator_computation_time = 0
 
 
         M = [] # (Line 4)
@@ -1162,7 +1163,10 @@ class AdaptiveSimGuidedPartitioner(Partitioner):
 
         while terminating_condition==False:
  
+            t_start = time.time()
             output_range_new, _= propagator.get_output_range(input_range_new, verbose=verbose)
+            t_end = time.time()
+            propagator_computation_time += t_end - t_start
             num_propagator_calls += 1
             if self.termination_condition_type == "num_propagator_calls" and \
              (num_propagator_calls== (self.termination_condition_value)*0.8):
@@ -1205,7 +1209,10 @@ class AdaptiveSimGuidedPartitioner(Partitioner):
         if input_range[0,0] !=input_range_new[0,0]: 
    
             input_range_ = np.array([[input_range[0,0] ,input_range_new[0,0]],[input_range[1,0], input_range[1,1]]])
+            t_start = time.time()
             output_range_,_ = propagator.get_output_range(input_range_, verbose=verbose)
+            t_end = time.time()
+            propagator_computation_time += t_end - t_start
             num_propagator_calls += 1
     
             M.append((input_range_,output_range_)) 
@@ -1215,7 +1222,10 @@ class AdaptiveSimGuidedPartitioner(Partitioner):
 
                            #### approch2 only
             input_range_ = np.array([[input_range_new[0,1],input_range[0,1]],[input_range[1,0],input_range[1,1]]])
+            t_start = time.time()
             output_range_,_ = propagator.get_output_range(input_range_, verbose=verbose)
+            t_end = time.time()
+            propagator_computation_time += t_end - t_start
             num_propagator_calls += 1
    
             M.append((input_range_,output_range_))
@@ -1224,7 +1234,10 @@ class AdaptiveSimGuidedPartitioner(Partitioner):
         if[input_range_new[1,1]!=input_range[1,1]]:
 
             input_range_ = np.array([[input_range_new[0,0],input_range_new[0,1]],[input_range_new[1,1],input_range[1,1]]])
+            t_start = time.time()
             output_range_,_ = propagator.get_output_range(input_range_, verbose=verbose)
+            t_end = time.time()
+            propagator_computation_time += t_end - t_start
             num_propagator_calls += 1
 
             M.append((input_range_,output_range_))
@@ -1234,7 +1247,10 @@ class AdaptiveSimGuidedPartitioner(Partitioner):
                         ### common partition between two approaches
 
             input_range_ = np.array([[input_range_new[0,0],input_range_new[0,1]],[input_range[1,0],input_range_new[1,0]]])
+            t_start = time.time()
             output_range_,_ = propagator.get_output_range(input_range_, verbose=verbose)
+            t_end = time.time()
+            propagator_computation_time += t_end - t_start
             num_propagator_calls += 1
 
             M.append((input_range_,output_range_))      
@@ -1291,7 +1307,10 @@ class AdaptiveSimGuidedPartitioner(Partitioner):
                     input_ranges_ = sect(input_range_, 2, select=sect_method)
                     # Lines 16-17
                     for input_range_ in input_ranges_:
+                        t_start = time.time()
                         output_range_, _ = propagator.get_output_range(input_range_, verbose=verbose)
+                        t_end = time.time()
+                        propagator_computation_time += t_end - t_start
                         num_propagator_calls += 1
                         M.append((input_range_, output_range_)) # Line 18
                 else: # Lines 19-20
@@ -1308,13 +1327,14 @@ class AdaptiveSimGuidedPartitioner(Partitioner):
         # Line 24
         u_e = self.squash_down_to_one_range(output_range_sim, M)
 
-        t_end = time.time()
+        t_end_overall = time.time()
 
         if self.interior_condition in ["lower_bnds", "linf"]:
             estimated_range = self.squash_down_to_one_range(output_range_sim, M)
             estimated_error = self.get_error(output_range_sim, estimated_range)
         elif self.interior_condition == "convex_hull":
             estimated_hull = self.squash_down_to_convex_hull(M, self.sim_convex_hull.points)
+            info["estimated_hull"] = estimated_hull
             estimated_error = self.get_error(self.sim_convex_hull, estimated_hull)
 
         info["all_partitions"] = M+interior_M
@@ -1322,12 +1342,9 @@ class AdaptiveSimGuidedPartitioner(Partitioner):
         info["interior_partitions"] = interior_M
         info["num_propagator_calls"] = num_propagator_calls
         info["num_partitions"] = len(M) + len(interior_M)
-        info["computation_time"] =  t_end - t_start
+        info["computation_time"] =  t_end_overall - t_start_overall
         info["estimation_error"] =  estimated_error
-
-
-    
-
+        info["propagator_computation_time"] =  propagator_computation_time
 
         if self.make_animation:
             self.compile_animation(iteration)
