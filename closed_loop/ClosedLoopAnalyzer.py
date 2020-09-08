@@ -11,7 +11,7 @@ import torch
 # plt.rcParams['font.family'] = 'STIXGeneral'
 
 from closed_loop.ClosedLoopPartitioner import ClosedLoopNoPartitioner
-from closed_loop.ClosedLoopPropagator import ClosedLoopCROWNPropagator, ClosedLoopIBPPropagator
+from closed_loop.ClosedLoopPropagator import ClosedLoopCROWNPropagator, ClosedLoopIBPPropagator, ClosedLoopSDPPropagator
 
 # save_dir = "{}/results/analyzer/".format(os.path.dirname(os.path.abspath(__file__)))
 # os.makedirs(save_dir, exist_ok=True)
@@ -32,11 +32,24 @@ class ClosedLoopAnalyzer(Analyzer):
         self.propagator_dict = {
             "CROWN": ClosedLoopCROWNPropagator,
             "IBP": ClosedLoopIBPPropagator,
+            "SDP": ClosedLoopSDPPropagator,
         }
 
-    def get_output_range(self, input_range):
-        output_range, info = self.partitioner.get_output_range(input_range, self.propagator)
-        return output_range, info
+    def instantiate_partitioner(self, partitioner, hyperparams):
+        dynamics = {"At": self.At, "bt": self.bt, "ct": self.ct}
+        return self.partitioner_dict[partitioner](**{**hyperparams, **dynamics})
+
+    def instantiate_propagator(self, propagator, hyperparams):
+        dynamics = {"At": self.At, "bt": self.bt, "ct": self.ct}
+        return self.propagator_dict[propagator](**{**hyperparams, **dynamics})
+
+    def get_one_step_reachable_set(self, A_inputs, b_inputs, A_out):
+        reachable_set, info = self.partitioner.get_one_step_reachable_set(A_inputs, b_inputs, A_out, self.propagator)
+        return reachable_set, info
+
+    # def get_output_range(self, input_range):
+    #     output_range, info = self.partitioner.get_output_range(input_range, self.propagator)
+    #     return output_range, info
 
     def visualize(self, input_range, output_range_estimate, show=True, show_samples=False, **kwargs):
         raise NotImplementedError
@@ -154,7 +167,8 @@ if __name__ == '__main__':
         # "show_animation": False,
     }
     propagator_hyperparams = {
-        "type": "IBP",
+        "type": "SDP",
+        # "type": "IBP",
         "input_shape": init_state_range.shape[:-1],
     }
 
@@ -163,8 +177,8 @@ if __name__ == '__main__':
     analyzer.partitioner = partitioner_hyperparams
     analyzer.propagator = propagator_hyperparams
 
-    all_bs = analyzer.get_reachable_set(t_max, A_inputs, b_inputs, A_out, u_limits=[u_min, u_max])
-    print("all_bs:", all_bs)
+    b_out, info = analyzer.get_one_step_reachable_set(A_inputs, b_inputs, A_out)
+    print("b_out:", b_out)
     # output_range, analyzer_info = analyzer.get_output_range(input_range)
     # print("Estimated output_range:\n", output_range)
     # print("Number of propagator calls:", analyzer_info["num_propagator_calls"])

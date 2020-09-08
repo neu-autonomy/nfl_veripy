@@ -2,6 +2,7 @@ import numpy as np
 import cvxpy as cp
 import itertools
 from tqdm import tqdm
+from torch.nn import Linear
 
 def getE_in(num_states, num_neurons, num_inputs):
     # Set up E_in to change the basis of P to NN coordinates
@@ -21,7 +22,17 @@ def getE_out(num_states, num_neurons, num_inputs, At, bt, ct):
 
 def getE_mid(num_states, num_neurons, num_inputs, model, u_min, u_max):
     # Set up E_mid to change the basis of Q to NN coordinates
-    Ws = model.get_weights()
+
+    # Keras:
+    # Ws = model.get_weights()
+
+    # Pytorch:
+    weights = [layer.weight.data.numpy().T for layer in model if isinstance(layer, Linear)]
+    biases = [layer.bias.data.numpy() for layer in model if isinstance(layer, Linear)]
+    Ws = [None]*(len(weights)+len(biases))
+    Ws[::2] = weights
+    Ws[1::2] = biases
+
     num_layers = int(len(Ws)/2)
 
     A_ = np.zeros((num_neurons+2*num_inputs,num_states+num_neurons+2*num_inputs))
@@ -34,6 +45,7 @@ def getE_mid(num_states, num_neurons, num_inputs, model, u_min, u_max):
         b_i = Ws[2*layer+1]
 
         A_[i:i+W_i.shape[0], j:j+W_i.shape[1]] = W_i
+
         a_[i:i+W_i.shape[0]] = b_i
 
         i += W_i.shape[0]; j += W_i.shape[1]

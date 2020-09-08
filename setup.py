@@ -12,6 +12,7 @@ setup(name='reach_lp',
           'keras',
           'tensorflow',
           'pypoman',
+          'tqdm',
           ],
       packages=find_packages()
 )

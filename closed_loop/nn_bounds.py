@@ -42,11 +42,6 @@ class BoundClosedLoopController(BoundSequential):
         return b
 
     def _add_dynamics(self, lower_A, upper_A, lower_sum_b, upper_sum_b):
-        # return lower_A, upper_A, lower_sum_b, upper_sum_b
-        # print("lower_A:", lower_A)
-        # print("self.b_dyn:", self.b_dyn)
-        # print('A_0 shape: %s', lower_A.size())
-        # print('self.b_dyn shape: %s', self.b_dyn.size())
 
         '''
 
@@ -106,7 +101,7 @@ class BoundClosedLoopController(BoundSequential):
     # @param C vector of specification, shape (batch, specification_size, output_size)
     # @param upper compute CROWN upper bound
     # @param lower compute CROWN lower bound
-    def backward_range(self, norm=np.inf, x_U=None, x_L=None, eps=None, C=None, upper=False, lower=True, modules=None):
+    def backward_range(self, norm=np.inf, x_U=None, x_L=None, eps=None, C=None, upper=False, lower=True, modules=None, return_matrices=False):
         if C.size() != (1,1,1):
             # TODO: Find better mechanism to check C
             # Don't consider dynamics yet, just call parent method
@@ -146,21 +141,11 @@ class BoundClosedLoopController(BoundSequential):
         # A has shape (batch, specification_size, flattened_input_size)
         logger.debug('Final A: %s', A.size())
 
-        # print(self.A_in.shape)
-        # print(self.b_in.shape)
-        # print(A.shape)
-
         A_constr = self.A_in
         b = self.b_in
         c = A.data.numpy().squeeze()
         n = c.shape[0]
 
-        # print("A_constr:", A_constr)
-        # print("b:", b)
-        # print("c:", c)
-        # print("sign:", sign)
-
-        # print(c.shape)
         x = cp.Variable(n)
         cost = c.T@x
         constraints = [A_constr @ x <= b]
@@ -173,8 +158,6 @@ class BoundClosedLoopController(BoundSequential):
         prob.solve()
         bound = prob.value
 
-        # print("bound:", bound)
-        # print("sum_b:", sum_b)
         bound = bound + sum_b
         return bound
 
@@ -232,11 +215,6 @@ class BoundClosedLoopController(BoundSequential):
         if prob.value > bound:
             bound = prob.value
 
-        # print("A_out_np:", A_out_np)
-        # print("x:", x.value)
-        # print(bound)
-        # print('---')
-
         return bound
 
     # sign = +1: upper bound, sign = -1: lower bound
@@ -255,11 +233,6 @@ class BoundClosedLoopController(BoundSequential):
             logger.debug('sum_b shape: %s', sum_b.size())
             # we only need the lower bound
 
-            # print("A.shape:", A.shape)
-            # print("center: ", center)
-            # print("diff: ", diff)
-            # print("A.bmm(center):", A.bmm(center))
-
             # First 2 terms in Eq. 20 of: https://arxiv.org/pdf/1811.00866.pdf
             # eps*q_norm(Lamb) + Lamb*x0 <==> x0=center, eps=diff, Lamb=A
             bound = A.bmm(center) + sign * A.abs().bmm(diff)
@@ -269,12 +242,12 @@ class BoundClosedLoopController(BoundSequential):
             dual_norm = np.float64(1.0) / (1 - 1.0 / norm)
             deviation = A.norm(dual_norm, -1) * eps
             bound = A.bmm(x) + sign * deviation.unsqueeze(-1)
-        # Add big summation term from Eq. 20 of: https://arxiv.org/pdf/1811.00866.pdf
 
+        # Add big summation term from Eq. 20 of: https://arxiv.org/pdf/1811.00866.pdf
         if sum_b.ndim == 3:
             sum_b = sum_b.squeeze(-1)
         bound = bound.squeeze(-1) + sum_b
-        # print("bound.size(): {}".format(bound.size()))
+
         return bound
 
 if __name__ == '__main__':

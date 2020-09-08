@@ -4,6 +4,7 @@ os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 from keras.models import Sequential
 from keras.layers import Dense
 from keras.models import model_from_json
+from crown_ibp.conversions.keras2torch import keras2torch, get_keras_model
 
 dir_path = os.path.dirname(os.path.realpath(__file__))
 
@@ -36,7 +37,8 @@ def load_model(name='double_integrator_mpc'):
         loaded_model_json = f.read()
     model = model_from_json(loaded_model_json)
     model.load_weights(path+"/model.h5")
-    return model
+    torch_model = keras2torch(model, "torch_model")
+    return torch_model
 
 def control_nn(x, model=None):
     if model is None:
