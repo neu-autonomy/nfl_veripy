@@ -11,7 +11,7 @@ import torch
 # plt.rcParams['font.family'] = 'STIXGeneral'
 
 from closed_loop.ClosedLoopPartitioner import ClosedLoopNoPartitioner
-from closed_loop.ClosedLoopPropagator import ClosedLoopCROWNPropagator, ClosedLoopIBPPropagator, ClosedLoopSDPPropagator
+from closed_loop.ClosedLoopPropagator import ClosedLoopCROWNPropagator, ClosedLoopIBPPropagator, ClosedLoopFastLinPropagator, ClosedLoopSDPPropagator
 
 # save_dir = "{}/results/analyzer/".format(os.path.dirname(os.path.abspath(__file__)))
 # os.makedirs(save_dir, exist_ok=True)
@@ -32,6 +32,7 @@ class ClosedLoopAnalyzer(Analyzer):
         self.propagator_dict = {
             "CROWN": ClosedLoopCROWNPropagator,
             "IBP": ClosedLoopIBPPropagator,
+            "FastLin": ClosedLoopFastLinPropagator,
             "SDP": ClosedLoopSDPPropagator,
         }
 
@@ -47,9 +48,9 @@ class ClosedLoopAnalyzer(Analyzer):
         reachable_set, info = self.partitioner.get_one_step_reachable_set(A_inputs, b_inputs, A_out, self.propagator)
         return reachable_set, info
 
-    # def get_output_range(self, input_range):
-    #     output_range, info = self.partitioner.get_output_range(input_range, self.propagator)
-    #     return output_range, info
+    def get_reachable_set(self, A_inputs, b_inputs, A_out, t_max):
+        reachable_set, info = self.partitioner.get_reachable_set(A_inputs, b_inputs, A_out, self.propagator, t_max)
+        return reachable_set, info
 
     def visualize(self, input_range, output_range_estimate, show=True, show_samples=False, **kwargs):
         raise NotImplementedError
@@ -169,6 +170,8 @@ if __name__ == '__main__':
     propagator_hyperparams = {
         # "type": "SDP",
         "type": "IBP",
+        # "type": "CROWN",
+        # "type": "FastLin",
         "input_shape": init_state_range.shape[:-1],
     }
 
@@ -177,7 +180,8 @@ if __name__ == '__main__':
     analyzer.partitioner = partitioner_hyperparams
     analyzer.propagator = propagator_hyperparams
 
-    b_out, info = analyzer.get_one_step_reachable_set(A_inputs, b_inputs, A_out)
+    # b_out, info = analyzer.get_one_step_reachable_set(A_inputs, b_inputs, A_out)
+    b_out, info = analyzer.get_reachable_set(A_inputs, b_inputs, A_out, t_max=5)
     print("b_out:", b_out)
     # output_range, analyzer_info = analyzer.get_output_range(input_range)
     # print("Estimated output_range:\n", output_range)
