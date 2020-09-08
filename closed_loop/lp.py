@@ -7,16 +7,6 @@ import torch
 import time
 import pypoman
 
-def init_state_range_to_polytope(init_state_range):
-    num_states = init_state_range.shape[0]
-    pts = []
-    for i in range(num_states):
-        for j in range(num_states):
-            pts.append([init_state_range[0,i], init_state_range[1,j]])
-    vertices = np.array(pts)
-    A_inputs, b_inputs = pypoman.compute_polytope_halfspaces(vertices)
-    return A_inputs, b_inputs
-
 def min_and_max_controls(pts, A_inputs, b_inputs, At, bt, ct, A_out, keras_model=None):
     if keras_model is None:
         keras_model = load_model()
