@@ -167,8 +167,8 @@ if __name__ == '__main__':
         # "show_animation": False,
     }
     propagator_hyperparams = {
-        "type": "SDP",
-        # "type": "IBP",
+        # "type": "SDP",
+        "type": "IBP",
         "input_shape": init_state_range.shape[:-1],
     }
 

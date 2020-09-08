@@ -123,7 +123,7 @@ class ClosedLoopCROWNIBPCodebasePropagator(ClosedLoopPropagator):
                                         A_in=A_inputs, b_in=b_inputs,
                                         u_limits=u_limits)
             bs[i] = xt1_max
-        return bs
+        return bs, {}
 
     # def get_output_range(self, input_range, verbose=False):
     #     num_outputs = 2
