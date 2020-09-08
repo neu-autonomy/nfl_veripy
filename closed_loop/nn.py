@@ -5,6 +5,7 @@ from keras.models import Sequential
 from keras.layers import Dense
 from keras.models import model_from_json
 from crown_ibp.conversions.keras2torch import keras2torch, get_keras_model
+import torch
 
 dir_path = os.path.dirname(os.path.realpath(__file__))
 
@@ -40,18 +41,22 @@ def load_model(name='double_integrator_mpc'):
     torch_model = keras2torch(model, "torch_model")
     return torch_model
 
-def control_nn(x, model=None):
+def control_nn(x, model=None, use_torch=True):
     if model is None:
         model = load_model()
     if x.ndim == 1:
         batch_x = np.expand_dims(x, axis=0)
     else:
         batch_x = x
-    us = model.predict(batch_x)
-    if x.ndim == 1:
-        return us[0][0]
-    else:
+    if use_torch:
+        us = model.forward(torch.Tensor(batch_x)).data.numpy()[0][0]
         return us
+    else:
+        us = model.predict(batch_x)
+        if x.ndim == 1:
+            return us[0][0]
+        else:
+            return us
 
 if __name__ == '__main__':
     neurons_per_layer = [10,5]

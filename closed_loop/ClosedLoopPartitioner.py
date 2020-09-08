@@ -1,5 +1,9 @@
 import numpy as np
 from partition.Partitioner import Partitioner, UniformPartitioner
+import matplotlib.pyplot as plt
+import pypoman
+from matplotlib import cm
+from closed_loop.nn import control_nn
 
 class ClosedLoopPartitioner(Partitioner):
     def __init__(self, At=None, bt=None, ct=None):
@@ -15,6 +19,129 @@ class ClosedLoopPartitioner(Partitioner):
     def get_reachable_set(self, A_inputs, b_inputs, A_out, propagator, t_max):
         reachable_set, info = propagator.get_reachable_set(A_inputs, b_inputs, A_out, t_max)
         return reachable_set, info
+
+    def setup_visualization(self, A_inputs, b_inputs, A_out, b_out, propagator, show_samples=True, outputs_to_highlight=None, inputs_to_highlight=None):
+        self.animate_fig, self.animate_axes = plt.subplots(1,1)
+
+        if inputs_to_highlight is None:
+            # Automatically detect which input dims to show based on input_range
+            # num_input_dimensions_to_plot = 2
+            # input_shape = A_inputs.
+            # lengths = input_range[...,1].flatten() - input_range[...,0].flatten()
+            # flat_dims = np.argpartition(lengths, -num_input_dimensions_to_plot)[-num_input_dimensions_to_plot:]
+            # flat_dims.sort()
+            input_dims = [[0], [1]]
+            # input_dims = [np.unravel_index(flat_dim, input_range.shape[:-1]) for flat_dim in flat_dims]
+            input_names = ["State: {}".format(input_dims[0][0]), "State: {}".format(input_dims[1][0])]
+        else:
+            input_dims = [x['dim'] for x in inputs_to_highlight]
+            input_names = [x['name'] for x in inputs_to_highlight]
+        self.input_dims_ = tuple([tuple([input_dims[j][i] for j in range(len(input_dims))]) for i in range(len(input_dims[0]))])
+
+        # scale = 0.05
+        # x_off = max((input_range[input_dims[0]+(1,)] - input_range[input_dims[0]+(0,)])*(scale), 1e-5)
+        # y_off = max((input_range[input_dims[1]+(1,)] - input_range[input_dims[1]+(0,)])*(scale), 1e-5)
+        # self.animate_axes[0].set_xlim(input_range[input_dims[0]+(0,)] - x_off, input_range[input_dims[0]+(1,)]+x_off)
+        # self.animate_axes[0].set_ylim(input_range[input_dims[1]+(0,)] - y_off, input_range[input_dims[1]+(1,)]+y_off)
+        self.animate_axes.set_xlabel(input_names[0])
+        self.animate_axes.set_ylabel(input_names[1])
+
+        t_max = 5
+        dt = 1.
+        colors = [cm.get_cmap("tab10")(i) for i in range(t_max+1)]
+
+        num_samples = 100
+        num_states = A_inputs.shape[-1]
+        xs = np.zeros((num_samples, num_states))
+        np.random.seed(0)
+        dataset_index = 0
+
+        while dataset_index < num_samples:
+
+            # Initial state
+            num_states = self.At.shape[0]
+            x = np.zeros((int((t_max)/dt)+1, num_states))
+            x[0,:] = np.random.uniform(
+                low=[2.5,-0.25], 
+                high=[3.0,0.25]
+                # low=init_state_range[:,0], 
+                # high=init_state_range[:,1]
+            )
+            this_colors = colors.copy()
+
+            t = 0
+            step = 0
+            while t < t_max:
+                t += dt
+                u = control_nn(x=x[step,:], model=propagator.network, use_torch=True)
+                # if clip_control:
+                #     u = np.clip(u, u_min, u_max)
+                # if collect_data:
+                #     xs[dataset_index, :] = x[step,:]
+                x[step+1,:] = np.dot(self.At, x[step, :]) + np.dot(self.bt,u)[:,0]
+                step += 1
+                dataset_index += 1
+                if dataset_index == num_samples:
+                    break
+
+            self.animate_axes.scatter(x[:,0], x[:,1], c=this_colors)
+
+        # # Make a rectangle for the Exact boundaries
+        # sampled_outputs = self.get_sampled_outputs(input_range, propagator)
+        # if show_samples:
+        #     self.animate_axes.scatter(sampled_outputs[...,output_dims[0]], sampled_outputs[...,output_dims[1]], c='k', marker='.', zorder=2,
+        #         label="Sampled States")
+
+        # Initial state set
+        # TODO: this doesn't use the computed input_dims...
+        vertices = pypoman.compute_polygon_hull(A_inputs, b_inputs)
+        bnd_color = 'k--'
+        self.animate_axes.plot([v[0] for v in vertices]+[vertices[0][0]], [v[1] for v in vertices]+[vertices[0][1]],
+            bnd_color, label='Initial States')
+
+        # Reachable sets
+        # TODO: this doesn't use the computed input_dims...
+        for i in range(len(b_out)):
+            vertices = pypoman.compute_polygon_hull(A_out, b_out[i])
+            bnd_color = 'g'
+            self.animate_axes.plot([v[0] for v in vertices]+[vertices[0][0]], [v[1] for v in vertices]+[vertices[0][1]],
+                bnd_color, label='$\mathcal{R}_'+str(i+1)+'$')
+
+        # self.default_patches = [[], []]
+        # self.default_lines = [[], []]
+        # self.default_patches[0] = [input_rect]
+        
+        # # Exact output range
+        # color = 'black'
+        # linewidth = 3
+        # if self.interior_condition == "linf":
+        #     output_range_exact = self.samples_to_range(sampled_outputs)
+        #     output_range_exact_ = output_range_exact[self.output_dims_]
+        #     rect = Rectangle(output_range_exact_[:2,0], output_range_exact_[0,1]-output_range_exact_[0,0], output_range_exact_[1,1]-output_range_exact_[1,0],
+        #                     fc='none', linewidth=linewidth,edgecolor=color,
+        #                     label="True Bounds ({})".format(label_dict[self.interior_condition]))
+        #     self.animate_axes[1].add_patch(rect)
+        #     self.default_patches[1].append(rect)
+        # elif self.interior_condition == "lower_bnds":
+        #     output_range_exact = self.samples_to_range(sampled_outputs)
+        #     output_range_exact_ = output_range_exact[self.output_dims_]
+        #     line1 = self.animate_axes[1].axhline(output_range_exact_[1,0], linewidth=linewidth,color=color,
+        #         label="True Bounds ({})".format(label_dict[self.interior_condition]))
+        #     line2 = self.animate_axes[1].axvline(output_range_exact_[0,0], linewidth=linewidth,color=color)
+        #     self.default_lines[1].append(line1)
+        #     self.default_lines[1].append(line2)
+        # elif self.interior_condition == "convex_hull":
+        #     from scipy.spatial import ConvexHull
+        #     self.true_hull = ConvexHull(sampled_outputs)
+        #     self.true_hull_ = ConvexHull(sampled_outputs[...,output_dims].squeeze())
+        #     line = self.animate_axes[1].plot(
+        #         np.append(sampled_outputs[self.true_hull_.vertices][...,output_dims[0]], sampled_outputs[self.true_hull_.vertices[0]][...,output_dims[0]]),
+        #         np.append(sampled_outputs[self.true_hull_.vertices][...,output_dims[1]], sampled_outputs[self.true_hull_.vertices[0]][...,output_dims[1]]),
+        #         color=color, linewidth=linewidth,
+        #         label="True Bounds ({})".format(label_dict[self.interior_condition]))
+        #     self.default_lines[1].append(line[0])
+        # else:
+        #     raise NotImplementedError
 
 class ClosedLoopNoPartitioner(ClosedLoopPartitioner):
     def __init__(self, At=None, bt=None, ct=None):

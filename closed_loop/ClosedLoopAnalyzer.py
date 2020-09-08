@@ -2,7 +2,7 @@ import numpy as np
 from partition.Analyzer import Analyzer
 import torch
 
-# import matplotlib.pyplot as plt
+import matplotlib.pyplot as plt
 # from matplotlib.patches import Rectangle
 # from partition.network_utils import get_sampled_outputs, samples_to_range
 # import os
@@ -52,28 +52,25 @@ class ClosedLoopAnalyzer(Analyzer):
         reachable_set, info = self.partitioner.get_reachable_set(A_inputs, b_inputs, A_out, self.propagator, t_max)
         return reachable_set, info
 
-    def visualize(self, input_range, output_range_estimate, show=True, show_samples=False, **kwargs):
-        raise NotImplementedError
-        # # sampled_outputs = self.get_sampled_outputs(input_range)
-        # # output_range_exact = self.samples_to_range(sampled_outputs)
+    def visualize(self, A_inputs, b_inputs, A_out, b_out, show=True, show_samples=False, **kwargs):
+        # sampled_outputs = self.get_sampled_outputs(input_range)
+        # output_range_exact = self.samples_to_range(sampled_outputs)
 
-        # self.partitioner.setup_visualization(input_range, output_range_estimate, self.propagator, show_samples=show_samples)
+        self.partitioner.setup_visualization(A_inputs, b_inputs, A_out, b_out, self.propagator, show_samples=show_samples)
         # self.partitioner.visualize(kwargs.get("exterior_partitions", kwargs.get("all_partitions", [])), kwargs.get("interior_partitions", []), output_range_estimate)
 
-        # self.partitioner.animate_axes[0].legend(bbox_to_anchor=(0,1.02,1,0.2), loc="lower left",
-        #         mode="expand", borderaxespad=0, ncol=1)
-        # self.partitioner.animate_axes[1].legend(bbox_to_anchor=(0,1.02,1,0.2), loc="lower left",
-        #         mode="expand", borderaxespad=0, ncol=1)
+        self.partitioner.animate_axes.legend(bbox_to_anchor=(0,1.02,1,0.2), loc="lower left",
+                mode="expand", borderaxespad=0, ncol=1)
 
-        # self.partitioner.animate_fig.tight_layout()
+        self.partitioner.animate_fig.tight_layout()
 
         # if "save_name" in kwargs and kwargs["save_name"] is not None:
         #     plt.savefig(kwargs["save_name"])
 
-        # if show:
-        #     plt.show()
-        # else:
-        #     plt.close()
+        if show:
+            plt.show()
+        else:
+            plt.close()
 
     def get_sampled_outputs(self, input_range, N=1000):
         return get_sampled_outputs(input_range, self.propagator, N=N)
@@ -130,7 +127,7 @@ if __name__ == '__main__':
     from closed_loop.utils import init_state_range_to_polytope, get_polytope_A
     A_inputs, b_inputs = init_state_range_to_polytope(init_state_range)
 
-    t_max = 4
+    # Shape of reachable set polytope
     A_out = get_polytope_A(9)
 
     # all_A_out.append(all_A_out[0])
@@ -181,7 +178,7 @@ if __name__ == '__main__':
     analyzer.propagator = propagator_hyperparams
 
     # b_out, info = analyzer.get_one_step_reachable_set(A_inputs, b_inputs, A_out)
-    b_out, info = analyzer.get_reachable_set(A_inputs, b_inputs, A_out, t_max=5)
+    b_out, analyzer_info = analyzer.get_reachable_set(A_inputs, b_inputs, A_out, t_max=5)
     print("b_out:", b_out)
     # output_range, analyzer_info = analyzer.get_output_range(input_range)
     # print("Estimated output_range:\n", output_range)
@@ -192,6 +189,6 @@ if __name__ == '__main__':
     # pars2 = '_'.join([str(key)+"_"+str(value) for key, value in propagator_hyperparams.items() if key not in ["input_shape", "type"]])
     # analyzer_info["save_name"] = save_dir+partitioner_hyperparams['type']+"_"+propagator_hyperparams['type']+"_"+pars+"_"+pars2+".png"
 
-    # analyzer.visualize(input_range, output_range, **analyzer_info)
+    analyzer.visualize(A_inputs, b_inputs, A_out, b_out, show_samples=True, **analyzer_info)
 
     print("--- done. ---")
