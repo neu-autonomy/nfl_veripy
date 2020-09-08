@@ -9,21 +9,6 @@ plt.rcParams['font.family'] = 'STIXGeneral'
 
 from partition.Partitioner import NoPartitioner, UniformPartitioner, SimGuidedPartitioner, GreedySimGuidedPartitioner, AdaptiveSimGuidedPartitioner
 from partition.Propagator import IBPPropagator, CROWNPropagator, CROWNAutoLIRPAPropagator, IBPAutoLIRPAPropagator, CROWNIBPAutoLIRPAPropagator, SDPPropagator
-partitioner_dict = {
-    "None": NoPartitioner,
-    "Uniform": UniformPartitioner,
-    "SimGuided": SimGuidedPartitioner,
-    "GreedySimGuided": GreedySimGuidedPartitioner,
-    "AdaptiveSimGuided": AdaptiveSimGuidedPartitioner,
-}
-propagator_dict = {
-    "IBP": IBPPropagator,
-    "CROWN": CROWNPropagator,
-    "CROWN_LIRPA": CROWNAutoLIRPAPropagator,
-    "IBP_LIRPA": IBPAutoLIRPAPropagator,
-    "CROWN-IBP_LIRPA": CROWNIBPAutoLIRPAPropagator,
-    "SDP": SDPPropagator,
-}
 
 save_dir = "{}/results/analyzer/".format(os.path.dirname(os.path.abspath(__file__)))
 os.makedirs(save_dir, exist_ok=True)
@@ -35,6 +20,23 @@ class Analyzer:
         self.partitioner = None
         self.propagator = None
 
+        # All possible partitioners, propagators
+        self.partitioner_dict = {
+            "None": NoPartitioner,
+            "Uniform": UniformPartitioner,
+            "SimGuided": SimGuidedPartitioner,
+            "GreedySimGuided": GreedySimGuidedPartitioner,
+            "AdaptiveSimGuided": AdaptiveSimGuidedPartitioner,
+        }
+        self.propagator_dict = {
+            "IBP": IBPPropagator,
+            "CROWN": CROWNPropagator,
+            "CROWN_LIRPA": CROWNAutoLIRPAPropagator,
+            "IBP_LIRPA": IBPAutoLIRPAPropagator,
+            "CROWN-IBP_LIRPA": CROWNIBPAutoLIRPAPropagator,
+            "SDP": SDPPropagator,
+        }
+
     @property
     def partitioner(self):
         return self._partitioner
@@ -44,7 +46,7 @@ class Analyzer:
         if hyperparams is None: return
         hyperparams_ = hyperparams.copy()
         partitioner = hyperparams_.pop('type', None)
-        self._partitioner = partitioner_dict[partitioner](**hyperparams_)
+        self._partitioner = self.partitioner_dict[partitioner](**hyperparams_)
 
     @property
     def propagator(self):
@@ -55,7 +57,7 @@ class Analyzer:
         if hyperparams is None: return
         hyperparams_ = hyperparams.copy()
         propagator = hyperparams_.pop('type', None)
-        self._propagator = propagator_dict[propagator](**hyperparams_)
+        self._propagator = self.propagator_dict[propagator](**hyperparams_)
         if propagator is not None:
             self._propagator.network = self.torch_model
 

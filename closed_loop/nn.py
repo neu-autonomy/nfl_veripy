@@ -1,8 +1,11 @@
 import numpy as np
+import os
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3' 
 from keras.models import Sequential
 from keras.layers import Dense
 from keras.models import model_from_json
 
+dir_path = os.path.dirname(os.path.realpath(__file__))
 
 def create_model(neurons_per_layer):
     model = Sequential()
@@ -27,29 +30,12 @@ def save_model(model):
     model.save_weights("model.h5")
     print("Saved model to disk")
 
-def load_model():
-    # load json and create model
-    try:
-        json_file = open('model.json', 'r')
-    except:
-        pass
-    try:
-        json_file = open('/Users/mfe/Downloads/model.json', 'r')
-    except:
-        pass
-    loaded_model_json = json_file.read()
-    json_file.close()
+def load_model(name='double_integrator_mpc'):
+    path = '{}/models/{}'.format(dir_path, name)
+    with open(path+'/model.json', 'r') as f:
+        loaded_model_json = f.read()
     model = model_from_json(loaded_model_json)
-    # load weights into new model
-    try:
-        model.load_weights("model.h5")
-    except:
-        pass
-    try:
-        model.load_weights("/Users/mfe/Downloads/model.h5")
-    except:
-        pass
-    print("Loaded model from disk")
+    model.load_weights(path+"/model.h5")
     return model
 
 def control_nn(x, model=None):

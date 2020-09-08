@@ -44,6 +44,8 @@ def min_and_max_controls(pts, A_inputs, b_inputs, At, bt, ct, A_out, keras_model
     # return pi_l, pi_u
     # return lower_A, upper_A, lower_sum_b, upper_sum_b
 
+
+### This method is deprecated, lives in ClosedLoopAnalyzer now.
 def reachLP_1(torch_model_cl, A_inputs, b_inputs, At, bt, ct, A_out, u_limits=None):
     # Get bounds on each state from A_inputs, b_inputs
     num_states = At.shape[0]
@@ -67,6 +69,7 @@ def reachLP_1(torch_model_cl, A_inputs, b_inputs, At, bt, ct, A_out, u_limits=No
         bs[i] = xt1_max
     return bs
 
+### This method is deprecated, lives in ClosedLoopAnalyzer now.
 def reachLP_n(n, keras_model, A_inputs, b_inputs, At, bt, ct, A_out, u_limits=None):
     torch_model = keras2torch(keras_model, "torch_model")
     # crown_params = {"zero-lb": True}

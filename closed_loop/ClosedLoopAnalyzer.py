@@ -1,5 +1,7 @@
 import numpy as np
 from partition.Analyzer import Analyzer
+import torch
+
 # import matplotlib.pyplot as plt
 # from matplotlib.patches import Rectangle
 # from partition.network_utils import get_sampled_outputs, samples_to_range
@@ -8,23 +10,8 @@ from partition.Analyzer import Analyzer
 # plt.rcParams['mathtext.fontset'] = 'stix'
 # plt.rcParams['font.family'] = 'STIXGeneral'
 
-# from partition.Partitioner import NoPartitioner, UniformPartitioner, SimGuidedPartitioner, GreedySimGuidedPartitioner, AdaptiveSimGuidedPartitioner
-# from partition.Propagator import IBPPropagator, CROWNPropagator, CROWNAutoLIRPAPropagator, IBPAutoLIRPAPropagator, CROWNIBPAutoLIRPAPropagator, SDPPropagator
-# partitioner_dict = {
-#     "None": NoPartitioner,
-#     "Uniform": UniformPartitioner,
-#     "SimGuided": SimGuidedPartitioner,
-#     "GreedySimGuided": GreedySimGuidedPartitioner,
-#     "AdaptiveSimGuided": AdaptiveSimGuidedPartitioner,
-# }
-# propagator_dict = {
-#     "IBP": IBPPropagator,
-#     "CROWN": CROWNPropagator,
-#     "CROWN_LIRPA": CROWNAutoLIRPAPropagator,
-#     "IBP_LIRPA": IBPAutoLIRPAPropagator,
-#     "CROWN-IBP_LIRPA": CROWNIBPAutoLIRPAPropagator,
-#     "SDP": SDPPropagator,
-# }
+from closed_loop.ClosedLoopPartitioner import ClosedLoopNoPartitioner
+from closed_loop.ClosedLoopPropagator import ClosedLoopCROWNPropagator, ClosedLoopIBPPropagator
 
 # save_dir = "{}/results/analyzer/".format(os.path.dirname(os.path.abspath(__file__)))
 # os.makedirs(save_dir, exist_ok=True)
@@ -34,49 +21,18 @@ class ClosedLoopAnalyzer(Analyzer):
         self.torch_model = torch_model
         Analyzer.__init__(self, torch_model=torch_model)
 
-        # torch_model = keras2torch(keras_model, "torch_model")
-        # crown_params = {"zero-lb": True}
-        # crown_params = {"one-lb": True}
-        crown_params = {"same-slope": True}
-        self.torch_model_cl = BoundClosedLoopController.convert(torch_model, crown_params,
-            A_dyn=torch.Tensor([At]), b_dyn=torch.Tensor([bt]), c_dyn=[ct])
-        
         self.At = At
         self.bt = bt
         self.ct = ct
 
-    def reachLP_1(torch_model_cl, A_inputs, b_inputs, A_out, u_limits=None):
-        # Get bounds on each state from A_inputs, b_inputs
-        num_states = At.shape[0]
-        vertices = pypoman.compute_polygon_hull(A_inputs, b_inputs)
-        x_max = []
-        x_min = []
-        for state in range(num_states):
-            x_max.append(np.max([v[state] for v in vertices]))
-            x_min.append(np.min([v[state] for v in vertices]))
-        
-        num_facets = A_out.shape[0]
-        bs = np.zeros((num_facets))
-        for i in range(num_facets):
-            xt1_max, _, xt1_min, _ = self.torch_model_cl.full_backward_range(norm=np.inf,
-                                        x_U=torch.Tensor([x_max]),
-                                        x_L=torch.Tensor([x_min]),
-                                        upper=True, lower=True, C=torch.Tensor([[[1]]]),
-                                        A_out=torch.Tensor([A_out[i,:]]),
-                                        A_in=A_inputs, b_in=b_inputs,
-                                        u_limits=u_limits)
-            bs[i] = xt1_max
-        return bs
-
-    def reachLP_n(n, A_inputs, b_inputs, A_out, u_limits=None):
-        
-        all_bs = []
-        bs = self.reachLP_1(A_inputs, b_inputs, A_out, u_limits=u_limits)
-        all_bs.append(bs)
-        for i in range(1,n):
-            bs = self.reachLP_1(A_out, bs, A_out, u_limits=u_limits)
-            all_bs.append(bs)
-        return all_bs
+        # All possible partitioners, propagators
+        self.partitioner_dict = {
+            "None": ClosedLoopNoPartitioner,
+        }
+        self.propagator_dict = {
+            "CROWN": ClosedLoopCROWNPropagator,
+            "IBP": ClosedLoopIBPPropagator,
+        }
 
     def get_output_range(self, input_range):
         output_range, info = self.partitioner.get_output_range(input_range, self.propagator)
@@ -194,11 +150,11 @@ if __name__ == '__main__':
 
     partitioner_hyperparams = {
         "type": "None",
-        "make_animation": False,
-        "show_animation": False,
+        # "make_animation": False,
+        # "show_animation": False,
     }
     propagator_hyperparams = {
-        "type": "IBP_LIRPA",
+        "type": "IBP",
         "input_shape": init_state_range.shape[:-1],
     }
 
