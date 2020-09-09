@@ -116,6 +116,7 @@ class BoundClosedLoopController(BoundSequential):
             ##########
 
             if self.u_limits is not None:
+                raise NotImplementedError
                 # lb = self._get_concrete_bound3(lower_A, upper_A, lower_sum_b, upper_sum_b, sign = -1)
                 lb = -5.
                 ub = self._get_concrete_bound3(lower_A, upper_A, lower_sum_b, upper_sum_b)

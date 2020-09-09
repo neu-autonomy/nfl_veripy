@@ -13,6 +13,7 @@ setup(name='reach_lp',
           'tensorflow',
           'pypoman',
           'tqdm',
+          'pyclipper',
           ],
       packages=find_packages()
 )

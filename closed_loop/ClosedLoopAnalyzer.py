@@ -10,7 +10,7 @@ import matplotlib.pyplot as plt
 # plt.rcParams['mathtext.fontset'] = 'stix'
 # plt.rcParams['font.family'] = 'STIXGeneral'
 
-from closed_loop.ClosedLoopPartitioner import ClosedLoopNoPartitioner
+from closed_loop.ClosedLoopPartitioner import ClosedLoopNoPartitioner, ClosedLoopUniformPartitioner
 from closed_loop.ClosedLoopPropagator import ClosedLoopCROWNPropagator, ClosedLoopIBPPropagator, ClosedLoopFastLinPropagator, ClosedLoopSDPPropagator
 
 # save_dir = "{}/results/analyzer/".format(os.path.dirname(os.path.abspath(__file__)))
@@ -28,6 +28,7 @@ class ClosedLoopAnalyzer(Analyzer):
         # All possible partitioners, propagators
         self.partitioner_dict = {
             "None": ClosedLoopNoPartitioner,
+            "Uniform": ClosedLoopUniformPartitioner,
         }
         self.propagator_dict = {
             "CROWN": ClosedLoopCROWNPropagator,
@@ -57,10 +58,10 @@ class ClosedLoopAnalyzer(Analyzer):
         # output_range_exact = self.samples_to_range(sampled_outputs)
 
         self.partitioner.setup_visualization(A_inputs, b_inputs, A_out, b_out, self.propagator, show_samples=show_samples)
-        # self.partitioner.visualize(kwargs.get("exterior_partitions", kwargs.get("all_partitions", [])), kwargs.get("interior_partitions", []), output_range_estimate)
+        self.partitioner.visualize(kwargs.get("exterior_partitions", kwargs.get("all_partitions", [])), kwargs.get("interior_partitions", []), A_out, b_out)
 
-        self.partitioner.animate_axes.legend(bbox_to_anchor=(0,1.02,1,0.2), loc="lower left",
-                mode="expand", borderaxespad=0, ncol=1)
+        # self.partitioner.animate_axes.legend(bbox_to_anchor=(0,1.02,1,0.2), loc="lower left",
+        #         mode="expand", borderaxespad=0, ncol=1)
 
         self.partitioner.animate_fig.tight_layout()
 
@@ -160,7 +161,9 @@ if __name__ == '__main__':
     #         num_samples = 1000, clip_control=True, show_dataset=False)
 
     partitioner_hyperparams = {
-        "type": "None",
+        # "type": "None",
+        "type": "Uniform",
+        "num_partitions": np.array([4,4]),
         # "make_animation": False,
         # "show_animation": False,
     }
