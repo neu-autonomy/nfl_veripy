@@ -162,7 +162,7 @@ if __name__ == '__main__':
     ##############
     # Simple FF network
     ###############
-    torch_model = model_xiang_2020_robot_arm()
+    torch_model, model_info = model_xiang_2020_robot_arm()
     input_range = np.array([ # (num_inputs, 2)
                       [np.pi/3, 2*np.pi/3], # x0min, x0max
                       [np.pi/3, 2*np.pi/3], # x1min, x1max
@@ -206,23 +206,28 @@ if __name__ == '__main__':
     analyzer.partitioner = partitioner_hyperparams
     analyzer.propagator = propagator_hyperparams
     output_range, analyzer_info = analyzer.get_output_range(input_range)
-
+  #  print(analyzer_info)
     np.random.seed(seed=0)
-    output_range_exact = analyzer.get_exact_output_range(input_range)
+   # output_range_exact = analyzer.get_exact_output_range(input_range)
+    #if analyzer.partitioner["interior_condition"] == "convex_hull":
+    exact_hull = analyzer.get_exact_hull(input_range)
+   #else:
+  #      output_range_exact = analyzer.get_exact_output_range(input_range)
 
-    error = analyzer.partitioner.get_error(output_range_exact, output_range)
+    error = analyzer.partitioner.get_error(exact_hull, analyzer_info["estimated_hull"])
     print("Estimated output_range:\n", output_range)
     # print("True output_range:\n", output_range_exact)
     # print("Error: ", error)
     print("\n")
     print("Number of propagator calls:", analyzer_info["num_propagator_calls"])
+    print(analyzer_info["num_partitions"])
     print("Number of partitions:", analyzer_info["num_partitions"])
 
     pars = '_'.join([str(key)+"_"+str(value) for key, value in sorted(partitioner_hyperparams.items(), key=lambda kv: kv[0]) if key not in ["make_animation", "show_animation", "type"]])
     pars2 = '_'.join([str(key)+"_"+str(value) for key, value in sorted(propagator_hyperparams.items(), key=lambda kv: kv[0]) if key not in ["input_shape", "type"]])
     analyzer_info["save_name"] = save_dir+partitioner_hyperparams['type']+"_"+propagator_hyperparams['type']+"_"+pars+"_"+pars2+".pdf"
 
-    title = "# Partitions: {}, Error: {}".format(str(partitioner_hyperparams['num_partitions']**2), str(round(error, 3)))
+    title = "# Partitions: {}, Error: {}".format(str(analyzer_info["num_partitions"]), str(round(error, 3)))
     analyzer.visualize(input_range, output_range, show_legend=False, show_input=True, show_output=False, title=title, **analyzer_info)
 
     print("done.")
