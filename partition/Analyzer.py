@@ -67,7 +67,7 @@ class Analyzer:
         output_range, info = self.partitioner.get_output_range(input_range, self.propagator)
         return output_range, info
 
-    def visualize(self, input_range, output_range_estimate, show=True, show_samples=True, show_legend=True, show_input=True, show_output=True, **kwargs):
+    def visualize(self, input_range, output_range_estimate, show=True, show_samples=True, show_legend=True, show_input=True, show_output=True, title=None, **kwargs):
         # sampled_outputs = self.get_sampled_outputs(input_range)
         # output_range_exact = self.samples_to_range(sampled_outputs)
 
@@ -78,13 +78,16 @@ class Analyzer:
 
         if show_legend:
             if show_input:
-                self.partitioner.animate_axes[self.partitioner.input_axis].legend(bbox_to_anchor=(0,1.02,1,0.2), loc="lower left",
+                self.partitioner.input_axis.legend(bbox_to_anchor=(0,1.02,1,0.2), loc="lower left",
                         mode="expand", borderaxespad=0, ncol=1)
             if show_output:
-                self.partitioner.animate_axes[self.partitioner.output_axis].legend(bbox_to_anchor=(0,1.02,1,0.2), loc="lower left",
+                self.partitioner.output_axis.legend(bbox_to_anchor=(0,1.02,1,0.2), loc="lower left",
                         mode="expand", borderaxespad=0, ncol=2)
 
-        self.partitioner.animate_fig.tight_layout()
+        if title is not None:
+            plt.title(title)
+
+        plt.tight_layout()
 
         if "save_name" in kwargs and kwargs["save_name"] is not None:
             plt.savefig(kwargs["save_name"])
@@ -168,29 +171,30 @@ if __name__ == '__main__':
     # partitioner_hyperparams = {"num_partitions": [4,4,1,1,1]}
     partitioner_hyperparams = {
         # "type": "Uniform",
-        "type": "SimGuided",
-        # "type": "GreedySimGuided",
+        # "type": "SimGuided",
+        "type": "GreedySimGuided",
         # "type": "AdaptiveSimGuided",
         # "type": "UnGuided",
 
-        "termination_condition_type": "verify",
-        "termination_condition_value": [np.array([1., 0.]), np.array([100.])],
+        # "termination_condition_type": "verify",
+        # "termination_condition_value": [np.array([1., 0.]), np.array([100.])],
 
          # "termination_condition_type": "input_cell_size",
          # "termination_condition_value": 0.01,
-       # "termination_condition_type": "num_propagator_calls",
-       # "termination_condition_value": 100,
+       "termination_condition_type": "num_propagator_calls",
+       "termination_condition_value": 100,
        #  "termination_condition_type": "pct_improvement",
        #  "termination_condition_value": 0.001,
         # "termination_condition_type": "pct_error",
         # "termination_condition_value": 0.1,
-        # "num_partitions": 32,
+        # "num_partitions": 1,
 
         # "interior_condition": "lower_bnds",
-        "interior_condition": "linf",
-        # "interior_condition": "convex_hull",
-        # "make_animation": False,
-        # "show_animation": False,
+        # "interior_condition": "linf",
+        "interior_condition": "convex_hull",
+        "make_animation": True,
+        "show_animation": True,
+        # "show_output": False,
     }
     propagator_hyperparams = {
         "type": "IBP_LIRPA",
@@ -206,7 +210,7 @@ if __name__ == '__main__':
     np.random.seed(seed=0)
     output_range_exact = analyzer.get_exact_output_range(input_range)
 
-    # error = analyzer.partitioner.get_error(output_range_exact, output_range)
+    error = analyzer.partitioner.get_error(output_range_exact, output_range)
     print("Estimated output_range:\n", output_range)
     # print("True output_range:\n", output_range_exact)
     # print("Error: ", error)
@@ -218,6 +222,7 @@ if __name__ == '__main__':
     pars2 = '_'.join([str(key)+"_"+str(value) for key, value in sorted(propagator_hyperparams.items(), key=lambda kv: kv[0]) if key not in ["input_shape", "type"]])
     analyzer_info["save_name"] = save_dir+partitioner_hyperparams['type']+"_"+propagator_hyperparams['type']+"_"+pars+"_"+pars2+".pdf"
 
-    analyzer.visualize(input_range, output_range, show_legend=True, show_input=True, show_output=True, **analyzer_info)
+    title = "# Partitions: {}, Error: {}".format(str(partitioner_hyperparams['num_partitions']**2), str(round(error, 3)))
+    analyzer.visualize(input_range, output_range, show_legend=False, show_input=True, show_output=False, title=title, **analyzer_info)
 
     print("done.")
