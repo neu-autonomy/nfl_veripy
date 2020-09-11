@@ -12,10 +12,11 @@ def model_dynamics(env_name='CartPole-v0'):
     return torch_model
 
 def model_xiang_2017(activation="tanh"):
+    neurons = [2,5,2]
     model = Sequential(
-        Linear(2, 5),
+        Linear(neurons[0], neurons[1]),
         activations[activation](),
-        Linear(5, 2),
+        Linear(neurons[1], neurons[2]),
     )
     state_dict = model.state_dict()
     state_dict['0.weight'].copy_(torch.nn.Parameter(data=torch.Tensor(
@@ -36,14 +37,17 @@ def model_xiang_2017(activation="tanh"):
     state_dict['2.bias'].copy_(torch.nn.Parameter(data=torch.Tensor(
         [-1.4048, -0.4827]), requires_grad=True))
 
-    return model
+    model_info = make_model_info_dict(neurons=neurons, activation=activation)
+
+    return model, model_info
 
 def model_xiang_2020_robot_arm(activation="tanh"):
 
+    neurons = [2,5,2]
     model = Sequential(
-        Linear(2, 5),
+        Linear(neurons[0], neurons[1]),
         activations[activation](),
-        Linear(5, 2),
+        Linear(neurons[1], neurons[2]),
     )
     state_dict = model.state_dict()
     state_dict['0.weight'].copy_(torch.nn.Parameter(data=torch.Tensor(
@@ -64,7 +68,17 @@ def model_xiang_2020_robot_arm(activation="tanh"):
     state_dict['2.bias'].copy_(torch.nn.Parameter(data=torch.Tensor(
         [-0.52256, 7.34787]), requires_grad=True))
 
-    return model
+    model_info = make_model_info_dict(neurons=neurons, activation=activation)
+
+    return model, model_info
+
+def make_model_info_dict(neurons=None, activation=None, seed=None):
+    model_info = {
+        "model_neurons": neurons,
+        "model_activation": activation,
+        "model_seed": seed,
+    }
+    return model_info    
 
 def model_simple():
     model = Sequential(
@@ -125,7 +139,6 @@ def model_gh2():
     ReLU(),
     Linear(5, 2),
 
-
         )
     state_dict = model.state_dict()
     state_dict['0.weight'].copy_(torch.nn.Parameter(data=torch.Tensor(
@@ -160,6 +173,27 @@ def model_gh2():
 
     return model
 
+def random_model(activation='relu', neurons=[2,5,20,40,40,20,2], seed=0):
+    filename = get_model_filename(activation=activation, neurons=neurons, seed=seed)
+    try:
+        model = torch.load(filename)
+    except:
+        torch.manual_seed(seed)
+        layers = []
+        for i in range(len(neurons)-1):
+            layers.append(Linear(neurons[i], neurons[i+1]))
+            if i != len(neurons) - 2:
+                if activation == 'relu':
+                    layers.append(ReLU())
+        model = Sequential(*layers)
+        filename = get_model_filename(activation=activation, neurons=neurons, seed=seed)
+        torch.save(model, filename)
+    model_info = make_model_info_dict(neurons=neurons, activation=activation, seed=seed)
+    return model, model_info
+
+def get_model_filename(activation='relu', neurons=[2,5,20,40,40,20,2], seed=0):
+    filename = "_".join(map(str, neurons))+"_"+activation+"_"+str(seed)
+    return filename
 
 def model_gh3():
     model = Sequential(
@@ -188,3 +222,6 @@ def model_gh3():
         [-0.3, 1]), requires_grad=True))
 
     return model
+
+if __name__ == '__main__':
+    create_model_big()

@@ -3,7 +3,7 @@ import partition
 import partition.Partitioner
 import partition.Analyzer
 import partition.Propagator
-from partition.models import model_xiang_2020_robot_arm, model_gh1, model_gh2, model_big
+from partition.models import model_xiang_2020_robot_arm, model_gh1, model_gh2, random_model
 import numpy as np
 import pandas as pd
 import itertools
@@ -24,9 +24,30 @@ def experiment():
     
     # Choose the model and input range
     # torch_model = model_gh2()
-    # torch_model = model_big()
-    torch_model = model_xiang_2020_robot_arm(activation="tanh")
 
+    # torch_model, model_info = random_model(activation='relu', neurons=[2,5,20,40,40,20,2], seed=0)
+    # input_range = np.array([ # (num_inputs, 2)
+    #                   [0., 1.], # x0min, x0max
+    #                   [0., 1.] # x1min, x1max
+    # ])
+
+    neurons = [10,5,2]
+    torch_model, model_info = random_model(activation='relu', neurons=neurons, seed=0)
+    input_range = np.zeros((neurons[0],2))
+    input_range[0,1] = 1.
+    input_range[1,1] = 1.
+    uniform_partitions = np.ones((neurons[0]), dtype=int)
+    uniform_partitions[0:2] = 10
+
+    # neurons = [3,5,2]
+    # torch_model, model_info = random_model(activation='relu', neurons=neurons, seed=0)
+    # input_range = np.array([ # (num_inputs, 2)
+    #                   [0., 1.], # x0min, x0max
+    #                   [0., 1.], # x1min, x1max
+    #                   [0., 1.] # x2min, x2max
+    # ])
+
+    torch_model, model_info = model_xiang_2020_robot_arm(activation="relu")
     input_range = np.array([ # (num_inputs, 2)
                       [np.pi/3, 2*np.pi/3], # x0min, x0max
                       [np.pi/3, 2*np.pi/3] # x1min, x1max
@@ -34,20 +55,27 @@ def experiment():
     
     # Select which algorithms and hyperparameters to evaluate
     # partitioners = ["SimGuided", "GreedySimGuided", "UnGuided"]
-    # partitioners = ["AdaptiveSimGuided", "SimGuided", "GreedySimGuided", "UnGuided"]
+    # partitioners = ["AdaptiveSimGuided", "SimGuided", "GreedySimGuided"]
+    partitioners = ["None", "Uniform", "UnGuided", "SimGuided", "GreedySimGuided"]
     # partitioners = ["UnGuided"]
-    partitioners = ["SimGuided", "GreedySimGuided", "UnGuided"]
     # propagators = ["SDP"]
-    propagators = ["IBP_LIRPA", "CROWN_LIRPA"]
+    propagators = ["IBP_LIRPA", "CROWN_LIRPA", "FastLin_LIRPA"]
     partitioner_hyperparams_to_use = {
+        "None":
+            {
+                "interior_condition": ["convex_hull"],
+            },
         "Uniform":
             {
-                "num_partitions": [1,2,4,8,16,32]
+                # "num_partitions": [1,2,4,8,16,32]
+                "num_partitions": uniform_partitions,
+                "interior_condition": ["convex_hull"],
             },
         "UnGuided":
             {
                 "termination_condition_type": ["num_propagator_calls"],
-                "termination_condition_value": [1,2,4,8,16,32,64,128, 256, 512, 1024],
+                # "termination_condition_value": [1,2,4,8,16,32,64,128, 256, 512, 1024],
+                "termination_condition_value": [100],
                 # "termination_condition_type": ["input_cell_size"],
                 # "termination_condition_value": [1.0, 0.5, 0.2, 0.1, 0.05, 0.01],
                 "num_simulations": [1000],
@@ -56,7 +84,9 @@ def experiment():
         "SimGuided":
             {
                 "termination_condition_type": ["num_propagator_calls"],
-                "termination_condition_value": [1,2,4,8,16,32,64,128, 256, 512, 1024],
+                "termination_condition_value": [100],
+                # "termination_condition_value": [1,2,4,8,16,32,64,128, 256, 512, 1024],
+                # "termination_condition_value": [1,2,4,16,32,64,128,],
                 # "termination_condition_type": ["input_cell_size"],
                 # "termination_condition_value": [1.0, 0.5, 0.2, 0.1, 0.05, 0.01],
                 "num_simulations": [1000],
@@ -65,7 +95,9 @@ def experiment():
         "GreedySimGuided":
             {
                 "termination_condition_type": ["num_propagator_calls"],
-                "termination_condition_value": [1,2,4,8,16,32,64,128, 256, 512, 1024],
+                "termination_condition_value": [100],
+                # "termination_condition_value": [1,2,4,8,16,32,64,128, 256, 512, 1024],
+                # "termination_condition_value": [1,2,4,16,32,64,128,],
 
                 # "termination_condition_type": ["input_cell_size"],
                 # # "termination_condition_value": [1.0, 0.5, 0.2, 0.1, 0.05, 0.01],
@@ -77,7 +109,9 @@ def experiment():
         "AdaptiveSimGuided":
             {
                 "termination_condition_type": ["num_propagator_calls"],
-                "termination_condition_value": [1,2,4,8,16,32,64,128],
+                "termination_condition_value": [100],
+                # "termination_condition_value": [1,2,4,8,16,32,64,128, 256, 512, 1024],
+                # "termination_condition_value": [1,2,4,16,32,64,128,],
                 # "tolerance_eps": [1.0, 0.5, 0.2, 0.1, 0.05, 0.01],
                 #"tolerance_expanding_step": [0.001],
                 #"k_NN": [1],
@@ -97,7 +131,7 @@ def experiment():
             for partitioner_i in range(len(partitioner_keys)):
                 partitioner_hyperparams[partitioner_keys[partitioner_i]] = partitioner_vals[partitioner_i]
             propagator_hyperparams = {"type": propagator, "input_shape": input_range.shape[:-1]}
-            data_row = run_and_add_row(analyzer, input_range, partitioner_hyperparams, propagator_hyperparams)
+            data_row = run_and_add_row(analyzer, input_range, partitioner_hyperparams, propagator_hyperparams, model_info)
             df = df.append(data_row, ignore_index=True)
     
     # Also record the "exact" bounds (via sampling) in the same dataframe
@@ -115,7 +149,7 @@ def experiment():
 
     return df
 
-def run_and_add_row(analyzer, input_range, partitioner_hyperparams, propagator_hyperparams):
+def run_and_add_row(analyzer, input_range, partitioner_hyperparams, propagator_hyperparams, model_info={}):
     print("Partitioner: {},\n Propagator: {}".format(partitioner_hyperparams, propagator_hyperparams))
     np.random.seed(0)
     analyzer.partitioner = partitioner_hyperparams
@@ -134,8 +168,8 @@ def run_and_add_row(analyzer, input_range, partitioner_hyperparams, propagator_h
     pars = '_'.join([str(key)+"_"+str(value) for key, value in sorted(partitioner_hyperparams.items(), key=lambda kv: kv[0]) if key not in ["make_animation", "show_animation", "type"]])
     pars2 = '_'.join([str(key)+"_"+str(value) for key, value in sorted(propagator_hyperparams.items(), key=lambda kv: kv[0]) if key not in ["input_shape", "type"]])
 
-    analyzer_info["save_name"] = img_save_dir+partitioner_hyperparams['type']+"_"+propagator_hyperparams['type']+"_"+pars+"_"+pars2+".png"
-    analyzer.visualize(input_range, output_range, show=False, show_legend=False, **analyzer_info)
+    # analyzer_info["save_name"] = img_save_dir+partitioner_hyperparams['type']+"_"+propagator_hyperparams['type']+"_"+pars+"_"+pars2+".png"
+    # analyzer.visualize(input_range, output_range, show=False, show_legend=False, **analyzer_info)
 
     stats = {
         "computation_time": t_end - t_start,
@@ -145,10 +179,12 @@ def run_and_add_row(analyzer, input_range, partitioner_hyperparams, propagator_h
         "propagator": type(analyzer.propagator).__name__,
         "partitioner": type(analyzer.partitioner).__name__,
         "error": error,
+        # "neurons": ,
+        # "activation": ,
     }
     analyzer_info.pop("exact_hull", None)
     analyzer_info.pop("estimated_hull", None)
-    data_row = {**stats, **analyzer_info, **partitioner_hyperparams, **propagator_hyperparams}
+    data_row = {**stats, **analyzer_info, **partitioner_hyperparams, **propagator_hyperparams, **model_info}
     return data_row
 
 def add_approx_error_to_df(df):
@@ -172,6 +208,7 @@ def get_exact_output_range(df):
     return output_range_exact
 
 def plot(df, stat):
+    plt.rcParams['font.size'] = '20'
     output_range_exact = get_exact_output_range(df)
     for partitioner in df["partitioner"].unique():
         for propagator in df["propagator"].unique():
@@ -180,17 +217,75 @@ def plot(df, stat):
             if partitioner == "UniformPartitioner":
                 continue
             df_ = df[(df["partitioner"] == partitioner) & (df["propagator"] == propagator)]
+            if propagator == "IBPAutoLIRPAPropagator" and partitioner == "SimGuidedPartitioner":
+                linestyle = '--'
+            else:
+                linestyle = '-'
+
             plt.loglog(df_[stat].values, df_["error"],
                 marker=algs[partitioner]["marker"],
+                ms=8,
                 color=cm.get_cmap("tab20c")(4*algs[propagator]["color_ind"]+algs[partitioner]["color_ind"]),
-                label=propagator+'-'+partitioner)
+                label=algs[partitioner]["name"]+'-'+algs[propagator]["name"],
+                linestyle=linestyle)
 
-    plt.xlabel(stat)
+            # if propagator == "SDPPropagator" and partitioner == "SimGuidedPartitioner":
+            #     pt = (df_[stat].values[0], df_["error"].values[0])
+            #     text = (pt[0], pt[1]-0.1)
+            #     plt.gca().annotate("Vanilla SDP\n(Fazlyab '19)", xy=pt,  xycoords='data',
+            #                 xytext=text, textcoords='data',
+            #                 arrowprops=dict(facecolor='black', shrink=0.05),
+            #                 horizontalalignment='center', verticalalignment='top',
+            #                 )
+
+            # if propagator == "CROWNAutoLIRPAPropagator" and partitioner == "SimGuidedPartitioner":
+            #     pt = (df_[stat].values[0], df_["error"].values[0])
+            #     text = (pt[0], pt[1]-0.3)
+            #     plt.gca().annotate("Vanilla CROWN\n(Zhang '18)", xy=pt,  xycoords='data',
+            #                 xytext=text, textcoords='data',
+            #                 arrowprops=dict(facecolor='black', shrink=0.05),
+            #                 horizontalalignment='center', verticalalignment='top',
+            #                 )
+
+            # if propagator == "IBPAutoLIRPAPropagator" and partitioner == "SimGuidedPartitioner":
+            #     pt = (df_[stat].values[2], df_["error"].values[2])
+            #     text = (pt[0], pt[1]+1.)
+            #     pt = (df_[stat].values[0], df_["error"].values[0])
+            #     string = "All Blue Circles:\n(Xiang '20)"
+            #     plt.gca().annotate(string, xy=pt,  xycoords='data',
+            #                 xytext=text, textcoords='data',
+            #                 arrowprops=dict(facecolor='black', shrink=0.05),
+            #                 horizontalalignment='center', verticalalignment='top',
+            #                 )
+            #     pt = (df_[stat].values[1], df_["error"].values[1])
+            #     plt.gca().annotate(string, xy=pt,  xycoords='data',
+            #                 xytext=text, textcoords='data',
+            #                 arrowprops=dict(facecolor='black', shrink=0.05),
+            #                 horizontalalignment='center', verticalalignment='top',
+            #                 )
+            #     pt = (df_[stat].values[2], df_["error"].values[2])
+            #     plt.gca().annotate(string, xy=pt,  xycoords='data',
+            #                 xytext=text, textcoords='data',
+            #                 arrowprops=dict(facecolor='black', shrink=0.05),
+            #                 horizontalalignment='center', verticalalignment='top',
+            #                 )
+            #     plt.gca().text(text[0]+0.8, text[1]-0.8, "...", fontsize=30)
+
+    plt.xlabel(stats[stat]["name"])
     plt.ylabel('Approximation Error')
-    plt.legend()
+    # plt.xlabel(stats[stat]["name"], fontsize=36)
+    # plt.xticks(fontsize=36)
+    # plt.ylabel('Approximation Error', fontsize=36)
+    # plt.yticks(fontsize=36)
+    # plt.legend(bbox_to_anchor=(0., 1.02, 1., .102), loc=3,
+    #    ncol=3, mode="expand", borderaxespad=0.)
+    plt.tight_layout()
     plt.show()
 
 algs ={
+    "NoPartitioner": {
+        "name": "None",
+    },
     "UniformPartitioner": {
         "marker": "x",
         "color_ind": 0,
@@ -203,49 +298,101 @@ algs ={
     },
     "SimGuidedPartitioner": {
         "marker": "o",
-        "color_ind": 1,
-        "name": "SimGuided",
+        "color_ind": 0,
+        "name": "SG",
     },
     "GreedySimGuidedPartitioner": {
         "marker": "^",
-        "color_ind": 2,
-        "name": "GreedySimGuided",
+        "color_ind": 1,
+        "name": "GSG",
     },
     "AdaptiveSimGuidedPartitioner": {
         "marker": "*",
-        "color_ind": 3,
-        "name": "BoundarySimGuided",
+        "color_ind": 2,
+        "name": "AGSG",
     },
     "IBPPropagator": {
         "color_ind": 0,
-        "name": "IBPPropagator",
+        "name": "IBP",
     },
     "CROWNPropagator": {
         "color_ind": 1,
-        "name": "CROWNPropagator",
+        "name": "CROWN",
     },
     "IBPAutoLIRPAPropagator": {
         "color_ind": 0,
-        "name": "IBPPropagator",
+        "name": "IBP",
     },
     "CROWNAutoLIRPAPropagator": {
         "color_ind": 1,
-        "name": "CROWNPropagator",
+        "name": "CROWN",
     },
     "FastLinAutoLIRPAPropagator": {
         "color_ind": 3,
-        "name": "CROWNPropagator",
+        "name": "Fast-Lin",
     },
     "SDPPropagator": {
         "color_ind": 2,
-        "name": "SDPPropagator",
+        "name": "SDP",
+    },
+    "relu": {
+        "name": "ReLU",
+    }
+}
+
+stats = {
+    "propagator_computation_time": {
+        "name": "Computation Time (Propagator Only) [s]"
+    },
+    "num_partitions": {
+        "name": "Number of Partitions"
+    },
+    "num_propagator_calls": {
+        "name": "Number of Propagator Calls"
     },
 }
+
+def make_table(df):
+    partitioners = ["NoPartitioner", "UniformPartitioner", "SimGuidedPartitioner", "GreedySimGuidedPartitioner"]
+    propagators = ["IBPAutoLIRPAPropagator", "FastLinAutoLIRPAPropagator", "CROWNAutoLIRPAPropagator"]#, "SDPPropagator"]
+
+    neurons = df.model_neurons.iloc[0]
+    activation = df.model_activation.iloc[0]
+
+    print("\\begin{tabular}{c c| "+"c "*len(partitioners)+"}") 
+    print("\\hline \\multicolumn{"+str(2+len(partitioners))+"}{c}{Neurons: "+str(neurons)+" -- Activation: "+str(algs[activation]["name"])+"}\\\\ \\hline")
+    print("&& \\multicolumn{"+str(len(partitioners))+"}{c}{Partitioner} \\\\")
+    row = "&"
+    for partitioner in partitioners:
+        row += " & " + algs[partitioner]["name"]
+    print(row + " \\\\ \\hline")
+    print("\\multirow{"+str(len(propagators))+"}{*}{\\STAB{\\rotatebox[origin=c]{90}{Propagator}}}")
+    for propagator in propagators:
+        row = "& " + algs[propagator]["name"]
+        for partitioner in partitioners:
+            df_ = df[(df["partitioner"] == partitioner) & (df["propagator"] == propagator)]
+            stat = round(df_.error.to_numpy()[0], 3)
+            row += " & "
+            if partitioner == "NoPartitioner" or (propagator == "IBPAutoLIRPAPropagator" and partitioner in ["UniformPartitioner", "SimGuidedPartitioner"]):
+                row += "\\cellcolor{Gray} "
+            row += str(stat)
+        print(row + " \\\\")
+    print("\\end{tabular}")
+
+    # \begin{tabular}{c c| c c c c} 
+    # && \multicolumn{4}{c}{Partitioner} \\
+    # && Uniform & SG & GSG & AGSG \\ \hline
+    # \multirow{4}{*}{\STAB{\rotatebox[origin=c]{90}{Propagator}}}
+    # &IBP & 0.42 & 0.71 & 0.71 & 0.72 \\
+    # &CROWN & 0.14 & 0.56 & 0.56 & 0.67 \\
+    # &Fast-Lin & 0.21 & 0.64 & 0.64 & 0.66 \\
+    # &SDP & 0.13 & 0.25 & 0.25 & 0.31 \\
+
 
 if __name__ == '__main__':
 
     # Run an experiment
-    # df = experiment()
+    df = experiment()
 
     # If you want to plot w/o re-running the experiments, comment out the experiment line.
     if 'df' not in locals():
@@ -258,10 +405,20 @@ if __name__ == '__main__':
 
         df = pd.read_pickle(latest_file)
 
+        # # Plot from corl 2020 submission
+        # latest_file = save_dir+"/07-28-2020_16-00-59.pkl"
+        # df = pd.read_pickle(latest_file)
+        # latest_file = save_dir+"/07-28-2020_15-48-05.pkl"
+        # df2 = pd.read_pickle(latest_file)
+        # df = pd.concat([df, df2])
+
     # add_approx_error_to_df(df)
     # plot(df, stat="num_partitions")
     # plot(df, stat="num_propagator_calls")
     # plot(df, stat="computation_time")
-    plot(df, stat="propagator_computation_time")
+    # plot(df, stat="propagator_computation_time")
+    print("\n --- \n")
 
+    make_table(df)
 
+    print("\n --- \n")
