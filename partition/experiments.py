@@ -13,117 +13,201 @@ from datetime import datetime
 import os
 import glob
 import time
+import math
 
 save_dir = "{}/results/experiments".format(os.path.dirname(os.path.abspath(__file__)))
 os.makedirs(save_dir, exist_ok=True)
 img_save_dir = save_dir+"/imgs/"
 os.makedirs(img_save_dir, exist_ok=True)
 
+experiments = [
+    {
+        'neurons': (2,50,2),
+        'activation': 'relu',
+        'seeds': range(10),
+        'name': "Small NN",
+    },
+    {
+        'neurons': (2,10,20,50,20,10,2),
+        'activation': 'relu',
+        'seeds': range(10),
+        'name': "Deep NN",
+    },
+    # {
+    #     'neurons': (2,5,2),
+    #     'activation': 'tanh',
+    #     'seeds': range(10),
+    #     'name': "Different Activation",
+    # },
+    {
+        'neurons': (2,5,10),
+        'activation': 'relu',
+        'seeds': range(10),
+        'name': "Larger Output Dimension",
+    },
+    {
+        'neurons': (4,100,100,10),
+        'activation': 'relu',
+        'seeds': range(10),
+        'name': "Different Activation",
+    },
+]
 
-def experiment():
+# Select which algorithms and hyperparameters to evaluate
+partitioners = ["None", "SimGuided", "GreedySimGuided"]
+propagators = ["IBP_LIRPA", "CROWN_LIRPA", "FastLin_LIRPA"]
+partitioner_hyperparams_to_use = {
+    "None":
+        {
+            "interior_condition": ["lower_bnds", "linf", "convex_hull"],
+        },
+    "UnGuided":
+        {
+            "termination_condition_type": ["num_propagator_calls"],
+            "termination_condition_value": [100],
+            "num_simulations": [1000],
+            "interior_condition": ["lower_bnds", "linf", "convex_hull"],
+        },
+    "SimGuided":
+        {
+            "termination_condition_type": ["num_propagator_calls"],
+            "termination_condition_value": [100],
+            "num_simulations": [1000],
+            "interior_condition": ["lower_bnds", "linf", "convex_hull"],
+        },
+    "GreedySimGuided":
+        {
+            "termination_condition_type": ["num_propagator_calls"],
+            "termination_condition_value": [100],
+            "num_simulations": [1000],
+            "interior_condition": ["lower_bnds", "linf", "convex_hull"],
+        },
+}
+
+def collect_data_for_table():
+
+    df = pd.DataFrame()
+
+    for experiment in experiments:
+        for seed in experiment['seeds']:
+            model, model_info = random_model(activation=experiment['activation'],
+                neurons=experiment['neurons'], seed=seed)
+            df = run_experiment(model=model, model_info=model_info, df=df, save_df=False,
+                partitioners=partitioners, propagators=propagators, partitioner_hyperparams_to_use=partitioner_hyperparams_to_use)
+
+    # Save the df in the "results" dir (so you don't have to re-run the expt)
+    current_datetime = datetime.now().strftime("%m-%d-%Y_%H-%M-%S")
+    df.to_pickle("{}/{}.pkl".format(save_dir, current_datetime))
+    return df
+
+def run_experiment(model=None, model_info=None, df=None, save_df=True, input_range=None, partitioners=None, propagators=None, partitioner_hyperparams_to_use=None):
     
-    # Choose the model and input range
-    # torch_model = model_gh2()
+    if model is None or model_info is None:
+        neurons = [10,5,2]
+        model, model_info = random_model(activation='relu', neurons=neurons, seed=0)
 
-    # torch_model, model_info = random_model(activation='relu', neurons=[2,5,20,40,40,20,2], seed=0)
-    # input_range = np.array([ # (num_inputs, 2)
-    #                   [0., 1.], # x0min, x0max
-    #                   [0., 1.] # x1min, x1max
-    # ])
+    if input_range is None:
+        input_range = np.zeros((model_info['model_neurons'][0],2))
+        input_range[:,1] = 1.
+        # input_range[0,1] = 1.
+        # input_range[1,1] = 1.
+        # uniform_partitions = np.ones((neurons[0]), dtype=int)
+        # uniform_partitions[0:2] = 10
 
-    neurons = [10,5,2]
-    torch_model, model_info = random_model(activation='relu', neurons=neurons, seed=0)
-    input_range = np.zeros((neurons[0],2))
-    input_range[0,1] = 1.
-    input_range[1,1] = 1.
-    uniform_partitions = np.ones((neurons[0]), dtype=int)
-    uniform_partitions[0:2] = 10
+        # model, model_info = random_model(activation='relu', neurons=[2,5,20,40,40,20,2], seed=0)
+        # input_range = np.array([ # (num_inputs, 2)
+        #                   [0., 1.], # x0min, x0max
+        #                   [0., 1.] # x1min, x1max
+        # ])
 
-    # neurons = [3,5,2]
-    # torch_model, model_info = random_model(activation='relu', neurons=neurons, seed=0)
-    # input_range = np.array([ # (num_inputs, 2)
-    #                   [0., 1.], # x0min, x0max
-    #                   [0., 1.], # x1min, x1max
-    #                   [0., 1.] # x2min, x2max
-    # ])
+        # neurons = [3,5,2]
+        # model, model_info = random_model(activation='relu', neurons=neurons, seed=0)
+        # input_range = np.array([ # (num_inputs, 2)
+        #                   [0., 1.], # x0min, x0max
+        #                   [0., 1.], # x1min, x1max
+        #                   [0., 1.] # x2min, x2max
+        # ])
 
-    torch_model, model_info = model_xiang_2020_robot_arm(activation="relu")
-    input_range = np.array([ # (num_inputs, 2)
-                      [np.pi/3, 2*np.pi/3], # x0min, x0max
-                      [np.pi/3, 2*np.pi/3] # x1min, x1max
-    ])
+        # model, model_info = model_xiang_2020_robot_arm(activation="relu")
+        # input_range = np.array([ # (num_inputs, 2)
+        #                   [np.pi/3, 2*np.pi/3], # x0min, x0max
+        #                   [np.pi/3, 2*np.pi/3] # x1min, x1max
+        # ])
     
-    # Select which algorithms and hyperparameters to evaluate
-    # partitioners = ["SimGuided", "GreedySimGuided", "UnGuided"]
-    # partitioners = ["AdaptiveSimGuided", "SimGuided", "GreedySimGuided"]
-    partitioners = ["None", "Uniform", "UnGuided", "SimGuided", "GreedySimGuided"]
-    # partitioners = ["UnGuided"]
-    # propagators = ["SDP"]
-    propagators = ["IBP_LIRPA", "CROWN_LIRPA", "FastLin_LIRPA"]
-    partitioner_hyperparams_to_use = {
-        "None":
-            {
-                "interior_condition": ["convex_hull"],
-            },
-        "Uniform":
-            {
-                # "num_partitions": [1,2,4,8,16,32]
-                "num_partitions": uniform_partitions,
-                "interior_condition": ["convex_hull"],
-            },
-        "UnGuided":
-            {
-                "termination_condition_type": ["num_propagator_calls"],
-                # "termination_condition_value": [1,2,4,8,16,32,64,128, 256, 512, 1024],
-                "termination_condition_value": [100],
-                # "termination_condition_type": ["input_cell_size"],
-                # "termination_condition_value": [1.0, 0.5, 0.2, 0.1, 0.05, 0.01],
-                "num_simulations": [1000],
-                "interior_condition": ["convex_hull"],
-            },
-        "SimGuided":
-            {
-                "termination_condition_type": ["num_propagator_calls"],
-                "termination_condition_value": [100],
-                # "termination_condition_value": [1,2,4,8,16,32,64,128, 256, 512, 1024],
-                # "termination_condition_value": [1,2,4,16,32,64,128,],
-                # "termination_condition_type": ["input_cell_size"],
-                # "termination_condition_value": [1.0, 0.5, 0.2, 0.1, 0.05, 0.01],
-                "num_simulations": [1000],
-                "interior_condition": ["convex_hull"],
-            },
-        "GreedySimGuided":
-            {
-                "termination_condition_type": ["num_propagator_calls"],
-                "termination_condition_value": [100],
-                # "termination_condition_value": [1,2,4,8,16,32,64,128, 256, 512, 1024],
-                # "termination_condition_value": [1,2,4,16,32,64,128,],
 
-                # "termination_condition_type": ["input_cell_size"],
-                # # "termination_condition_value": [1.0, 0.5, 0.2, 0.1, 0.05, 0.01],
-                # "termination_condition_value": [1.0, 0.5, 0.2, 0.1, 0.05, 0.01, 0.005, 0.001],
-                # "termination_condition_value": [1.0, 0.5, 0.2, 0.1, 0.05, 0.01, 0.005, 0.001, 1e-4, 1e-5],
-                "num_simulations": [1000],
-                "interior_condition": ["convex_hull"],
-            },
-        "AdaptiveSimGuided":
-            {
-                "termination_condition_type": ["num_propagator_calls"],
-                "termination_condition_value": [100],
-                # "termination_condition_value": [1,2,4,8,16,32,64,128, 256, 512, 1024],
-                # "termination_condition_value": [1,2,4,16,32,64,128,],
-                # "tolerance_eps": [1.0, 0.5, 0.2, 0.1, 0.05, 0.01],
-                #"tolerance_expanding_step": [0.001],
-                #"k_NN": [1],
-                "num_simulations": [1000],
-                "interior_condition": ["convex_hull"],
-                #"tolerance_range": [0.05]
-            },
-    }
+    if partitioners is None or propagators is None or partitioner_hyperparams_to_use is None:
+        # Select which algorithms and hyperparameters to evaluate
+        # partitioners = ["SimGuided", "GreedySimGuided", "UnGuided"]
+        # partitioners = ["AdaptiveSimGuided", "SimGuided", "GreedySimGuided"]
+        partitioners = ["None", "SimGuided", "GreedySimGuided"]
+        # partitioners = ["UnGuided"]
+        # propagators = ["SDP"]
+        propagators = ["IBP_LIRPA", "CROWN_LIRPA", "FastLin_LIRPA"]
+        partitioner_hyperparams_to_use = {
+            "None":
+                {
+                    "interior_condition": ["linf"],
+                },
+            # "Uniform":
+            #     {
+            #         # "num_partitions": [1,2,4,8,16,32]
+            #         "num_partitions": uniform_partitions,
+            #         "interior_condition": ["convex_hull"],
+            #     },
+            "UnGuided":
+                {
+                    "termination_condition_type": ["num_propagator_calls"],
+                    # "termination_condition_value": [1,2,4,8,16,32,64,128, 256, 512, 1024],
+                    "termination_condition_value": [100],
+                    # "termination_condition_type": ["input_cell_size"],
+                    # "termination_condition_value": [1.0, 0.5, 0.2, 0.1, 0.05, 0.01],
+                    "num_simulations": [1000],
+                    "interior_condition": ["linf"],
+                },
+            "SimGuided":
+                {
+                    "termination_condition_type": ["num_propagator_calls"],
+                    "termination_condition_value": [100],
+                    # "termination_condition_value": [1,2,4,8,16,32,64,128, 256, 512, 1024],
+                    # "termination_condition_value": [1,2,4,16,32,64,128,],
+                    # "termination_condition_type": ["input_cell_size"],
+                    # "termination_condition_value": [1.0, 0.5, 0.2, 0.1, 0.05, 0.01],
+                    "num_simulations": [1000],
+                    "interior_condition": ["linf"],
+                },
+            "GreedySimGuided":
+                {
+                    "termination_condition_type": ["num_propagator_calls"],
+                    "termination_condition_value": [100],
+                    # "termination_condition_value": [1,2,4,8,16,32,64,128, 256, 512, 1024],
+                    # "termination_condition_value": [1,2,4,16,32,64,128,],
+
+                    # "termination_condition_type": ["input_cell_size"],
+                    # # "termination_condition_value": [1.0, 0.5, 0.2, 0.1, 0.05, 0.01],
+                    # "termination_condition_value": [1.0, 0.5, 0.2, 0.1, 0.05, 0.01, 0.005, 0.001],
+                    # "termination_condition_value": [1.0, 0.5, 0.2, 0.1, 0.05, 0.01, 0.005, 0.001, 1e-4, 1e-5],
+                    "num_simulations": [1000],
+                    "interior_condition": ["linf"],
+                },
+            "AdaptiveSimGuided":
+                {
+                    "termination_condition_type": ["num_propagator_calls"],
+                    "termination_condition_value": [100],
+                    # "termination_condition_value": [1,2,4,8,16,32,64,128, 256, 512, 1024],
+                    # "termination_condition_value": [1,2,4,16,32,64,128,],
+                    # "tolerance_eps": [1.0, 0.5, 0.2, 0.1, 0.05, 0.01],
+                    #"tolerance_expanding_step": [0.001],
+                    #"k_NN": [1],
+                    "num_simulations": [1000],
+                    "interior_condition": ["linf"],
+                    #"tolerance_range": [0.05]
+                },
+        }
 
     # Auto-run combinations of algorithms & hyperparams, log results to pandas dataframe
-    df = pd.DataFrame()
-    analyzer = partition.Analyzer.Analyzer(torch_model)
+    if df is None:
+        df = pd.DataFrame()
+    analyzer = partition.Analyzer.Analyzer(model)
     for partitioner, propagator in itertools.product(partitioners, propagators):
         partitioner_keys = list(partitioner_hyperparams_to_use[partitioner].keys())
         partitioner_hyperparams = {"type": partitioner}
@@ -131,8 +215,9 @@ def experiment():
             for partitioner_i in range(len(partitioner_keys)):
                 partitioner_hyperparams[partitioner_keys[partitioner_i]] = partitioner_vals[partitioner_i]
             propagator_hyperparams = {"type": propagator, "input_shape": input_range.shape[:-1]}
-            data_row = run_and_add_row(analyzer, input_range, partitioner_hyperparams, propagator_hyperparams, model_info)
-            df = df.append(data_row, ignore_index=True)
+            if model_info["model_neurons"][-1] == 2 or partitioner_hyperparams["interior_condition"] is not "convex_hull":
+                data_row = run_and_add_row(analyzer, input_range, partitioner_hyperparams, propagator_hyperparams, model_info)
+                df = df.append(data_row, ignore_index=True)
     
     # Also record the "exact" bounds (via sampling) in the same dataframe
     output_range_exact = analyzer.get_exact_output_range(input_range)
@@ -143,9 +228,10 @@ def experiment():
         "partitioner": "EXACT",
     }, ignore_index=True)
 
-    # Save the df in the "results" dir (so you don't have to re-run the expt)
-    current_datetime = datetime.now().strftime("%m-%d-%Y_%H-%M-%S")
-    df.to_pickle("{}/{}.pkl".format(save_dir, current_datetime))
+    if save_df:
+        # Save the df in the "results" dir (so you don't have to re-run the expt)
+        current_datetime = datetime.now().strftime("%m-%d-%Y_%H-%M-%S")
+        df.to_pickle("{}/{}.pkl".format(save_dir, current_datetime))
 
     return df
 
@@ -159,11 +245,15 @@ def run_and_add_row(analyzer, input_range, partitioner_hyperparams, propagator_h
     t_end = time.time()
     
     np.random.seed(0)
-    exact_hull = analyzer_info.get("exact_hull", analyzer.get_exact_hull(input_range))
-    error = analyzer.partitioner.get_error(exact_hull, analyzer_info["estimated_hull"])
+    if partitioner_hyperparams["interior_condition"] == "convex_hull":
+        exact_hull = analyzer.get_exact_hull(input_range, N=int(1e5))
+        error = analyzer.partitioner.get_error(exact_hull, analyzer_info["estimated_hull"])
+    else:
+        exact_output_range, _ = analyzer.partitioner.sample(input_range, analyzer.propagator, N=int(1e5))
+        error = analyzer.partitioner.get_error(exact_output_range, output_range)
     print(error)
-    print(t_end-t_start)
-    print(analyzer_info["propagator_computation_time"])
+    # print(t_end-t_start)
+    # print(analyzer_info["propagator_computation_time"])
 
     pars = '_'.join([str(key)+"_"+str(value) for key, value in sorted(partitioner_hyperparams.items(), key=lambda kv: kv[0]) if key not in ["make_animation", "show_animation", "type"]])
     pars2 = '_'.join([str(key)+"_"+str(value) for key, value in sorted(propagator_hyperparams.items(), key=lambda kv: kv[0]) if key not in ["input_shape", "type"]])
@@ -352,47 +442,198 @@ stats = {
     },
 }
 
-def make_table(df):
-    partitioners = ["NoPartitioner", "UniformPartitioner", "SimGuidedPartitioner", "GreedySimGuidedPartitioner"]
-    propagators = ["IBPAutoLIRPAPropagator", "FastLinAutoLIRPAPropagator", "CROWNAutoLIRPAPropagator"]#, "SDPPropagator"]
+names = {
+    "lower_bnds": "Lower Bounds",
+    "linf": "$\ell_\infty$-ball",
+    "convex_hull": "Convex Hull",
+}
+
+citations = {
+    "IBP": {
+        "None": "\\cite{gowal2018effectiveness}",
+        "SG": "\\cite{xiang2020reachable}",
+    },
+    "Fast-Lin": {
+        "None": "\\cite{Weng_2018}",
+    },
+    "CROWN": {
+        "None": "\\cite{zhang2018efficient}",
+    },
+    "SDP": {
+        "None": "\\cite{fazlyab2019safety}",
+    },
+}
+
+# def make_table(df):
+#     partitioners = ["NoPartitioner", "UniformPartitioner", "SimGuidedPartitioner", "GreedySimGuidedPartitioner"]
+#     propagators = ["IBPAutoLIRPAPropagator", "FastLinAutoLIRPAPropagator", "CROWNAutoLIRPAPropagator"]#, "SDPPropagator"]
+
+#     neurons = df.model_neurons.iloc[0]
+#     activation = df.model_activation.iloc[0]
+
+#     print("\\begin{tabular}{c c| "+"c "*len(partitioners)+"}") 
+#     print("\\hline \\multicolumn{"+str(2+len(partitioners))+"}{c}{Neurons: "+str(neurons)+" -- Activation: "+str(algs[activation]["name"])+"}\\\\ \\hline")
+#     print("&& \\multicolumn{"+str(len(partitioners))+"}{c}{Partitioner} \\\\")
+#     row = "&"
+#     for partitioner in partitioners:
+#         row += " & " + algs[partitioner]["name"]
+#     print(row + " \\\\ \\hline")
+#     print("\\multirow{"+str(len(propagators))+"}{*}{\\STAB{\\rotatebox[origin=c]{90}{Propagator}}}")
+#     for propagator in propagators:
+#         row = "& " + algs[propagator]["name"]
+#         for partitioner in partitioners:
+#             df_ = df[(df["partitioner"] == partitioner) & (df["propagator"] == propagator)]
+#             stat = round(df_.error.to_numpy()[0], 3)
+#             row += " & "
+#             if partitioner == "NoPartitioner" or (propagator == "IBPAutoLIRPAPropagator" and partitioner in ["UniformPartitioner", "SimGuidedPartitioner"]):
+#                 row += "\\cellcolor{Gray} "
+#             row += str(stat)
+#         print(row + " \\\\")
+#     print("\\end{tabular}")
+
+def table_single_model(df, partitioners, propagators, boundaries, neurons, name, activation):
+    # print("\\multirow{"+str(len(propagators)*len(partitioners))+"}{*}{\\shortstack{"+name+" \\\\ "+str(neurons)+" \\\\ "+activation+"}} &")
+    # print("\\multirow{"+str(len(propagators))+"}{*}{\\STAB{\\rotatebox[origin=c]{90}{Propagator}}}")
+    for propagator in propagators:
+        first = True
+        for partitioner in partitioners:
+            row = ""
+            if first:
+                row += "\\multirow{"+str(len(partitioners))+"}{*}{"+algs[propagator]["name"]+"} & "
+                first = False
+            else: row += " & "
+            row += algs[partitioner]['name']
+            if algs[propagator]['name'] in citations and algs[partitioner]['name'] in citations[algs[propagator]['name']]:
+                row += "~"+citations[algs[propagator]['name']][algs[partitioner]['name']]
+            for boundary in boundaries:
+                df_ = df[(df["partitioner"] == partitioner) & (df["propagator"] == propagator) & (df["interior_condition"] == boundary)]
+                stat = df_.error.mean()
+                # stat = round(stat, 3)
+                if math.isnan(stat):
+                    stat = "-"
+                else:
+                    stat = '{:.2E}'.format(stat).lower()
+                    stat = '\\num{'+stat+'}'
+                row += " & "
+                # if partitioner == "NoPartitioner" or (propagator == "IBPAutoLIRPAPropagator" and partitioner in ["UniformPartitioner", "SimGuidedPartitioner"]):
+                #     row += "\\cellcolor{Gray} "
+                row += str(stat)
+        # if first: row = row[1:]; first = False
+            print(row + " \\\\")
+        print("\\hline")
+
+def make_big_table(df):
+    partitioners = ["NoPartitioner", "SimGuidedPartitioner", "GreedySimGuidedPartitioner"]
+    propagators = ["IBPAutoLIRPAPropagator", "FastLinAutoLIRPAPropagator", "CROWNAutoLIRPAPropagator", "SDPPropagator"]
+    boundaries = ["lower_bnds", "linf", "convex_hull"]
 
     neurons = df.model_neurons.iloc[0]
     activation = df.model_activation.iloc[0]
 
-    print("\\begin{tabular}{c c| "+"c "*len(partitioners)+"}") 
-    print("\\hline \\multicolumn{"+str(2+len(partitioners))+"}{c}{Neurons: "+str(neurons)+" -- Activation: "+str(algs[activation]["name"])+"}\\\\ \\hline")
-    print("&& \\multicolumn{"+str(len(partitioners))+"}{c}{Partitioner} \\\\")
-    row = "&"
-    for partitioner in partitioners:
-        row += " & " + algs[partitioner]["name"]
-    print(row + " \\\\ \\hline")
-    print("\\multirow{"+str(len(propagators))+"}{*}{\\STAB{\\rotatebox[origin=c]{90}{Propagator}}}")
-    for propagator in propagators:
-        row = "& " + algs[propagator]["name"]
-        for partitioner in partitioners:
-            df_ = df[(df["partitioner"] == partitioner) & (df["propagator"] == propagator)]
-            stat = round(df_.error.to_numpy()[0], 3)
-            row += " & "
-            if partitioner == "NoPartitioner" or (propagator == "IBPAutoLIRPAPropagator" and partitioner in ["UniformPartitioner", "SimGuidedPartitioner"]):
-                row += "\\cellcolor{Gray} "
-            row += str(stat)
-        print(row + " \\\\")
-    print("\\end{tabular}")
+    for experiment in experiments:
+        print("\\begin{tabular}{|c|c||"+(("c|"*len(boundaries))+"|")+"}")
+        print("\\hline")
+        print("\\multicolumn{2}{|c||}{Algorithm} & \\multicolumn{"+str(len(boundaries))+"}{c||}{Boundary Type} \\\\")
+        row = "Prop. & Part."
+        for boundary in boundaries:
+            row += " & "+names[boundary]
+        print(row + " \\\\ \\hline")
+        # print("&&"+(" & \\multicolumn{"+str(len(partitioners))+"}{c|}{Partitioner}")*len(boundaries)+" \\\\")
+        # row = "&&"
+        # for boundary in boundaries:
+        #     for partitioner in partitioners:
+        #         row += " & " + algs[partitioner]["name"]
+        # print(row + " \\\\ \\hline")
 
-    # \begin{tabular}{c c| c c c c} 
-    # && \multicolumn{4}{c}{Partitioner} \\
-    # && Uniform & SG & GSG & AGSG \\ \hline
-    # \multirow{4}{*}{\STAB{\rotatebox[origin=c]{90}{Propagator}}}
-    # &IBP & 0.42 & 0.71 & 0.71 & 0.72 \\
-    # &CROWN & 0.14 & 0.56 & 0.56 & 0.67 \\
-    # &Fast-Lin & 0.21 & 0.64 & 0.64 & 0.66 \\
-    # &SDP & 0.13 & 0.25 & 0.25 & 0.31 \\
+        table_single_model(df[(df["model_neurons"] == experiment['neurons']) & (df["model_activation"] == experiment["activation"])], 
+            partitioners, propagators, boundaries, experiment['neurons'], experiment['name'], experiment['activation'])
+        print("\\end{tabular}")
+        print("\n\n --- \n\n")
 
+# def make_table(df):
+#     partitioners = ["NoPartitioner", "UniformPartitioner", "SimGuidedPartitioner", "GreedySimGuidedPartitioner"]
+#     propagators = ["IBPAutoLIRPAPropagator", "FastLinAutoLIRPAPropagator", "CROWNAutoLIRPAPropagator"]#, "SDPPropagator"]
+
+#     neurons = df.model_neurons.iloc[0]
+#     activation = df.model_activation.iloc[0]
+
+#     print("\\begin{tabular}{c c| "+"c "*len(partitioners)+"}") 
+#     print("\\hline \\multicolumn{"+str(2+len(partitioners))+"}{c}{Neurons: "+str(neurons)+" -- Activation: "+str(algs[activation]["name"])+"}\\\\ \\hline")
+#     print("&& \\multicolumn{"+str(len(partitioners))+"}{c}{Partitioner} \\\\")
+#     row = "&"
+#     for partitioner in partitioners:
+#         row += " & " + algs[partitioner]["name"]
+#     print(row + " \\\\ \\hline")
+#     print("\\multirow{"+str(len(propagators))+"}{*}{\\STAB{\\rotatebox[origin=c]{90}{Propagator}}}")
+#     for propagator in propagators:
+#         row = "& " + algs[propagator]["name"]
+#         for partitioner in partitioners:
+#             df_ = df[(df["partitioner"] == partitioner) & (df["propagator"] == propagator)]
+#             stat = round(df_.error.to_numpy()[0], 3)
+#             row += " & "
+#             if partitioner == "NoPartitioner" or (propagator == "IBPAutoLIRPAPropagator" and partitioner in ["UniformPartitioner", "SimGuidedPartitioner"]):
+#                 row += "\\cellcolor{Gray} "
+#             row += str(stat)
+#         print(row + " \\\\")
+#     print("\\end{tabular}")
+
+# def table_single_model(df, partitioners, propagators, boundaries, neurons, name, activation):
+#     print("\\multirow{"+str(len(propagators))+"}{*}{\\shortstack{"+name+" \\\\ "+str(neurons)+" \\\\ "+activation+"}} &")
+#     print("\\multirow{"+str(len(propagators))+"}{*}{\\STAB{\\rotatebox[origin=c]{90}{Propagator}}}")
+#     first = True
+#     for propagator in propagators:
+#         row = "&& " + algs[propagator]["name"]
+#         for boundary in boundaries:
+#             for partitioner in partitioners:
+#                 df_ = df[(df["partitioner"] == partitioner) & (df["propagator"] == propagator) & (df["interior_condition"] == boundary)]
+#                 stat = df_.error.mean()
+#                 # stat = round(stat, 3)
+#                 if math.isnan(stat):
+#                     stat = "-"
+#                 else:
+#                     stat = '{:.3E}'.format(stat).lower()
+#                     stat = '\\SI{'+stat+'}'
+#                 row += " & "
+#                 if partitioner == "NoPartitioner" or (propagator == "IBPAutoLIRPAPropagator" and partitioner in ["UniformPartitioner", "SimGuidedPartitioner"]):
+#                     row += "\\cellcolor{Gray} "
+#                 row += str(stat)
+#         if first: row = row[1:]; first = False
+#         print(row + " \\\\")
+#     print("\\hline")
+
+# def make_big_table(df):
+#     partitioners = ["NoPartitioner", "SimGuidedPartitioner", "GreedySimGuidedPartitioner"]
+#     propagators = ["IBPAutoLIRPAPropagator", "FastLinAutoLIRPAPropagator", "CROWNAutoLIRPAPropagator", "SDPPropagator"]
+#     boundaries = ["lower_bnds", "linf", "convex_hull"]
+
+#     neurons = df.model_neurons.iloc[0]
+#     activation = df.model_activation.iloc[0]
+
+#     print("\\begin{tabular}{c|c c| "+(("c "*len(partitioners))+"|")*len(boundaries)+"}") 
+#     row = "&&"
+#     for boundary in boundaries:
+#         row += " & \\multicolumn{"+str(len(partitioners))+"}{c|}{Boundary: "+names[boundary]+"}"
+#     print(row + " \\\\")
+#     print("&&"+(" & \\multicolumn{"+str(len(partitioners))+"}{c|}{Partitioner}")*len(boundaries)+" \\\\")
+#     row = "&&"
+#     for boundary in boundaries:
+#         for partitioner in partitioners:
+#             row += " & " + algs[partitioner]["name"]
+#     print(row + " \\\\ \\hline")
+
+#     for experiment in experiments:
+#         table_single_model(df[(df["model_neurons"] == experiment['neurons']) & (df["model_activation"] == experiment["activation"])], 
+#             partitioners, propagators, boundaries, experiment['neurons'], experiment['name'], experiment['activation'])
+
+#     print("\\end{tabular}")
 
 if __name__ == '__main__':
 
     # Run an experiment
-    df = experiment()
+    # df = run_experiment()
+
+    # Make table
+    df = collect_data_for_table()
 
     # If you want to plot w/o re-running the experiments, comment out the experiment line.
     if 'df' not in locals():
@@ -419,6 +660,7 @@ if __name__ == '__main__':
     # plot(df, stat="propagator_computation_time")
     print("\n --- \n")
 
-    make_table(df)
+    # make_table(df)
+    make_big_table(df)
 
     print("\n --- \n")
