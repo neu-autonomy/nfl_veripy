@@ -194,7 +194,7 @@ if __name__ == '__main__':
       #   "termination_condition_type": "pct_improvement",
        #  "termination_condition_value": 0.001,
        
-       "termination_condition_type": "num_of_iteration",
+       "termination_condition_type": "time_budget",
 
        #  "termination_condition_type": "pct_error",
          "termination_condition_value": 2,

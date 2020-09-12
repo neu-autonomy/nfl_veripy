@@ -349,7 +349,7 @@ class Partitioner():
                 for pt in product(*output_range):
                     pts[i,:] = pt
                     i += 1
-        elif self.termination_condition_type == "num_of_iteration":
+        elif self.termination_condition_type == "time_budget":
             terminate = iteration >= self.termination_condition_value
 
             # print(pts)
