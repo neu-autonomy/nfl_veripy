@@ -269,7 +269,7 @@ class Partitioner():
             else:
                 raise NotImplementedError
 
-        # plt.tight_layout()
+        plt.tight_layout()
 
         if title is not None:
             plt.suptitle(title)
