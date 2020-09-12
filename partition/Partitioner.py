@@ -339,6 +339,7 @@ class Partitioner():
                 estimated_hull = self.squash_down_to_convex_hull(M, self.sim_convex_hull.points)
                 error = self.get_error(self.sim_convex_hull, estimated_hull)
             terminate = error <= self.termination_condition_value
+            print(error)
         elif self.termination_condition_type == "verify":
             M_ = M+[(input_range_, output_range_)]
             ndim = M_[0][1].shape[0]
@@ -348,6 +349,9 @@ class Partitioner():
                 for pt in product(*output_range):
                     pts[i,:] = pt
                     i += 1
+        elif self.termination_condition_type == "num_of_iteration":
+            terminate = iteration >= self.termination_condition_value
+
             # print(pts)
             # output_ranges_ = [x[1] for x in M+[(input_range_, output_range_)]]
             # ndim = output_ranges_[0].shape[0]
@@ -360,7 +364,7 @@ class Partitioner():
             raise NotImplementedError
         return terminate
 
-    def compile_info(self, output_range_sim, M, interior_M, num_propagator_calls, t_end_overall, t_start_overall, propagator_computation_time):
+    def compile_info(self, output_range_sim, M, interior_M, num_propagator_calls, t_end_overall, t_start_overall, propagator_computation_time, iteration):
         info = {}
 
         if self.interior_condition in ["lower_bnds", "linf"]:
@@ -380,6 +384,7 @@ class Partitioner():
         info["estimation_error"] = estimated_error
         info["computation_time"] = t_end_overall - t_start_overall
         info["propagator_computation_time"] = propagator_computation_time
+        info["num_iteration"] = iteration
 
         return info
 
@@ -387,6 +392,7 @@ class Partitioner():
         # Used by UnGuided, SimGuided, GreedySimGuided, etc.
         iteration = 0
         terminate = False
+        start_time_partition_loop= time.time()
         while len(M) != 0 and not terminate:
             input_range_, output_range_ = self.grab_from_M(M, output_range_sim) # (Line 9)
 
@@ -395,8 +401,9 @@ class Partitioner():
                 interior_M.append((input_range_, output_range_))
             else:
                 # Line 14
-                terminate = self.check_termination(input_range, num_propagator_calls, u_e, output_range_sim, M+[(input_range_, output_range_)], iteration)
-
+                elapsed_time= time.time()-start_time_partition_loop
+                terminate = self.check_termination(input_range, num_propagator_calls, u_e, output_range_sim, M+[(input_range_, output_range_)]+interior_M, elapsed_time)
+                
                 if not terminate:
                     # Line 15
                     input_ranges_ = sect(input_range_, 2, select=sect_method)
@@ -432,7 +439,7 @@ class Partitioner():
         t_end_overall = time.time()
 
         # Stats & Visualization
-        info = self.compile_info(output_range_sim, M, interior_M, num_propagator_calls, t_end_overall, t_start_overall, propagator_computation_time)
+        info = self.compile_info(output_range_sim, M, interior_M, num_propagator_calls, t_end_overall, t_start_overall, propagator_computation_time, iteration)
         if self.make_animation:
             self.compile_animation(iteration)
 
@@ -1218,7 +1225,9 @@ class AdaptiveSimGuidedPartitioner(Partitioner):
                     elif self.interior_condition == "convex_hull":
                         estimated_hull = self.squash_down_to_convex_hull(M, self.sim_convex_hull.points)
                         error = self.get_error(self.sim_convex_hull, estimated_hull)
+
                     terminate = error <= self.termination_condition_value
+
                 else:
                     raise NotImplementedError
                 #################
