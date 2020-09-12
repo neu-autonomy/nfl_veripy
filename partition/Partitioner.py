@@ -291,9 +291,13 @@ class Partitioner():
             # length in each dimension of output (i.e., if you get 0.1 away
             # from lower bnd in a dimension that has range 100, that's more impressive
             # than in a dimension that has range 0.01)
-            lower_bnd_error_area = np.product(output_range_exact[...,0] - output_range_estimate[...,0])
-            true_area = np.product(output_range_exact[...,1] - output_range_exact[...,0])
-            error = lower_bnd_error_area / true_area
+            # lower_bnd_error_area = np.product(output_range_exact[...,0] - output_range_estimate[...,0])
+            # true_area = np.product(output_range_exact[...,1] - output_range_exact[...,0])
+            # error = lower_bnd_error_area / true_area
+
+            # Just add up the distance btwn true and estimated lower bnds for each dimension
+            error = np.sum(output_range_exact[...,0] - output_range_estimate[...,0])
+
         elif self.interior_condition == "convex_hull":
             true_area = output_range_exact.area
             estimated_area = output_range_estimate.area
@@ -370,20 +374,6 @@ class Partitioner():
 
         return info
 
-    def sample_for_evaluation(self, input_range, propagator):
-        ### This is only used for error estimation (evaluation!)
-        # Run N simulations (i.e., randomly sample N pts from input range --> query NN --> get N output pts)
-        # (Line 5)
-        sampled_inputs = np.random.uniform(input_range[...,0], input_range[...,1], (self.num_simulations,)+input_shape)
-        sampled_outputs = propagator.forward_pass(sampled_inputs)
-
-        # Compute [u_sim], aka bounds on the sampled outputs (Line 6)
-        output_range_sim_ = np.empty(sampled_outputs.shape[1:]+(2,))
-        output_range_sim_[:,1] = np.max(sampled_outputs, axis=0)
-        output_range_sim_[:,0] = np.min(sampled_outputs, axis=0)
-        
-        return output_range_sim
-
     def partition_loop(self, M, interior_M, output_range_sim, sect_method, num_propagator_calls, input_range, u_e, propagator, propagator_computation_time, t_start_overall):
         # Used by UnGuided, SimGuided, GreedySimGuided, etc.
         iteration = 0
@@ -431,11 +421,14 @@ class Partitioner():
 
         return u_e, info
 
-    def sample(self, input_range, propagator, input_shape):
+    def sample(self, input_range, propagator, N=None):
         ### This is only used for error estimation (evaluation!)
+        if N is None:
+            N = self.num_simulations
         # Run N simulations (i.e., randomly sample N pts from input range --> query NN --> get N output pts)
         # (Line 5)
-        sampled_inputs = np.random.uniform(input_range[...,0], input_range[...,1], (self.num_simulations,)+input_shape)
+        input_shape = input_range.shape[:-1]
+        sampled_inputs = np.random.uniform(input_range[...,0], input_range[...,1], (int(N),)+input_shape)
         sampled_outputs = propagator.forward_pass(sampled_inputs)
 
         # Compute [u_sim], aka bounds on the sampled outputs (Line 6)
@@ -616,7 +609,7 @@ class UnGuidedPartitioner(Partitioner):
 
         u_e = output_range.copy()
 
-        output_range_sim_for_evaluation, sampled_outputs = self.sample(input_range, propagator, input_shape)
+        output_range_sim_for_evaluation, sampled_outputs = self.sample(input_range, propagator)
 
         # output_range_sim is [-inf, inf] per dimension -- just a dummy
         output_range_sim = np.empty_like(output_range)
@@ -626,6 +619,8 @@ class UnGuidedPartitioner(Partitioner):
         if self.make_animation:
             self.setup_visualization(input_range, output_range, propagator, show_input=self.show_input, show_output=self.show_output)
 
+        print("Need to pass output_range_sim_for_evaluation to partition_loop somehow...")
+        raise NotImplementedError
         u_e, info = self.partition_loop(M, interior_M, output_range_sim, sect_method, num_propagator_calls, input_range, u_e, propagator, propagator_computation_time, t_start_overall)
         
         return u_e, info
@@ -650,26 +645,10 @@ class SimGuidedPartitioner(Partitioner):
         return input_range_, output_range_
 
     def check_if_partition_within_sim_bnds(self, output_range, output_range_sim):
-        if self.interior_condition == "linf":
-            # Check if output_range's linf ball is within
-            # output_range_sim's linf ball
-            inside = np.all((output_range_sim[...,0] - output_range[...,0]) <= 0) and \
-                        np.all((output_range_sim[...,1] - output_range[...,1]) >= 0)
-        elif self.interior_condition == "lower_bnds":
-            # Check if output_range's lower bnds are above each of
-            # output_range_sim's lower bnds
-            inside = np.all((output_range_sim[...,0] - output_range[...,0]) <= 0)
-        elif self.interior_condition == "convex_hull":
-            # Check if every vertex of the hyperrectangle of output_ranges
-            # lies within the convex hull of the sim pts
-            ndim = output_range.shape[0]
-            pts = np.empty((2**ndim, ndim+1))
-            pts[:,-1] = 1.
-            for i, pt in enumerate(product(*output_range)):
-                pts[i,:-1] = pt
-            inside = np.all(np.matmul(self.sim_convex_hull.equations, pts.T) <= 0)
-        else:
-            raise NotImplementedError
+        # Check if output_range's linf ball is within
+        # output_range_sim's linf ball
+        inside = np.all((output_range_sim[...,0] - output_range[...,0]) <= 0) and \
+                    np.all((output_range_sim[...,1] - output_range[...,1]) >= 0)
         return inside
 
     def compile_animation(self, iteration):
@@ -719,7 +698,7 @@ class SimGuidedPartitioner(Partitioner):
         # Run N simulations (i.e., randomly sample N pts from input range --> query NN --> get N output pts)
         # Compute [u_sim], aka bounds on the sampled outputs (Line 6)
         # (Line 5-6)
-        output_range_sim, sampled_outputs = self.sample(input_range, propagator, input_shape)
+        output_range_sim, sampled_outputs = self.sample(input_range, propagator)
 
         if self.termination_condition_type == "verify":
             print(np.matmul(self.termination_condition_value[0], sampled_outputs.T))
@@ -738,6 +717,29 @@ class GreedySimGuidedPartitioner(SimGuidedPartitioner):
     def __init__(self, num_simulations=1000, interior_condition="linf", make_animation=False, show_animation=False, termination_condition_type="interior_cell_size", termination_condition_value=0.02, show_input=True, show_output=True):
         SimGuidedPartitioner.__init__(self, num_simulations=num_simulations, interior_condition=interior_condition, make_animation=make_animation, show_animation=show_animation,
             termination_condition_type=termination_condition_type, termination_condition_value=termination_condition_value, show_input=show_input, show_output=show_output)
+
+    def check_if_partition_within_sim_bnds(self, output_range, output_range_sim):
+        if self.interior_condition == "linf":
+            # Check if output_range's linf ball is within
+            # output_range_sim's linf ball
+            inside = np.all((output_range_sim[...,0] - output_range[...,0]) <= 0) and \
+                        np.all((output_range_sim[...,1] - output_range[...,1]) >= 0)
+        elif self.interior_condition == "lower_bnds":
+            # Check if output_range's lower bnds are above each of
+            # output_range_sim's lower bnds
+            inside = np.all((output_range_sim[...,0] - output_range[...,0]) <= 0)
+        elif self.interior_condition == "convex_hull":
+            # Check if every vertex of the hyperrectangle of output_ranges
+            # lies within the convex hull of the sim pts
+            ndim = output_range.shape[0]
+            pts = np.empty((2**ndim, ndim+1))
+            pts[:,-1] = 1.
+            for i, pt in enumerate(product(*output_range)):
+                pts[i,:-1] = pt
+            inside = np.all(np.matmul(self.sim_convex_hull.equations, pts.T) <= 0)
+        else:
+            raise NotImplementedError
+        return inside
 
     def grab_from_M(self, M, output_range_sim):
         if len(M) == 1:
@@ -771,8 +773,7 @@ class GreedySimGuidedPartitioner(SimGuidedPartitioner):
             elif self.interior_condition == "lower_bnds":
                 # look thru all lower bnds and see which are furthest from sim lower bnds
                 M_numpy = np.dstack([output_range_[:,0] for (_, output_range_) in M])
-                z = np.empty_like(M_numpy)
-                z = (output_range_sim[:,0] - M_numpy.T).T
+                z = (output_range_sim[:,0] - M_numpy[0].T).T
                 worst_index = np.unravel_index(z.argmax(), shape=z.shape)
                 worst_M_index = worst_index[-1]
                 input_range_, output_range_ = M.pop(worst_M_index)

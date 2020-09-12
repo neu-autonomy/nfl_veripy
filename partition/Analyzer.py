@@ -108,14 +108,14 @@ class Analyzer:
         output_range = self.samples_to_range(sampled_outputs)
         return output_range
 
-    def get_exact_hull(self, input_range):
+    def get_exact_hull(self, input_range, N=1e5):
         from scipy.spatial import ConvexHull
-        sampled_outputs = self.get_sampled_outputs(input_range)
+        sampled_outputs = self.get_sampled_outputs(input_range, N=N)
         return ConvexHull(sampled_outputs)
 
 if __name__ == '__main__':
     # Import all deps
-    from partition.models import model_xiang_2020_robot_arm, model_simple, model_dynamics
+    from partition.models import model_xiang_2020_robot_arm, model_simple, model_dynamics, random_model
     import numpy as np
 
     np.random.seed(seed=0)
@@ -167,9 +167,16 @@ if __name__ == '__main__':
                       [np.pi/3, 2*np.pi/3], # x0min, x0max
                       [np.pi/3, 2*np.pi/3], # x1min, x1max
     ])
+
+    neurons = [2,50,2]
+    torch_model, model_info = random_model(activation='relu', neurons=neurons, seed=0)
+    input_range = np.zeros((model_info['model_neurons'][0],2))
+    input_range[:,1] = 1.
+
     # partitioner = "Uniform"
     # partitioner_hyperparams = {"num_partitions": [4,4,1,1,1]}
     partitioner_hyperparams = {
+        "num_simulations": int(1e7),
         # "type": "Uniform",
         # "type": "SimGuided",
         "type": "GreedySimGuided",
@@ -189,15 +196,16 @@ if __name__ == '__main__':
         # "termination_condition_value": 0.1,
         # "num_partitions": 1,
 
-        # "interior_condition": "lower_bnds",
+        "interior_condition": "lower_bnds",
         # "interior_condition": "linf",
-        "interior_condition": "convex_hull",
+        # "interior_condition": "convex_hull",
         "make_animation": True,
         "show_animation": True,
         # "show_output": False,
     }
     propagator_hyperparams = {
-        "type": "IBP_LIRPA",
+        # "type": "IBP_LIRPA",
+        "type": "CROWN_LIRPA",
         "input_shape": input_range.shape[:-1],
     }
 
@@ -213,7 +221,7 @@ if __name__ == '__main__':
     error = analyzer.partitioner.get_error(output_range_exact, output_range)
     print("Estimated output_range:\n", output_range)
     # print("True output_range:\n", output_range_exact)
-    # print("Error: ", error)
+    print("Error: ", error)
     print("\n")
     print("Number of propagator calls:", analyzer_info["num_propagator_calls"])
     print("Number of partitions:", analyzer_info["num_partitions"])
@@ -222,7 +230,8 @@ if __name__ == '__main__':
     pars2 = '_'.join([str(key)+"_"+str(value) for key, value in sorted(propagator_hyperparams.items(), key=lambda kv: kv[0]) if key not in ["input_shape", "type"]])
     analyzer_info["save_name"] = save_dir+partitioner_hyperparams['type']+"_"+propagator_hyperparams['type']+"_"+pars+"_"+pars2+".pdf"
 
-    title = "# Partitions: {}, Error: {}".format(str(partitioner_hyperparams['num_partitions']**2), str(round(error, 3)))
-    analyzer.visualize(input_range, output_range, show_legend=False, show_input=True, show_output=False, title=title, **analyzer_info)
+
+    # title = "# Partitions: {}, Error: {}".format(str(partitioner_hyperparams['num_partitions']**2), str(round(error, 3)))
+    # analyzer.visualize(input_range, output_range, show_legend=False, show_input=True, show_output=False, title=title, **analyzer_info)
 
     print("done.")
