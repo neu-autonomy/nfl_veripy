@@ -302,9 +302,18 @@ class Partitioner():
             raise NotImplementedError
         return error
 
-    def check_termination(self, input_range, num_propagator_calls, u_e, output_range_sim, M, iteration):
+    def check_termination(self, input_range_, num_propagator_calls, u_e, output_range_sim, M, iteration):
         if self.termination_condition_type == "input_cell_size":
-            terminate = np.max(input_range_[...,1] - input_range_[...,0]) <= self.termination_condition_value
+
+          #  print(input_range_[...,1] - input_range_[...,0])
+            print(len(M))
+            M_numpy = np.dstack([input_range for (input_range,_) in M])
+            print(M_numpy)
+            print(M)
+
+            print(len(M_numpy))
+            print(np.min(M_numpy[:,1] - M_numpy[:,0]))
+            terminate = np.min(M_numpy[:,1] - M_numpy[:,0]) <= self.termination_condition_value
         elif self.termination_condition_type == "num_propagator_calls":
             terminate = num_propagator_calls >= self.termination_condition_value
         elif self.termination_condition_type == "pct_improvement":
@@ -312,15 +321,19 @@ class Partitioner():
             # the one-step improvement is zero
             last_u_e = u_e.copy()
             if self.interior_condition in ["lower_bnds", "linf"]:
-                u_e = self.squash_down_to_one_range(output_range_sim, M+[(input_range_, output_range_)])
+                u_e = self.squash_down_to_one_range(output_range_sim, M)
                 improvement = self.get_error(last_u_e, u_e)
                 if iteration == 0: improvement = np.inf
             elif self.interior_condition == "convex_hull":
-                raise NotImplementedError
+               # raise NotImplementedError
+                last_hull = estimated_hull.copy()
+
+                estimated_hull = self.squash_down_to_convex_hull(M, self.sim_convex_hull.points)
+                improvement = self.get_error(last_hull, estimated_hull)
             terminate = improvement <= self.termination_condition_value
         elif self.termination_condition_type == "pct_error":
             if self.interior_condition in ["lower_bnds", "linf"]:
-                u_e = self.squash_down_to_one_range(output_range_sim, M+[(input_range_, output_range_)])
+                u_e = self.squash_down_to_one_range(output_range_sim, M)
                 error = self.get_error(output_range_sim, u_e)
             elif self.interior_condition == "convex_hull":
                 estimated_hull = self.squash_down_to_convex_hull(M+[(input_range_, output_range_)], self.sim_convex_hull.points)
@@ -749,7 +762,6 @@ class GreedySimGuidedPartitioner(SimGuidedPartitioner):
                 z = np.empty_like(M_numpy)
                 z[:,0,:] = (output_range_sim[:,0] - M_numpy[:,0,:].T).T
                 z[:,1,:] = (M_numpy[:,1,:].T - output_range_sim[:,1]).T
-
                 version = 'orig'
                 # version = 'random'
                 # version = 'improvement'
@@ -773,15 +785,28 @@ class GreedySimGuidedPartitioner(SimGuidedPartitioner):
                 M_numpy = np.dstack([output_range_[:,0] for (_, output_range_) in M])
                 z = np.empty_like(M_numpy)
                 z = (output_range_sim[:,0] - M_numpy.T).T
+                print()
                 worst_index = np.unravel_index(z.argmax(), shape=z.shape)
                 worst_M_index = worst_index[-1]
                 input_range_, output_range_ = M.pop(worst_M_index)
             elif self.interior_condition == "convex_hull":
+                from shapely.geometry import Point, Polygon
+
+                    # Create Point objects
+
                 # estimated_hull = self.squash_down_to_convex_hull(M, self.sim_convex_hull.points)
                 estimated_hull = self.squash_down_to_convex_hull(M)
                 outer_pts = estimated_hull.points[estimated_hull.vertices]
                 inner_pts = self.sim_convex_hull.points[self.sim_convex_hull.vertices]
-                paired_distances = pairwise_distances(outer_pts, inner_pts)
+                #inner_poly = Polygon(inner_pts)
+               # outerpoints_pts_outside =[]
+               # for point in outer_pts:
+               #     if Point(point).within(inner_poly)==False:
+               #         outerpoints_pts_outside.append(point) 
+               # outerpoints_pts_outside = np.array(outerpoints_pts_outside)  
+                outerpoints_pts_outside = outer_pts
+                paired_distances = pairwise_distances(outerpoints_pts_outside, inner_pts)
+
                 min_distances = np.min(paired_distances, axis=1)
                 worst_index = np.unravel_index(np.argmax(min_distances), shape=min_distances.shape)
 
@@ -924,38 +949,33 @@ class AdaptiveSimGuidedPartitioner(Partitioner):
         return input_range_, output_range_
 
 
-    def set_delta_step(self,range_,center_value, idx, stage=1):
-        c=0.1
+    def set_delta_step(self,range_,expanded_box, idx, stage=1):
+        outer_points = np.zeros((2**range_.shape[0],2))
+       # print("range of input:" , range_)
+        outer_points = [[i,j] for i in range_[0,:] for j in range_[1,:]]
+       # print("bounding box", outer_points)
+       # inner_points[i] = expanded_box[i][0]
+        range_area = np.product(range_[...,1] - range_[...,0])
+
+        delta_step = np.zeros(range_.shape[0])
         if stage==1:
-            k=-1
-            num_inputs=idx
-            delta_step =np.ones((num_inputs*2,1))
-            output_range = range_
-            distance = np.empty((len(range_)*2))
-            output_center = center_value
-            output_bounding_box = [[output_range[0,0],output_range[1,0]],[output_range[0,1],output_range[1,0]],
-            [output_range[0,1],output_range[1,1]],[output_range[0,0],output_range[1,1]]]
-            for (i,j) in output_bounding_box:
-                k=k+1
-                distance[k] = np.sqrt((center_value[0]-i)**2 + (center_value[1]-j)**2 )
-            min_distance = np.min(distance)
-            for i in range(len(range_)*2):
-                if i % 2 == 0: 
-                    delta_step[i]= -c*min_distance/np.max(output_range[:,1]-output_range[:,0])
-                else:
-                    delta_step[i]= c*min_distance/np.max(output_range[:,1]-output_range[:,0])
+            c=0.5
+
+            pairwise_distance= np.zeros(len(outer_points))
+            for (i,points) in enumerate(outer_points):
+                pairwise_distance[i] =((points[0]-expanded_box[0])**2+ (points[1]-expanded_box[1])**2)**0.5
+            delta_step = c*np.max((pairwise_distance/range_area**0.5))*np.ones(range_.shape[0])
+            print('delta step:',delta_step)
+            return delta_step
         else:
-            input_range = range_
-            diff_rolled = center_value
-            num_inputs = len(range_)
-            delta_step =np.zeros((num_inputs*2,1))
-            if idx % 2 == 0: 
-                delta_step[idx]= -c*diff_rolled[idx]/(np.max(input_range[:,0]))
-            else:
-                delta_step[idx]= c*diff_rolled[idx]/(np.max(input_range[:,1]))
-        return delta_step
+            c=0.2
 
-
+            distances = pairwise_distances(outer_points,expanded_box)
+            min_distance = np.min(distances,axis=1)
+            for (i,distance_pair) in enumerate(min_distance):
+                delta_step[i] = c*distance_pair/range_area**0.5
+            print('delta step:',delta_step)
+            return delta_step
 
     def check_if_partition_within_sim_bnds(self, output_range, output_range_sim):
         if self.interior_condition == "linf":
@@ -1045,7 +1065,7 @@ class AdaptiveSimGuidedPartitioner(Partitioner):
         delta_step = self.set_delta_step(output_range_sim,sampled_output_center, num_inputs, stage=1)
         prev_range =np.inf
         terminating_condition=False
-        input_range_new= input_range_new+delta_step.reshape(input_range_new.shape)
+        input_range_new= input_range_new+delta_step
 
         while terminating_condition==False:
  
@@ -1061,11 +1081,10 @@ class AdaptiveSimGuidedPartitioner(Partitioner):
 
             if np.all((output_range_sim[:,0] - output_range_new[:,0]) <= 0) and \
             np.all((output_range_sim[:,1] - output_range_new[:,1]) >= 0):
-                input_range_new= input_range_new+delta_step.reshape((num_inputs, 2))
-
+                input_range_new= input_range_new+delta_step
               #  terminating_condition==False
             else:
-                input_range_new= input_range_new-delta_step.reshape((num_inputs, 2))
+                input_range_new= input_range_new-delta_step
                 delta_step=1*delta_step/2
 
                 if np.max(abs(delta_step))<tolerance_step:
@@ -1163,7 +1182,8 @@ class AdaptiveSimGuidedPartitioner(Partitioner):
                 # Check if we should terminate the loop
                 #
                 if self.termination_condition_type == "input_cell_size":
-                    terminate = np.max(input_range_[...,1] - input_range_[...,0]) <= self.termination_condition_value
+                    print(np.min(input_range_[...,1] - input_range_[...,0]) )
+                    terminate = np.min(input_range_[...,1] - input_range_[...,0]) <= self.termination_condition_value
                 elif self.termination_condition_type == "num_propagator_calls":
                     terminate = num_propagator_calls >= self.termination_condition_value
                 elif self.termination_condition_type == "pct_improvement":
@@ -1171,18 +1191,22 @@ class AdaptiveSimGuidedPartitioner(Partitioner):
                     # the one-step improvement is zero
                     last_u_e = u_e.copy()
                     if self.interior_condition in ["lower_bnds", "linf"]:
-                        u_e = self.squash_down_to_one_range(output_range_sim, M+[(input_range_, output_range_)])
+                        u_e = self.squash_down_to_one_range(output_range_sim, M)
                         improvement = self.get_error(last_u_e, u_e)
                         if iteration == 0: improvement = np.inf
                     elif self.interior_condition == "convex_hull":
-                        raise NotImplementedError
+                        last_hull = estimated_hull.copy()
+
+                        estimated_hull = self.squash_down_to_convex_hull(M, self.sim_convex_hull.points)
+                        improvement = self.get_error(last_hull, estimated_hull)
+                        #raise NotImplementedError
                     terminate = improvement <= self.termination_condition_value
                 elif self.termination_condition_type == "pct_error":
                     if self.interior_condition in ["lower_bnds", "linf"]:
-                        u_e = self.squash_down_to_one_range(output_range_sim, M+[(input_range_, output_range_)])
+                        u_e = self.squash_down_to_one_range(output_range_sim, M)
                         error = self.get_error(output_range_sim, u_e)
                     elif self.interior_condition == "convex_hull":
-                        estimated_hull = self.squash_down_to_convex_hull(M+[(input_range_, output_range_)], self.sim_convex_hull.points)
+                        estimated_hull = self.squash_down_to_convex_hull(M, self.sim_convex_hull.points)
                         error = self.get_error(self.sim_convex_hull, estimated_hull)
                     terminate = error <= self.termination_condition_value
                 else:

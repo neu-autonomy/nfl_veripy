@@ -173,24 +173,24 @@ if __name__ == '__main__':
         # "type": "Uniform",
         # "type": "SimGuided",
         "type": "GreedySimGuided",
-        # "type": "AdaptiveSimGuided",
+        #"type": "AdaptiveSimGuided",
         # "type": "UnGuided",
 
         # "termination_condition_type": "verify",
         # "termination_condition_value": [np.array([1., 0.]), np.array([100.])],
 
-         # "termination_condition_type": "input_cell_size",
-         # "termination_condition_value": 0.01,
-       "termination_condition_type": "num_propagator_calls",
-       "termination_condition_value": 100,
-       #  "termination_condition_type": "pct_improvement",
+        "termination_condition_type": "input_cell_size",
+       # "termination_condition_value": 100,
+      # "termination_condition_type": "num_propagator_calls",
+       "termination_condition_value": 0.1,
+      #   "termination_condition_type": "pct_improvement",
        #  "termination_condition_value": 0.001,
         # "termination_condition_type": "pct_error",
-        # "termination_condition_value": 0.1,
+        # "termination_condition_value": 0.5,
         # "num_partitions": 1,
 
-        # "interior_condition": "lower_bnds",
-        # "interior_condition": "linf",
+       # "interior_condition": "lower_bnds",
+        #"interior_condition": "linf",
         "interior_condition": "convex_hull",
         "make_animation": True,
         "show_animation": True,
@@ -210,16 +210,23 @@ if __name__ == '__main__':
     np.random.seed(seed=0)
    # output_range_exact = analyzer.get_exact_output_range(input_range)
     #if analyzer.partitioner["interior_condition"] == "convex_hull":
-    exact_hull = analyzer.get_exact_hull(input_range)
    #else:
-  #      output_range_exact = analyzer.get_exact_output_range(input_range)
+    if  partitioner_hyperparams["interior_condition"] == "convex_hull":
+        exact_hull = analyzer.get_exact_hull(input_range)
 
-    error = analyzer.partitioner.get_error(exact_hull, analyzer_info["estimated_hull"])
+        error = analyzer.partitioner.get_error(exact_hull, analyzer_info["estimated_hull"])
+    if  partitioner_hyperparams["interior_condition"] == "linf":
+        output_range_exact = analyzer.get_exact_output_range(input_range)
+
+        error = analyzer.partitioner.get_error(output_range_exact, output_range)
+
+
     print("Estimated output_range:\n", output_range)
     # print("True output_range:\n", output_range_exact)
     # print("Error: ", error)
     print("\n")
     print("Number of propagator calls:", analyzer_info["num_propagator_calls"])
+
     print(analyzer_info["num_partitions"])
     print("Number of partitions:", analyzer_info["num_partitions"])
 
