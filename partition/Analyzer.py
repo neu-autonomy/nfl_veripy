@@ -180,8 +180,8 @@ if __name__ == '__main__':
         "num_simulations": int(10000),
         # "type": "Uniform",
          "type": "SimGuided",
-       "type": "GreedySimGuided",
-        #"type": "AdaptiveSimGuided",
+      "type": "GreedySimGuided",
+        "type": "AdaptiveSimGuided",
         # "type": "UnGuided",
 
         # "termination_condition_type": "verify",
@@ -202,9 +202,9 @@ if __name__ == '__main__':
 
        # "interior_condition": "lower_bnds",
         #"interior_condition": "linf",
-      #  "interior_condition": "convex_hull",
-       "interior_condition": "linf",
-     "interior_condition": "convex_hull",
+        "interior_condition": "convex_hull",
+  #     "interior_condition": "linf",
+   #  "interior_condition": "linf",
         "make_animation": False,
         "show_animation": False,
         # "show_output": False,
@@ -212,7 +212,7 @@ if __name__ == '__main__':
     propagator_hyperparams = {
        "type": "IBP_LIRPA",
      "type": "CROWN_LIRPA",
-    #"type": "FastLin_LIRPA",
+   # "type": "FastLin_LIRPA",
 
     
         "input_shape": input_range.shape[:-1],
@@ -223,6 +223,7 @@ if __name__ == '__main__':
     analyzer.partitioner = partitioner_hyperparams
     analyzer.propagator = propagator_hyperparams
     t_start = time.time()
+   # print( input_range)
     output_range, analyzer_info = analyzer.get_output_range(input_range)
     t_end = time.time()
     computation_time = t_end - t_start
