@@ -109,7 +109,7 @@ class Analyzer:
         output_range = self.samples_to_range(sampled_outputs)
         return output_range
 
-    def get_exact_hull(self, input_range, N=int(1e5)):
+    def get_exact_hull(self, input_range, N=int(1e7)):
         from scipy.spatial import ConvexHull
         sampled_outputs = self.get_sampled_outputs(input_range, N=N)
         return ConvexHull(sampled_outputs)
@@ -180,7 +180,7 @@ if __name__ == '__main__':
         "num_simulations": int(10000),
         # "type": "Uniform",
          "type": "SimGuided",
-         #"type": "GreedySimGuided",
+       "type": "GreedySimGuided",
         #"type": "AdaptiveSimGuided",
         # "type": "UnGuided",
 
@@ -197,21 +197,24 @@ if __name__ == '__main__':
        "termination_condition_type": "time_budget",
 
        #  "termination_condition_type": "pct_error",
-         "termination_condition_value": 2,
+        "termination_condition_value": 2,
         # "num_partitions": 1,
 
        # "interior_condition": "lower_bnds",
         #"interior_condition": "linf",
-        "interior_condition": "convex_hull",
-        # "interior_condition": "linf",
-        # "interior_condition": "convex_hull",
+      #  "interior_condition": "convex_hull",
+       "interior_condition": "linf",
+     "interior_condition": "convex_hull",
         "make_animation": False,
         "show_animation": False,
         # "show_output": False,
     }
     propagator_hyperparams = {
        "type": "IBP_LIRPA",
-      "type": "CROWN_LIRPA",
+     "type": "CROWN_LIRPA",
+    #"type": "FastLin_LIRPA",
+
+    
         "input_shape": input_range.shape[:-1],
     }
 
@@ -249,14 +252,20 @@ if __name__ == '__main__':
     print("Number of partitions:", analyzer_info["num_partitions"])
     print("Computation time:",analyzer_info["computation_time"] )
     print("Number of iteration :",analyzer_info["num_iteration"] )
-
+    print("Error (inloop) :",analyzer_info["estimation_error"] )
+  #  print(output_range , analyzer_info["estimated_hull"] )
     pars = '_'.join([str(key)+"_"+str(value) for key, value in sorted(partitioner_hyperparams.items(), key=lambda kv: kv[0]) if key not in ["make_animation", "show_animation", "type"]])
     pars2 = '_'.join([str(key)+"_"+str(value) for key, value in sorted(propagator_hyperparams.items(), key=lambda kv: kv[0]) if key not in ["input_shape", "type"]])
-    analyzer_info["save_name"] = save_dir+partitioner_hyperparams['type']+"_"+propagator_hyperparams['type']+"_"+pars+"_"+pars2+".pdf"
+   # analyzer_info["save_name"] = save_dir+partitioner_hyperparams['type']+"_"+propagator_hyperparams['type']+"_"+pars+"_"+pars2+".pdf"
+    analyzer_info["save_name"] = save_dir+partitioner_hyperparams['type']+"_"+propagator_hyperparams["type"]+partitioner_hyperparams["termination_condition_type"]+"_robotic_arm"+".pdf"
 
-    title = "# Partitions: {}, Error: {}".format(str(analyzer_info['num_partitions']), str(round(error, 3)))
-    analyzer.visualize(input_range, output_range, show_legend=False, show_input=True, show_output=False, title=title, **analyzer_info)
-    # title = "# Partitions: {}, Error: {}".format(str(analyzer_info["num_partitions"]), str(round(error, 3)))
-    # analyzer.visualize(input_range, output_range, show_legend=False, show_input=True, show_output=False, title=title, **analyzer_info)
+    #title = "# Partitions: {}, Error: {}".format(str(analyzer_info['num_partitions']), str(round(error, 3)))
+   # analyzer.visualize(input_range, output_range, show_legend=False, show_input=True, show_output=True, title=title, **analyzer_info)
+ #   title = "# Partitions: {}, Error: {}".format(str(analyzer_info["num_partitions"]), str(round(error, 3)))
+   
+    figure_save_dir = "{}/results/tmp/".format(os.path.dirname(os.path.abspath(__file__)))
+
+    analyzer.visualize(input_range, output_range, show_legend=False, show_input=True, show_output=True, title=None, **analyzer_info)
+  #  plt.savefig(figure_save_dir+partitioner_hyperparams["type"]+"+"+propagator_hyperparams["type"]+partitioner_hyperparams["termination_condition_type"]+"_robotic_arm"+".png")
 
     print("done.")

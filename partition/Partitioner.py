@@ -260,7 +260,7 @@ class Partitioner():
             elif self.interior_condition == "convex_hull":
                 from scipy.spatial import ConvexHull
                 M_ = [(input_range_, output_range_[self.output_dims_]) for (input_range_, output_range_) in M]
-                hull = self.squash_down_to_convex_hull(M_, self.true_hull_.points)
+                hull = self.squash_down_to_convex_hull(M_+interior_M, self.true_hull_.points)
                 self.ax_output.plot(
                     np.append(hull.points[hull.vertices,0], hull.points[hull.vertices[0],0]),
                     np.append(hull.points[hull.vertices,1], hull.points[hull.vertices[0],1]),
@@ -279,8 +279,8 @@ class Partitioner():
 
         animation_save_dir = "{}/results/tmp/".format(os.path.dirname(os.path.abspath(__file__)))
         os.makedirs(animation_save_dir, exist_ok=True)
-        plt.savefig(animation_save_dir+"tmp_{}.png".format(str(iteration).zfill(6)))
-        plt.savefig(animation_save_dir+"tmp.png".format(str(iteration).zfill(6)))
+       # plt.savefig(animation_save_dir+"tmp_{}.png".format(str(iteration).zfill(6)))
+  #      plt.savefig(animation_save_dir+"tmp.png".format(str(iteration).zfill(6)))
 
     def get_error(self, output_range_exact, output_range_estimate):
         if self.interior_condition == "linf":
@@ -366,7 +366,8 @@ class Partitioner():
 
     def compile_info(self, output_range_sim, M, interior_M, num_propagator_calls, t_end_overall, t_start_overall, propagator_computation_time, iteration):
         info = {}
-
+        estimated_range=None
+        estimated_hull=None
         if self.interior_condition in ["lower_bnds", "linf"]:
             estimated_range = self.squash_down_to_one_range(output_range_sim, M)
             estimated_error = self.get_error(output_range_sim, estimated_range)
@@ -385,6 +386,7 @@ class Partitioner():
         info["computation_time"] = t_end_overall - t_start_overall
         info["propagator_computation_time"] = propagator_computation_time
         info["num_iteration"] = iteration
+        info["estimated_range"] = estimated_range
 
         return info
 
