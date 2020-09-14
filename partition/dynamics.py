@@ -328,7 +328,77 @@ if __name__ == '__main__':
     # action_range = np.dstack([nominal_action-action_uncertainty, nominal_action+action_uncertainty])[0]
     # input_range = np.vstack([state_range, action_range])
 
-    # collect(env_name=env_name, input_range=input_range)
-    # train(env_name=env_name, neurons_per_layer=[3,5], activation='relu', epochs=20)
+    collect(env_name=env_name, input_range=input_range)
+    train(env_name=env_name, neurons_per_layer=[3,5], activation='relu', epochs=20)
     test(env_name=env_name, input_range=input_range, outputs_to_highlight=outputs_to_highlight, inputs_to_highlight=inputs_to_highlight)
+
+    # comparison(env_name=env_name)
+
+
+def comparison(env_name="Pendulum-v0"):
+    env_name = 'Pendulum-v0'
+    nominal_state = np.array([0., 0.]) # theta, thetadot
+    state_uncertainty = np.zeros_like(nominal_state)
+    state_uncertainty[0:2] = np.array([0.5, 0.1])
+    state_range = np.dstack([nominal_state-state_uncertainty, nominal_state+state_uncertainty])[0]
+    nominal_action = np.zeros((1,))
+    action_uncertainty = np.array([0.1])
+    action_range = np.dstack([nominal_action-action_uncertainty, nominal_action+action_uncertainty])[0]
+    input_range = np.vstack([state_range, action_range])
+    outputs_to_highlight = [
+        {
+            'dim': (1,),
+            'name': r"NN Output: $\mathrm{sin}(\theta)$",
+        },
+        {
+            'dim': (0,),
+            'name': r"NN Output: $\mathrm{cos}(\theta)$",
+        },
+    ]
+    inputs_to_highlight = [
+        {
+            'dim': (0,),
+            'name': r"NN Input: $\theta$",
+        },
+        # {
+        #     'dim': (1,),
+        #     'name': r"NN Input: $\dot{\theta}$",
+        # },
+        {
+            'dim': (2,),
+            'name': r"NN Input: Motor Torque",
+        },
+    ]
+
+    torch_model = model_dynamics(env_name)
+
+    partitioner_hyperparams = {
+        "type": "GreedySimGuided",
+        # "termination_condition_type": "verify",
+        # "termination_condition_value": [np.array([1., 0., 0.]), np.array([0.5])],
+        # "interior_condition": "lower_bnds",
+        # "interior_condition": "linf",
+        "interior_condition": "convex_hull",
+        # "interior_condition": "verify",
+        "make_animation": False,
+        "show_animation": False,
+    }
+    propagator_hyperparams = {
+        "type": "IBP_LIRPA",
+        "input_shape": input_range.shape[:-1],
+    }
+
+    analyzer = DynamicsAnalyzer(torch_model, env_name)
+    analyzer.partitioner = partitioner_hyperparams
+    analyzer.propagator = propagator_hyperparams
+    output_range, analyzer_info = analyzer.get_output_range(input_range)
+    analyzer_info['outputs_to_highlight'] = outputs_to_highlight
+    analyzer_info['inputs_to_highlight'] = inputs_to_highlight
+
+    pars = '_'.join([str(key)+"_"+str(value) for key, value in partitioner_hyperparams.items() if key not in ["make_animation", "show_animation", "type"]])
+    pars2 = '_'.join([str(key)+"_"+str(value) for key, value in propagator_hyperparams.items() if key not in ["input_shape", "type"]])
+    input_range_str = '__'.join(['_'.join([str(ll) for ll in l]) for l in input_range])    
+    analyzer_info["save_name"] = save_dir+env_name+'_'+partitioner_hyperparams['type']+"_"+propagator_hyperparams['type']+"_"+pars+"_"+pars2+"_"+"input_range"+input_range_str+".pdf"
+    analyzer.visualize(input_range, output_range, **analyzer_info)    
+
 
