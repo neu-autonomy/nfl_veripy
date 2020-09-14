@@ -307,7 +307,7 @@ class Partitioner():
             raise NotImplementedError
         return error
 
-    def check_termination(self, input_range_, num_propagator_calls, u_e, output_range_sim, M, iteration):
+    def check_termination(self, input_range_, num_propagator_calls, u_e, output_range_sim, M, elapsed_time):
         if self.termination_condition_type == "input_cell_size":
 
           #  print(input_range_[...,1] - input_range_[...,0])
@@ -350,7 +350,7 @@ class Partitioner():
                     pts[i,:] = pt
                     i += 1
         elif self.termination_condition_type == "time_budget":
-            terminate = iteration >= self.termination_condition_value
+            terminate = elapsed_time >= self.termination_condition_value
 
             # print(pts)
             # output_ranges_ = [x[1] for x in M+[(input_range_, output_range_)]]
@@ -752,7 +752,7 @@ class SimGuidedPartitioner(Partitioner):
         range_area = np.product(range_[...,1] - range_[...,0])
 
         if stage==1:
-            c=0.4
+            c=0.7
 
             pairwise_distance= np.zeros(len(outer_points))
             for (i,points) in enumerate(outer_points):
@@ -779,8 +779,8 @@ class SimGuidedPartitioner(Partitioner):
        # tolerance_eps = 0.05
         t_start_overall = time.time()
 
-        tolerance_step=0.0005
-        tolerance_range=0.0001
+        tolerance_step=0.05
+        tolerance_range=0.01
         num_propagator_calls=0
         num_inputs = input_range.shape[0]
         input_shape = input_range.shape[:-1]
@@ -836,15 +836,28 @@ class SimGuidedPartitioner(Partitioner):
             if self.termination_condition_type == "num_propagator_calls" and \
              (num_propagator_calls== (self.termination_condition_value)*0.8):
                 break
-
             if self.check_if_partition_within_sim_bnds(output_range_new, output_range_sim):
                 input_range_new= input_range_new+delta_step
+            
               #  terminating_condition==False
             else:
                 input_range_new= input_range_new-delta_step
-                delta_step=1*delta_step/2
+                break
+                input_range_new+= 1*delta_step/2
+
+                while  np.all((input_range[...,0] - input_range_new[...,0]) >= 0) or \
+                       np.all((input_range[...,1] - input_range_new[...,1]) <= 0):
+                    #delta_step=1*delta_step/2
+                    #input_range_new+= 1*delta_step/2
+                    print(delta_step)
+                    if np.max(abs(delta_step))<tolerance_step:
+
+                        break
+
+
 
                 if np.max(abs(delta_step))<tolerance_step:
+
                     break
 
                  #   diff=(input_range-input_range_new)

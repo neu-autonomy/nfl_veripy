@@ -169,19 +169,19 @@ if __name__ == '__main__':
                       [np.pi/3, 2*np.pi/3], # x1min, x1max
     ])
 
-   # neurons = [2,50,2]
-  #  torch_model, model_info = random_model(activation='relu', neurons=neurons, seed=0)
-  #  input_range = np.zeros((model_info['model_neurons'][0],2))
-   # input_range[:,1] = 1.
+    neurons = [2,50,2]
+    torch_model, model_info = random_model(activation='relu', neurons=neurons, seed=0)
+    input_range = np.zeros((model_info['model_neurons'][0],2))
+    input_range[:,1] = 1.
 
     # partitioner = "Uniform"
     # partitioner_hyperparams = {"num_partitions": [4,4,1,1,1]}
     partitioner_hyperparams = {
         "num_simulations": int(10000),
         # "type": "Uniform",
-         "type": "SimGuided",
-      "type": "GreedySimGuided",
-        "type": "AdaptiveSimGuided",
+        "type": "SimGuided",
+       # "type": "GreedySimGuided",
+        #"type": "AdaptiveSimGuided",
         # "type": "UnGuided",
 
         # "termination_condition_type": "verify",
@@ -211,8 +211,8 @@ if __name__ == '__main__':
     }
     propagator_hyperparams = {
        "type": "IBP_LIRPA",
-     "type": "CROWN_LIRPA",
-   # "type": "FastLin_LIRPA",
+       "type": "CROWN_LIRPA",
+      "type": "FastLin_LIRPA",
 
     
         "input_shape": input_range.shape[:-1],
@@ -245,9 +245,10 @@ if __name__ == '__main__':
    # output_range_exact = analyzer.get_exact_output_range(input_range)
 
    # error = analyzer.partitioner.get_error(output_range_exact, output_range)
-    print("Estimated output_range:\n", output_range)
-    # print("True output_range:\n", output_range_exact)
     print("\n")
+    print("{}+{}".format(partitioner_hyperparams["type"], propagator_hyperparams["type"]) )
+   # print("Estimated output_range:\n", output_range)
+    # print("True output_range:\n", output_range_exact)
     print("Number of propagator calls:", analyzer_info["num_propagator_calls"])
     print("Error: ", error)
     print("Number of partitions:", analyzer_info["num_partitions"])
@@ -258,7 +259,7 @@ if __name__ == '__main__':
     pars = '_'.join([str(key)+"_"+str(value) for key, value in sorted(partitioner_hyperparams.items(), key=lambda kv: kv[0]) if key not in ["make_animation", "show_animation", "type"]])
     pars2 = '_'.join([str(key)+"_"+str(value) for key, value in sorted(propagator_hyperparams.items(), key=lambda kv: kv[0]) if key not in ["input_shape", "type"]])
    # analyzer_info["save_name"] = save_dir+partitioner_hyperparams['type']+"_"+propagator_hyperparams['type']+"_"+pars+"_"+pars2+".pdf"
-    analyzer_info["save_name"] = save_dir+partitioner_hyperparams['type']+"_"+propagator_hyperparams["type"]+partitioner_hyperparams["termination_condition_type"]+"_robotic_arm"+".pdf"
+    analyzer_info["save_name"] = save_dir+partitioner_hyperparams['type']+"_"+propagator_hyperparams["type"]+"_"+partitioner_hyperparams["termination_condition_type"]+"_NN _random"+".pdf"
 
     #title = "# Partitions: {}, Error: {}".format(str(analyzer_info['num_partitions']), str(round(error, 3)))
    # analyzer.visualize(input_range, output_range, show_legend=False, show_input=True, show_output=True, title=title, **analyzer_info)
@@ -266,7 +267,8 @@ if __name__ == '__main__':
    
     figure_save_dir = "{}/results/tmp/".format(os.path.dirname(os.path.abspath(__file__)))
 
-    analyzer.visualize(input_range, output_range, show_legend=False, show_input=True, show_output=True, title=None, **analyzer_info)
-  #  plt.savefig(figure_save_dir+partitioner_hyperparams["type"]+"+"+propagator_hyperparams["type"]+partitioner_hyperparams["termination_condition_type"]+"_robotic_arm"+".png")
+    analyzer.visualize(input_range, output_range, show=False, show_samples=True, show_legend =False, show_input=True, show_output=True, title=None, **analyzer_info)
 
+  #  plt.savefig(figure_save_dir+partitioner_hyperparams["type"]+"+"+propagator_hyperparams["type"]+partitioner_hyperparams["termination_condition_type"]+"_robotic_arm"+".png")
+    
     print("done.")
