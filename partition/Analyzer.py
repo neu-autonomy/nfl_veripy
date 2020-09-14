@@ -3,6 +3,7 @@ import matplotlib.pyplot as plt
 from matplotlib.patches import Rectangle
 from partition.network_utils import get_sampled_outputs, samples_to_range
 import os
+import time
 
 plt.rcParams['mathtext.fontset'] = 'stix'
 plt.rcParams['font.family'] = 'STIXGeneral'
@@ -108,7 +109,7 @@ class Analyzer:
         output_range = self.samples_to_range(sampled_outputs)
         return output_range
 
-    def get_exact_hull(self, input_range, N=int(1e5)):
+    def get_exact_hull(self, input_range, N=int(1e7)):
         from scipy.spatial import ConvexHull
         sampled_outputs = self.get_sampled_outputs(input_range, N=N)
         return ConvexHull(sampled_outputs)
@@ -176,36 +177,44 @@ if __name__ == '__main__':
     # partitioner = "Uniform"
     # partitioner_hyperparams = {"num_partitions": [4,4,1,1,1]}
     partitioner_hyperparams = {
-        "num_simulations": int(1e7),
+        "num_simulations": int(10000),
         # "type": "Uniform",
-        # "type": "SimGuided",
-        "type": "GreedySimGuided",
-        # "type": "AdaptiveSimGuided",
+        "type": "SimGuided",
+       # "type": "GreedySimGuided",
+        #"type": "AdaptiveSimGuided",
         # "type": "UnGuided",
 
         # "termination_condition_type": "verify",
         # "termination_condition_value": [np.array([1., 0.]), np.array([100.])],
 
-         # "termination_condition_type": "input_cell_size",
-         # "termination_condition_value": 0.01,
-       "termination_condition_type": "num_propagator_calls",
-       "termination_condition_value": 100,
-       #  "termination_condition_type": "pct_improvement",
+       # "termination_condition_type": "input_cell_size",
+       # "termination_condition_value": 100,
+      # "termination_condition_type": "num_propagator_calls",
+      # "termination_condition_value": 0.05,
+      #   "termination_condition_type": "pct_improvement",
        #  "termination_condition_value": 0.001,
-        # "termination_condition_type": "pct_error",
-        # "termination_condition_value": 0.1,
+       
+       "termination_condition_type": "time_budget",
+
+       #  "termination_condition_type": "pct_error",
+        "termination_condition_value": 2,
         # "num_partitions": 1,
 
-        "interior_condition": "lower_bnds",
-        # "interior_condition": "linf",
-        # "interior_condition": "convex_hull",
-        "make_animation": True,
-        "show_animation": True,
+       # "interior_condition": "lower_bnds",
+        #"interior_condition": "linf",
+        "interior_condition": "convex_hull",
+  #     "interior_condition": "linf",
+   #  "interior_condition": "linf",
+        "make_animation": False,
+        "show_animation": False,
         # "show_output": False,
     }
     propagator_hyperparams = {
-        # "type": "IBP_LIRPA",
-        "type": "CROWN_LIRPA",
+       "type": "IBP_LIRPA",
+       "type": "CROWN_LIRPA",
+      "type": "FastLin_LIRPA",
+
+    
         "input_shape": input_range.shape[:-1],
     }
 
@@ -213,28 +222,53 @@ if __name__ == '__main__':
     analyzer = Analyzer(torch_model)
     analyzer.partitioner = partitioner_hyperparams
     analyzer.propagator = propagator_hyperparams
+    t_start = time.time()
+   # print( input_range)
     output_range, analyzer_info = analyzer.get_output_range(input_range)
+    t_end = time.time()
+    computation_time = t_end - t_start
   #  print(analyzer_info)
     np.random.seed(seed=0)
    # output_range_exact = analyzer.get_exact_output_range(input_range)
-    output_range_exact = analyzer.get_exact_output_range(input_range)
+    #if analyzer.partitioner["interior_condition"] == "convex_hull":
+   #else:
+    if  partitioner_hyperparams["interior_condition"] == "convex_hull":
+        exact_hull = analyzer.get_exact_hull(input_range)
 
-    error = analyzer.partitioner.get_error(output_range_exact, output_range)
-    print("Estimated output_range:\n", output_range)
-    # print("True output_range:\n", output_range_exact)
-    print("Error: ", error)
+        error = analyzer.partitioner.get_error(exact_hull, analyzer_info["estimated_hull"])
+    if  partitioner_hyperparams["interior_condition"] in ["lower_bnds", "linf"]:
+        output_range_exact = analyzer.get_exact_output_range(input_range)
+
+        error = analyzer.partitioner.get_error(output_range_exact, output_range)
+
+
+   # output_range_exact = analyzer.get_exact_output_range(input_range)
+
+   # error = analyzer.partitioner.get_error(output_range_exact, output_range)
     print("\n")
+    print("{}+{}".format(partitioner_hyperparams["type"], propagator_hyperparams["type"]) )
+   # print("Estimated output_range:\n", output_range)
+    # print("True output_range:\n", output_range_exact)
     print("Number of propagator calls:", analyzer_info["num_propagator_calls"])
-    print(analyzer_info["num_partitions"])
+    print("Error: ", error)
     print("Number of partitions:", analyzer_info["num_partitions"])
-
+    print("Computation time:",analyzer_info["computation_time"] )
+    print("Number of iteration :",analyzer_info["num_iteration"] )
+    print("Error (inloop) :",analyzer_info["estimation_error"] )
+  #  print(output_range , analyzer_info["estimated_hull"] )
     pars = '_'.join([str(key)+"_"+str(value) for key, value in sorted(partitioner_hyperparams.items(), key=lambda kv: kv[0]) if key not in ["make_animation", "show_animation", "type"]])
     pars2 = '_'.join([str(key)+"_"+str(value) for key, value in sorted(propagator_hyperparams.items(), key=lambda kv: kv[0]) if key not in ["input_shape", "type"]])
-    analyzer_info["save_name"] = save_dir+partitioner_hyperparams['type']+"_"+propagator_hyperparams['type']+"_"+pars+"_"+pars2+".pdf"
+   # analyzer_info["save_name"] = save_dir+partitioner_hyperparams['type']+"_"+propagator_hyperparams['type']+"_"+pars+"_"+pars2+".pdf"
+    analyzer_info["save_name"] = save_dir+partitioner_hyperparams['type']+"_"+propagator_hyperparams["type"]+"_"+partitioner_hyperparams["termination_condition_type"]+"_NN _random"+".pdf"
 
-    # title = "# Partitions: {}, Error: {}".format(str(partitioner_hyperparams['num_partitions']**2), str(round(error, 3)))
-    # analyzer.visualize(input_range, output_range, show_legend=False, show_input=True, show_output=False, title=title, **analyzer_info)
-    # title = "# Partitions: {}, Error: {}".format(str(analyzer_info["num_partitions"]), str(round(error, 3)))
-    # analyzer.visualize(input_range, output_range, show_legend=False, show_input=True, show_output=False, title=title, **analyzer_info)
+    #title = "# Partitions: {}, Error: {}".format(str(analyzer_info['num_partitions']), str(round(error, 3)))
+   # analyzer.visualize(input_range, output_range, show_legend=False, show_input=True, show_output=True, title=title, **analyzer_info)
+ #   title = "# Partitions: {}, Error: {}".format(str(analyzer_info["num_partitions"]), str(round(error, 3)))
+   
+    figure_save_dir = "{}/results/tmp/".format(os.path.dirname(os.path.abspath(__file__)))
 
+    analyzer.visualize(input_range, output_range, show=False, show_samples=True, show_legend =False, show_input=True, show_output=True, title=None, **analyzer_info)
+
+  #  plt.savefig(figure_save_dir+partitioner_hyperparams["type"]+"+"+propagator_hyperparams["type"]+partitioner_hyperparams["termination_condition_type"]+"_robotic_arm"+".png")
+    
     print("done.")
