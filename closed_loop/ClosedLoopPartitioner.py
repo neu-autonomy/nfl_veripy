@@ -286,7 +286,6 @@ class ClosedLoopUniformPartitioner(ClosedLoopPartitioner):
             if reachable_set is None:
                 reachable_set = np.stack(reachable_set_)
 
-            # TODO: does this work?
             tmp = np.dstack([reachable_set, np.stack(reachable_set_)])
             reachable_set = np.max(tmp, axis=-1)
             

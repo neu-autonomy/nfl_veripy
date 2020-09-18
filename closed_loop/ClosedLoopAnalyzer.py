@@ -169,8 +169,8 @@ if __name__ == '__main__':
     }
     propagator_hyperparams = {
         # "type": "SDP",
-        "type": "IBP",
-        # "type": "CROWN",
+        # "type": "IBP",
+        "type": "CROWN",
         # "type": "FastLin",
         "input_shape": init_state_range.shape[:-1],
     }

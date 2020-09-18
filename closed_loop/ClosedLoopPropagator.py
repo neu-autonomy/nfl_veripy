@@ -109,19 +109,30 @@ class ClosedLoopCROWNIBPCodebasePropagator(ClosedLoopPropagator):
         num_facets = A_out.shape[0]
         bs = np.zeros((num_facets))
         for i in range(num_facets):
-            xt1_max, _, xt1_min, _ = self.network.full_backward_range(norm=np.inf,
+            xt1_max, _, xt1_min, _ = self.network(method_opt=self.method_opt,
+                                        norm=np.inf,
                                         x_U=torch.Tensor([x_max]),
                                         x_L=torch.Tensor([x_min]),
                                         upper=True, lower=True, C=torch.Tensor([[[1]]]),
                                         A_out=torch.Tensor([A_out[i,:]]),
                                         A_in=A_inputs, b_in=b_inputs,
                                         u_limits=u_limits)
+            # xt1_max, _, xt1_min, _ = self.network.full_backward_range(norm=np.inf,
+            #                             x_U=torch.Tensor([x_max]),
+            #                             x_L=torch.Tensor([x_min]),
+            #                             upper=True, lower=True, C=torch.Tensor([[[1]]]),
+            #                             A_out=torch.Tensor([A_out[i,:]]),
+            #                             A_in=A_inputs, b_in=b_inputs,
+            #                             u_limits=u_limits)
             bs[i] = xt1_max
         return bs, {}
 
 class ClosedLoopIBPPropagator(ClosedLoopCROWNIBPCodebasePropagator):
     def __init__(self, input_shape=None, At=None, bt=None, ct=None):
         ClosedLoopCROWNIBPCodebasePropagator.__init__(self, input_shape=input_shape, At=At, bt=bt, ct=ct)
+        raise NotImplementedError
+        # TODO: Write nn_bounds.py:BoundClosedLoopController:interval_range
+        # (using bound_layers.py:BoundSequential:interval_range)
         self.method_opt = "interval_range"
         self.params = {}
 
