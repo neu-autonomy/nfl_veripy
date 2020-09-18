@@ -11,34 +11,19 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 class BoundClosedLoopController(BoundSequential):
-    def __init__(self, *args):
-        super(BoundClosedLoopController, self).__init__(*args) 
+    def __init__(self, A_dyn, b_dyn, c_dyn, layers):
+        super(BoundClosedLoopController, self).__init__(*layers)
+        self.A_dyn = A_dyn
+        self.b_dyn = b_dyn
+        self.c_dyn = c_dyn
 
     ## Convert a Pytorch model to a model with bounds
     # @param sequential_model Input pytorch model
     # @return Converted model
     @staticmethod
     def convert(sequential_model, bound_opts=None, A_dyn=None, b_dyn=None, c_dyn=None):
-        # TODO: properly inherit this from BoundSequential
-        # b = BoundSequential.convert(sequential_model, bound_opts=bound_opts)
-        layers = []
-        if isinstance(sequential_model, Sequential):
-            seq_model = sequential_model
-        else:
-            seq_model = sequential_model.module
-        for l in seq_model:
-            if isinstance(l, Linear):
-                layers.append(BoundLinear.convert(l, bound_opts))
-            if isinstance(l, Conv2d):
-                layers.append(BoundConv2d.convert(l, bound_opts))
-            if isinstance(l, ReLU):
-                layers.append(BoundReLU.convert(l, layers[-1], bound_opts))
-            if isinstance(l, Flatten):
-                layers.append(BoundFlatten(bound_opts))
-        b = BoundClosedLoopController(*layers)
-        b.A_dyn = A_dyn
-        b.b_dyn = b_dyn
-        b.c_dyn = c_dyn
+        layers = BoundClosedLoopController.sequential_model_to_layers(sequential_model, bound_opts=bound_opts)
+        b = BoundClosedLoopController(A_dyn=A_dyn, b_dyn=b_dyn, c_dyn=c_dyn, layers=layers)
         return b
 
     def _add_dynamics(self, lower_A, upper_A, lower_sum_b, upper_sum_b):
