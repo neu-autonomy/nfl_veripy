@@ -7,7 +7,8 @@ from matplotlib.patches import Rectangle
 from closed_loop.nn import control_nn
 from itertools import product
 from closed_loop.utils import init_state_range_to_polytope
-
+from closed_loop.ClosedLoopConstraints import PolytopeInputConstraint, LpInputConstraint, PolytopeOutputConstraint, LpOutputConstraint
+from copy import deepcopy
 
 class ClosedLoopPartitioner(Partitioner):
     def __init__(self, At=None, bt=None, ct=None):
@@ -16,15 +17,34 @@ class ClosedLoopPartitioner(Partitioner):
         self.bt = bt
         self.ct = ct
 
-    def get_one_step_reachable_set(self, A_inputs, b_inputs, A_out, propagator):
-        reachable_set, info = propagator.get_one_step_reachable_set(A_inputs, b_inputs, A_out)
+    def get_one_step_reachable_set(self, input_constraint, output_constraint, propagator):
+        reachable_set, info = propagator.get_one_step_reachable_set(input_constraint, output_constraint)
         return reachable_set, info
 
-    def get_reachable_set(self, A_inputs, b_inputs, A_out, propagator, t_max):
-        reachable_set, info = propagator.get_reachable_set(A_inputs, b_inputs, A_out, t_max)
+    def get_reachable_set(self, input_constraint, output_constraint, propagator, t_max):
+        reachable_set, info = propagator.get_reachable_set(input_constraint, output_constraint, t_max)
         return reachable_set, info
 
-    def setup_visualization(self, A_inputs, b_inputs, A_out, b_out, propagator, show_samples=True, outputs_to_highlight=None, inputs_to_highlight=None):
+    def setup_visualization(self, input_constraint, output_constraint, propagator, show_samples=True, outputs_to_highlight=None, inputs_to_highlight=None):
+        if isinstance(output_constraint, PolytopeOutputConstraint):
+            A_out = output_constraint.A
+            b_out = output_constraint.b
+        elif isinstance(output_constraint, LpOutputConstraint):
+            output_range = output_constraint.range
+            output_p = output_constraint.p
+        else:
+            raise NotImplementedError
+        if isinstance(input_constraint, PolytopeInputConstraint):
+            A_inputs = input_constraint.A
+            b_inputs = input_constraint.b
+            num_states = A_inputs.shape[-1]
+        elif isinstance(input_constraint, LpInputConstraint):
+            input_range = input_constraint.range
+            input_p = input_constraint.p
+            num_states = input_range.shape[0]
+        else:
+            raise NotImplementedError
+
         self.animate_fig, self.animate_axes = plt.subplots(1,1)
 
         if inputs_to_highlight is None:
@@ -55,7 +75,6 @@ class ClosedLoopPartitioner(Partitioner):
         colors = [cm.get_cmap("tab10")(i) for i in range(t_max+1)]
 
         num_samples = 1000
-        num_states = A_inputs.shape[-1]
         xs = np.zeros((num_samples, num_states))
         np.random.seed(0)
         dataset_index = 0
@@ -97,19 +116,35 @@ class ClosedLoopPartitioner(Partitioner):
         #         label="Sampled States")
 
         # Initial state set
-        # TODO: this doesn't use the computed input_dims...
-        vertices = pypoman.compute_polygon_hull(A_inputs, b_inputs)
-        bnd_color = 'k--'
-        self.animate_axes.plot([v[0] for v in vertices]+[vertices[0][0]], [v[1] for v in vertices]+[vertices[0][1]],
-            bnd_color, label='Initial States')
+        color = 'k'
+        if isinstance(input_constraint, PolytopeInputConstraint):
+            # TODO: this doesn't use the computed input_dims...
+            vertices = pypoman.compute_polygon_hull(A_inputs, b_inputs)
+            self.animate_axes.plot([v[0] for v in vertices]+[vertices[0][0]], [v[1] for v in vertices]+[vertices[0][1]],
+                color=color, label='Initial States')
+        elif isinstance(input_constraint, LpInputConstraint):
+            rect = Rectangle(input_range[:2,0], input_range[0,1]-input_range[0,0], input_range[1,1]-input_range[1,0],
+                            fc='none', linewidth=3,edgecolor=color)
+            self.animate_axes.add_patch(rect)
+            # self.default_patches[1].append(rect)
+        else:
+            raise NotImplementedError
 
         # Reachable sets
-        # TODO: this doesn't use the computed input_dims...
-        for i in range(len(b_out)):
-            vertices = pypoman.compute_polygon_hull(A_out, b_out[i])
-            bnd_color = 'g'
-            self.animate_axes.plot([v[0] for v in vertices]+[vertices[0][0]], [v[1] for v in vertices]+[vertices[0][1]],
-                bnd_color, label='$\mathcal{R}_'+str(i+1)+'$')
+        color = 'g'
+        if isinstance(output_constraint, PolytopeOutputConstraint):
+            # TODO: this doesn't use the computed input_dims...
+            for i in range(len(b_out)):
+                vertices = pypoman.compute_polygon_hull(A_out, b_out[i])
+                self.animate_axes.plot([v[0] for v in vertices]+[vertices[0][0]], [v[1] for v in vertices]+[vertices[0][1]],
+                    color=color, label='$\mathcal{R}_'+str(i+1)+'$')
+        elif isinstance(output_constraint, LpOutputConstraint):
+            for output_range_ in output_range:
+                rect = Rectangle(output_range_[:2,0], output_range_[0,1]-output_range_[0,0], output_range_[1,1]-output_range_[1,0],
+                            fc='none', linewidth=3,edgecolor=color)
+                self.animate_axes.add_patch(rect)
+        else:
+            raise NotImplementedError
 
         # self.default_patches = [[], []]
         # self.default_lines = [[], []]
@@ -147,7 +182,15 @@ class ClosedLoopPartitioner(Partitioner):
         # else:
         #     raise NotImplementedError
 
-    def visualize(self, M, interior_M, A_out, b_out, iteration=0):
+    def visualize(self, M, interior_M, output_constraint, iteration=0):
+        if isinstance(output_constraint, PolytopeOutputConstraint):
+            A_out = output_constraint.A
+            b_out = output_constraint.b
+        elif isinstance(output_constraint, LpOutputConstraint):
+            pass
+        else:
+            raise NotImplementedError
+
         # self.animate_axes.patches = self.default_patches[0].copy()
         # self.animate_axes.lines = self.default_lines[0].copy()
         input_dims_ = self.input_dims_
@@ -163,14 +206,24 @@ class ClosedLoopPartitioner(Partitioner):
                 input_label = None
                 output_label = None
 
-            for i in range(len(output_range_)):
-                vertices = pypoman.compute_polygon_hull(A_out, output_range_[i])
-                bnd_color = 'k'
-                self.animate_axes.plot([v[0] for v in vertices]+[vertices[0][0]], [v[1] for v in vertices]+[vertices[0][1]],
-                    bnd_color, label='$\mathcal{R}_'+str(i+1)+'$')
+            color = 'k'
+            if isinstance(output_constraint, PolytopeOutputConstraint):
+                for i in range(len(output_range_)):
+                    vertices = pypoman.compute_polygon_hull(A_out, output_range_[i])
+                    self.animate_axes.plot([v[0] for v in vertices]+[vertices[0][0]], [v[1] for v in vertices]+[vertices[0][1]],
+                        color=color, label='$\mathcal{R}_'+str(i+1)+'$')
+            elif isinstance(output_constraint, LpOutputConstraint):
+                for output_range__ in output_range_:
+                    rect = Rectangle(output_range__[:2,0], output_range__[0,1]-output_range__[0,0], output_range__[1,1]-output_range__[1,0],
+                                fc='none', linewidth=1,edgecolor=color)
+                    self.animate_axes.add_patch(rect)
+                pass
+            else:
+                raise NotImplementedError
 
+            color = "tab:purple"
             rect = Rectangle(input_range_[:,0], input_range_[0,1]-input_range_[0,0], input_range_[1,1]-input_range_[1,0],
-                    fc='none', linewidth=1,edgecolor='tab:purple')
+                    fc='none', linewidth=1,edgecolor=color)
             self.animate_axes.add_patch(rect)
             # vertices = pypoman.compute_polygon_hull(A_out, input_range[i])
             # bnd_color = 'k--'
@@ -239,19 +292,34 @@ class ClosedLoopUniformPartitioner(ClosedLoopPartitioner):
         self.show_animation = False
         self.make_animation = False
 
-    def get_one_step_reachable_set(self, A_inputs, b_inputs, A_out, propagator, num_partitions=None):
-        reachable_set, info = self.get_reachable_set(A_inputs, b_inputs, A_out, propagator, t_max=1, num_partitions=num_partitions)
+    def get_one_step_reachable_set(self, input_constraint, output_constraint, propagator, num_partitions=None):
+        reachable_set, info = self.get_reachable_set(input_constraint, output_constraint, propagator, t_max=1, num_partitions=num_partitions)
         return reachable_set, info
 
-    def get_reachable_set(self, A_inputs, b_inputs, A_out, propagator, t_max, num_partitions=None):
+    def get_reachable_set(self, input_constraint, output_constraint, propagator, t_max, num_partitions=None):
+        # if isinstance(output_constraint, PolytopeOutputConstraint):
+        #     A_out = output_constraint.A
+        #     b_out = output_constraint.b
+        # else:
+        #     raise NotImplementedError
+
+        if isinstance(input_constraint, PolytopeInputConstraint):
+            A_inputs = input_constraint.A
+            b_inputs = input_constraint.b
+
+            # only used to compute slope in non-closedloop manner...
+            input_polytope_verts = pypoman.duality.compute_polytope_vertices(A_inputs, b_inputs)
+            input_range = np.empty((A_inputs.shape[1],2))
+            input_range[:,0] = np.min(np.stack(input_polytope_verts), axis=0)
+            input_range[:,1] = np.max(np.stack(input_polytope_verts), axis=0)
+
+        elif isinstance(input_constraint, LpInputConstraint):
+            input_range = input_constraint.range
+        else:
+            raise NotImplementedError
+
         info = {}
         num_propagator_calls = 0
-
-        # only used to compute slope in non-closedloop manner...
-        input_polytope_verts = pypoman.duality.compute_polytope_vertices(A_inputs, b_inputs)
-        input_range = np.empty((A_inputs.shape[1],2))
-        input_range[:,0] = np.min(np.stack(input_polytope_verts), axis=0)
-        input_range[:,1] = np.max(np.stack(input_polytope_verts), axis=0)
 
         input_shape = input_range.shape[:-1]
         if num_partitions is None:
@@ -273,26 +341,47 @@ class ClosedLoopUniformPartitioner(ClosedLoopPartitioner):
             input_range_[...,0] = input_range[...,0]+np.multiply(element_, slope)
             input_range_[...,1] = input_range[...,0]+np.multiply(element_+1, slope)
 
-            # This is a disaster hack to partition polytopes
-            A_rect, b_rect = init_state_range_to_polytope(input_range_)
-            rectangle_verts = pypoman.polygon.compute_polygon_hull(A_rect, b_rect)
-            input_polytope_verts = pypoman.polygon.compute_polygon_hull(A_inputs, b_inputs)
-            partition_verts = pypoman.intersection.intersect_polygons(input_polytope_verts, rectangle_verts)
-            A_inputs_, b_inputs_ = pypoman.duality.compute_polytope_halfspaces(partition_verts)
+            if isinstance(input_constraint, PolytopeInputConstraint):
+                # This is a disaster hack to partition polytopes
+                A_rect, b_rect = init_state_range_to_polytope(input_range_)
+                rectangle_verts = pypoman.polygon.compute_polygon_hull(A_rect, b_rect)
+                input_polytope_verts = pypoman.polygon.compute_polygon_hull(A_inputs, b_inputs)
+                partition_verts = pypoman.intersection.intersect_polygons(input_polytope_verts, rectangle_verts)
+                A_inputs_, b_inputs_ = pypoman.duality.compute_polytope_halfspaces(partition_verts)
+                input_constraint_ = input_constraint.__class__(A_inputs_, b_inputs_)
+            elif isinstance(input_constraint, LpInputConstraint):
+                input_constraint_ = input_constraint.__class__(range=input_range_, p=input_constraint.p)
+            else:
+                raise NotImplementedError
 
-            reachable_set_, info_ = propagator.get_reachable_set(A_inputs_, b_inputs_, A_out, t_max)
-            num_propagator_calls += 1
+            output_constraint_, info_ = propagator.get_reachable_set(input_constraint_, deepcopy(output_constraint), t_max)
 
-            if reachable_set is None:
-                reachable_set = np.stack(reachable_set_)
+            num_propagator_calls += t_max
 
-            tmp = np.dstack([reachable_set, np.stack(reachable_set_)])
-            reachable_set = np.max(tmp, axis=-1)
-            
-            ranges.append((input_range_, reachable_set_))
+            if isinstance(output_constraint, PolytopeOutputConstraint):
+                reachable_set_ = [o.b for o in output_constraint_]
+                if output_constraint.b is None:
+                    output_constraint.b = np.stack(reachable_set_)
+
+                tmp = np.dstack([output_constraint.b, np.stack(reachable_set_)])
+                output_constraint.b = np.max(tmp, axis=-1)
+                
+                ranges.append((input_range_, reachable_set_))
+            elif isinstance(output_constraint, LpOutputConstraint):
+                reachable_set_ = [o.range for o in output_constraint_]
+                if output_constraint.range is None:
+                    output_constraint.range = np.stack(reachable_set_)
+
+                tmp = np.stack([output_constraint.range, np.stack(reachable_set_)], axis=-1)
+                output_constraint.range[...,0] = np.min(tmp[...,0,:], axis=-1)
+                output_constraint.range[...,1] = np.max(tmp[...,1,:], axis=-1)
+
+                ranges.append((input_range_, np.stack(reachable_set_)))
+            else:
+                raise NotImplementedError
 
         info["all_partitions"] = ranges
         info["num_propagator_calls"] = num_propagator_calls
         info["num_partitions"] = np.product(num_partitions)
 
-        return reachable_set, info
+        return output_constraint, info

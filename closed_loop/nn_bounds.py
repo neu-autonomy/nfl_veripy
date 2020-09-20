@@ -52,13 +52,11 @@ class BoundClosedLoopController(BoundSequential):
 
         flip = torch.matmul(self.A_out, self.b_dyn) < 0
         if flip:
-            # print("flip")
             upsilon = lower_A
             psi = lower_sum_b
             xi = upper_A
             gamma = upper_sum_b
         else:
-            # print('dont flip')
             upsilon = upper_A
             psi = upper_sum_b
             xi = lower_A
@@ -100,27 +98,30 @@ class BoundClosedLoopController(BoundSequential):
                 return lower_A, upper_A, lower_sum_b, upper_sum_b
             ##########
 
+            ### TODO: Make this part its own method -- we now have the NN matrices (slow),
+            # so we just need to run the optimizations per dimension (fast)
+            # -- right now, we re-compute lower_A, upper_A, etc. for each dimension/output facet.
+
             if self.u_limits is not None:
                 raise NotImplementedError
-                # lb = self._get_concrete_bound3(lower_A, upper_A, lower_sum_b, upper_sum_b, sign = -1)
-                lb = -5.
-                ub = self._get_concrete_bound3(lower_A, upper_A, lower_sum_b, upper_sum_b)
+                lb = self._get_concrete_bound_polytope_with_control_limits(lower_A, upper_A, lower_sum_b, upper_sum_b, sign = -1)
+                ub = self._get_concrete_bound_polytope_with_control_limits(lower_A, upper_A, lower_sum_b, upper_sum_b)
             else:
                 # lower_A_with_dyn, upper_A_with_dyn, lower_sum_b_with_dyn, upper_sum_b_with_dyn = lower_A, upper_A, lower_sum_b, upper_sum_b 
                 lower_A_with_dyn, upper_A_with_dyn, lower_sum_b_with_dyn, upper_sum_b_with_dyn = self._add_dynamics(lower_A, upper_A, lower_sum_b, upper_sum_b)
             
                 if self.A_in is None or self.b_in is None:
-                    lb = self._get_concrete_bound(lower_A_with_dyn, lower_sum_b_with_dyn, sign = -1, x_U=x_U, x_L=x_L, norm=norm)
-                    ub = self._get_concrete_bound(upper_A_with_dyn, upper_sum_b_with_dyn, sign = +1, x_U=x_U, x_L=x_L, norm=norm)
+                    lb = self._get_concrete_bound_lpball(lower_A_with_dyn, lower_sum_b_with_dyn, sign = -1, x_U=x_U, x_L=x_L, norm=norm)
+                    ub = self._get_concrete_bound_lpball(upper_A_with_dyn, upper_sum_b_with_dyn, sign = +1, x_U=x_U, x_L=x_L, norm=norm)
                 else:
-                    lb = self._get_concrete_bound2(lower_A_with_dyn, lower_sum_b_with_dyn, sign = -1, x_U=x_U, x_L=x_L, norm=norm)
-                    ub = self._get_concrete_bound2(upper_A_with_dyn, upper_sum_b_with_dyn, sign = +1, x_U=x_U, x_L=x_L, norm=norm)
+                    lb = self._get_concrete_bound_polytope(lower_A_with_dyn, lower_sum_b_with_dyn, sign = -1)
+                    ub = self._get_concrete_bound_polytope(upper_A_with_dyn, upper_sum_b_with_dyn, sign = +1)
 
             ub, lb = self._check_if_bnds_exist(ub=ub, lb=lb, x_U=x_U, x_L=x_L)
             return ub, upper_sum_b, lb, lower_sum_b
 
     # sign = +1: upper bound, sign = -1: lower bound
-    def _get_concrete_bound2(self, A, sum_b, x_U=None, x_L=None, norm=np.inf, sign = -1):
+    def _get_concrete_bound_polytope(self, A, sum_b, sign = -1):
         if A is None:
             return None
         A = A.view(A.size(0), A.size(1), -1)
@@ -148,7 +149,7 @@ class BoundClosedLoopController(BoundSequential):
         return bound
 
     # sign = +1: upper bound, sign = -1: lower bound
-    def _get_concrete_bound3(self, lower_A, upper_A, lower_sum_b, upper_sum_b):
+    def _get_concrete_bound_polytope_with_control_limits(self, lower_A, upper_A, lower_sum_b, upper_sum_b):
 
         u_min, u_max = self.u_limits
 
@@ -204,7 +205,7 @@ class BoundClosedLoopController(BoundSequential):
         return bound
 
     # sign = +1: upper bound, sign = -1: lower bound
-    def _get_concrete_bound(self, A, sum_b, x_U=None, x_L=None, norm=np.inf, sign = -1):
+    def _get_concrete_bound_lpball(self, A, sum_b, x_U=None, x_L=None, norm=np.inf, sign = -1):
         if A is None:
             return None
         A = A.view(A.size(0), A.size(1), -1)
@@ -234,7 +235,7 @@ class BoundClosedLoopController(BoundSequential):
             sum_b = sum_b.squeeze(-1)
         bound = bound.squeeze(-1) + sum_b
 
-        return bound
+        return bound.data.numpy()
 
 if __name__ == '__main__':
     from keras.models import model_from_json

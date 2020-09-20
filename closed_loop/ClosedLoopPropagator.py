@@ -5,6 +5,9 @@ import pypoman
 from closed_loop.reach_sdp import getE_in, getE_mid, getE_out, getInputConstraints, getOutputConstraints, getNNConstraints
 import cvxpy as cp
 from tqdm import tqdm
+from closed_loop.ClosedLoopConstraints import PolytopeInputConstraint, LpInputConstraint, PolytopeOutputConstraint, LpOutputConstraint
+from copy import deepcopy
+
 
 class ClosedLoopPropagator(Propagator):
     def __init__(self, input_shape=None, At=None, bt=None, ct=None):
@@ -13,17 +16,19 @@ class ClosedLoopPropagator(Propagator):
         self.bt = bt
         self.ct = ct
 
-    def get_one_step_reachable_set(self, A_inputs, b_inputs, A_out, u_limits=[-5., 5.]):
+    def get_one_step_reachable_set(self, input_constraint, output_constraint, u_limits=[-5., 5.]):
         raise NotImplementedError
 
-    def get_reachable_set(self, A_inputs, b_inputs, A_out, t_max, u_limits=None):
-        all_bs = []
-        bs, _ = self.get_one_step_reachable_set(A_inputs, b_inputs, A_out, u_limits=u_limits)
-        all_bs.append(bs)
+    def get_reachable_set(self, input_constraint, output_constraint, t_max, u_limits=None):
+        output_constraints = []
+        output_constraint, _ = self.get_one_step_reachable_set(input_constraint, output_constraint, u_limits=u_limits)
+        output_constraints.append(deepcopy(output_constraint))
         for i in range(1, t_max):
-            bs, _ = self.get_one_step_reachable_set(A_out, bs, A_out, u_limits=u_limits)
-            all_bs.append(bs)
-        return all_bs, {}
+            next_input_constraint = output_constraint.to_input_constraint()
+            next_output_constraint = deepcopy(output_constraint)
+            output_constraint, _ = self.get_one_step_reachable_set(next_input_constraint, next_output_constraint, u_limits=u_limits)
+            output_constraints.append(deepcopy(output_constraint))
+        return output_constraints, {}
 
 class ClosedLoopSDPPropagator(ClosedLoopPropagator):
     def __init__(self, input_shape=None, At=None, bt=None, ct=None):
@@ -32,7 +37,17 @@ class ClosedLoopSDPPropagator(ClosedLoopPropagator):
     def torch2network(self, torch_model):
         return torch_model
 
-    def get_one_step_reachable_set(self, A_inputs, b_inputs, A_out, u_limits=[-5., 5.]):
+    def get_one_step_reachable_set(self, input_constraint, output_constraint, u_limits=[-5., 5.]):
+        if isinstance(output_constraint, PolytopeOutputConstraint):
+            A_out = output_constraint.A
+        else:
+            raise NotImplementedError
+        if isinstance(input_constraint, PolytopeInputConstraint):
+            A_inputs = input_constraint.A
+            b_inputs = input_constraint.b
+        else:
+            raise NotImplementedError
+
         # Count number of units in each layer, except last layer
         # For keras:
         # num_neurons = np.sum([layer.get_config()['units'] for layer in self.network.layers][:-1])
@@ -76,12 +91,17 @@ class ClosedLoopSDPPropagator(ClosedLoopPropagator):
             # print("status:", prob.status)
             bs[i] = b_i.value
 
+        if isinstance(output_constraint, PolytopeOutputConstraint):
+            output_constraint.b = bs
+        else:
+            raise NotImplementedError
+
         # print("status:", prob.status)
         # print("optimal value", prob.value)
         # print("b_{i}: {val}".format(i=i, val=b_i.value))
         # print("S_{i}: {val}".format(i=i, val=S_i.value))
 
-        return bs, {}
+        return output_constraint, {}
 
 class ClosedLoopCROWNIBPCodebasePropagator(ClosedLoopPropagator):
     def __init__(self, input_shape=None, At=None, bt=None, ct=None):
@@ -96,36 +116,69 @@ class ClosedLoopCROWNIBPCodebasePropagator(ClosedLoopPropagator):
     def forward_pass(self, input_data):
         return self.network(torch.Tensor(input_data), method_opt=None).data.numpy()
 
-    def get_one_step_reachable_set(self, A_inputs, b_inputs, A_out, u_limits=None):
-        # Get bounds on each state from A_inputs, b_inputs
-        num_states = self.At.shape[0]
-        vertices = pypoman.compute_polygon_hull(A_inputs, b_inputs)
-        x_max = []
-        x_min = []
-        for state in range(num_states):
-            x_max.append(np.max([v[state] for v in vertices]))
-            x_min.append(np.min([v[state] for v in vertices]))
-        
-        num_facets = A_out.shape[0]
-        bs = np.zeros((num_facets))
+    def get_one_step_reachable_set(self, input_constraint, output_constraint, u_limits=None):
+        if isinstance(output_constraint, PolytopeOutputConstraint):
+            A_out = output_constraint.A
+            num_facets = A_out.shape[0]
+            bs = np.zeros((num_facets))
+        elif isinstance(output_constraint, LpOutputConstraint):
+            A_out = np.eye(2)
+            num_facets = A_out.shape[0]
+            ranges = np.zeros((num_facets,2))
+        else:
+            raise NotImplementedError
+
+        if isinstance(input_constraint, PolytopeInputConstraint):
+            A_inputs = input_constraint.A
+            b_inputs = input_constraint.b
+
+            # Get bounds on each state from A_inputs, b_inputs
+            num_states = self.At.shape[0]
+            vertices = pypoman.compute_polygon_hull(A_inputs, b_inputs)
+            x_max = []
+            x_min = []
+            for state in range(num_states):
+                x_max.append(np.max([v[state] for v in vertices]))
+                x_min.append(np.min([v[state] for v in vertices]))
+            norm = np.inf
+        elif isinstance(input_constraint, LpInputConstraint):
+            x_min = input_constraint.range[...,0]
+            x_max = input_constraint.range[...,1]
+            norm = input_constraint.p
+            A_inputs = None
+            b_inputs = None
+        else:
+            raise NotImplementedError
+
         for i in range(num_facets):
+            if A_out is None:
+                A_out_torch = None
+            else:
+                A_out_torch = torch.Tensor([A_out[i,:]])
             xt1_max, _, xt1_min, _ = self.network(method_opt=self.method_opt,
-                                        norm=np.inf,
+                                        norm=norm,
                                         x_U=torch.Tensor([x_max]),
                                         x_L=torch.Tensor([x_min]),
                                         upper=True, lower=True, C=torch.Tensor([[[1]]]),
-                                        A_out=torch.Tensor([A_out[i,:]]),
+                                        A_out=A_out_torch,
                                         A_in=A_inputs, b_in=b_inputs,
                                         u_limits=u_limits)
-            # xt1_max, _, xt1_min, _ = self.network.full_backward_range(norm=np.inf,
-            #                             x_U=torch.Tensor([x_max]),
-            #                             x_L=torch.Tensor([x_min]),
-            #                             upper=True, lower=True, C=torch.Tensor([[[1]]]),
-            #                             A_out=torch.Tensor([A_out[i,:]]),
-            #                             A_in=A_inputs, b_in=b_inputs,
-            #                             u_limits=u_limits)
-            bs[i] = xt1_max
-        return bs, {}
+            if isinstance(output_constraint, PolytopeOutputConstraint):
+                bs[i] = xt1_max
+            elif isinstance(output_constraint, LpOutputConstraint):
+                ranges[i,0] = xt1_min[0][0]
+                ranges[i,1] = xt1_max[0][0]
+            else:
+                raise NotImplementedError
+
+        if isinstance(output_constraint, PolytopeOutputConstraint):
+            output_constraint.b = bs
+        elif isinstance(output_constraint, LpOutputConstraint):
+            output_constraint.range = ranges
+        else:
+            raise NotImplementedError
+
+        return output_constraint, {}
 
 class ClosedLoopIBPPropagator(ClosedLoopCROWNIBPCodebasePropagator):
     def __init__(self, input_shape=None, At=None, bt=None, ct=None):

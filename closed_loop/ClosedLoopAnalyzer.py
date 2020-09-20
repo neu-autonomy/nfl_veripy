@@ -12,6 +12,7 @@ import matplotlib.pyplot as plt
 
 from closed_loop.ClosedLoopPartitioner import ClosedLoopNoPartitioner, ClosedLoopUniformPartitioner
 from closed_loop.ClosedLoopPropagator import ClosedLoopCROWNPropagator, ClosedLoopIBPPropagator, ClosedLoopFastLinPropagator, ClosedLoopSDPPropagator
+from closed_loop.ClosedLoopConstraints import PolytopeInputConstraint, LpInputConstraint, PolytopeOutputConstraint, LpOutputConstraint
 
 # save_dir = "{}/results/analyzer/".format(os.path.dirname(os.path.abspath(__file__)))
 # os.makedirs(save_dir, exist_ok=True)
@@ -45,20 +46,20 @@ class ClosedLoopAnalyzer(Analyzer):
         dynamics = {"At": self.At, "bt": self.bt, "ct": self.ct}
         return self.propagator_dict[propagator](**{**hyperparams, **dynamics})
 
-    def get_one_step_reachable_set(self, A_inputs, b_inputs, A_out):
-        reachable_set, info = self.partitioner.get_one_step_reachable_set(A_inputs, b_inputs, A_out, self.propagator)
+    def get_one_step_reachable_set(self, input_constraint, output_constraint):
+        reachable_set, info = self.partitioner.get_one_step_reachable_set(input_constraint, output_constraint, self.propagator)
         return reachable_set, info
 
-    def get_reachable_set(self, A_inputs, b_inputs, A_out, t_max):
-        reachable_set, info = self.partitioner.get_reachable_set(A_inputs, b_inputs, A_out, self.propagator, t_max)
+    def get_reachable_set(self, input_constraint, output_constraint, t_max):
+        reachable_set, info = self.partitioner.get_reachable_set(input_constraint, output_constraint, self.propagator, t_max)
         return reachable_set, info
 
-    def visualize(self, A_inputs, b_inputs, A_out, b_out, show=True, show_samples=False, **kwargs):
+    def visualize(self, input_constraint, output_constraint, show=True, show_samples=False, **kwargs):
         # sampled_outputs = self.get_sampled_outputs(input_range)
         # output_range_exact = self.samples_to_range(sampled_outputs)
 
-        self.partitioner.setup_visualization(A_inputs, b_inputs, A_out, b_out, self.propagator, show_samples=show_samples)
-        self.partitioner.visualize(kwargs.get("exterior_partitions", kwargs.get("all_partitions", [])), kwargs.get("interior_partitions", []), A_out, b_out)
+        self.partitioner.setup_visualization(input_constraint, output_constraint, self.propagator, show_samples=show_samples)
+        self.partitioner.visualize(kwargs.get("exterior_partitions", kwargs.get("all_partitions", [])), kwargs.get("interior_partitions", []), output_constraint)
 
         # self.partitioner.animate_axes.legend(bbox_to_anchor=(0,1.02,1,0.2), loc="lower left",
         #         mode="expand", borderaxespad=0, ncol=1)
@@ -131,13 +132,13 @@ if __name__ == '__main__':
     # Shape of reachable set polytope
     A_out = get_polytope_A(9)
 
-    # all_A_out.append(all_A_out[0])
-    # all_bs = reachLP_n(t_max, model, A_inputs, b_inputs, At, bt, ct, A_out)
+    # all_output_constraint.append(all_output_constraint[0])
+    # all_bs = reachLP_n(t_max, model, input_constraint, At, bt, ct, output_constraint)
     # all_all_bs.append(all_bs)
 
     # # SDP (pre-solved)
     # sdp_output_polytope_A = get_polytope_A(9)
-    # all_bs = reachSDP_n(t_max, model, A_inputs, b_inputs, At, bt, ct, sdp_output_polytope_A, u_min=u_min, u_max=u_max)
+    # all_bs = reachSDP_n(t_max, model, input_constraint, At, bt, ct, sdp_output_polytope_A, u_min=u_min, u_max=u_max)
     # # sdp_all_bs_small = all_bs.copy()
     # sdp_all_bs_large = all_bs.copy()
     # # sdp_all_bs_small_unbounded = all_bs.copy()
@@ -148,14 +149,14 @@ if __name__ == '__main__':
     # # sdp_all_bs = sdp_all_bs_small_unbounded
     # # sdp_all_bs = sdp_all_bs_large_unbounded
 
-    # all_A_out.append(sdp_output_polytope_A)
+    # all_output_constraint.append(sdp_output_polytope_A)
     # all_all_bs.append(sdp_all_bs)
 
     # run_simulation(At, bt, ct, dt,
     #            t_max, init_state_range, goal_state_range,
     #            u_min, u_max, num_states,
     #            collect_data=False,
-    #            show_bounds=True, all_bs=all_all_bs, A_in=all_A_out, bnd_colors=['g','r','c','r'],
+    #            show_bounds=True, all_bs=all_all_bs, A_in=all_output_constraint, bnd_colors=['g','r','c','r'],
     #            model=model,
     #            save_plot=False,
     #         num_samples = 1000, clip_control=True, show_dataset=False)
@@ -180,9 +181,15 @@ if __name__ == '__main__':
     analyzer.partitioner = partitioner_hyperparams
     analyzer.propagator = propagator_hyperparams
 
-    # b_out, info = analyzer.get_one_step_reachable_set(A_inputs, b_inputs, A_out)
-    b_out, analyzer_info = analyzer.get_reachable_set(A_inputs, b_inputs, A_out, t_max=5)
-    print("b_out:", b_out)
+    # input_constraint = PolytopeInputConstraint(A_inputs, b_inputs)
+    # output_constraint = PolytopeOutputConstraint(A_out)
+
+    input_constraint = LpInputConstraint(range=init_state_range, p=np.inf)
+    output_constraint = LpOutputConstraint(p=np.inf)
+
+    # b_out, analyzer_info = analyzer.get_reachable_set(None, None, output_constraint, t_max=5)
+    output_constraint, analyzer_info = analyzer.get_reachable_set(input_constraint, output_constraint, t_max=5)
+    print("output_constraint:", output_constraint)
     # output_range, analyzer_info = analyzer.get_output_range(input_range)
     # print("Estimated output_range:\n", output_range)
     # print("Number of propagator calls:", analyzer_info["num_propagator_calls"])
@@ -192,6 +199,6 @@ if __name__ == '__main__':
     # pars2 = '_'.join([str(key)+"_"+str(value) for key, value in propagator_hyperparams.items() if key not in ["input_shape", "type"]])
     # analyzer_info["save_name"] = save_dir+partitioner_hyperparams['type']+"_"+propagator_hyperparams['type']+"_"+pars+"_"+pars2+".png"
 
-    analyzer.visualize(A_inputs, b_inputs, A_out, b_out, show_samples=True, **analyzer_info)
+    analyzer.visualize(input_constraint, output_constraint, show_samples=True, **analyzer_info)
 
     print("--- done. ---")
