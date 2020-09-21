@@ -21,40 +21,42 @@ img_save_dir = save_dir+"/imgs/"
 os.makedirs(img_save_dir, exist_ok=True)
 
 experiments = [
-    {
-        'neurons': (2,50,2),
-        'activation': 'relu',
-        'seeds': range(10),
-        'name': "Small NN",
-    },
-    {
-        'neurons': (2,10,20,50,20,10,2),
-        'activation': 'relu',
-        'seeds': range(10),
-        'name': "Deep NN",
-    },
+  #  {
+    #    'neurons': (2,100,2),
+    #    'activation': 'relu',
+     #   'seeds': range(10),
+    #    'name': "Small NN",
+  #  },
+   # {
+      #  'neurons': (2,10,20,50,20,10,2),
+     #   'neurons': (2, 100, 100, 100, 100, 100, 100, 2),
+
+    #    'activation': 'relu',
+    #    'seeds': range(10),
+    #    'name': "Deep NN",
+   # },
     # {
     #     'neurons': (2,5,2),
     #     'activation': 'tanh',
     #     'seeds': range(10),
     #     'name': "Different Activation",
     # },
-    {
-        'neurons': (2,5,10),
-        'activation': 'relu',
-        'seeds': range(10),
-        'name': "Larger Output Dimension",
-    },
+  #  {
+     #   'neurons': (2,5,10),
+   #     'activation': 'relu',
+   #     'seeds': range(10),
+   #     'name': "Larger Output Dimension",
+  #  },
     {
         'neurons': (4,100,100,10),
         'activation': 'relu',
         'seeds': range(10),
-        'name': "Different Activation",
+       'name': "Different Activation",
     },
 ]
 
 # Select which algorithms and hyperparameters to evaluate
-partitioners = ["None", "SimGuided", "GreedySimGuided"]
+partitioners = ["None","SimGuided", "GreedySimGuided"]#, "AdaptiveSimGuided"]
 propagators = ["IBP_LIRPA", "CROWN_LIRPA", "FastLin_LIRPA"]
 partitioner_hyperparams_to_use = {
     "None":
@@ -64,21 +66,35 @@ partitioner_hyperparams_to_use = {
     "UnGuided":
         {
             "termination_condition_type": ["num_propagator_calls"],
-            "termination_condition_value": [100],
+            "termination_condition_value": [200],
             "num_simulations": [1000],
             "interior_condition": ["lower_bnds", "linf", "convex_hull"],
         },
     "SimGuided":
         {
-            "termination_condition_type": ["num_propagator_calls"],
-            "termination_condition_value": [100],
+            "termination_condition_type": ["time_budget"],
+
+          #  "termination_condition_type": ["num_propagator_calls"],
+            "termination_condition_value": [2],
             "num_simulations": [1000],
-            "interior_condition": ["lower_bnds", "linf", "convex_hull"],
+            "interior_condition": ["lower_bnds", "linf"],
         },
     "GreedySimGuided":
         {
             "termination_condition_type": ["num_propagator_calls"],
-            "termination_condition_value": [100],
+
+            "termination_condition_type": ["time_budget"],
+    
+            "termination_condition_value": [2],
+            "num_simulations": [1000],
+            "interior_condition": ["lower_bnds", "linf"],
+        },
+    "AdaptiveSimGuided":
+        {
+            "termination_condition_type": ["num_propagator_calls"],
+            "termination_condition_type": ["time_budget"],
+
+            "termination_condition_value": [2],
             "num_simulations": [1000],
             "interior_condition": ["lower_bnds", "linf", "convex_hull"],
         },
@@ -249,7 +265,7 @@ def run_and_add_row(analyzer, input_range, partitioner_hyperparams, propagator_h
         exact_hull = analyzer.get_exact_hull(input_range, N=int(1e5))
         error = analyzer.partitioner.get_error(exact_hull, analyzer_info["estimated_hull"])
     else:
-        exact_output_range, _ = analyzer.partitioner.sample(input_range, analyzer.propagator, N=int(1e5))
+        exact_output_range, _,_ = analyzer.partitioner.sample(input_range, analyzer.propagator, N=int(1e5))
         error = analyzer.partitioner.get_error(exact_output_range, output_range)
     print(error)
     # print(t_end-t_start)
@@ -523,7 +539,8 @@ def table_single_model(df, partitioners, propagators, boundaries, neurons, name,
         print("\\hline")
 
 def make_big_table(df):
-    partitioners = ["NoPartitioner", "SimGuidedPartitioner", "GreedySimGuidedPartitioner"]
+    partitioners = ["NoPartitioner", "SimGuidedPartitioner", "GreedySimGuidedPartitioner", "AdaptiveSimGuidedPartitioner"]
+
     propagators = ["IBPAutoLIRPAPropagator", "FastLinAutoLIRPAPropagator", "CROWNAutoLIRPAPropagator", "SDPPropagator"]
     boundaries = ["lower_bnds", "linf", "convex_hull"]
 
