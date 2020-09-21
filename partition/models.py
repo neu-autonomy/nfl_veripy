@@ -195,6 +195,38 @@ def get_model_filename(activation='relu', neurons=[2,5,20,40,40,20,2], seed=0):
     filename = "_".join(map(str, neurons))+"_"+activation+"_"+str(seed)
     return filename
 
+def lstm(hidden_size=64, num_classes=10, input_size=784, num_slices=8, seed=0):
+    torch.manual_seed(seed)
+    ## A disastrous hack...
+    import sys, os, auto_LiRPA
+    sequence_path = os.path.dirname(os.path.dirname(auto_LiRPA.__file__))+'/examples/sequence'
+    sys.path.append(sequence_path)
+    from lstm import LSTM
+    import argparse
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--seed", type=int, default=0)
+    parser.add_argument("--device", type=str, default="cpu", choices=["cuda", "cpu"])
+    parser.add_argument("--norm", type=int, default=2)
+    parser.add_argument("--eps", type=float, default=0.1)
+    parser.add_argument("--num_epochs", type=int, default=20)  
+    parser.add_argument("--batch_size", type=int, default=128)
+    parser.add_argument("--num_slices", type=int, default=num_slices)
+    parser.add_argument("--hidden_size", type=int, default=hidden_size)
+    parser.add_argument("--num_classes", type=int, default=num_classes) 
+    parser.add_argument("--input_size", type=int, default=input_size)
+    parser.add_argument("--lr", type=float, default=5e-3)
+    parser.add_argument("--dir", type=str, default=sequence_path+"/model", help="directory to load or save the model")
+    parser.add_argument("--num_epochs_warmup", type=int, default=1, help="number of epochs for the warmup stage when eps is linearly increased from 0 to the full value")
+    parser.add_argument("--log_interval", type=int, default=10, help="interval of printing the log during training")
+    args = parser.parse_args()   
+    torch_model = LSTM(args).to(args.device)
+
+    info = {
+        'model_neurons': [input_size, num_classes],
+    }
+
+    return torch_model, info
+
 def model_gh3():
     model = Sequential(
         Linear(2, 6),

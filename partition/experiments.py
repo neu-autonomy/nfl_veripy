@@ -3,7 +3,7 @@ import partition
 import partition.Partitioner
 import partition.Analyzer
 import partition.Propagator
-from partition.models import model_xiang_2020_robot_arm, model_gh1, model_gh2, random_model
+from partition.models import model_xiang_2020_robot_arm, model_gh1, model_gh2, random_model, lstm
 import numpy as np
 import pandas as pd
 import itertools
@@ -36,10 +36,56 @@ experiments = [
     #    'name': "Deep NN",
    # },
     # {
-    #     'neurons': (2,5,2),
-    #     'activation': 'tanh',
+    #     'model_fn': cnn_2layer,
+    #     'model_args': {
+    #         'in_ch': 1,
+    #         'in_dim': 4,
+    #         'width': 4,
+    #         'linear_size': 16,
+    #         'out_dim': 2,
+    #     },
     #     'seeds': range(10),
-    #     'name': "Different Activation",
+    #     'name': "CNN",
+    # },
+    # {
+    #     'model_fn': lstm,
+    #     'model_args': {
+    #         'hidden_size': 64, 
+    #         'num_classes': 2, 
+    #         'input_size': 64,
+    #         'num_slices': 8,
+    #     },
+    #     'input_shape': (8,8),
+    #     'lstm': True,
+    #     'seeds': range(10),
+    #     'name': "LSTM",
+    # },
+    {
+        'model_fn': random_model,
+        'model_args': {
+            'neurons': (2,100,2),
+            'activation': 'relu',
+        },
+        'seeds': range(10),
+        'name': "Small NN",
+    },
+    # {
+    #     'model_fn': random_model,
+    #     'model_args': {
+    #         'neurons': (2,100,100,100,100,100,100,2),
+    #         'activation': 'relu',
+    #     },
+    #     'seeds': range(10),
+    #     'name': "Deep NN",
+    # },
+    # {
+    #     'model_fn': random_model,
+    #     'model_args': {
+    #         'neurons': (4,100,100,10),
+    #         'activation': 'relu',
+    #     },
+    #     'seeds': range(10),
+    #     'name': "Larger Input/Output Dims",
     # },
   #  {
      #   'neurons': (2,5,10),
@@ -55,9 +101,23 @@ experiments = [
     },
 ]
 
+def experiment_input_range(lstm=False, neurons=None, input_shape=None):
+    if lstm:
+        # input_shape = (8,8)
+        input_range = np.zeros(input_shape+(2,))
+        input_range[-1,0:2,1] = 1.
+    else:
+        # For random models
+        input_range = np.zeros((neurons[0],2))
+        input_range[:,1] = 1.
+    return input_range
+
 # Select which algorithms and hyperparameters to evaluate
 partitioners = ["None","SimGuided", "GreedySimGuided"]#, "AdaptiveSimGuided"]
+# propagators = ["IBP_LIRPA"]
+# propagators = ["CROWN_LIRPA", "FastLin_LIRPA"]
 propagators = ["IBP_LIRPA", "CROWN_LIRPA", "FastLin_LIRPA"]
+# propagators = ["SDP"]
 partitioner_hyperparams_to_use = {
     "None":
         {
@@ -106,10 +166,13 @@ def collect_data_for_table():
 
     for experiment in experiments:
         for seed in experiment['seeds']:
-            model, model_info = random_model(activation=experiment['activation'],
-                neurons=experiment['neurons'], seed=seed)
+            model_fn = experiment['model_fn']
+            model, model_info = model_fn(seed=seed, **experiment['model_args'])
+            input_range = experiment_input_range(lstm=('lstm' in experiment and experiment['lstm']),
+                neurons=experiment['model_args']['neurons'], input_shape=experiment.get('input_shape', None))
             df = run_experiment(model=model, model_info=model_info, df=df, save_df=False,
-                partitioners=partitioners, propagators=propagators, partitioner_hyperparams_to_use=partitioner_hyperparams_to_use)
+                partitioners=partitioners, propagators=propagators, partitioner_hyperparams_to_use=partitioner_hyperparams_to_use,
+                input_range=input_range)
 
     # Save the df in the "results" dir (so you don't have to re-run the expt)
     current_datetime = datetime.now().strftime("%m-%d-%Y_%H-%M-%S")
@@ -123,10 +186,20 @@ def run_experiment(model=None, model_info=None, df=None, save_df=True, input_ran
         model, model_info = random_model(activation='relu', neurons=neurons, seed=0)
 
     if input_range is None:
+        # # For CNN
+        # input_range = np.zeros((1, 4, 4)+(2,))
+        # input_range[0,0,0,1] = 1.
+
+        # # For LSTM
+        # input_shape = (8,8)
+        # input_range = np.zeros(input_shape+(2,))
+        # input_range[-1,0:2,1] = 1.
+
+        # For random models
         input_range = np.zeros((model_info['model_neurons'][0],2))
         input_range[:,1] = 1.
-        # input_range[0,1] = 1.
-        # input_range[1,1] = 1.
+        input_range[0,1] = 1.
+        input_range[1,1] = 1.
         # uniform_partitions = np.ones((neurons[0]), dtype=int)
         # uniform_partitions[0:2] = 10
 
@@ -562,8 +635,20 @@ def make_big_table(df):
         #         row += " & " + algs[partitioner]["name"]
         # print(row + " \\\\ \\hline")
 
-        table_single_model(df[(df["model_neurons"] == experiment['neurons']) & (df["model_activation"] == experiment["activation"])], 
-            partitioners, propagators, boundaries, experiment['neurons'], experiment['name'], experiment['activation'])
+        try:
+            neurons = experiment['model_args']['neurons']
+            activation = experiment['model_args']['activation']
+        except:
+            neurons = (0,)
+            activation = 'relu'
+            # neurons = experiment['neurons']
+            # activation = experiment['activation']
+
+        # import pdb; pdb.set_trace()
+
+        table_single_model(df,
+        # table_single_model(df[(df["model_neurons"] == neurons) & (df["model_activation"] == activation)], 
+            partitioners, propagators, boundaries, neurons, experiment['name'], activation)
         print("\\end{tabular}")
         print("\n\n --- \n\n")
 
@@ -667,6 +752,13 @@ if __name__ == '__main__':
         # latest_file = save_dir+"/07-28-2020_16-00-59.pkl"
         # df = pd.read_pickle(latest_file)
         # latest_file = save_dir+"/07-28-2020_15-48-05.pkl"
+        # df2 = pd.read_pickle(latest_file)
+        # df = pd.concat([df, df2])
+        
+        # # Plot for acc 2020 table
+        # latest_file = save_dir+"/09-12-2020_13-36-03.pkl"
+        # df = pd.read_pickle(latest_file)
+        # latest_file = save_dir+"/09-12-2020_14-02-27.pkl"
         # df2 = pd.read_pickle(latest_file)
         # df = pd.concat([df, df2])
 
