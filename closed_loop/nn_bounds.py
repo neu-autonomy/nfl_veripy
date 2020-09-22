@@ -26,7 +26,7 @@ class BoundClosedLoopController(BoundSequential):
         b = BoundClosedLoopController(A_dyn=A_dyn, b_dyn=b_dyn, c_dyn=c_dyn, layers=layers)
         return b
 
-    def _add_dynamics(self, lower_A, upper_A, lower_sum_b, upper_sum_b):
+    def _add_dynamics(self, lower_A, upper_A, lower_sum_b, upper_sum_b, A_out=None, A_dyn=None, b_dyn=None):
 
         '''
 
@@ -50,7 +50,14 @@ class BoundClosedLoopController(BoundSequential):
 
         '''
 
-        flip = torch.matmul(self.A_out, self.b_dyn) < 0
+        if A_out is None:
+            A_out = self.A_out
+        if A_dyn is None:
+            A_dyn = self.A_dyn
+        if b_dyn is None:
+            b_dyn = self.b_dyn
+
+        flip = torch.matmul(A_out, b_dyn) < 0
         if flip:
             upsilon = lower_A
             psi = lower_sum_b
@@ -62,19 +69,18 @@ class BoundClosedLoopController(BoundSequential):
             xi = lower_A
             gamma = lower_sum_b
 
-        lower_A_with_dyn = torch.matmul(self.A_out, self.A_dyn+self.b_dyn.bmm(xi))
-        upper_A_with_dyn = torch.matmul(self.A_out, self.A_dyn+self.b_dyn.bmm(upsilon))
-        lower_sum_b_with_dyn = torch.matmul(self.A_out, self.b_dyn * gamma)
-        upper_sum_b_with_dyn = torch.matmul(self.A_out, self.b_dyn * psi)
+        lower_A_with_dyn = torch.matmul(A_out, A_dyn+b_dyn.bmm(xi))
+        upper_A_with_dyn = torch.matmul(A_out, A_dyn+b_dyn.bmm(upsilon))
+        lower_sum_b_with_dyn = torch.matmul(A_out, b_dyn * gamma)
+        upper_sum_b_with_dyn = torch.matmul(A_out, b_dyn * psi)
         return lower_A_with_dyn, upper_A_with_dyn, lower_sum_b_with_dyn, upper_sum_b_with_dyn
 
-    def full_backward_range(self, norm=np.inf, x_U=None, x_L=None, eps=None, C=None, upper=True, lower=True, A_out=None, A_in=None, b_in=None, closed_loop=True, u_limits=None):
+    def full_backward_range(self, norm=np.inf, x_U=None, x_L=None, eps=None, C=None, upper=True, lower=True, A_out=None, A_in=None, b_in=None, return_matrices=False, u_limits=None):
         self.A_out = A_out # output constraints (facet of polytope)
         self.A_in = A_in # input polytope constraints (alternative to x \in eps_ball)
         self.b_in = b_in # input polytope constraints (alternative to x \in eps_ball)
-        self.closed_loop = closed_loop
         self.u_limits = u_limits
-        return super().full_backward_range(norm=norm, x_U=x_U, x_L=x_L, eps=eps, C=C, upper=upper, lower=lower)
+        return super().full_backward_range(norm=norm, x_U=x_U, x_L=x_L, eps=eps, C=C, upper=upper, lower=lower, return_matrices=return_matrices)
 
     ## High level function, will be called outside
     # @param norm perturbation norm (np.inf, 2)
@@ -92,33 +98,30 @@ class BoundClosedLoopController(BoundSequential):
             return super().backward_range(norm=norm, x_U=x_U, x_L=x_L, eps=eps, C=C, upper=upper, lower=lower, modules=modules)
         else:
             lower_A, upper_A, lower_sum_b, upper_sum_b = self._prop_from_last_layer(C=C, x_U=x_U, modules=modules, upper=upper, lower=lower)
-            ###########
-            # MAJOR HACK to extract lambda matrices from calculations
-            if self.closed_loop == False:
+
+            if return_matrices:
+                # The caller doesn't care about the actual bounds, just the matrices used to compute them
                 return lower_A, upper_A, lower_sum_b, upper_sum_b
-            ##########
 
-            ### TODO: Make this part its own method -- we now have the NN matrices (slow),
-            # so we just need to run the optimizations per dimension (fast)
-            # -- right now, we re-compute lower_A, upper_A, etc. for each dimension/output facet.
+            ub, lb = self.compute_bound_from_matrices(lower_A, lower_sum_b, upper_A, upper_sum_b, x_U, x_L, norm)
+            return ub, lb
 
-            if self.u_limits is not None:
-                raise NotImplementedError
-                lb = self._get_concrete_bound_polytope_with_control_limits(lower_A, upper_A, lower_sum_b, upper_sum_b, sign = -1)
-                ub = self._get_concrete_bound_polytope_with_control_limits(lower_A, upper_A, lower_sum_b, upper_sum_b)
+    def compute_bound_from_matrices(self, lower_A, lower_sum_b, upper_A, upper_sum_b, x_U, x_L, norm, A_out=None, A_dyn=None, b_dyn=None):
+        lower_A_with_dyn, upper_A_with_dyn, lower_sum_b_with_dyn, upper_sum_b_with_dyn = self._add_dynamics(lower_A, upper_A, lower_sum_b, upper_sum_b, A_out=A_out, A_dyn=A_dyn, b_dyn=b_dyn)
+        if self.u_limits is None:
+            if self.A_in is None or self.b_in is None:
+                lb = self._get_concrete_bound_lpball(lower_A_with_dyn, lower_sum_b_with_dyn, sign = -1, x_U=x_U, x_L=x_L, norm=norm)
+                ub = self._get_concrete_bound_lpball(upper_A_with_dyn, upper_sum_b_with_dyn, sign = +1, x_U=x_U, x_L=x_L, norm=norm)
             else:
-                # lower_A_with_dyn, upper_A_with_dyn, lower_sum_b_with_dyn, upper_sum_b_with_dyn = lower_A, upper_A, lower_sum_b, upper_sum_b 
-                lower_A_with_dyn, upper_A_with_dyn, lower_sum_b_with_dyn, upper_sum_b_with_dyn = self._add_dynamics(lower_A, upper_A, lower_sum_b, upper_sum_b)
-            
-                if self.A_in is None or self.b_in is None:
-                    lb = self._get_concrete_bound_lpball(lower_A_with_dyn, lower_sum_b_with_dyn, sign = -1, x_U=x_U, x_L=x_L, norm=norm)
-                    ub = self._get_concrete_bound_lpball(upper_A_with_dyn, upper_sum_b_with_dyn, sign = +1, x_U=x_U, x_L=x_L, norm=norm)
-                else:
-                    lb = self._get_concrete_bound_polytope(lower_A_with_dyn, lower_sum_b_with_dyn, sign = -1)
-                    ub = self._get_concrete_bound_polytope(upper_A_with_dyn, upper_sum_b_with_dyn, sign = +1)
+                lb = self._get_concrete_bound_polytope(lower_A_with_dyn, lower_sum_b_with_dyn, sign = -1)
+                ub = self._get_concrete_bound_polytope(upper_A_with_dyn, upper_sum_b_with_dyn, sign = +1)
+        else:
+            raise NotImplementedError
+            lb = self._get_concrete_bound_polytope_with_control_limits(lower_A, upper_A, lower_sum_b, upper_sum_b, sign = -1)
+            ub = self._get_concrete_bound_polytope_with_control_limits(lower_A, upper_A, lower_sum_b, upper_sum_b)
 
-            ub, lb = self._check_if_bnds_exist(ub=ub, lb=lb, x_U=x_U, x_L=x_L)
-            return ub, upper_sum_b, lb, lower_sum_b
+        ub, lb = self._check_if_bnds_exist(ub=ub, lb=lb, x_U=x_U, x_L=x_L)
+        return ub, lb
 
     # sign = +1: upper bound, sign = -1: lower bound
     def _get_concrete_bound_polytope(self, A, sum_b, sign = -1):

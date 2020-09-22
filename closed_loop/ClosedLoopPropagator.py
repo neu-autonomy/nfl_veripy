@@ -150,19 +150,27 @@ class ClosedLoopCROWNIBPCodebasePropagator(ClosedLoopPropagator):
         else:
             raise NotImplementedError
 
+        # Compute the NN output matrices (for the input constraints)
+        lower_A, upper_A, lower_sum_b, upper_sum_b = self.network(method_opt=self.method_opt,
+                                    norm=norm,
+                                    x_U=torch.Tensor([x_max]),
+                                    x_L=torch.Tensor([x_min]),
+                                    upper=True, lower=True, C=torch.Tensor([[[1]]]),
+                                    A_out=None,
+                                    A_in=A_inputs, b_in=b_inputs,
+                                    u_limits=u_limits,
+                                    return_matrices=True)
+
         for i in range(num_facets):
+            # For each dimension of the output constraint (facet/lp-dimension):
+            #  compute a bound of the NN output using the pre-computed matrices
             if A_out is None:
                 A_out_torch = None
             else:
                 A_out_torch = torch.Tensor([A_out[i,:]])
-            xt1_max, _, xt1_min, _ = self.network(method_opt=self.method_opt,
-                                        norm=norm,
-                                        x_U=torch.Tensor([x_max]),
-                                        x_L=torch.Tensor([x_min]),
-                                        upper=True, lower=True, C=torch.Tensor([[[1]]]),
-                                        A_out=A_out_torch,
-                                        A_in=A_inputs, b_in=b_inputs,
-                                        u_limits=u_limits)
+            
+            xt1_max, xt1_min = self.network.compute_bound_from_matrices(lower_A, lower_sum_b, upper_A, upper_sum_b, torch.Tensor([x_max]), torch.Tensor([x_min]), norm, A_out=A_out_torch, A_dyn=torch.Tensor([self.At]), b_dyn=torch.Tensor([self.bt]))
+
             if isinstance(output_constraint, PolytopeOutputConstraint):
                 bs[i] = xt1_max
             elif isinstance(output_constraint, LpOutputConstraint):
