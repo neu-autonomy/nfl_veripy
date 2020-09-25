@@ -18,13 +18,10 @@ from closed_loop.ClosedLoopConstraints import PolytopeInputConstraint, LpInputCo
 # os.makedirs(save_dir, exist_ok=True)
 
 class ClosedLoopAnalyzer(Analyzer):
-    def __init__(self, torch_model, At=None, bt=None, ct=None):
+    def __init__(self, torch_model, dynamics):
         self.torch_model = torch_model
+        self.dynamics = dynamics
         Analyzer.__init__(self, torch_model=torch_model)
-
-        self.At = At
-        self.bt = bt
-        self.ct = ct
 
         # All possible partitioners, propagators
         self.partitioner_dict = {
@@ -39,12 +36,13 @@ class ClosedLoopAnalyzer(Analyzer):
         }
 
     def instantiate_partitioner(self, partitioner, hyperparams):
-        dynamics = {"At": self.At, "bt": self.bt, "ct": self.ct}
-        return self.partitioner_dict[partitioner](**{**hyperparams, **dynamics})
+        # dynamics = {"At": self.dynamics.At, "bt": self.dynamics.bt, "ct": self.dynamics.ct}
+        # return self.partitioner_dict[partitioner](**{**hyperparams, **dynamics})
+        return self.partitioner_dict[partitioner](**{**hyperparams, "dynamics": self.dynamics})
 
     def instantiate_propagator(self, propagator, hyperparams):
-        dynamics = {"At": self.At, "bt": self.bt, "ct": self.ct}
-        return self.propagator_dict[propagator](**{**hyperparams, **dynamics})
+        # dynamics = {"At": self.dynamics.At, "bt": self.dynamics.bt, "ct": self.dynamics.ct}
+        return self.propagator_dict[propagator](**{**hyperparams, "dynamics": self.dynamics})
 
     def get_one_step_reachable_set(self, input_constraint, output_constraint):
         reachable_set, info = self.partitioner.get_one_step_reachable_set(input_constraint, output_constraint, self.propagator)
@@ -100,37 +98,13 @@ if __name__ == '__main__':
     ##############
     # Dynamics: Double integrator
     ##############
-    At = np.array([[1, 1],[0, 1]])
-    bt = np.array([[0.5], [1]])
-    ct = np.array([0., 0.]).T
-    num_states, num_inputs = bt.shape
-    # Min/max control inputs
-    u_min = -1; u_max = 1
-
+    from closed_loop.Dynamics import DoubleIntegrator
+    dynamics = DoubleIntegrator()
+    dt = 1.0 # Sampling time for simulation
     init_state_range = np.array([ # (num_inputs, 2)
                       [2.5, 3.0], # x0min, x0max
                       [-0.25, 0.25], # x1min, x1max
     ])
-    goal_state_range = np.array([
-                          [-0.25, 0.25],
-                          [-0.25, 0.25]            
-    ])
-
-    # Sampling time for simulation
-    dt = 1.0
-
-    # LQR-MPC parameters
-    # Q = np.eye(2)
-    # R = 1
-    # Pinf = solve_discrete_are(At, bt, Q, R)
-    #
-    ##############
-
-    from closed_loop.utils import init_state_range_to_polytope, get_polytope_A
-    A_inputs, b_inputs = init_state_range_to_polytope(init_state_range)
-
-    # Shape of reachable set polytope
-    A_out = get_polytope_A(9)
 
     # all_output_constraint.append(all_output_constraint[0])
     # all_bs = reachLP_n(t_max, model, input_constraint, At, bt, ct, output_constraint)
@@ -152,15 +126,6 @@ if __name__ == '__main__':
     # all_output_constraint.append(sdp_output_polytope_A)
     # all_all_bs.append(sdp_all_bs)
 
-    # run_simulation(At, bt, ct, dt,
-    #            t_max, init_state_range, goal_state_range,
-    #            u_min, u_max, num_states,
-    #            collect_data=False,
-    #            show_bounds=True, all_bs=all_all_bs, A_in=all_output_constraint, bnd_colors=['g','r','c','r'],
-    #            model=model,
-    #            save_plot=False,
-    #         num_samples = 1000, clip_control=True, show_dataset=False)
-
     partitioner_hyperparams = {
         # "type": "None",
         "type": "Uniform",
@@ -177,17 +142,21 @@ if __name__ == '__main__':
     }
 
     # Run analysis & generate a plot
-    analyzer = ClosedLoopAnalyzer(torch_model, At, bt, ct)
+    analyzer = ClosedLoopAnalyzer(torch_model, dynamics)
     analyzer.partitioner = partitioner_hyperparams
     analyzer.propagator = propagator_hyperparams
 
+    ### Polytope Boundaries
+    # from closed_loop.utils import init_state_range_to_polytope, get_polytope_A
+    # A_inputs, b_inputs = init_state_range_to_polytope(init_state_range)
+    # A_out = get_polytope_A(9)
     # input_constraint = PolytopeInputConstraint(A_inputs, b_inputs)
     # output_constraint = PolytopeOutputConstraint(A_out)
 
+    ### LP-Ball Boundaries
     input_constraint = LpInputConstraint(range=init_state_range, p=np.inf)
     output_constraint = LpOutputConstraint(p=np.inf)
 
-    # b_out, analyzer_info = analyzer.get_reachable_set(None, None, output_constraint, t_max=5)
     output_constraint, analyzer_info = analyzer.get_reachable_set(input_constraint, output_constraint, t_max=5)
     print("output_constraint:", output_constraint)
     # output_range, analyzer_info = analyzer.get_output_range(input_range)

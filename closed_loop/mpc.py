@@ -1,10 +1,10 @@
 import numpy as np
 import cvxpy as cp
 
-def control_mpc(x0, A, b, Q, R, P, u_min, u_max, n_mpc=10, debug=False):
+def control_mpc(x0, A, b, c, Q, R, P, u_min, u_max, n_mpc=10, debug=False):
     # TODO: account for final state constraint using O_inf
 
-    u = cp.Variable(n_mpc)
+    u = cp.Variable((n_mpc, b.shape[1]))
     x = cp.Variable((n_mpc+1, x0.shape[0]))
 
     cost = 0
@@ -13,7 +13,9 @@ def control_mpc(x0, A, b, Q, R, P, u_min, u_max, n_mpc=10, debug=False):
     constrs.append(x[0,:] == x0)
     step = 0
     while step < n_mpc:
-        constr = x[step+1,:] == A*x[step, :] + (b*u[step])[:,0]
+
+        # import pdb; pdb.set_trace()
+        constr = x[step+1,:] == A*x[step, :] + (b*u[step,:]) + c
         constrs.append(constr)
 
         # Input constraints
@@ -46,7 +48,7 @@ def control_mpc(x0, A, b, Q, R, P, u_min, u_max, n_mpc=10, debug=False):
 
     if debug:
         print(x.value)
-    return u.value[0]
+    return u.value[0,:]
 
 
 def control_linear(x):

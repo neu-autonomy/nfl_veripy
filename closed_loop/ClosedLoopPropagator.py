@@ -10,11 +10,9 @@ from copy import deepcopy
 
 
 class ClosedLoopPropagator(Propagator):
-    def __init__(self, input_shape=None, At=None, bt=None, ct=None):
+    def __init__(self, input_shape=None, dynamics=None):
         Propagator.__init__(self, input_shape=input_shape)
-        self.At = At
-        self.bt = bt
-        self.ct = ct
+        self.dynamics = dynamics
 
     def get_one_step_reachable_set(self, input_constraint, output_constraint, u_limits=[-5., 5.]):
         raise NotImplementedError
@@ -31,8 +29,8 @@ class ClosedLoopPropagator(Propagator):
         return output_constraints, {}
 
 class ClosedLoopSDPPropagator(ClosedLoopPropagator):
-    def __init__(self, input_shape=None, At=None, bt=None, ct=None):
-        ClosedLoopPropagator.__init__(self, input_shape=input_shape, At=At, bt=bt, ct=ct)
+    def __init__(self, input_shape=None, dynamics=None):
+        ClosedLoopPropagator.__init__(self, input_shape=input_shape, dynamics=dynamics)
 
     def torch2network(self, torch_model):
         return torch_model
@@ -56,15 +54,15 @@ class ClosedLoopSDPPropagator(ClosedLoopPropagator):
 
         # Number of vertices in input polyhedron
         m = A_inputs.shape[0]
-        num_states = self.At.shape[0]
-        num_inputs = self.bt.shape[1]
+        num_states = self.dynamics.At.shape[0]
+        num_inputs = self.dynamics.bt.shape[1]
 
         u_min, u_max = u_limits
 
         # Get change of basis matrices
         E_in = getE_in(num_states, num_neurons, num_inputs)
         E_mid = getE_mid(num_states, num_neurons, num_inputs, self.network, u_min, u_max)
-        E_out = getE_out(num_states, num_neurons, num_inputs, self.At, self.bt, self.ct)
+        E_out = getE_out(num_states, num_neurons, num_inputs, self.dynamics.At, self.dynamics.bt, self.dynamics.ct)
 
         # Get P,Q,S and constraint lists
         P, input_set_constrs = getInputConstraints(num_states, m, A_inputs, b_inputs)
@@ -104,13 +102,13 @@ class ClosedLoopSDPPropagator(ClosedLoopPropagator):
         return output_constraint, {}
 
 class ClosedLoopCROWNIBPCodebasePropagator(ClosedLoopPropagator):
-    def __init__(self, input_shape=None, At=None, bt=None, ct=None):
-        ClosedLoopPropagator.__init__(self, input_shape=input_shape, At=At, bt=bt, ct=ct)
+    def __init__(self, input_shape=None, dynamics=None):
+        ClosedLoopPropagator.__init__(self, input_shape=input_shape, dynamics=dynamics)
 
     def torch2network(self, torch_model):
         from closed_loop.nn_bounds import BoundClosedLoopController
         torch_model_cl = BoundClosedLoopController.convert(torch_model, self.params,
-            A_dyn=torch.Tensor([self.At]), b_dyn=torch.Tensor([self.bt]), c_dyn=[self.ct])
+            A_dyn=torch.Tensor([self.dynamics.At]), b_dyn=torch.Tensor([self.dynamics.bt]), c_dyn=[self.dynamics.ct])
         return torch_model_cl
 
     def forward_pass(self, input_data):
@@ -133,7 +131,7 @@ class ClosedLoopCROWNIBPCodebasePropagator(ClosedLoopPropagator):
             b_inputs = input_constraint.b
 
             # Get bounds on each state from A_inputs, b_inputs
-            num_states = self.At.shape[0]
+            num_states = self.dynamics.At.shape[0]
             vertices = pypoman.compute_polygon_hull(A_inputs, b_inputs)
             x_max = []
             x_min = []
@@ -169,7 +167,7 @@ class ClosedLoopCROWNIBPCodebasePropagator(ClosedLoopPropagator):
             else:
                 A_out_torch = torch.Tensor([A_out[i,:]])
             
-            xt1_max, xt1_min = self.network.compute_bound_from_matrices(lower_A, lower_sum_b, upper_A, upper_sum_b, torch.Tensor([x_max]), torch.Tensor([x_min]), norm, A_out=A_out_torch, A_dyn=torch.Tensor([self.At]), b_dyn=torch.Tensor([self.bt]))
+            xt1_max, xt1_min = self.network.compute_bound_from_matrices(lower_A, lower_sum_b, upper_A, upper_sum_b, torch.Tensor([x_max]), torch.Tensor([x_min]), norm, A_out=A_out_torch, A_dyn=torch.Tensor([self.dynamics.At]), b_dyn=torch.Tensor([self.dynamics.bt]))
 
             if isinstance(output_constraint, PolytopeOutputConstraint):
                 bs[i] = xt1_max
@@ -189,8 +187,8 @@ class ClosedLoopCROWNIBPCodebasePropagator(ClosedLoopPropagator):
         return output_constraint, {}
 
 class ClosedLoopIBPPropagator(ClosedLoopCROWNIBPCodebasePropagator):
-    def __init__(self, input_shape=None, At=None, bt=None, ct=None):
-        ClosedLoopCROWNIBPCodebasePropagator.__init__(self, input_shape=input_shape, At=At, bt=bt, ct=ct)
+    def __init__(self, input_shape=None, dynamics=None):
+        ClosedLoopCROWNIBPCodebasePropagator.__init__(self, input_shape=input_shape, dynamics=dynamics)
         raise NotImplementedError
         # TODO: Write nn_bounds.py:BoundClosedLoopController:interval_range
         # (using bound_layers.py:BoundSequential:interval_range)
@@ -198,14 +196,14 @@ class ClosedLoopIBPPropagator(ClosedLoopCROWNIBPCodebasePropagator):
         self.params = {}
 
 class ClosedLoopCROWNPropagator(ClosedLoopCROWNIBPCodebasePropagator):
-    def __init__(self, input_shape=None, At=None, bt=None, ct=None):
-        ClosedLoopCROWNIBPCodebasePropagator.__init__(self, input_shape=input_shape, At=At, bt=bt, ct=ct)
+    def __init__(self, input_shape=None, dynamics=None):
+        ClosedLoopCROWNIBPCodebasePropagator.__init__(self, input_shape=input_shape, dynamics=dynamics)
         self.method_opt = "full_backward_range"
         self.params = {"same-slope": False}
 
 class ClosedLoopFastLinPropagator(ClosedLoopCROWNIBPCodebasePropagator):
-    def __init__(self, input_shape=None, At=None, bt=None, ct=None):
-        ClosedLoopCROWNIBPCodebasePropagator.__init__(self, input_shape=input_shape, At=At, bt=bt, ct=ct)
+    def __init__(self, input_shape=None, dynamics=None):
+        ClosedLoopCROWNIBPCodebasePropagator.__init__(self, input_shape=input_shape, dynamics=dynamics)
         self.method_opt = "full_backward_range"
         self.params = {"same-slope": True}
 

@@ -1,3 +1,6 @@
+import numpy as np
+import pypoman
+
 class InputConstraint:
     def __init__(self):
         pass
@@ -10,6 +13,13 @@ class PolytopeInputConstraint(InputConstraint):
 
     def to_output_constraint(self):
         return PolytopeOutputConstraint(A=self.A)
+
+    def to_linf(self):
+        vertices = np.stack(pypoman.polygon.compute_polygon_hull(self.A, self.b))
+        ranges = np.empty((self.A.shape[1],2))
+        ranges[:,0] = np.min(vertices, axis=0)
+        ranges[:,1] = np.max(vertices, axis=0)
+        return ranges
 
 class LpInputConstraint(InputConstraint):
     def __init__(self, p, range):

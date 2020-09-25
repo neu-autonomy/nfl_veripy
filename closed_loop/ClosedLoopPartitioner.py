@@ -11,11 +11,9 @@ from closed_loop.ClosedLoopConstraints import PolytopeInputConstraint, LpInputCo
 from copy import deepcopy
 
 class ClosedLoopPartitioner(Partitioner):
-    def __init__(self, At=None, bt=None, ct=None):
+    def __init__(self, dynamics):
         Partitioner.__init__(self)
-        self.At = At
-        self.bt = bt
-        self.ct = ct
+        self.dynamics = dynamics
 
     def get_one_step_reachable_set(self, input_constraint, output_constraint, propagator):
         reachable_set, info = propagator.get_one_step_reachable_set(input_constraint, output_constraint)
@@ -29,9 +27,11 @@ class ClosedLoopPartitioner(Partitioner):
         if isinstance(output_constraint, PolytopeOutputConstraint):
             A_out = output_constraint.A
             b_out = output_constraint.b
+            t_max = len(b_out)
         elif isinstance(output_constraint, LpOutputConstraint):
             output_range = output_constraint.range
             output_p = output_constraint.p
+            t_max = len(output_range)
         else:
             raise NotImplementedError
         if isinstance(input_constraint, PolytopeInputConstraint):
@@ -70,44 +70,47 @@ class ClosedLoopPartitioner(Partitioner):
         self.animate_axes.set_xlabel(input_names[0])
         self.animate_axes.set_ylabel(input_names[1])
 
-        t_max = 5
-        dt = 1.
-        colors = [cm.get_cmap("tab10")(i) for i in range(t_max+1)]
+        if show_samples:
+            self.dynamics.show_samples(t_max, input_constraint, ax=self.animate_axes, controller=propagator.network)
 
-        num_samples = 1000
-        xs = np.zeros((num_samples, num_states))
-        np.random.seed(0)
-        dataset_index = 0
+        # t_max = 5
+        # dt = 1.
+        # colors = [cm.get_cmap("tab10")(i) for i in range(t_max+1)]
 
-        while dataset_index < num_samples:
+        # num_samples = 1000
+        # xs = np.zeros((num_samples, num_states))
+        # np.random.seed(0)
+        # dataset_index = 0
 
-            # Initial state
-            num_states = self.At.shape[0]
-            x = np.zeros((int((t_max)/dt)+1, num_states))
-            x[0,:] = np.random.uniform(
-                low=[2.5,-0.25], 
-                high=[3.0,0.25]
-                # low=init_state_range[:,0], 
-                # high=init_state_range[:,1]
-            )
-            this_colors = colors.copy()
+        # while dataset_index < num_samples:
 
-            t = 0
-            step = 0
-            while t < t_max:
-                t += dt
-                u = control_nn(x=x[step,:], model=propagator.network, use_torch=True)
-                # if clip_control:
-                #     u = np.clip(u, u_min, u_max)
-                # if collect_data:
-                #     xs[dataset_index, :] = x[step,:]
-                x[step+1,:] = np.dot(self.At, x[step, :]) + np.dot(self.bt,u)[:,0]
-                step += 1
-                dataset_index += 1
-                if dataset_index == num_samples:
-                    break
+        #     # Initial state
+        #     num_states = self.dynamics.At.shape[0]
+        #     x = np.zeros((int((t_max)/dt)+1, num_states))
+        #     x[0,:] = np.random.uniform(
+        #         low=[2.5,-0.25], 
+        #         high=[3.0,0.25]
+        #         # low=init_state_range[:,0], 
+        #         # high=init_state_range[:,1]
+        #     )
+        #     this_colors = colors.copy()
 
-            self.animate_axes.scatter(x[:,0], x[:,1], c=this_colors)
+        #     t = 0
+        #     step = 0
+        #     while t < t_max:
+        #         t += dt
+        #         u = control_nn(x=x[step,:], model=propagator.network, use_torch=True)
+        #         # if clip_control:
+        #         #     u = np.clip(u, u_min, u_max)
+        #         # if collect_data:
+        #         #     xs[dataset_index, :] = x[step,:]
+        #         x[step+1,:] = np.dot(self.dynamics.At, x[step, :]) + np.dot(self.dynamics.bt,u)[:,0]
+        #         step += 1
+        #         dataset_index += 1
+        #         if dataset_index == num_samples:
+        #             break
+
+        #     self.animate_axes.scatter(x[:,0], x[:,1], c=this_colors)
 
         # # Make a rectangle for the Exact boundaries
         # sampled_outputs = self.get_sampled_outputs(input_range, propagator)
@@ -281,12 +284,12 @@ class ClosedLoopPartitioner(Partitioner):
 
 
 class ClosedLoopNoPartitioner(ClosedLoopPartitioner):
-    def __init__(self, At=None, bt=None, ct=None):
-        ClosedLoopPartitioner.__init__(self, At=At, bt=bt, ct=ct)
+    def __init__(self, dynamics):
+        ClosedLoopPartitioner.__init__(self, dynamics=dynamics)
 
 class ClosedLoopUniformPartitioner(ClosedLoopPartitioner):
-    def __init__(self, num_partitions=16, At=None, bt=None, ct=None):
-        ClosedLoopPartitioner.__init__(self, At=At, bt=bt, ct=ct)
+    def __init__(self, dynamics, num_partitions=16):
+        ClosedLoopPartitioner.__init__(self, dynamics=dynamics)
         self.num_partitions = num_partitions
         self.interior_condition = "linf"
         self.show_animation = False
