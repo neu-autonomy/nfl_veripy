@@ -58,7 +58,7 @@ class ClosedLoopAnalyzer(Analyzer):
 
         self.partitioner.setup_visualization(input_constraint, output_constraint, self.propagator, show_samples=show_samples)
         self.partitioner.visualize(kwargs.get("exterior_partitions", kwargs.get("all_partitions", [])), kwargs.get("interior_partitions", []), output_constraint)
-
+        
         # self.partitioner.animate_axes.legend(bbox_to_anchor=(0,1.02,1,0.2), loc="lower left",
         #         mode="expand", borderaxespad=0, ncol=1)
 
@@ -72,8 +72,15 @@ class ClosedLoopAnalyzer(Analyzer):
         else:
             plt.close()
 
-    def get_sampled_outputs(self, input_range, N=1000):
-        return get_sampled_outputs(input_range, self.propagator, N=N)
+    #def get_sampled_outputs(self, input_range, N=1000):
+      #  return get_sampled_outputs(input_range, self.propagator, N=N)
+    def get_sampled_output_range(self, input_constraint, t_max =5, num_samples =1000):
+        return  self.partitioner.get_sampled_out_range(input_constraint, self.propagator, t_max, num_samples)
+   
+
+
+    def get_output_range(self, input_constraint, output_constraint):
+        return self.partitioner.get_output_range(input_constraint, output_constraint)
 
     def samples_to_range(self, sampled_outputs):
         return samples_to_range(sampled_outputs)
@@ -82,6 +89,9 @@ class ClosedLoopAnalyzer(Analyzer):
         sampled_outputs = self.get_sampled_outputs(input_range)
         output_range = self.samples_to_range(sampled_outputs)
         return output_range
+
+    def  get_error(self, input_constraint,output_constraint):
+        return self.partitioner.get_error(input_constraint,output_constraint , self.propagator)
 
 if __name__ == '__main__':
     # Import all deps
@@ -163,11 +173,16 @@ if __name__ == '__main__':
     # print("Estimated output_range:\n", output_range)
     # print("Number of propagator calls:", analyzer_info["num_propagator_calls"])
     # print("Number of partitions:", analyzer_info["num_partitions"])
-
+    
     # pars = '_'.join([str(key)+"_"+str(value) for key, value in partitioner_hyperparams.items() if key not in ["make_animation", "show_animation", "type"]])
     # pars2 = '_'.join([str(key)+"_"+str(value) for key, value in propagator_hyperparams.items() if key not in ["input_shape", "type"]])
     # analyzer_info["save_name"] = save_dir+partitioner_hyperparams['type']+"_"+propagator_hyperparams['type']+"_"+pars+"_"+pars2+".png"
-
+   # print("output constraint:", output_constraint)
+   # print("Analyzer:", analyzer_info)
+  #  print('estimated output rang', analyzer.get_output_range(input_constraint, output_constraint))
+  #  print('sampled output range', analyzer.get_sampled_output_range(input_constraint,t_max=5, num_samples=1000))
+    error, avg_error = analyzer.get_error(input_constraint,output_constraint)
+    print('Final step approximation error:{:.2f}\nAverage approximation error: {:.2f}'.format(error, avg_error))
     analyzer.visualize(input_constraint, output_constraint, show_samples=True, **analyzer_info)
-
+ 
     print("--- done. ---")

@@ -22,6 +22,49 @@ class ClosedLoopPartitioner(Partitioner):
     def get_reachable_set(self, input_constraint, output_constraint, propagator, t_max):
         reachable_set, info = propagator.get_reachable_set(input_constraint, output_constraint, t_max)
         return reachable_set, info
+    def get_output_range(self, input_constraint, output_constraint):
+
+        if isinstance(output_constraint, PolytopeOutputConstraint):
+            A_out = output_constraint.A
+            b_out = output_constraint.b
+            t_max = len(b_out)
+        elif isinstance(output_constraint, LpOutputConstraint):
+            output_range = output_constraint.range
+            output_p = output_constraint.p
+            t_max = len(output_range)
+        else:
+            raise NotImplementedError
+        if isinstance(input_constraint, PolytopeInputConstraint):
+            A_inputs = input_constraint.A
+            b_inputs = input_constraint.b
+            num_states = A_inputs.shape[-1]
+        elif isinstance(input_constraint, LpInputConstraint):
+            input_range = input_constraint.range
+            input_p = input_constraint.p
+            num_states = input_range.shape[0]
+        else:
+            raise NotImplementedError
+        return output_range
+    def get_error(self, input_constraint,output_constraint , propagator):
+        
+        if isinstance(input_constraint, LpInputConstraint):
+            output_range = output_constraint.range
+            t_max = len(output_range)
+            output_range_exact = self.get_sampled_out_range(input_constraint, propagator, t_max , num_samples =1000)
+            error = 0
+            for t in range(t_max):
+                true_area = np.product(output_range_exact[t,:,1] - output_range_exact[t,:,0])
+                estimated_area = np.product(output_range[t,:,1] - output_range[t,:,0])
+                error +=(estimated_area - true_area) / true_area
+        else:
+            raise NotImplementedError
+        final_error = (estimated_area - true_area) / true_area
+        avg_error = error/t_max
+        return final_error,avg_error
+        
+    def get_sampled_out_range(self, input_constraint, propagator, t_max =5, num_samples =1000):
+        return self.dynamics.get_sampled_output_range(input_constraint, t_max,  num_samples, controller=propagator.network)
+
 
     def setup_visualization(self, input_constraint, output_constraint, propagator, show_samples=True, outputs_to_highlight=None, inputs_to_highlight=None):
         if isinstance(output_constraint, PolytopeOutputConstraint):
@@ -197,7 +240,6 @@ class ClosedLoopPartitioner(Partitioner):
         # self.animate_axes.patches = self.default_patches[0].copy()
         # self.animate_axes.lines = self.default_lines[0].copy()
         input_dims_ = self.input_dims_
-
         # Rectangles that might still be outside the sim pts
         first = True
         for (input_range_, output_range_) in M:
