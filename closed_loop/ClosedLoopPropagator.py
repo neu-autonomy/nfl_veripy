@@ -183,7 +183,6 @@ class ClosedLoopCROWNIBPCodebasePropagator(ClosedLoopPropagator):
             output_constraint.range = ranges
         else:
             raise NotImplementedError
-
         return output_constraint, {}
 
 class ClosedLoopIBPPropagator(ClosedLoopCROWNIBPCodebasePropagator):

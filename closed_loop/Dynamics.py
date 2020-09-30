@@ -34,7 +34,25 @@ class Dynamics:
 
     def colors(self, t_max):
         return [cm.get_cmap("tab10")(i) for i in range(t_max+1)]
+ 
+    def get_sampled_output_range(self, input_constraint, t_max =5, num_samples= 1000, controller='mpc'):
 
+        xs, us = self.collect_data(t_max, input_constraint, num_samples, controller=controller)
+         
+        num_runs, num_timesteps, num_states = xs.shape
+
+        if isinstance(input_constraint, PolytopeInputConstraint):
+            raise NotImplementedError
+        elif isinstance(input_constraint, LpInputConstraint):
+            sampled_range= np.zeros((num_timesteps-1,num_states,2))
+            for t in range(1,num_timesteps):
+                sampled_range[t-1,:,0] = np.min(xs[:,t,:], axis =0)
+                sampled_range[t-1,:,1] = np.max(xs[:,t,:], axis =0)
+        else:
+            raise NotImplementedError
+     
+        return sampled_range
+    
     def show_samples(self, t_max, input_constraint, save_plot=False, ax=None, show=False, controller='mpc'):
         if ax is None:
             ax = plt.subplot()
@@ -43,6 +61,8 @@ class Dynamics:
 
         num_runs, num_timesteps, num_states = xs.shape
         colors = self.colors(num_timesteps)
+
+
         for t in range(num_timesteps):
             ax.scatter(xs[:,t,0], xs[:,t,1], color=colors[t])
 
