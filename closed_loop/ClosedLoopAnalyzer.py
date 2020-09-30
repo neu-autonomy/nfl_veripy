@@ -93,18 +93,24 @@ if __name__ == '__main__':
     # Simple FF network
     ###############
     from closed_loop.nn import load_model
-    torch_model = load_model()
+    torch_model = load_model(name='double_integrator_mpc')
+    # torch_model = load_model(name='quadrotor')
     
     ##############
     # Dynamics: Double integrator
     ##############
-    from closed_loop.Dynamics import DoubleIntegrator
+    from closed_loop.Dynamics import DoubleIntegrator, Quadrotor
     dynamics = DoubleIntegrator()
-    dt = 1.0 # Sampling time for simulation
     init_state_range = np.array([ # (num_inputs, 2)
                       [2.5, 3.0], # x0min, x0max
                       [-0.25, 0.25], # x1min, x1max
     ])
+
+    # dynamics = Quadrotor()
+    # init_state_range = np.array([ # (num_inputs, 2)
+    #               [4.65,4.65,2.95,0.94,-0.01,-0.01],
+    #               [4.75,4.75,3.05,0.96,0.01,0.01]
+    # ]).T
 
     # all_output_constraint.append(all_output_constraint[0])
     # all_bs = reachLP_n(t_max, model, input_constraint, At, bt, ct, output_constraint)
@@ -127,9 +133,9 @@ if __name__ == '__main__':
     # all_all_bs.append(sdp_all_bs)
 
     partitioner_hyperparams = {
-        # "type": "None",
-        "type": "Uniform",
-        "num_partitions": np.array([4,4]),
+        "type": "None",
+        # "type": "Uniform",
+        # "num_partitions": np.array([4,4]),
         # "make_animation": False,
         # "show_animation": False,
     }
@@ -146,16 +152,16 @@ if __name__ == '__main__':
     analyzer.partitioner = partitioner_hyperparams
     analyzer.propagator = propagator_hyperparams
 
-    ### Polytope Boundaries
-    # from closed_loop.utils import init_state_range_to_polytope, get_polytope_A
-    # A_inputs, b_inputs = init_state_range_to_polytope(init_state_range)
-    # A_out = get_polytope_A(9)
-    # input_constraint = PolytopeInputConstraint(A_inputs, b_inputs)
-    # output_constraint = PolytopeOutputConstraint(A_out)
+    ## Polytope Boundaries
+    from closed_loop.utils import init_state_range_to_polytope, get_polytope_A
+    A_inputs, b_inputs = init_state_range_to_polytope(init_state_range)
+    A_out = get_polytope_A(9)
+    input_constraint = PolytopeInputConstraint(A_inputs, b_inputs)
+    output_constraint = PolytopeOutputConstraint(A_out)
 
-    ### LP-Ball Boundaries
-    input_constraint = LpInputConstraint(range=init_state_range, p=np.inf)
-    output_constraint = LpOutputConstraint(p=np.inf)
+    # ### LP-Ball Boundaries
+    # input_constraint = LpInputConstraint(range=init_state_range, p=np.inf)
+    # output_constraint = LpOutputConstraint(p=np.inf)
 
     output_constraint, analyzer_info = analyzer.get_reachable_set(input_constraint, output_constraint, t_max=5)
     print("output_constraint:", output_constraint)

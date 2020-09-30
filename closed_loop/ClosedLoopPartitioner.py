@@ -4,7 +4,7 @@ import pypoman
 import matplotlib.pyplot as plt
 from matplotlib import cm
 from matplotlib.patches import Rectangle
-from closed_loop.nn import control_nn
+# from closed_loop.nn import control_nn
 from itertools import product
 from closed_loop.utils import init_state_range_to_polytope
 from closed_loop.ClosedLoopConstraints import PolytopeInputConstraint, LpInputConstraint, PolytopeOutputConstraint, LpOutputConstraint
@@ -16,12 +16,36 @@ class ClosedLoopPartitioner(Partitioner):
         self.dynamics = dynamics
 
     def get_one_step_reachable_set(self, input_constraint, output_constraint, propagator):
-        reachable_set, info = propagator.get_one_step_reachable_set(input_constraint, output_constraint)
-        return reachable_set, info
+        output_constraint, info = propagator.get_one_step_reachable_set(input_constraint, deepcopy(output_constraint))
+        return output_constraint, info
 
     def get_reachable_set(self, input_constraint, output_constraint, propagator, t_max):
-        reachable_set, info = propagator.get_reachable_set(input_constraint, output_constraint, t_max)
-        return reachable_set, info
+        output_constraint_, info = propagator.get_reachable_set(input_constraint, deepcopy(output_constraint), t_max)
+        
+        # TODO: this is repeated from UniformPartitioner... make more universal
+        if isinstance(output_constraint, PolytopeOutputConstraint):
+            reachable_set_ = [o.b for o in output_constraint_]
+            if output_constraint.b is None:
+                output_constraint.b = np.stack(reachable_set_)
+
+            tmp = np.dstack([output_constraint.b, np.stack(reachable_set_)])
+            output_constraint.b = np.max(tmp, axis=-1)
+            
+            # ranges.append((input_range_, reachable_set_))
+        elif isinstance(output_constraint, LpOutputConstraint):
+            reachable_set_ = [o.range for o in output_constraint_]
+            if output_constraint.range is None:
+                output_constraint.range = np.stack(reachable_set_)
+
+            tmp = np.stack([output_constraint.range, np.stack(reachable_set_)], axis=-1)
+            output_constraint.range[...,0] = np.min(tmp[...,0,:], axis=-1)
+            output_constraint.range[...,1] = np.max(tmp[...,1,:], axis=-1)
+
+            # ranges.append((input_range_, np.stack(reachable_set_)))
+        else:
+            raise NotImplementedError
+
+        return output_constraint, info
 
     def setup_visualization(self, input_constraint, output_constraint, propagator, show_samples=True, outputs_to_highlight=None, inputs_to_highlight=None):
         if isinstance(output_constraint, PolytopeOutputConstraint):
@@ -300,11 +324,6 @@ class ClosedLoopUniformPartitioner(ClosedLoopPartitioner):
         return reachable_set, info
 
     def get_reachable_set(self, input_constraint, output_constraint, propagator, t_max, num_partitions=None):
-        # if isinstance(output_constraint, PolytopeOutputConstraint):
-        #     A_out = output_constraint.A
-        #     b_out = output_constraint.b
-        # else:
-        #     raise NotImplementedError
 
         if isinstance(input_constraint, PolytopeInputConstraint):
             A_inputs = input_constraint.A
