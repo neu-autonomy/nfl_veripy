@@ -254,8 +254,8 @@ def run_and_add_row(analyzer, input_range, partitioner_hyperparams, propagator_h
 
     # analyzer_info["save_name"] = img_save_dir+partitioner_hyperparams['type']+"_"+propagator_hyperparams['type']+"_"+pars+"_"+pars2+".png"
     # analyzer.visualize(input_range, output_range, show=False, show_legend=False, **analyzer_info)
-   # print('Average_error',avg_error )
-   # print('Final error',error )
+    print('Average_error',avg_error )
+    print('Final error',error )
 
     stats = {
        # "computation_time": t_end - t_start,
@@ -552,10 +552,13 @@ if __name__ == '__main__':
     # df = run_experiment()
 
     metric = ["error"] #"settling_time"
-    partitioners = ["Uniform"]#, "GreedySimGuidedPartitioner", "AdaptiveSimGuidedPartitioner"]
+    partitioners = ["None", "Uniform"]#, "GreedySimGuidedPartitioner", "AdaptiveSimGuidedPartitioner"]
     propagators = ["CROWN"]#, "SDP"]
     boundaries = ["linf"]#, "convex_hull", "lower_bnds"]
     partitioner_hyperparams_to_use = {
+            "None":
+                {
+                },
             "Uniform":
                 {
                     "num_partitions": [1,2,4,8,16,32,64,128]
@@ -564,7 +567,7 @@ if __name__ == '__main__':
     # Make table
     t_max=5
     df = collect_data_for_table(propagators,partitioners,boundaries,metric, t_max)
-    plot_errors(df,"num_partitions")
+   # plot_errors(df,"num_partitions")
    # print(df["final_error"], df["avg_error"])
     #for df_info in df:
         #plt.plot(df_info["partitons"], df_info["final_error"] )

@@ -143,9 +143,9 @@ if __name__ == '__main__':
     # all_all_bs.append(sdp_all_bs)
 
     partitioner_hyperparams = {
-        # "type": "None",
-        "type": "Uniform",
-        "num_partitions": np.array([4,4]),
+        "type": "None",
+        #"type": "Uniform",
+       # "num_partitions": np.array([4,4]),
         # "make_animation": False,
         # "show_animation": False,
     }
@@ -153,7 +153,7 @@ if __name__ == '__main__':
         # "type": "SDP",
         # "type": "IBP",
         "type": "CROWN",
-      #  "type": "FastLin",
+        "type": "FastLin",
         "input_shape": init_state_range.shape[:-1],
     }
 
@@ -189,8 +189,8 @@ if __name__ == '__main__':
    # print("Analyzer:", analyzer_info)
   #  print('estimated output rang', analyzer.get_output_range(input_constraint, output_constraint))
   #  print('sampled output range', analyzer.get_sampled_output_range(input_constraint,t_max=5, num_samples=1000))
-    # error, avg_error = analyzer.get_error(input_constraint,output_constraint)
-    # print('Final step approximation error:{:.2f}\nAverage approximation error: {:.2f}'.format(error, avg_error))
+    error, avg_error = analyzer.get_error(input_constraint,output_constraint)
+    print('Final step approximation error:{:.2f}\nAverage approximation error: {:.2f}'.format(error, avg_error))
     analyzer.visualize(input_constraint, output_constraint, show_samples=True, **analyzer_info)
  
     print("--- done. ---")
