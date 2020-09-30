@@ -48,13 +48,13 @@ class ClosedLoopPartitioner(Partitioner):
     def get_error(self, input_constraint,output_constraint , propagator):
         
         if isinstance(input_constraint, LpInputConstraint):
-            output_range = output_constraint.range
-            t_max = len(output_range)
+            output_estimated_range = output_constraint.range
+            t_max = len(output_estimated_range)
             output_range_exact = self.get_sampled_out_range(input_constraint, propagator, t_max , num_samples =1000)
             error = 0
-            for t in range(t_max):
-                true_area = np.product(output_range_exact[t,:,1] - output_range_exact[t,:,0])
-                estimated_area = np.product(output_range[t,:,1] - output_range[t,:,0])
+            for t in range(t_max):                 
+                true_area = np.product(output_range_exact[t][...,1] - output_range_exact[t][...,0])
+                estimated_area = np.product(output_estimated_range[t][...,1] - output_estimated_range[t][...,0])
                 error +=(estimated_area - true_area) / true_area
         else:
             raise NotImplementedError

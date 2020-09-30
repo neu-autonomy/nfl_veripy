@@ -33,14 +33,14 @@ class Dynamics:
         xs, us = self.collect_data(t_max, input_constraint, num_samples, controller=controller)
          
         num_runs, num_timesteps, num_states = xs.shape
+
         if isinstance(input_constraint, PolytopeInputConstraint):
             raise NotImplementedError
-
         elif isinstance(input_constraint, LpInputConstraint):
-            sampled_range= np.zeros((num_timesteps,num_states,2))
-            for t in range(num_timesteps):
-                sampled_range[t,:,0] = np.min(xs[:,t,:], axis =0)
-                sampled_range[t,:,1] = np.max(xs[:,t,:], axis =0)
+            sampled_range= np.zeros((num_timesteps-1,num_states,2))
+            for t in range(1,num_timesteps):
+                sampled_range[t-1,:,0] = np.min(xs[:,t,:], axis =0)
+                sampled_range[t-1,:,1] = np.max(xs[:,t,:], axis =0)
         else:
             raise NotImplementedError
      

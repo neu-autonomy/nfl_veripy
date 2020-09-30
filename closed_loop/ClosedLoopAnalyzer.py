@@ -137,21 +137,23 @@ if __name__ == '__main__':
     # all_all_bs.append(sdp_all_bs)
 
     partitioner_hyperparams = {
-        # "type": "None",
+        "type": "None",
         "type": "Uniform",
-        "num_partitions": np.array([4,4]),
+        "num_partitions": np.array([10,10]),
         # "make_animation": False,
         # "show_animation": False,
     }
     propagator_hyperparams = {
         # "type": "SDP",
-        # "type": "IBP",
+        "type": "IBP",
         "type": "CROWN",
-        # "type": "FastLin",
+      #  "type": "FastLin",
         "input_shape": init_state_range.shape[:-1],
     }
 
     # Run analysis & generate a plot
+   # print(torch_model,dynamics)
+
     analyzer = ClosedLoopAnalyzer(torch_model, dynamics)
     analyzer.partitioner = partitioner_hyperparams
     analyzer.propagator = propagator_hyperparams
@@ -166,9 +168,9 @@ if __name__ == '__main__':
     ### LP-Ball Boundaries
     input_constraint = LpInputConstraint(range=init_state_range, p=np.inf)
     output_constraint = LpOutputConstraint(p=np.inf)
-
+    
     output_constraint, analyzer_info = analyzer.get_reachable_set(input_constraint, output_constraint, t_max=5)
-    print("output_constraint:", output_constraint)
+   # print("output_constraint:", output_constraint)
     # output_range, analyzer_info = analyzer.get_output_range(input_range)
     # print("Estimated output_range:\n", output_range)
     # print("Number of propagator calls:", analyzer_info["num_propagator_calls"])

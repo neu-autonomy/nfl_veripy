@@ -1,9 +1,9 @@
 from importlib import reload
 import partition
 import partition.Partitioner
-import partition.Analyzer
+#import partition.Analyzer
 import partition.Propagator
-from partition.models import model_xiang_2020_robot_arm, model_gh1, model_gh2, random_model, lstm
+#from partition.models import model_xiang_2020_robot_arm, model_gh1, model_gh2, random_model, lstm
 import numpy as np
 import pandas as pd
 import itertools
@@ -14,6 +14,13 @@ import os
 import glob
 import time
 import math
+from closed_loop.nn import load_model
+from closed_loop.Dynamics import DoubleIntegrator
+import closed_loop.ClosedLoopAnalyzer
+
+from closed_loop.ClosedLoopPartitioner import ClosedLoopNoPartitioner, ClosedLoopUniformPartitioner
+from closed_loop.ClosedLoopPropagator import ClosedLoopCROWNPropagator, ClosedLoopIBPPropagator, ClosedLoopFastLinPropagator, ClosedLoopSDPPropagator
+from closed_loop.ClosedLoopConstraints import PolytopeInputConstraint, LpInputConstraint, PolytopeOutputConstraint, LpOutputConstraint
 
 save_dir = "{}/results/experiments/closed_loop/".format(os.path.dirname(os.path.abspath(__file__)))
 os.makedirs(save_dir, exist_ok=True)
@@ -60,15 +67,24 @@ experiments = [
     #     'seeds': range(10),
     #     'name': "LSTM",
     # },
+   
+
+
+
     {
-        'model_fn': random_model,
-        'model_args': {
-            'neurons': (2,100,2),
-            'activation': 'relu',
+        'model_fn': 'double_integrator_mpc',
+      #  'model_args': {
+     #       'neurons': (2,100,2),
+      #      'activation': 'relu',
+     #   },
+        'input_range': np.array([ # (num_inputs, 2)
+                      [2.5, 3.0], # x0min, x0max
+                      [-0.25, 0.25], # x1min, x1max
+                      ]),
+        'seeds': range(1),
+        'name': "double Integrator",
+        'sample_time': 0.1,
         },
-        'seeds': range(10),
-        'name': "Small NN",
-    },
     # {
     #     'model_fn': random_model,
     #     'model_args': {
@@ -93,51 +109,43 @@ experiments = [
    #     'seeds': range(10),
    #     'name': "Larger Output Dimension",
   #  },
-    {
-        'neurons': (4,100,100,10),
-        'activation': 'relu',
-        'seeds': range(10),
-       'name': "Different Activation",
-    },
+   
 ]
 
-
-
-def  get_output_range(output_constraint,)
-    if isinstance(output_constraint, PolytopeOutputConstraint):
-            A_out = output_constraint.A
-            b_out = output_constraint.b
-            t_max = len(b_out)
-        elif isinstance(output_constraint, LpOutputConstraint):
-            output_range = output_constraint.range
-            output_p = output_constraint.p
-            t_max = len(output_range)
-        else:
-            raise NotImplementedError
-       
-
-def collect_data_for_table():
+def collect_data_for_table(propagators,partitioners,boundaries,metric,t_max=5):
 
     df = pd.DataFrame()
-
     for experiment in experiments:
         for seed in experiment['seeds']:
             model_fn = experiment['model_fn']
-            model, model_info = model_fn(seed=seed, **experiment['model_args'])
-            input_range = experiment_input_range(lstm=('lstm' in experiment and experiment['lstm']),
-                neurons=experiment['model_args']['neurons'], input_shape=experiment.get('input_shape', None))
-            df = run_experiment(model=model, model_info=model_info, df=df, save_df=False,
+            #model, model_info = model_fn(seed=seed, **experiment['model_args'])
+            model = load_model(model_fn)
+    
+    ##############
+    # Dynamics: Double integrator
+    ##############
+            if model_fn == 'double_integrator_mpc':
+
+                dynamics = DoubleIntegrator()
+                init_state_range = experiment['input_range']
+                
+            else:
+                raise NotImplementedError
+
+          #  input_range = experiment_input_range(lstm=('lstm' in experiment and experiment['lstm']),
+           #     neurons=experiment['model_args']['neurons'], input_shape=experiment.get('input_shape', None))
+            df = run_experiment(model=model, dynamics =dynamics,  model_info=None, df=df, save_df=False,
                 partitioners=partitioners, propagators=propagators, partitioner_hyperparams_to_use=partitioner_hyperparams_to_use,
-                input_range=input_range)
+                input_range=init_state_range, t_max = t_max)
 
     # Save the df in the "results" dir (so you don't have to re-run the expt)
     current_datetime = datetime.now().strftime("%m-%d-%Y_%H-%M-%S")
     df.to_pickle("{}/{}.pkl".format(save_dir, current_datetime))
     return df
 
-def run_experiment(model=None, model_info=None, df=None, save_df=True, input_range=None, partitioners=None, propagators=None, partitioner_hyperparams_to_use=None):
-    
-    if model is None or model_info is None:
+def run_experiment(model=None, dynamics= None, model_info=None, df=None, save_df=True, input_range=None, partitioners=None, propagators=None, partitioner_hyperparams_to_use=None, t_max=5):
+  
+    if model is None or dynamics is None:
      #   neurons = [10,5,2]
        # model, model_info = random_model(activation='relu', neurons=neurons, seed=0)
         raise NotImplementedError
@@ -159,18 +167,18 @@ def run_experiment(model=None, model_info=None, df=None, save_df=True, input_ran
       #  input_range[:,1] = 1.
       #  input_range[0,1] = 1.
       #   input_range[1,1] = 1.
-   
+
 
     if partitioners is None or propagators is None or partitioner_hyperparams_to_use is None:
         # Select which algorithms and hyperparameters to evaluate
         # partitioners = ["SimGuided", "GreedySimGuided", "UnGuided"]
         # partitioners = ["AdaptiveSimGuided", "SimGuided", "GreedySimGuided"]
-        partitioners = ["None", "Unifrom"] #SimGuided", "GreedySimGuided"]
+        partitioners = ["None", "Uniform"] #SimGuided", "GreedySimGuided"]
         # partitioners = ["UnGuided"]
         # propagators = ["SDP"]
-        propagators = ["IBP_LIRPA", "CROWN_LIRPA", "FastLin_LIRPA" , "SDP"]
+        propagators = ["IBP", "CROWN", "FastLin" ]#, "SDP"]
         partitioner_hyperparams_to_use = {
-            "None":
+        "None":
                 {
                 },
             
@@ -178,36 +186,32 @@ def run_experiment(model=None, model_info=None, df=None, save_df=True, input_ran
                 {
                     "num_partitions": np.array([4,4]),
         }
-
-
-
+        }
 
     # Auto-run combinations of algorithms & hyperparams, log results to pandas dataframe
     if df is None:
         df = pd.DataFrame()
-        analyzer = ClosedLoopAnalyzer(torch_model, dynamics)
 
+    analyzer = closed_loop.ClosedLoopAnalyzer.ClosedLoopAnalyzer(model, dynamics)
     #analyzer = partition.Analyzer.Analyzer(model)
     for partitioner, propagator in itertools.product(partitioners, propagators):
         partitioner_keys = list(partitioner_hyperparams_to_use[partitioner].keys())
         partitioner_hyperparams = {"type": partitioner}
+
         for partitioner_vals in itertools.product(*list(partitioner_hyperparams_to_use[partitioner].values())):
+
+
             for partitioner_i in range(len(partitioner_keys)):
                 partitioner_hyperparams[partitioner_keys[partitioner_i]] = partitioner_vals[partitioner_i]
-            propagator_hyperparams = {"type": propagator, "input_shape": init_state_range.shape[:-1]}
+            propagator_hyperparams = {"type": propagator, "input_shape": input_range.shape[:-1]}
             #if model_info["model_neurons"][-1] == 2 or partitioner_hyperparams["interior_condition"] is not "convex_hull":
-         
-            data_row = run_and_add_row(analyzer, init_state_range, partitioner_hyperparams, propagator_hyperparams, model_info)
+            
+            data_row , error, avg_error= run_and_add_row(analyzer, input_range, partitioner_hyperparams, propagator_hyperparams, model_info, t_max)
             df = df.append(data_row, ignore_index=True)
     
     # Also record the "exact" bounds (via sampling) in the same dataframe
-    output_range_exact = analyzer.get_exact_output_range(input_range)
-    df = df.append({
-        "output_range_estimate": output_range_exact,
-        "input_range": input_range,
-        "propagator": "EXACT",
-        "partitioner": "EXACT",
-    }, ignore_index=True)
+   # output_range_exact = analyzer.get_exact_output_range(input_range)
+
 
     if save_df:
         # Save the df in the "results" dir (so you don't have to re-run the expt)
@@ -216,12 +220,11 @@ def run_experiment(model=None, model_info=None, df=None, save_df=True, input_ran
 
     return df
 
-def run_and_add_row(analyzer, init_state_range, partitioner_hyperparams, propagator_hyperparams, model_info={}):
+def run_and_add_row(analyzer, input_range, partitioner_hyperparams, propagator_hyperparams, model_info={}, t_max=5):
     print("Partitioner: {},\n Propagator: {}".format(partitioner_hyperparams, propagator_hyperparams))
     np.random.seed(0)
     analyzer.partitioner = partitioner_hyperparams
     analyzer.propagator = propagator_hyperparams
-
    # t_start = time.time()
    # output_range, analyzer_info = analyzer.get_output_range(init_state_range)
    # t_end = time.time()
@@ -232,37 +235,46 @@ def run_and_add_row(analyzer, init_state_range, partitioner_hyperparams, propaga
   #      error = analyzer.partitioner.get_error(exact_hull, analyzer_info["estimated_hull"])
   #  else:
     
-    input_constraint = LpInputConstraint(range=init_state_range, p=np.inf)
+    input_constraint = LpInputConstraint(range=input_range, p=np.inf)
     output_constraint = LpOutputConstraint(p=np.inf)
-
-    output_constraint, analyzer_info = analyzer.get_reachable_set(input_constraint, output_constraint, t_max=5)
-    exact_output_range, _,_ = analyzer.partitioner.sample(init_state_range, analyzer.propagator, N=int(1e5))
-    error = analyzer.partitioner.get_error(exact_output_range, output_range)
-    print(error)
+    #output_constraint, analyzer_info = analyzer.get_reachable_set(input_constraint, output_constraint, t_max)
+    output_constraint, analyzer_info = analyzer.get_reachable_set(input_constraint, output_constraint, t_max)
+   # print("output_constraint:", output_constraint)
+    # output_range, analyzer_info = analyzer.get_output_range(input_range)
+    # print("Estimated output_range:\n", output_range)
+    # print("Number of propagator calls:", analyzer_info["num_propagator_calls"])
+    # 
     # print(t_end-t_start)
     # print(analyzer_info["propagator_computation_time"])
 
-    pars = '_'.join([str(key)+"_"+str(value) for key, value in sorted(partitioner_hyperparams.items(), key=lambda kv: kv[0]) if key not in ["make_animation", "show_animation", "type"]])
-    pars2 = '_'.join([str(key)+"_"+str(value) for key, value in sorted(propagator_hyperparams.items(), key=lambda kv: kv[0]) if key not in ["input_shape", "type"]])
+   # pars = '_'.join([str(key)+"_"+str(value) for key, value in sorted(partitioner_hyperparams.items(), key=lambda kv: kv[0]) if key not in ["make_animation", "show_animation", "type"]])
+   # pars2 = '_'.join([str(key)+"_"+str(value) for key, value in sorted(propagator_hyperparams.items(), key=lambda kv: kv[0]) if key not in ["input_shape", "type"]])
+ 
+    error, avg_error = analyzer.get_error(input_constraint,output_constraint)
 
     # analyzer_info["save_name"] = img_save_dir+partitioner_hyperparams['type']+"_"+propagator_hyperparams['type']+"_"+pars+"_"+pars2+".png"
     # analyzer.visualize(input_range, output_range, show=False, show_legend=False, **analyzer_info)
+   # print('Average_error',avg_error )
+   # print('Final error',error )
 
     stats = {
-        "computation_time": t_end - t_start,
-        "propagator_computation_time": t_end - t_start,
-        "output_range_estimate": output_range,
-        "input_range": input_range,
+       # "computation_time": t_end - t_start,
+       # "propagator_computation_time": t_end - t_start,
+        "output_range_estimate": output_constraint.range,
+        "input_range": input_constraint.range,
         "propagator": type(analyzer.propagator).__name__,
         "partitioner": type(analyzer.partitioner).__name__,
-        "error": error,
+        "final_error": error,
+        "avg_error": avg_error,
+        "num_partitions": partitioner_hyperparams,
+
         # "neurons": ,
         # "activation": ,
     }
-    analyzer_info.pop("exact_hull", None)
-    analyzer_info.pop("estimated_hull", None)
-    data_row = {**stats, **analyzer_info, **partitioner_hyperparams, **propagator_hyperparams, **model_info}
-    return data_row
+   # analyzer_info.pop("exact_hull", None)
+   # analyzer_info.pop("estimated_hull", None)
+    data_row = {**stats, **analyzer_info, **partitioner_hyperparams, **propagator_hyperparams}#, **model_info}
+    return data_row, avg_error, error
 
 def add_approx_error_to_df(df):
     output_range_exact = get_exact_output_range(df)
@@ -279,10 +291,7 @@ def add_approx_error_to_df(df):
         df.at[index, 'output_area_error'] = (output_area_estimate / output_area_exact) - 1.
         
 
-def get_exact_output_range(df):
-    row_exact = df[df["partitioner"] == "EXACT"]
-    output_range_exact = row_exact["output_range_estimate"].values[0]
-    return output_range_exact
+
 
 def plot(df, stat):
     plt.rcParams['font.size'] = '20'
@@ -359,6 +368,32 @@ def plot(df, stat):
     plt.tight_layout()
     plt.show()
 
+
+
+def plot_errors(df, stat):
+    for partitioner in df["partitioner"].unique():
+        for propagator in df["propagator"].unique():
+       
+            df_ = df[(df["partitioner"] == partitioner) & (df["propagator"] == propagator)]
+            plt.plot(df_["num_partitions"] , df_["avg_error"], color='blue',
+                linestyle='solid')   
+            plt.yscale("log")      
+            plt.plot(df_["num_partitions"] , df_["final_error"],  color='blue',
+                linestyle='dashed')
+            plt.yscale("log")
+         
+
+    plt.xlabel(stats[stat]["name"])
+    plt.ylabel('Approximation Error')
+    plt.legend(['Average','Final step'])
+    # plt.xlabel(stats[stat]["name"], fontsize=36)
+    # plt.xticks(fontsize=36)
+    # plt.ylabel('Approximation Error', fontsize=36)
+    # plt.yticks(fontsize=36)
+    # plt.legend(bbox_to_anchor=(0., 1.02, 1., .102), loc=3,
+    #    ncol=3, mode="expand", borderaxespad=0.)
+    plt.tight_layout()
+    plt.show()
 algs ={
     "NoPartitioner": {
         "name": "None",
@@ -511,25 +546,30 @@ def table_single_model(df, partitioners, propagators, boundaries, neurons, name,
 
 
 
-def make_table(def, propagator, partitioners):
-    neurons = df.model_neurons.iloc[0]
-    activation = df.model_activation.iloc[0]
-
-
 if __name__ == '__main__':
 
     # Run an experiment
     # df = run_experiment()
 
-   
     metric = ["error"] #"settling_time"
-    partitioners = ["NoPartitioner", "UniformPartitioner"]#, "GreedySimGuidedPartitioner", "AdaptiveSimGuidedPartitioner"]
-    propagators = ["IBPAutoLIRPAPropagator", "FastLinAutoLIRPAPropagator", "CROWNAutoLIRPAPropagator", "SDPPropagator"]
+    partitioners = ["Uniform"]#, "GreedySimGuidedPartitioner", "AdaptiveSimGuidedPartitioner"]
+    propagators = ["CROWN"]#, "SDP"]
     boundaries = ["linf"]#, "convex_hull", "lower_bnds"]
-  # Make table
-    df = collect_data_for_table(propagators,partitioners,boundaries,metric)
+    partitioner_hyperparams_to_use = {
+            "Uniform":
+                {
+                    "num_partitions": [1,2,4,8,16,32,64,128]
+                }
+        }
+    # Make table
+    t_max=5
+    df = collect_data_for_table(propagators,partitioners,boundaries,metric, t_max)
+    plot_errors(df,"num_partitions")
+   # print(df["final_error"], df["avg_error"])
+    #for df_info in df:
+        #plt.plot(df_info["partitons"], df_info["final_error"] )
 
-
+    #print(df)
     # If you want to plot w/o re-running the experiments, comment out the experiment line.
     #if 'df' not in locals():
         # If you know the path
@@ -543,7 +583,7 @@ if __name__ == '__main__':
 
     print("\n --- \n")
 
-    make_table(df, partitioners, propagators, boundaries,)
+  #  make_table(df, partitioners, propagators, boundaries,)
    # make_big_table(df)
 
     print("\n --- \n")
