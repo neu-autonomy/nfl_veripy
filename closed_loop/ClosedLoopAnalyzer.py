@@ -144,8 +144,8 @@ if __name__ == '__main__':
 
     partitioner_hyperparams = {
         "type": "None",
-        #"type": "Uniform",
-       # "num_partitions": np.array([4,4]),
+        "type": "Uniform",
+        "num_partitions": 10,#np.array([4,4]),
         # "make_animation": False,
         # "show_animation": False,
     }
@@ -153,7 +153,7 @@ if __name__ == '__main__':
         # "type": "SDP",
         # "type": "IBP",
         "type": "CROWN",
-        "type": "FastLin",
+      #  "type": "FastLin",
         "input_shape": init_state_range.shape[:-1],
     }
 
@@ -175,7 +175,7 @@ if __name__ == '__main__':
     input_constraint = LpInputConstraint(range=init_state_range, p=np.inf)
     output_constraint = LpOutputConstraint(p=np.inf)
 
-    output_constraint, analyzer_info = analyzer.get_reachable_set(input_constraint, output_constraint, t_max=5)
+    output_constraint, analyzer_info = analyzer.get_reachable_set(input_constraint, output_constraint, t_max=6)
    # print("output_constraint:", output_constraint)
     # output_range, analyzer_info = analyzer.get_output_range(input_range)
     # print("Estimated output_range:\n", output_range)
