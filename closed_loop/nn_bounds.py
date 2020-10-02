@@ -79,7 +79,7 @@ class BoundClosedLoopController(BoundSequential):
             # For non-final layers, don't worry about dynamics yet
             return super().backward_range(norm=norm, x_U=x_U, x_L=x_L, eps=eps, C=C, upper=upper, lower=lower, modules=modules)
         else:
-            lower_A, upper_A, lower_sum_b, upper_sum_b = self._prop_from_last_layer(C=C, x_U=x_U, modules=modules, upper=upper, lower=lower, final_layer=True)
+            lower_A, upper_A, lower_sum_b, upper_sum_b = self._prop_from_last_layer(C=C, x_U=x_U, modules=modules, upper=upper, lower=lower)
 
             if return_matrices:
                 # The caller doesn't care about the actual NN bounds, just the matrices (slope, intercept) used to compute them
