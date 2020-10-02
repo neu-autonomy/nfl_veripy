@@ -53,7 +53,7 @@ class Dynamics:
      
         return sampled_range
     
-    def show_samples(self, t_max, input_constraint, save_plot=False, ax=None, show=False, controller='mpc'):
+    def show_samples(self, t_max, input_constraint, save_plot=False, ax=None, show=False, controller='mpc', input_dims=[[0],[1]]):
         if ax is None:
             ax = plt.subplot()
 
@@ -62,9 +62,8 @@ class Dynamics:
         num_runs, num_timesteps, num_states = xs.shape
         colors = self.colors(num_timesteps)
 
-
         for t in range(num_timesteps):
-            ax.scatter(xs[:,t,0], xs[:,t,1], color=colors[t])
+            ax.scatter(xs[:,t,input_dims[0]], xs[:,t,input_dims[1]], color=colors[t])
 
         # if isinstance(input_constraint, PolytopeInputConstraint):
         
@@ -79,8 +78,8 @@ class Dynamics:
         #     else:
         #         raise NotImplementedError
 
-        ax.set_xlabel('$x_0$')
-        ax.set_ylabel('$x_1$')
+        ax.set_xlabel('$x_'+str(input_dims[0][0])+'$')
+        ax.set_ylabel('$x_'+str(input_dims[1][0])+'$')
 
         if save_plot:
             ax.savefig(plot_name)
@@ -92,7 +91,7 @@ class Dynamics:
         xs, us = self.run(t_max, input_constraint, num_samples, collect_data=True, controller=controller)
         return xs, us
 
-    def run(self, t_max, input_constraint, num_samples=100, collect_data=False, clip_control=True, controller='mpc'):
+    def run(self, t_max, input_constraint, num_samples=100, collect_data=False, clip_control=False, controller='mpc'):
         np.random.seed(0)
         num_timesteps = int((t_max)/self.dt)+1
 
@@ -109,6 +108,7 @@ class Dynamics:
                     low=input_constraint.range[:,0], 
                     high=input_constraint.range[:,1],
                     size=(num_runs, self.num_states))
+                # import pdb; pdb.set_trace()
             else:
                 raise NotImplementedError
         elif isinstance(input_constraint, PolytopeInputConstraint):
@@ -132,7 +132,6 @@ class Dynamics:
                 raise NotImplementedError
             if clip_control and (self.u_limits is not None):
                 u = np.clip(u, self.u_limits[:,0], self.u_limits[:,1])
-            # import pdb; pdb.set_trace()
 
             xs[:,step+1,:] = self.dynamics_step(xs[:, step, :], u)
 
@@ -177,6 +176,8 @@ class Dynamics:
 class DoubleIntegrator(Dynamics):
     def __init__(self):
 
+        self.continuous_time = False
+
         At = np.array([[1, 1],[0, 1]])
         bt = np.array([[0.5], [1]])
         ct = np.array([0., 0.]).T
@@ -201,6 +202,8 @@ class DoubleIntegrator(Dynamics):
 
 class Quadrotor(Dynamics):
     def __init__(self):
+
+        self.continuous_time = True
 
         g = 9.8 # m/s^2
 
@@ -256,6 +259,8 @@ class Quadrotor(Dynamics):
         return xs_t1
 
     def dynamics(self, xs, us):
+        # # TODO: Add ct back in!!!!!!!
+        # return ((np.dot(self.At, xs.T) + np.dot(self.bt, us.T)).T)
         return ((np.dot(self.At, xs.T) + np.dot(self.bt, us.T)).T + self.ct)
 
 if __name__ == '__main__':
@@ -267,6 +272,21 @@ if __name__ == '__main__':
     #                   [-0.25, 0.25], # x1min, x1max
     # ])
     dynamics = Quadrotor()
+
+    # init_state_range = np.array([
+    #     [ 4.74399948,  4.84599972],
+    #     [ 4.64899969,  4.75099993],
+    #     [ 2.94900012,  3.05099988],
+    #     [-0.16668373, -0.11418372],
+    #     [-0.42657009, -0.37431771],
+    #     [-0.07524291, -0.04822937],
+    #     ])
+
+    init_state_range = np.array([
+        [ 4.7447899, 4.65043755, 2.94919611, 0.9173471, -0.03881739, -0.003111],
+        [ 4.8456064, 4.75059748, 3.04982631, 0.9377732, -0.01473783, 0.0167838],
+        ]).T
+
     init_state_range = np.array([ # (num_inputs, 2)
                   [4.65,4.65,2.95,0.94,-0.01,-0.01], # x0min, x0max
                   [4.75,4.75,3.05,0.96,0.01,0.01] # x1min, x1max
@@ -276,7 +296,7 @@ if __name__ == '__main__':
                           [4.1,3.5,2.6]            
     ]).T
     controller = load_model(name='quadrotor')
-    t_max = 20*dynamics.dt
+    t_max = 3*dynamics.dt
     input_constraint = LpInputConstraint(range=init_state_range, p=np.inf)
     dynamics.show_samples(t_max, input_constraint, save_plot=False, ax=None, show=True, controller=controller)
 

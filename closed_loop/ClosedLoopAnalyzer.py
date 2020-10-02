@@ -99,28 +99,41 @@ if __name__ == '__main__':
 
     np.random.seed(seed=0)
 
+    system = 'quadrotor'
+    # system = 'double_integrator_mpc'
+
     ##############
     # Simple FF network
     ###############
     from closed_loop.nn import load_model
-    torch_model = load_model(name='double_integrator_mpc')
-    # torch_model = load_model(name='quadrotor')
+    if system == 'double_integrator_mpc':
+        torch_model = load_model(name='double_integrator_mpc')
+    elif system == 'quadrotor':
+        torch_model = load_model(name='quadrotor')
+    else:
+        raise NotImplementedError
     
     ##############
-    # Dynamics: Double integrator
+    # Dynamics
     ##############
-    from closed_loop.Dynamics import DoubleIntegrator, Quadrotor
-    dynamics = DoubleIntegrator()
-    init_state_range = np.array([ # (num_inputs, 2)
-                      [2.5, 3.0], # x0min, x0max
-                      [-0.25, 0.25], # x1min, x1max
-    ])
-
-    # dynamics = Quadrotor()
-    # init_state_range = np.array([ # (num_inputs, 2)
-    #               [4.65,4.65,2.95,0.94,-0.01,-0.01],
-    #               [4.75,4.75,3.05,0.96,0.01,0.01]
-    # ]).T
+    if system == 'double_integrator_mpc':
+        from closed_loop.Dynamics import DoubleIntegrator
+        dynamics = DoubleIntegrator()
+        init_state_range = np.array([ # (num_inputs, 2)
+                          [2.5, 3.0], # x0min, x0max
+                          [-0.25, 0.25], # x1min, x1max
+        ])
+        t_max = 5
+    elif system == 'quadrotor':
+        from closed_loop.Dynamics import Quadrotor
+        dynamics = Quadrotor()
+        init_state_range = np.array([ # (num_inputs, 2)
+                      [4.65,4.65,2.95,0.94,-0.01,-0.01],
+                      [4.75,4.75,3.05,0.96,0.01,0.01]
+        ]).T
+        t_max = 0.5
+    else:
+        raise NotImplementedError
 
     # all_output_constraint.append(all_output_constraint[0])
     # all_bs = reachLP_n(t_max, model, input_constraint, At, bt, ct, output_constraint)
@@ -143,9 +156,9 @@ if __name__ == '__main__':
     # all_all_bs.append(sdp_all_bs)
 
     partitioner_hyperparams = {
-        # "type": "None",
-        "type": "Uniform",
-        "num_partitions": np.array([4,4]),
+        "type": "None",
+        # "type": "Uniform",
+        # "num_partitions": np.array([4,4,1,1,1,1]),
         # "make_animation": False,
         # "show_animation": False,
     }
@@ -175,8 +188,8 @@ if __name__ == '__main__':
     input_constraint = LpInputConstraint(range=init_state_range, p=np.inf)
     output_constraint = LpOutputConstraint(p=np.inf)
 
-    output_constraint, analyzer_info = analyzer.get_reachable_set(input_constraint, output_constraint, t_max=5)
-   # print("output_constraint:", output_constraint)
+    output_constraint, analyzer_info = analyzer.get_reachable_set(input_constraint, output_constraint, t_max=t_max)
+    # print("output_constraint:", output_constraint)
     # output_range, analyzer_info = analyzer.get_output_range(input_range)
     # print("Estimated output_range:\n", output_range)
     # print("Number of propagator calls:", analyzer_info["num_propagator_calls"])

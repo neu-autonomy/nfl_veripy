@@ -139,7 +139,7 @@ class ClosedLoopPartitioner(Partitioner):
         self.animate_axes.set_ylabel(input_names[1])
 
         if show_samples:
-            self.dynamics.show_samples(t_max, input_constraint, ax=self.animate_axes, controller=propagator.network)
+            self.dynamics.show_samples(t_max*self.dynamics.dt, input_constraint, ax=self.animate_axes, controller=propagator.network, input_dims=input_dims)
 
         # t_max = 5
         # dt = 1.
@@ -194,7 +194,7 @@ class ClosedLoopPartitioner(Partitioner):
             self.animate_axes.plot([v[0] for v in vertices]+[vertices[0][0]], [v[1] for v in vertices]+[vertices[0][1]],
                 color=color, label='Initial States')
         elif isinstance(input_constraint, LpInputConstraint):
-            rect = Rectangle(input_range[:2,0], input_range[0,1]-input_range[0,0], input_range[1,1]-input_range[1,0],
+            rect = Rectangle(input_range[input_dims,0], input_range[input_dims[0],1]-input_range[input_dims[0],0], input_range[input_dims[1],1]-input_range[input_dims[1],0],
                             fc='none', linewidth=3,edgecolor=color)
             self.animate_axes.add_patch(rect)
             # self.default_patches[1].append(rect)
@@ -211,7 +211,7 @@ class ClosedLoopPartitioner(Partitioner):
                     color=color, label='$\mathcal{R}_'+str(i+1)+'$')
         elif isinstance(output_constraint, LpOutputConstraint):
             for output_range_ in output_range:
-                rect = Rectangle(output_range_[:2,0], output_range_[0,1]-output_range_[0,0], output_range_[1,1]-output_range_[1,0],
+                rect = Rectangle(output_range_[input_dims,0], output_range_[input_dims[0],1]-output_range_[input_dims[0],0], output_range_[input_dims[1],1]-output_range_[input_dims[1],0],
                             fc='none', linewidth=3,edgecolor=color)
                 self.animate_axes.add_patch(rect)
         else:

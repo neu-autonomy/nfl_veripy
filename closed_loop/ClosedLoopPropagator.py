@@ -21,7 +21,7 @@ class ClosedLoopPropagator(Propagator):
         output_constraints = []
         output_constraint, _ = self.get_one_step_reachable_set(input_constraint, output_constraint, u_limits=u_limits)
         output_constraints.append(deepcopy(output_constraint))
-        for i in range(1, t_max):
+        for i in np.arange(0+self.dynamics.dt, t_max, self.dynamics.dt):
             next_input_constraint = output_constraint.to_input_constraint()
             next_output_constraint = deepcopy(output_constraint)
             output_constraint, _ = self.get_one_step_reachable_set(next_input_constraint, next_output_constraint, u_limits=u_limits)
@@ -107,24 +107,13 @@ class ClosedLoopCROWNIBPCodebasePropagator(ClosedLoopPropagator):
 
     def torch2network(self, torch_model):
         from closed_loop.nn_bounds import BoundClosedLoopController
-        torch_model_cl = BoundClosedLoopController.convert(torch_model, self.params,
-            A_dyn=torch.Tensor([self.dynamics.At]), b_dyn=torch.Tensor([self.dynamics.bt]), c_dyn=[self.dynamics.ct])
+        torch_model_cl = BoundClosedLoopController.convert(torch_model, dynamics=self.dynamics, bound_opts=self.params)
         return torch_model_cl
 
     def forward_pass(self, input_data):
         return self.network(torch.Tensor(input_data), method_opt=None).data.numpy()
 
     def get_one_step_reachable_set(self, input_constraint, output_constraint, u_limits=None):
-        if isinstance(output_constraint, PolytopeOutputConstraint):
-            A_out = output_constraint.A
-            num_facets = A_out.shape[0]
-            bs = np.zeros((num_facets))
-        elif isinstance(output_constraint, LpOutputConstraint):
-            A_out = np.eye(2)
-            num_facets = A_out.shape[0]
-            ranges = np.zeros((num_facets,2))
-        else:
-            raise NotImplementedError
 
         if isinstance(input_constraint, PolytopeInputConstraint):
             A_inputs = input_constraint.A
@@ -148,15 +137,25 @@ class ClosedLoopCROWNIBPCodebasePropagator(ClosedLoopPropagator):
         else:
             raise NotImplementedError
 
+        if isinstance(output_constraint, PolytopeOutputConstraint):
+            A_out = output_constraint.A
+            num_facets = A_out.shape[0]
+            bs = np.zeros((num_facets))
+        elif isinstance(output_constraint, LpOutputConstraint):
+            A_out = np.eye(x_min.shape[0])
+            num_facets = A_out.shape[0]
+            ranges = np.zeros((num_facets,2))
+        else:
+            raise NotImplementedError
+
         # Compute the NN output matrices (for the input constraints)
+        num_control_inputs = self.dynamics.bt.shape[1]
+        C = torch.eye(num_control_inputs).unsqueeze(0)
         lower_A, upper_A, lower_sum_b, upper_sum_b = self.network(method_opt=self.method_opt,
                                     norm=norm,
                                     x_U=torch.Tensor([x_max]),
                                     x_L=torch.Tensor([x_min]),
-                                    upper=True, lower=True, C=torch.Tensor([[[1]]]),
-                                    A_out=None,
-                                    A_in=A_inputs, b_in=b_inputs,
-                                    u_limits=u_limits,
+                                    upper=True, lower=True, C=C,
                                     return_matrices=True)
 
         for i in range(num_facets):
@@ -166,8 +165,13 @@ class ClosedLoopCROWNIBPCodebasePropagator(ClosedLoopPropagator):
                 A_out_torch = None
             else:
                 A_out_torch = torch.Tensor([A_out[i,:]])
-            
-            xt1_max, xt1_min = self.network.compute_bound_from_matrices(lower_A, lower_sum_b, upper_A, upper_sum_b, torch.Tensor([x_max]), torch.Tensor([x_min]), norm, A_out=A_out_torch, A_dyn=torch.Tensor([self.dynamics.At]), b_dyn=torch.Tensor([self.dynamics.bt]))
+
+            # CROWN was initialized knowing dynamics, no need to pass them here
+            # (unless they've changed, e.g. time-varying At matrix)
+            xt1_max, xt1_min = self.network.compute_bound_from_matrices(lower_A, lower_sum_b, upper_A, upper_sum_b, 
+                torch.Tensor([x_max]), torch.Tensor([x_min]), norm,
+                A_out=A_out_torch, A_in=A_inputs, b_in=b_inputs,
+                u_limits=u_limits)
 
             if isinstance(output_constraint, PolytopeOutputConstraint):
                 bs[i] = xt1_max
