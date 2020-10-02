@@ -15,3 +15,4 @@ tmp.txt
 partition/results
 
 closed_loop/models/double_integrator_mpc
+closed_loop/models/quadrotor
