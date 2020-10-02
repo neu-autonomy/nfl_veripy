@@ -202,8 +202,8 @@ if __name__ == '__main__':
    # print("Analyzer:", analyzer_info)
   #  print('estimated output rang', analyzer.get_output_range(input_constraint, output_constraint))
   #  print('sampled output range', analyzer.get_sampled_output_range(input_constraint,t_max=5, num_samples=1000))
-    # error, avg_error = analyzer.get_error(input_constraint,output_constraint)
-    # print('Final step approximation error:{:.2f}\nAverage approximation error: {:.2f}'.format(error, avg_error))
+    error, avg_error = analyzer.get_error(input_constraint,output_constraint)
+    print('Final step approximation error:{:.2f}\nAverage approximation error: {:.2f}'.format(error, avg_error))
     analyzer.visualize(input_constraint, output_constraint, show_samples=True, **analyzer_info)
  
     print("--- done. ---")
