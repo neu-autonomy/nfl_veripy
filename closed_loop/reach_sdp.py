@@ -95,8 +95,8 @@ def getInputConstraints(num_states, m, A_inputs, b_inputs):
         mat_constr(i=0,j=0,val=cp.quad_form(A_inputs, Gamma)[0,0],mat=P),
         mat_constr(i=0,j=1,val=cp.quad_form(A_inputs, Gamma)[0,1],mat=P),
         mat_constr(i=1,j=1,val=cp.quad_form(A_inputs, Gamma)[1,1],mat=P),
-        mat_constr(i=0,j=2,val=(-A_inputs.T*Gamma*b_inputs)[0],mat=P),
-        mat_constr(i=1,j=2,val=(-A_inputs.T*Gamma*b_inputs)[1],mat=P),
+        mat_constr(i=0,j=2,val=(-A_inputs.T@Gamma@b_inputs)[0],mat=P),
+        mat_constr(i=1,j=2,val=(-A_inputs.T@Gamma@b_inputs)[1],mat=P),
         mat_constr(i=2,j=2,val=cp.quad_form(b_inputs, Gamma),mat=P),
     ]
     return P, input_set_constrs

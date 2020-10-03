@@ -38,11 +38,20 @@ class ClosedLoopSDPPropagator(ClosedLoopPropagator):
     def get_one_step_reachable_set(self, input_constraint, output_constraint, u_limits=[-5., 5.]):
         if isinstance(output_constraint, PolytopeOutputConstraint):
             A_out = output_constraint.A
+        elif isinstance(output_constraint, LpOutputConstraint):
+            A_out = np.vstack([np.eye(self.dynamics.num_states), -np.eye(self.dynamics.num_states)])
         else:
             raise NotImplementedError
+
         if isinstance(input_constraint, PolytopeInputConstraint):
             A_inputs = input_constraint.A
             b_inputs = input_constraint.b
+        elif isinstance(input_constraint, LpInputConstraint):
+            if input_constraint.p != np.inf:
+                raise NotImplementedError
+            else:
+                from closed_loop.utils import init_state_range_to_polytope
+                A_inputs, b_inputs = init_state_range_to_polytope(input_constraint.range)
         else:
             raise NotImplementedError
 
@@ -57,6 +66,8 @@ class ClosedLoopSDPPropagator(ClosedLoopPropagator):
         num_states = self.dynamics.At.shape[0]
         num_inputs = self.dynamics.bt.shape[1]
 
+        if u_limits is None:
+            u_limits = [-1., 1.]
         u_min, u_max = u_limits
 
         # Get change of basis matrices
@@ -72,10 +83,10 @@ class ClosedLoopSDPPropagator(ClosedLoopPropagator):
         M_in = cp.quad_form(E_in, P)
         M_mid = cp.quad_form(E_mid, Q)
 
-        num_facets = A_inputs.shape[0]
+        num_facets = A_out.shape[0]
         bs = np.zeros((num_facets))
         for i in tqdm(range(num_facets)):
-            S_i, reachable_set_constrs, b_i = getOutputConstraints(num_states, A_inputs[i,:])
+            S_i, reachable_set_constrs, b_i = getOutputConstraints(num_states, A_out[i,:])
             M_out = cp.quad_form(E_out, S_i)
 
             constraints = input_set_constrs + nn_constrs + reachable_set_constrs
@@ -91,6 +102,10 @@ class ClosedLoopSDPPropagator(ClosedLoopPropagator):
 
         if isinstance(output_constraint, PolytopeOutputConstraint):
             output_constraint.b = bs
+        elif isinstance(output_constraint, LpOutputConstraint):
+            output_constraint.range = np.empty((num_states,2))
+            output_constraint.range[:,0] = -bs[num_facets//2:]
+            output_constraint.range[:,1] = bs[:num_facets//2]
         else:
             raise NotImplementedError
 
