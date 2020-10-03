@@ -90,8 +90,8 @@ class ClosedLoopAnalyzer(Analyzer):
         output_range = self.samples_to_range(sampled_outputs)
         return output_range
 
-    def  get_error(self, input_constraint,output_constraint):
-        return self.partitioner.get_error(input_constraint,output_constraint , self.propagator)
+    def  get_error(self, input_constraint,output_constraint, t_max):
+        return self.partitioner.get_error(input_constraint,output_constraint , self.propagator, t_max)
 
 if __name__ == '__main__':
     # Import all deps
@@ -100,7 +100,7 @@ if __name__ == '__main__':
     np.random.seed(seed=0)
 
     system = 'quadrotor'
-    # system = 'double_integrator_mpc'
+   # system = 'double_integrator_mpc'
 
     ##############
     # Simple FF network
@@ -157,8 +157,10 @@ if __name__ == '__main__':
 
     partitioner_hyperparams = {
         "type": "None",
-        # "type": "Uniform",
-        # "num_partitions": np.array([4,4,1,1,1,1]),
+        "type": "Uniform",
+       # "num_partitions": np.array([4,4]),
+
+        "num_partitions": np.array([4,4,1,1,1,1]),
         # "make_animation": False,
         # "show_animation": False,
     }
@@ -176,7 +178,6 @@ if __name__ == '__main__':
     analyzer = ClosedLoopAnalyzer(torch_model, dynamics)
     analyzer.partitioner = partitioner_hyperparams
     analyzer.propagator = propagator_hyperparams
-
     # ## Polytope Boundaries
     # from closed_loop.utils import init_state_range_to_polytope, get_polytope_A
     # A_inputs, b_inputs = init_state_range_to_polytope(init_state_range)
@@ -202,8 +203,8 @@ if __name__ == '__main__':
    # print("Analyzer:", analyzer_info)
   #  print('estimated output rang', analyzer.get_output_range(input_constraint, output_constraint))
   #  print('sampled output range', analyzer.get_sampled_output_range(input_constraint,t_max=5, num_samples=1000))
-    error, avg_error = analyzer.get_error(input_constraint,output_constraint)
-    print('Final step approximation error:{:.2f}\nAverage approximation error: {:.2f}'.format(error, avg_error))
+    #error, avg_error = analyzer.get_error(input_constraint,output_constraint)
+   # print('Final step approximation error:{:.2f}\nAverage approximation error: {:.2f}'.format(error, avg_error))
     analyzer.visualize(input_constraint, output_constraint, show_samples=True, **analyzer_info)
  
     print("--- done. ---")

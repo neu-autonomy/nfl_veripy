@@ -71,14 +71,14 @@ class ClosedLoopPartitioner(Partitioner):
             raise NotImplementedError
         return output_range
 
-    def get_error(self, input_constraint,output_constraint , propagator):
+    def get_error(self, input_constraint,output_constraint , propagator, t_max):
         
         if isinstance(input_constraint, LpInputConstraint):
             output_estimated_range = output_constraint.range
-            t_max = len(output_estimated_range)
+           # t_max = len(output_estimated_range)
             output_range_exact = self.get_sampled_out_range(input_constraint, propagator, t_max , num_samples =1000)
             error = 0
-            for t in range(t_max):                 
+            for t in range(int(t_max/self.dynamics.dt)):                 
                 true_area = np.product(output_range_exact[t][...,1] - output_range_exact[t][...,0])
                 estimated_area = np.product(output_estimated_range[t][...,1] - output_estimated_range[t][...,0])
                 error +=(estimated_area - true_area) / true_area
@@ -387,6 +387,7 @@ class ClosedLoopUniformPartitioner(ClosedLoopPartitioner):
         num_propagator_calls = 0
 
         input_shape = input_range.shape[:-1]
+
         if num_partitions is None:
             num_partitions = np.ones(input_shape, dtype=int)
             if isinstance(self.num_partitions, np.ndarray) and input_shape == self.num_partitions.shape:

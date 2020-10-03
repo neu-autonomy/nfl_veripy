@@ -93,14 +93,12 @@ class Dynamics:
 
     def run(self, t_max, input_constraint, num_samples=100, collect_data=False, clip_control=False, controller='mpc'):
         np.random.seed(0)
-        num_timesteps = int((t_max)/self.dt)+1
-
+        num_timesteps = int((t_max+self.dt + np.finfo(float).eps)/(self.dt))
         if collect_data:
             np.random.seed(1)
             num_runs = int(num_samples / num_timesteps)
             xs = np.zeros((num_runs, num_timesteps, self.num_states))
             us = np.zeros((num_runs, num_timesteps, self.num_inputs))
-
         # Initial state
         if isinstance(input_constraint, LpInputConstraint):
             if input_constraint.p == np.inf:
@@ -123,7 +121,6 @@ class Dynamics:
         t = 0
         step = 0
         while t < t_max:
-            t += self.dt
             if controller == 'mpc':
                 u = self.control_mpc(x0=x[step,:])
             elif isinstance(controller, BoundClosedLoopController) or isinstance(controller, torch.nn.Sequential):
@@ -137,6 +134,7 @@ class Dynamics:
 
             us[:,step,:] = u
             step += 1
+            t += self.dt +np.finfo(float).eps
         if collect_data:
             return xs, us
 
