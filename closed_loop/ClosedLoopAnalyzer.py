@@ -157,10 +157,9 @@ if __name__ == '__main__':
 
     partitioner_hyperparams = {
         "type": "None",
-        "type": "Uniform",
+        # "type": "Uniform",
        # "num_partitions": np.array([4,4]),
-
-        "num_partitions": np.array([4,4,1,1,1,1]),
+        # "num_partitions": np.array([4,4,1,1,1,1]),
         # "make_animation": False,
         # "show_animation": False,
     }
