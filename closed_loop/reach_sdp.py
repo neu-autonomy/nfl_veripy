@@ -20,7 +20,7 @@ def getE_out(num_states, num_neurons, num_inputs, At, bt, ct):
     E_out[-1,-1] = 1
     return E_out
 
-def getE_mid(num_states, num_neurons, num_inputs, model, u_min, u_max):
+def getE_mid(num_states, num_neurons, num_inputs, model, u_limits):
     # Set up E_mid to change the basis of Q to NN coordinates
 
     # Keras:
@@ -35,39 +35,49 @@ def getE_mid(num_states, num_neurons, num_inputs, model, u_min, u_max):
 
     num_layers = int(len(Ws)/2)
 
-    A_ = np.zeros((num_neurons+2*num_inputs,num_states+num_neurons+2*num_inputs))
-    B_ = np.zeros((num_neurons+2*num_inputs,num_states+num_neurons+2*num_inputs))
-    a_ = np.zeros((num_neurons+2*num_inputs,))
-    b_ = np.zeros((num_neurons+2*num_inputs,))
+    A = np.zeros((num_neurons+2*num_inputs,num_states+num_neurons+2*num_inputs))
+    B = np.zeros((num_neurons+2*num_inputs,num_states+num_neurons+2*num_inputs))
+    a = np.zeros((num_neurons+2*num_inputs,))
+    b = np.zeros((num_neurons+2*num_inputs,))
     i = 0; j = 0
     for layer in range(num_layers):
         W_i = Ws[2*layer].T
-        b_i = Ws[2*layer+1]
+        bi = Ws[2*layer+1]
 
-        A_[i:i+W_i.shape[0], j:j+W_i.shape[1]] = W_i
+        A[i:i+W_i.shape[0], j:j+W_i.shape[1]] = W_i
 
-        a_[i:i+W_i.shape[0]] = b_i
+        a[i:i+W_i.shape[0]] = bi
 
         i += W_i.shape[0]; j += W_i.shape[1]
 
-    A_[i:i+num_inputs, j:j+num_inputs] = -np.eye(num_inputs)
+    A[i:i+num_inputs, j:j+num_inputs] = -np.eye(num_inputs)
 
-    a_[-2*num_inputs:-num_inputs] -= u_min
-    a_[-num_inputs:] = u_max
-    b_[-2*num_inputs:-num_inputs] = -u_min
-    b_[-num_inputs:] = u_max
+    B[-num_inputs:, -num_inputs:] = -np.eye(num_inputs)
+    B[-2*num_inputs:-num_inputs, -2*num_inputs:-num_inputs] = np.eye(num_inputs)
+    B[0:num_neurons, num_states:num_states+num_neurons] = np.eye(num_neurons)
 
-    a_ = np.expand_dims(a_, axis=-1)
-    b_ = np.expand_dims(b_, axis=-1)
+    if u_limits is None:
+        print("Can't set u_limits to None. Getting rid of u_limits requires a bit of implementation effort still. Also, don't set u_limits too big or the solutions are wrong.")
+        raise NotImplementedError
+        B = B[:-2*num_inputs, :-2*num_inputs]
+        b = b[:-2*num_inputs]
+        A = A[:-2*num_inputs,:-2*num_inputs]
+        a = a[:-num_inputs]
+    else:
+        u_min = u_limits[:,0]
+        u_max = u_limits[:,1]
+        a[-2*num_inputs:-num_inputs] -= u_min
+        a[-num_inputs:] = u_max
+        b[-2*num_inputs:-num_inputs] = -u_min
+        b[-num_inputs:] = u_max
 
-    B_[-num_inputs:, -num_inputs:] = -np.eye(num_inputs)
-    B_[-2*num_inputs:-num_inputs, -2*num_inputs:-num_inputs] = np.eye(num_inputs)
-    B_[0:num_neurons, num_states:num_states+num_neurons] = np.eye(num_neurons)
+    a = np.expand_dims(a, axis=-1)
+    b = np.expand_dims(b, axis=-1)
 
     E_mid = np.vstack([
-            np.hstack([A_, a_]),
-            np.hstack([B_, b_]),
-            np.zeros((1,A_.shape[1]+a_.shape[1]))
+            np.hstack([A, a]),
+            np.hstack([B, b]),
+            np.zeros((1,A.shape[1]+a.shape[1]))
             ])
     E_mid[-1,-1] = 1
     return E_mid
@@ -173,7 +183,7 @@ def getOutputConstraints(num_states, a_i):
     return S_i, reachable_set_constrs, b_i
 
 
-def reachSDP_1(model, A_inputs, b_inputs, At, bt, ct, A_in, u_min, u_max):
+def reachSDP_1(model, A_inputs, b_inputs, At, bt, ct, A_in, u_limits):
 
     # Count number of units in each layer, except last layer
     num_neurons = np.sum([layer.get_config()['units'] for layer in model.layers][:-1])
@@ -185,7 +195,7 @@ def reachSDP_1(model, A_inputs, b_inputs, At, bt, ct, A_in, u_min, u_max):
 
     # Get change of basis matrices
     E_in = getE_in(num_states, num_neurons, num_inputs)
-    E_mid = getE_mid(num_states, num_neurons, num_inputs, model, u_min, u_max)
+    E_mid = getE_mid(num_states, num_neurons, num_inputs, model, u_limits)
     E_out = getE_out(num_states, num_neurons, num_inputs, At, bt, ct)
 
     # Get P,Q,S and constraint lists
@@ -220,12 +230,12 @@ def reachSDP_1(model, A_inputs, b_inputs, At, bt, ct, A_in, u_min, u_max):
 
     return bs
 
-def reachSDP_n(n, model, A_inputs, b_inputs, At, bt, ct, A_in, u_min, u_max):
+def reachSDP_n(n, model, A_inputs, b_inputs, At, bt, ct, A_in, u_limits):
     all_bs = []
-    bs = reachSDP_1(model, A_inputs, b_inputs, At, bt, ct, A_in, u_min, u_max)
+    bs = reachSDP_1(model, A_inputs, b_inputs, At, bt, ct, A_in, u_limits)
     all_bs.append(bs)
     for i in range(1,n):
-        bs = reachSDP_1(model, A_in, bs, At, bt, ct, A_in, u_min, u_max)
+        bs = reachSDP_1(model, A_in, bs, At, bt, ct, A_in, u_limits)
         all_bs.append(bs)
     return all_bs
 
@@ -259,7 +269,7 @@ if __name__ == '__main__':
     # A_in: vectors of the facets of the output reachable set polyhedron
     A_in = np.array([[1,-1,0,0,1,-1,1,-1],[0,0,1,-1,-1,1,1,-1]]).T
 
-    bs = reachSDP_1(model, A_inputs, b_inputs, At, bt, ct, A_in, u_min, u_max)
+    bs = reachSDP_1(model, A_inputs, b_inputs, At, bt, ct, A_in, u_limits)
     # bs2 = reachSDP_1(model, A_in, bs, At, bt, ct, A_in)
 
     # all_bs = reachSDP_n(6, model, A_inputs, b_inputs, At, bt, ct, A_in)

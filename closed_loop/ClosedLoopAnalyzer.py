@@ -99,8 +99,8 @@ if __name__ == '__main__':
 
     np.random.seed(seed=0)
 
-    system = 'quadrotor'
-    # system = 'double_integrator_mpc'
+    # system = 'quadrotor'
+    system = 'double_integrator_mpc'
 
     ##############
     # Simple FF network
@@ -123,7 +123,7 @@ if __name__ == '__main__':
                           [2.5, 3.0], # x0min, x0max
                           [-0.25, 0.25], # x1min, x1max
         ])
-        t_max = 5
+        t_max = 1
     elif system == 'quadrotor':
         from closed_loop.Dynamics import Quadrotor
         dynamics = Quadrotor()
@@ -180,7 +180,8 @@ if __name__ == '__main__':
     # ## Polytope Boundaries
     # from closed_loop.utils import init_state_range_to_polytope, get_polytope_A
     # A_inputs, b_inputs = init_state_range_to_polytope(init_state_range)
-    # A_out = get_polytope_A(9)
+    # if system == 'quadrotor': A_out = A_inputs
+    # else: A_out = get_polytope_A(8)
     # input_constraint = PolytopeInputConstraint(A_inputs, b_inputs)
     # output_constraint = PolytopeOutputConstraint(A_out)
 
@@ -202,8 +203,8 @@ if __name__ == '__main__':
    # print("Analyzer:", analyzer_info)
   #  print('estimated output rang', analyzer.get_output_range(input_constraint, output_constraint))
   #  print('sampled output range', analyzer.get_sampled_output_range(input_constraint,t_max=5, num_samples=1000))
-    error, avg_error = analyzer.get_error(input_constraint,output_constraint)
-    print('Final step approximation error:{:.2f}\nAverage approximation error: {:.2f}'.format(error, avg_error))
+    # error, avg_error = analyzer.get_error(input_constraint,output_constraint)
+    # print('Final step approximation error:{:.2f}\nAverage approximation error: {:.2f}'.format(error, avg_error))
     analyzer.visualize(input_constraint, output_constraint, show_samples=True, **analyzer_info)
  
     print("--- done. ---")

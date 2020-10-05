@@ -141,45 +141,6 @@ class ClosedLoopPartitioner(Partitioner):
         if show_samples:
             self.dynamics.show_samples(t_max*self.dynamics.dt, input_constraint, ax=self.animate_axes, controller=propagator.network, input_dims=input_dims)
 
-        # t_max = 5
-        # dt = 1.
-        # colors = [cm.get_cmap("tab10")(i) for i in range(t_max+1)]
-
-        # num_samples = 1000
-        # xs = np.zeros((num_samples, num_states))
-        # np.random.seed(0)
-        # dataset_index = 0
-
-        # while dataset_index < num_samples:
-
-        #     # Initial state
-        #     num_states = self.dynamics.At.shape[0]
-        #     x = np.zeros((int((t_max)/dt)+1, num_states))
-        #     x[0,:] = np.random.uniform(
-        #         low=[2.5,-0.25], 
-        #         high=[3.0,0.25]
-        #         # low=init_state_range[:,0], 
-        #         # high=init_state_range[:,1]
-        #     )
-        #     this_colors = colors.copy()
-
-        #     t = 0
-        #     step = 0
-        #     while t < t_max:
-        #         t += dt
-        #         u = control_nn(x=x[step,:], model=propagator.network, use_torch=True)
-        #         # if clip_control:
-        #         #     u = np.clip(u, u_min, u_max)
-        #         # if collect_data:
-        #         #     xs[dataset_index, :] = x[step,:]
-        #         x[step+1,:] = np.dot(self.dynamics.At, x[step, :]) + np.dot(self.dynamics.bt,u)[:,0]
-        #         step += 1
-        #         dataset_index += 1
-        #         if dataset_index == num_samples:
-        #             break
-
-        #     self.animate_axes.scatter(x[:,0], x[:,1], c=this_colors)
-
         # # Make a rectangle for the Exact boundaries
         # sampled_outputs = self.get_sampled_outputs(input_range, propagator)
         # if show_samples:
@@ -190,7 +151,11 @@ class ClosedLoopPartitioner(Partitioner):
         color = 'k'
         if isinstance(input_constraint, PolytopeInputConstraint):
             # TODO: this doesn't use the computed input_dims...
-            vertices = pypoman.compute_polygon_hull(A_inputs, b_inputs)
+            try:
+                vertices = pypoman.compute_polygon_hull(A_inputs, b_inputs)
+            except:
+                print("[warning] Can't visualize polytopic input constraints for >2 states. Need to implement this to it extracts input_dims.")
+                raise NotImplementedError
             self.animate_axes.plot([v[0] for v in vertices]+[vertices[0][0]], [v[1] for v in vertices]+[vertices[0][1]],
                 color=color, label='Initial States')
         elif isinstance(input_constraint, LpInputConstraint):

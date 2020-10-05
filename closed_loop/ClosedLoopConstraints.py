@@ -15,10 +15,8 @@ class PolytopeInputConstraint(InputConstraint):
         return PolytopeOutputConstraint(A=self.A)
 
     def to_linf(self):
-        vertices = np.stack(pypoman.polygon.compute_polygon_hull(self.A, self.b))
-        ranges = np.empty((self.A.shape[1],2))
-        ranges[:,0] = np.min(vertices, axis=0)
-        ranges[:,1] = np.max(vertices, axis=0)
+        vertices = np.stack(pypoman.duality.compute_polytope_vertices(self.A, self.b))
+        ranges = np.dstack([np.min(vertices, axis=0), np.max(vertices, axis=0)])[0]
         return ranges
 
 class LpInputConstraint(InputConstraint):

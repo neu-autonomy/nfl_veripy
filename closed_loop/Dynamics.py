@@ -91,9 +91,9 @@ class Dynamics:
         xs, us = self.run(t_max, input_constraint, num_samples, collect_data=True, controller=controller)
         return xs, us
 
-    def run(self, t_max, input_constraint, num_samples=100, collect_data=False, clip_control=False, controller='mpc'):
+    def run(self, t_max, input_constraint, num_samples=100, collect_data=False, clip_control=True, controller='mpc'):
         np.random.seed(0)
-        num_timesteps = int((t_max)/self.dt)+1
+        num_timesteps = int((t_max)/self.dt)+2
 
         if collect_data:
             np.random.seed(1)
@@ -182,8 +182,9 @@ class DoubleIntegrator(Dynamics):
         bt = np.array([[0.5], [1]])
         ct = np.array([0., 0.]).T
 
+        # u_limits = None
         u_limits = np.array([
-            [-100., 100.]
+            [-1., 1.] # (u0_min, u0_max)
         ])
 
         Dynamics.__init__(self, At=At, bt=bt, ct=ct, u_limits=u_limits)
@@ -221,6 +222,7 @@ class Quadrotor(Dynamics):
         ct[-1] = -g
         # ct = np.array([0., 0., 0. ,0., 0., -g]).T
 
+        # u_limits = None
         u_limits = np.array([
             [-np.pi/9, np.pi/9],
             [-np.pi/9, np.pi/9],
@@ -266,37 +268,24 @@ class Quadrotor(Dynamics):
 if __name__ == '__main__':
     from closed_loop.nn import load_model
 
-    # dynamics = DoubleIntegrator()
-    # init_state_range = np.array([ # (num_inputs, 2)
-    #                   [2.5, 3.0], # x0min, x0max
-    #                   [-0.25, 0.25], # x1min, x1max
-    # ])
-    dynamics = Quadrotor()
-
-    # init_state_range = np.array([
-    #     [ 4.74399948,  4.84599972],
-    #     [ 4.64899969,  4.75099993],
-    #     [ 2.94900012,  3.05099988],
-    #     [-0.16668373, -0.11418372],
-    #     [-0.42657009, -0.37431771],
-    #     [-0.07524291, -0.04822937],
-    #     ])
-
-    init_state_range = np.array([
-        [ 4.7447899, 4.65043755, 2.94919611, 0.9173471, -0.03881739, -0.003111],
-        [ 4.8456064, 4.75059748, 3.04982631, 0.9377732, -0.01473783, 0.0167838],
-        ]).T
-
+    dynamics = DoubleIntegrator()
     init_state_range = np.array([ # (num_inputs, 2)
-                  [4.65,4.65,2.95,0.94,-0.01,-0.01], # x0min, x0max
-                  [4.75,4.75,3.05,0.96,0.01,0.01] # x1min, x1max
-    ]).T
-    goal_state_range = np.array([
-                          [3.7,2.5,1.2],
-                          [4.1,3.5,2.6]            
-    ]).T
-    controller = load_model(name='quadrotor')
-    t_max = 3*dynamics.dt
+                      [2.5, 3.0], # x0min, x0max
+                      [-0.25, 0.25], # x1min, x1max
+    ])
+    controller = load_model(name='double_integrator_mpc')
+
+    # dynamics = Quadrotor()
+    # init_state_range = np.array([ # (num_inputs, 2)
+    #               [4.65,4.65,2.95,0.94,-0.01,-0.01], # x0min, x0max
+    #               [4.75,4.75,3.05,0.96,0.01,0.01] # x1min, x1max
+    # ]).T
+    # goal_state_range = np.array([
+    #                       [3.7,2.5,1.2],
+    #                       [4.1,3.5,2.6]            
+    # ]).T
+    # controller = load_model(name='quadrotor')
+    t_max = 1*dynamics.dt
     input_constraint = LpInputConstraint(range=init_state_range, p=np.inf)
     dynamics.show_samples(t_max, input_constraint, save_plot=False, ax=None, show=True, controller=controller)
 

@@ -1,6 +1,7 @@
 import pickle
 import numpy as np
 import pypoman
+import itertools
 
 def save_dataset(xs, us):
     with open("dataset.pkl", "wb") as f:
@@ -14,15 +15,12 @@ def load_dataset():
 def init_state_range_to_polytope(init_state_range):
     num_states = init_state_range.shape[0]
     pts = []
-    for i in range(num_states):
-        for j in range(num_states):
-            pts.append([init_state_range[0,i], init_state_range[1,j]])
-    vertices = np.array(pts)
-    A_inputs, b_inputs = pypoman.compute_polytope_halfspaces(vertices)
+    A_inputs = np.vstack([np.eye(num_states), -np.eye(num_states)])
+    b_inputs = np.hstack([init_state_range[:,1], -init_state_range[:,0]])
     return A_inputs, b_inputs
 
 def get_polytope_A(num):
-    theta = np.linspace(0,2*np.pi,num=num)
+    theta = np.linspace(0,2*np.pi,num=num+1)
     A_out = np.dstack([np.cos(theta), np.sin(theta)])[0][:-1]
     return A_out
 

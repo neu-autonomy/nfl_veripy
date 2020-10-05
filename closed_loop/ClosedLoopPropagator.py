@@ -14,17 +14,17 @@ class ClosedLoopPropagator(Propagator):
         Propagator.__init__(self, input_shape=input_shape)
         self.dynamics = dynamics
 
-    def get_one_step_reachable_set(self, input_constraint, output_constraint, u_limits=[-5., 5.]):
+    def get_one_step_reachable_set(self, input_constraint, output_constraint):
         raise NotImplementedError
 
-    def get_reachable_set(self, input_constraint, output_constraint, t_max, u_limits=None):
+    def get_reachable_set(self, input_constraint, output_constraint, t_max):
         output_constraints = []
-        output_constraint, _ = self.get_one_step_reachable_set(input_constraint, output_constraint, u_limits=u_limits)
+        output_constraint, _ = self.get_one_step_reachable_set(input_constraint, output_constraint)
         output_constraints.append(deepcopy(output_constraint))
         for i in np.arange(0+self.dynamics.dt, t_max, self.dynamics.dt):
             next_input_constraint = output_constraint.to_input_constraint()
             next_output_constraint = deepcopy(output_constraint)
-            output_constraint, _ = self.get_one_step_reachable_set(next_input_constraint, next_output_constraint, u_limits=u_limits)
+            output_constraint, _ = self.get_one_step_reachable_set(next_input_constraint, next_output_constraint)
             output_constraints.append(deepcopy(output_constraint))
         return output_constraints, {}
 
@@ -35,7 +35,7 @@ class ClosedLoopSDPPropagator(ClosedLoopPropagator):
     def torch2network(self, torch_model):
         return torch_model
 
-    def get_one_step_reachable_set(self, input_constraint, output_constraint, u_limits=[-5., 5.]):
+    def get_one_step_reachable_set(self, input_constraint, output_constraint):
         if isinstance(output_constraint, PolytopeOutputConstraint):
             A_out = output_constraint.A
         elif isinstance(output_constraint, LpOutputConstraint):
@@ -66,13 +66,9 @@ class ClosedLoopSDPPropagator(ClosedLoopPropagator):
         num_states = self.dynamics.At.shape[0]
         num_inputs = self.dynamics.bt.shape[1]
 
-        if u_limits is None:
-            u_limits = [-1., 1.]
-        u_min, u_max = u_limits
-
         # Get change of basis matrices
         E_in = getE_in(num_states, num_neurons, num_inputs)
-        E_mid = getE_mid(num_states, num_neurons, num_inputs, self.network, u_min, u_max)
+        E_mid = getE_mid(num_states, num_neurons, num_inputs, self.network, self.dynamics.u_limits)
         E_out = getE_out(num_states, num_neurons, num_inputs, self.dynamics.At, self.dynamics.bt, self.dynamics.ct)
 
         # Get P,Q,S and constraint lists
@@ -128,7 +124,7 @@ class ClosedLoopCROWNIBPCodebasePropagator(ClosedLoopPropagator):
     def forward_pass(self, input_data):
         return self.network(torch.Tensor(input_data), method_opt=None).data.numpy()
 
-    def get_one_step_reachable_set(self, input_constraint, output_constraint, u_limits=None):
+    def get_one_step_reachable_set(self, input_constraint, output_constraint):
 
         if isinstance(input_constraint, PolytopeInputConstraint):
             A_inputs = input_constraint.A
@@ -136,12 +132,9 @@ class ClosedLoopCROWNIBPCodebasePropagator(ClosedLoopPropagator):
 
             # Get bounds on each state from A_inputs, b_inputs
             num_states = self.dynamics.At.shape[0]
-            vertices = pypoman.compute_polygon_hull(A_inputs, b_inputs)
-            x_max = []
-            x_min = []
-            for state in range(num_states):
-                x_max.append(np.max([v[state] for v in vertices]))
-                x_min.append(np.min([v[state] for v in vertices]))
+            vertices = np.stack(pypoman.compute_polytope_vertices(A_inputs, b_inputs))
+            x_max = np.max(vertices, 0)
+            x_min = np.min(vertices, 0)
             norm = np.inf
         elif isinstance(input_constraint, LpInputConstraint):
             x_min = input_constraint.range[...,0]
@@ -185,14 +178,13 @@ class ClosedLoopCROWNIBPCodebasePropagator(ClosedLoopPropagator):
             # (unless they've changed, e.g. time-varying At matrix)
             xt1_max, xt1_min = self.network.compute_bound_from_matrices(lower_A, lower_sum_b, upper_A, upper_sum_b, 
                 torch.Tensor([x_max]), torch.Tensor([x_min]), norm,
-                A_out=A_out_torch, A_in=A_inputs, b_in=b_inputs,
-                u_limits=u_limits)
+                A_out_torch, A_in=A_inputs, b_in=b_inputs)
 
             if isinstance(output_constraint, PolytopeOutputConstraint):
                 bs[i] = xt1_max
             elif isinstance(output_constraint, LpOutputConstraint):
-                ranges[i,0] = xt1_min[0][0]
-                ranges[i,1] = xt1_max[0][0]
+                ranges[i,0] = xt1_min
+                ranges[i,1] = xt1_max
             else:
                 raise NotImplementedError
 
