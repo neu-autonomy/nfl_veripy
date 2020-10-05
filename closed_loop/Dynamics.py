@@ -221,11 +221,12 @@ class Quadrotor(Dynamics):
         # ct = np.array([0., 0., 0. ,0., 0., -g]).T
 
         # u_limits = None
+        # u_limits = np.zeros((3,2))
         u_limits = np.array([
             [-np.pi/9, np.pi/9],
             [-np.pi/9, np.pi/9],
             [0, 2*g],
-            ])
+        ])
 
         dt = 0.1
 
