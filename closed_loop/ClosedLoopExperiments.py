@@ -15,7 +15,7 @@ import glob
 import time
 import math
 from closed_loop.nn import load_model
-from closed_loop.Dynamics import DoubleIntegrator
+from closed_loop.Dynamics import DoubleIntegrator, Quadrotor
 import closed_loop.ClosedLoopAnalyzer
 
 from closed_loop.ClosedLoopPartitioner import ClosedLoopNoPartitioner, ClosedLoopUniformPartitioner
@@ -27,7 +27,7 @@ os.makedirs(save_dir, exist_ok=True)
 img_save_dir = save_dir+"/imgs/"
 os.makedirs(img_save_dir, exist_ok=True)
 
-experiments = [
+model_list= [
   #  {
     #    'neurons': (2,100,2),
     #    'activation': 'relu',
@@ -73,23 +73,29 @@ experiments = [
 
     {
         'model_fn': 'double_integrator_mpc',
-      #  'model_args': {
-     #       'neurons': (2,100,2),
-      #      'activation': 'relu',
-     #   },
         'input_range': np.array([ # (num_inputs, 2)
                       [2.5, 3.0], # x0min, x0max
                       [-0.25, 0.25], # x1min, x1max
                       ]),
         'seeds': range(1),
         'name': "double Integrator",
-        'sample_time': 0.1,
         },
-    # {
-    #     'model_fn': random_model,
+   {
+        'model_fn': 'quadrotor',
+ 
+       'seeds': range(1),
+       'name': "quadrotor",
+
+       'input_range':np.array([ # (num_inputs, 2)
+                     [4.65,4.65,2.95,0.94,-0.01,-0.01],
+                      [4.75,4.75,3.05,0.96,0.01,0.01]
+        ]).T
+        },
+     #{
+     #    'model_fn': random_model,
     #     'model_args': {
-    #         'neurons': (2,100,100,100,100,100,100,2),
-    #         'activation': 'relu',
+     #        'neurons': (2,100,100,100,100,100,100,2),
+      #       'activation': 'relu',
     #     },
     #     'seeds': range(10),
     #     'name': "Deep NN",
@@ -112,30 +118,35 @@ experiments = [
    
 ]
 
-def collect_data_for_table(propagators,partitioners, experiments_list, experiment_hyperparams, boundaries):
+def collect_data_for_table(propagators,partitioners, experiments_list, experiment_hyperparams, model_params, boundaries):
 
     df = pd.DataFrame()
 
-    for experiment in experiments:
-        for seed in experiment['seeds']:
-            model_fn = experiment['model_fn']
-            #model, model_info = model_fn(seed=seed, **experiment['model_args'])
-            model = load_model(model_fn)
+    #for model_param in model_params:  ## TODO: fix it for creating the table
+    for seed in model_params['seeds']:
+        model_fn = model_params['model_fn']
+        #model, model_info = model_fn(seed=seed, **experiment['model_args'])
+        model = load_model(model_fn)
     
     ##############
-    # Dynamics: Double integrator
+    # System Dynamics
     ##############
-            if model_fn == 'double_integrator_mpc':
+        if model_fn == 'double_integrator_mpc':
 
-                dynamics = DoubleIntegrator()
-                init_state_range = experiment['input_range']
+            dynamics = DoubleIntegrator()
+            init_state_range = model_params['input_range']
                 
-            else:
-                raise NotImplementedError
+        elif model_fn == 'quadrotor':
+
+            dynamics = Quadrotor()
+            init_state_range = model_params['input_range']
+        else:
+                
+            raise NotImplementedError
 
           #  input_range = experiment_input_range(lstm=('lstm' in experiment and experiment['lstm']),
            #     neurons=experiment['model_args']['neurons'], input_shape=experiment.get('input_shape', None))
-            df = run_experiment(model=model, dynamics =dynamics,  model_info=None, df=df, save_df=False, input_range=init_state_range, 
+        df = run_experiment(model=model, dynamics =dynamics,  model_info=None, df=df, save_df=False, input_range=init_state_range, 
                 partitioners=partitioners, propagators=propagators, partitioner_hyperparams_to_use=partitioner_hyperparams_to_use,
                 experiments= experiments_list, experiment_hyperparams= experiment_hyperparams)
 
@@ -221,7 +232,6 @@ def run_experiment(model=None, dynamics= None, model_info=None, df=None, save_df
     
                 else:
                     raise NotImplementedError
-
                 data_row = run_and_add_row(analyzer, input_range, partitioner_hyperparams, propagator_hyperparams, model_info, t_max)
                 df = df.append(data_row, ignore_index=True)
     
@@ -266,7 +276,7 @@ def run_and_add_row(analyzer, input_range, partitioner_hyperparams, propagator_h
    # pars = '_'.join([str(key)+"_"+str(value) for key, value in sorted(partitioner_hyperparams.items(), key=lambda kv: kv[0]) if key not in ["make_animation", "show_animation", "type"]])
    # pars2 = '_'.join([str(key)+"_"+str(value) for key, value in sorted(propagator_hyperparams.items(), key=lambda kv: kv[0]) if key not in ["input_shape", "type"]])
  
-    error, avg_error = analyzer.get_error(input_constraint,output_constraint)
+    error, avg_error = analyzer.get_error(input_constraint,output_constraint, t_max)
 
     # analyzer_info["save_name"] = img_save_dir+partitioner_hyperparams['type']+"_"+propagator_hyperparams['type']+"_"+pars+"_"+pars2+".png"
     # analyzer.visualize(input_range, output_range, show=False, show_legend=False, **analyzer_info)
@@ -388,7 +398,7 @@ def plot(df, stat):
 
 
 
-def plot_errors(df, stat):
+def plot_errors(df, stat, model_params):
     for partitioner in df["partitioner"].unique():
         for propagator in df["propagator"].unique():
             if partitioner == "ClosedLoopUniformPartitioner":
@@ -411,8 +421,10 @@ def plot_errors(df, stat):
 
     plt.xlabel(stats[stat]["name"])
     plt.ylabel('Approximation Error')
-    plt.legend(bbox_to_anchor=(0., 1.02, 1., .102), loc=3,
-        ncol=2, borderaxespad=0.)    # plt.xlabel(stats[stat]["name"], fontsize=36)
+    plt.title(model_names[model_params['model_fn']])
+
+    plt.legend(bbox_to_anchor=(0., 0.75, 0.45, .1), loc=4,
+        ncol=1, borderaxespad=0.)    # plt.xlabel(stats[stat]["name"], fontsize=36)
     # plt.xticks(fontsize=36)
     # plt.ylabel('Approximation Error', fontsize=36)
     # plt.yticks(fontsize=36)
@@ -482,7 +494,7 @@ stats = {
         "name": "Number of Propagator Calls"
     },
     "time_steps": {
-        "name": "Number of Time Steps"
+        "name": "Time (sec)"
     },
 }
 
@@ -506,6 +518,14 @@ citations = {
     "SDP": {
         "None": "\\cite{fazlyab2019safety}",
     },
+}
+
+model_names= {
+    "quadrotor": "Quadrotor",
+    "double_integrator_mpc": "Double Integrator"
+
+
+
 }
 
 # def make_table(df):
@@ -572,6 +592,7 @@ if __name__ == '__main__':
 
     # Run an experiment
     # df = run_experiment()
+    model_params = model_list[1]
 
     partitioners = ["None", "Uniform"]#, "GreedySimGuidedPartitioner", "AdaptiveSimGuidedPartitioner"]
     propagators = ["CROWN"]#, "SDP"]
@@ -584,7 +605,8 @@ if __name__ == '__main__':
             "Uniform":
                 {
                    # "num_partitions": [1,2,4,8,16,32,64,128]
-                    "num_partitions": [10]
+                "num_partitions":  [np.array([4,4,1,1,1,1])],
+               # "num_partitions": [np.array([4,4])],
 
                 }
 
@@ -598,13 +620,16 @@ if __name__ == '__main__':
             "errorVstimeStep":
 
             {
-            "t_max": range(1,11)
+            "t_max": [0.1,0.5,1.0,1.5,2.,2.5,3], #TODO: make it universerval for all systems
+           # "t_max": range(1,11), #TODO: make it universerval for all systems
+
                 },
         }
     # Make table
-    df = collect_data_for_table(propagators,partitioners, experiments_list, experiment_hyperparams, boundaries)
+    print(experiment_hyperparams[ 'errorVstimeStep']['t_max'])
+    df = collect_data_for_table(propagators,partitioners, experiments_list, experiment_hyperparams, model_params, boundaries)
    # plot_errors(df,"num_partitions")
-    plot_errors(df,"time_steps")
+    plot_errors(df,"time_steps", model_params)
    # print(df["final_error"], df["avg_error"])
     #for df_info in df:
         #plt.plot(df_info["partitons"], df_info["final_error"] )
@@ -622,8 +647,9 @@ if __name__ == '__main__':
      #   df = pd.read_pickle(latest_file)
 
     print("\n --- \n")
+    print("done!")
 
   #  make_table(df, partitioners, propagators, boundaries,)
    # make_big_table(df)
 
-    print("\n --- \n")
+   # print("\n --- \n")
