@@ -90,9 +90,8 @@ class ClosedLoopSDPPropagator(ClosedLoopPropagator):
             constraints.append(M_in + M_mid + M_out << 0)
 
             objective = cp.Minimize(b_i)
-            prob = cp.Problem(objective,
-                              constraints)
-            prob.solve()
+            prob = cp.Problem(objective, constraints)
+            prob.solve(solver=cp.MOSEK)
             # print("status:", prob.status)
             bs[i] = b_i.value
 
