@@ -7,7 +7,7 @@ from matplotlib.patches import Rectangle
 # from closed_loop.nn import control_nn
 from itertools import product
 from closed_loop.utils import init_state_range_to_polytope
-from closed_loop.ClosedLoopConstraints import PolytopeInputConstraint, LpInputConstraint, PolytopeOutputConstraint, LpOutputConstraint
+from closed_loop.ClosedLoopConstraints import PolytopeInputConstraint, LpInputConstraint, PolytopeOutputConstraint, LpOutputConstraint, EllipsoidInputConstraint, EllipsoidOutputConstraint
 from copy import deepcopy
 
 class ClosedLoopPartitioner(Partitioner):
