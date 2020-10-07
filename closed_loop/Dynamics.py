@@ -13,11 +13,22 @@ from closed_loop.ClosedLoopConstraints import PolytopeInputConstraint, LpInputCo
 import torch
 
 class Dynamics:
-    def __init__(self, At, bt, ct, u_limits=None, dt=1.0):
+    def __init__(self, At, bt, ct, u_limits=None, dt=1.0, c=None, sensor_noise=None, process_noise=None):
+        print("[Dynamics] __init__")
+
+        # State dynamics
         self.At = At
         self.bt = bt
         self.ct = ct
         self.num_states, self.num_inputs = bt.shape
+
+        # Observation Dynamics and Noise
+        if c is None:
+            c = np.eye(self.num_states)
+        self.c = c
+        self.num_outputs = self.c.shape[0]
+        self.sensor_noise = sensor_noise
+        self.process_noise = process_noise
 
         # Min/max control inputs
         self.u_limits = u_limits
@@ -31,6 +42,13 @@ class Dynamics:
             batch_x = x
         us = model.forward(torch.Tensor(batch_x)).data.numpy()
         return us
+
+    def observe_step(self, xs):
+        obs = np.dot(xs, self.c.T)
+        return xs
+
+    def dynamics_step(self, xs, us):
+        raise NotImplementedError
 
     def colors(self, t_max):
         return [cm.get_cmap("tab10")(i) for i in range(t_max+1)]
@@ -106,7 +124,6 @@ class Dynamics:
                     low=input_constraint.range[:,0], 
                     high=input_constraint.range[:,1],
                     size=(num_runs, self.num_states))
-                # import pdb; pdb.set_trace()
             else:
                 raise NotImplementedError
         elif isinstance(input_constraint, PolytopeInputConstraint):
@@ -121,55 +138,29 @@ class Dynamics:
         t = 0
         step = 0
         while t < t_max:
+
+            # Observe system (using observer matrix, possibly adding measurement noise)
+            obs = self.observe_step(xs[:,step,:])
+
+            # Compute Control
             if controller == 'mpc':
                 u = self.control_mpc(x0=x[step,:])
             elif isinstance(controller, BoundClosedLoopController) or isinstance(controller, torch.nn.Sequential):
-                u = self.control_nn(x=xs[:,step,:], model=controller)
+                u = self.control_nn(x=obs, model=controller)
             else:
                 raise NotImplementedError
             if clip_control and (self.u_limits is not None):
                 u = np.clip(u, self.u_limits[:,0], self.u_limits[:,1])
 
+            # Step through dynamics (possibly adding process noise)
             xs[:,step+1,:] = self.dynamics_step(xs[:, step, :], u)
 
             us[:,step,:] = u
             step += 1
             t += self.dt +np.finfo(float).eps
+
         if collect_data:
             return xs, us
-
-        # for run in range(num_runs):
-        #     # Initial state
-        #     x = np.zeros((num_timesteps, self.num_states))
-        #     x[0,:] = np.random.uniform(
-        #         low=init_state_range[:,0], 
-        #         high=init_state_range[:,1])
-        #     u_clipped = np.zeros((num_timesteps, self.num_inputs))
-        #     this_colors = self.colors(t_max).copy()
-
-        #     t = 0
-        #     step = 0
-        #     while t < t_max:
-        #         t += self.dt
-        #         if controller == 'mpc':
-        #             u = self.control_mpc(x0=x[step,:])
-        #         elif isinstance(controller, BoundClosedLoopController):
-        #             u = self.control_nn(x=x[step,:], model=controller)
-        #         else:
-        #             raise NotImplementedError
-        #         if clip_control and (self.u_min is not None or self.u_max is not None):
-        #             u_raw = u
-        #             u = np.clip(u, self.u_min, self.u_max)
-        #             # if u != u_raw:
-        #             #     this_colors[step+1] = [0,0,0]
-        #         if collect_data:
-        #             xs[run, step, :] = x[step,:]
-        #             us[run, step, :] = u
-        #         x[step+1,:] = np.dot(self.At, x[step, :]) + np.dot(self.bt, u)
-        #         step += 1
-        # if collect_data:
-        #     return xs, us
-
 
 class DoubleIntegrator(Dynamics):
     def __init__(self):
@@ -238,31 +229,40 @@ class Quadrotor(Dynamics):
         # self.Pinf = solve_discrete_are(self.At, self.bt, self.Q, self.R)
 
     def dynamics_step(self, xs, us):
-
-        xs_t1 = xs + self.dt*self.dynamics(xs, us)
-
-        # h = self.dt
-        # # Dynamics are for x_dot = Ax+Bu+c, need to compute x_{t+1}:
-        # k1 = h*self.dynamics(xs, us)
-        # k2 = h*self.dynamics(xs + k1/2, us)
-        # k3 = h*self.dynamics(xs + k2/2, us)
-        # k4 = h*self.dynamics(xs + k3, us)
-        # # k1 = h*self.dynamics(xs, us)
-        # # k2 = h*self.dynamics(xs+h/2, us + k1/2)
-        # # k3 = h*self.dynamics(xs+h/2, us + k2/2)
-        # # k4 = h*self.dynamics(xs+h, us + k3)
-        # xs_t1 = xs + k1/6 + k2/3 + k3/3 + k4/6
-
-        # print("xs_t1:", xs_t1)
-        # print("xs_t1_:", xs_t1_)
-        # print('--')
-
-        return xs_t1
+        return xs + self.dt*self.dynamics(xs, us)
 
     def dynamics(self, xs, us):
-        # # TODO: Add ct back in!!!!!!!
-        # return ((np.dot(self.At, xs.T) + np.dot(self.bt, us.T)).T)
         return ((np.dot(self.At, xs.T) + np.dot(self.bt, us.T)).T + self.ct)
+
+class DoubleIntegratorOutputFeedback(DoubleIntegrator):
+    def __init__(self):
+        super().__init__()
+        self.process_noise = 0.*np.dstack([-np.ones(self.num_states), np.ones(self.num_states)])[0]
+        # self.process_noise = 0.1*np.dstack([-np.ones(self.num_states), np.ones(self.num_states)])[0]
+
+        self.sensor_noise = 0.3*np.dstack([-np.ones(self.num_outputs), np.ones(self.num_outputs)])[0]
+
+    def dynamics_step(self, xs, us):
+        xs_t1 = super().dynamics_step(xs.copy(), us)
+        if self.process_noise is not None:
+            noise = np.random.uniform(
+                low=self.process_noise[:,0],
+                high=self.process_noise[:,1],
+                size=xs_t1.shape,
+            )
+            xs_t1 += noise
+        return xs_t1
+
+    def observe_step(self, xs):
+        obs = super().observe_step(xs.copy())
+        if self.sensor_noise is not None:
+            noise = np.random.uniform(
+                low=self.sensor_noise[:,0],
+                high=self.sensor_noise[:,1],
+                size=xs.shape,
+            )
+            obs += noise
+        return obs
 
 if __name__ == '__main__':
     from closed_loop.nn import load_model

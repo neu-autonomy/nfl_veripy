@@ -119,6 +119,8 @@ if __name__ == '__main__':
     if system == 'double_integrator_mpc':
         from closed_loop.Dynamics import DoubleIntegrator
         dynamics = DoubleIntegrator()
+        # from closed_loop.Dynamics import DoubleIntegratorOutputFeedback
+        # dynamics = DoubleIntegratorOutputFeedback()
         init_state_range = np.array([ # (num_inputs, 2)
                           [2.5, 3.0], # x0min, x0max
                           [-0.25, 0.25], # x1min, x1max
@@ -164,9 +166,9 @@ if __name__ == '__main__':
         # "show_animation": False,
     }
     propagator_hyperparams = {
-        "type": "SDP",
+        # "type": "SDP",
         # "type": "IBP",
-        # "type": "CROWN",
+        "type": "CROWN",
       #  "type": "FastLin",
         "input_shape": init_state_range.shape[:-1],
     }
@@ -198,7 +200,7 @@ if __name__ == '__main__':
     # output_constraint = EllipsoidOutputConstraint()
 
     output_constraint, analyzer_info = analyzer.get_reachable_set(input_constraint, output_constraint, t_max=t_max)
-    # print("output_constraint:", output_constraint)
+    print("output_constraint:", output_constraint.range)
     # output_range, analyzer_info = analyzer.get_output_range(input_range)
     # print("Estimated output_range:\n", output_range)
     # print("Number of propagator calls:", analyzer_info["num_propagator_calls"])
