@@ -14,7 +14,6 @@ import torch
 
 class Dynamics:
     def __init__(self, At, bt, ct, u_limits=None, dt=1.0, c=None, sensor_noise=None, process_noise=None):
-        print("[Dynamics] __init__")
 
         # State dynamics
         self.At = At
@@ -45,7 +44,14 @@ class Dynamics:
 
     def observe_step(self, xs):
         obs = np.dot(xs, self.c.T)
-        return xs
+        if self.sensor_noise is not None:
+            noise = np.random.uniform(
+                low=self.sensor_noise[:,0],
+                high=self.sensor_noise[:,1],
+                size=xs.shape,
+            )
+            obs += noise
+        return obs
 
     def dynamics_step(self, xs, us):
         raise NotImplementedError
@@ -176,7 +182,7 @@ class DoubleIntegrator(Dynamics):
             [-1., 1.] # (u0_min, u0_max)
         ])
 
-        Dynamics.__init__(self, At=At, bt=bt, ct=ct, u_limits=u_limits)
+        super().__init__(At=At, bt=bt, ct=ct, u_limits=u_limits)
 
         # LQR-MPC parameters
         self.Q = np.eye(2)
@@ -188,7 +194,15 @@ class DoubleIntegrator(Dynamics):
 
     def dynamics_step(self, xs, us):
         # Dynamics are already discretized:
-        return (np.dot(self.At, xs.T) + np.dot(self.bt, us.T)).T + self.ct
+        xs_t1 = (np.dot(self.At, xs.T) + np.dot(self.bt, us.T)).T + self.ct
+        if self.process_noise is not None:
+            noise = np.random.uniform(
+                low=self.process_noise[:,0],
+                high=self.process_noise[:,1],
+                size=xs.shape,
+            )
+            xs_t1 += noise
+        return xs_t1
 
 class Quadrotor(Dynamics):
     def __init__(self):
@@ -211,17 +225,16 @@ class Quadrotor(Dynamics):
         ct[-1] = -g
         # ct = np.array([0., 0., 0. ,0., 0., -g]).T
 
-        # u_limits = None
-        # u_limits = np.zeros((3,2))
-        u_limits = np.array([
-            [-np.pi/9, np.pi/9],
-            [-np.pi/9, np.pi/9],
-            [0, 2*g],
-        ])
+        u_limits = None
+        # u_limits = np.array([
+        #     [-np.pi/9, np.pi/9],
+        #     [-np.pi/9, np.pi/9],
+        #     [0, 2*g],
+        # ])
 
         dt = 0.1
 
-        Dynamics.__init__(self, At=At, bt=bt, ct=ct, u_limits=u_limits, dt=dt)
+        super().__init__(At=At, bt=bt, ct=ct, u_limits=u_limits, dt=dt)
 
         # # LQR-MPC parameters
         # self.Q = np.eye(2)
@@ -232,37 +245,31 @@ class Quadrotor(Dynamics):
         return xs + self.dt*self.dynamics(xs, us)
 
     def dynamics(self, xs, us):
-        return ((np.dot(self.At, xs.T) + np.dot(self.bt, us.T)).T + self.ct)
-
-class DoubleIntegratorOutputFeedback(DoubleIntegrator):
-    def __init__(self):
-        super().__init__()
-        self.process_noise = 0.*np.dstack([-np.ones(self.num_states), np.ones(self.num_states)])[0]
-        # self.process_noise = 0.1*np.dstack([-np.ones(self.num_states), np.ones(self.num_states)])[0]
-
-        self.sensor_noise = 0.3*np.dstack([-np.ones(self.num_outputs), np.ones(self.num_outputs)])[0]
-
-    def dynamics_step(self, xs, us):
-        xs_t1 = super().dynamics_step(xs.copy(), us)
+        xdot = (np.dot(self.At, xs.T) + np.dot(self.bt, us.T)).T + self.ct
         if self.process_noise is not None:
             noise = np.random.uniform(
                 low=self.process_noise[:,0],
                 high=self.process_noise[:,1],
-                size=xs_t1.shape,
-            )
-            xs_t1 += noise
-        return xs_t1
-
-    def observe_step(self, xs):
-        obs = super().observe_step(xs.copy())
-        if self.sensor_noise is not None:
-            noise = np.random.uniform(
-                low=self.sensor_noise[:,0],
-                high=self.sensor_noise[:,1],
                 size=xs.shape,
             )
-            obs += noise
-        return obs
+            xdot += noise
+        return xdot
+
+class DoubleIntegratorOutputFeedback(DoubleIntegrator):
+    def __init__(self):
+        super().__init__()
+        # self.process_noise = np.array([
+        #     [-0.5,0.5],
+        #     [-0.01,0.01],
+        # ])
+        self.process_noise = 0.*np.dstack([-np.ones(self.num_states), np.ones(self.num_states)])[0]
+        self.sensor_noise = 0.*np.dstack([-np.ones(self.num_outputs), np.ones(self.num_outputs)])[0]
+
+class QuadrotorOutputFeedback(Quadrotor):
+    def __init__(self):
+        super().__init__()
+        self.process_noise = 0.5*np.dstack([-np.ones(self.num_states), np.ones(self.num_states)])[0]
+        self.sensor_noise = 0.*np.dstack([-np.ones(self.num_outputs), np.ones(self.num_outputs)])[0]
 
 if __name__ == '__main__':
     from closed_loop.nn import load_model

@@ -47,19 +47,73 @@ class BoundClosedLoopController(BoundSequential):
         xi = torch.where(flip_A, upper_A, lower_A)
         gamma = torch.where(flip_b, upper_sum_b, lower_sum_b)
 
+        # Fill in best/worst-case process noise realizations
+        if dynamics.process_noise is None:
+            process_noise_low = process_noise_high = torch.zeros_like(torch.Tensor([dynamics.ct]))
+        else:
+            flip_process_noise = A_out < 0
+            process_noise_low = torch.where(flip_process_noise, torch.Tensor(dynamics.process_noise[:,1]), torch.Tensor(dynamics.process_noise[:,0]))
+            process_noise_high = torch.where(flip_process_noise, torch.Tensor(dynamics.process_noise[:,0]), torch.Tensor(dynamics.process_noise[:,1]))
+
         # Compute slope and intercept of closed-loop system linear bounds
         if dynamics.continuous_time:
             # x_{t+1} = x_t+dt*x_dot = x_t+dt*(Ax+bu+c) <= (I+dt*(A+bY))x + dt*(bG)
-            lower_A_with_dyn = torch.matmul(A_out, torch.eye(dynamics.num_states).unsqueeze(0)+dynamics.dt*(torch.Tensor([dynamics.At])+torch.Tensor([dynamics.bt]).bmm(xi)))
-            upper_A_with_dyn = torch.matmul(A_out, torch.eye(dynamics.num_states).unsqueeze(0)+dynamics.dt*(torch.Tensor([dynamics.At])+torch.Tensor([dynamics.bt]).bmm(upsilon)))
-            lower_sum_b_with_dyn = torch.matmul(A_out, dynamics.dt*(torch.Tensor([dynamics.bt]).bmm(gamma.unsqueeze(-1))+torch.Tensor([dynamics.ct]).unsqueeze(-1)))
-            upper_sum_b_with_dyn = torch.matmul(A_out, dynamics.dt*(torch.Tensor([dynamics.bt]).bmm(psi.unsqueeze(-1))+torch.Tensor([dynamics.ct]).unsqueeze(-1)))
+            lower_A_with_dyn = \
+                torch.matmul(A_out,
+                    torch.eye(dynamics.num_states).unsqueeze(0) +
+                    dynamics.dt*(
+                        torch.Tensor([dynamics.At]) +
+                        torch.Tensor([dynamics.bt]).bmm(xi)
+                        )
+                    )
+            upper_A_with_dyn = \
+                torch.matmul(A_out, 
+                    torch.eye(dynamics.num_states).unsqueeze(0) +
+                    dynamics.dt*(
+                        torch.Tensor([dynamics.At]) +
+                        torch.Tensor([dynamics.bt]).bmm(upsilon)
+                        )
+                    )
+            lower_sum_b_with_dyn = \
+                torch.matmul(A_out, 
+                    dynamics.dt*(
+                        torch.Tensor([dynamics.bt]).bmm(gamma.unsqueeze(-1)) + 
+                        torch.Tensor([dynamics.ct]).unsqueeze(-1) +
+                        process_noise_low.unsqueeze(-1)
+                        )
+                    )
+            upper_sum_b_with_dyn = \
+                torch.matmul(A_out, 
+                    dynamics.dt*(
+                        torch.Tensor([dynamics.bt]).bmm(psi.unsqueeze(-1)) +
+                        torch.Tensor([dynamics.ct]).unsqueeze(-1) +
+                        process_noise_high.unsqueeze(-1)
+                        )
+                    )
         else:
             # x_{t+1} = Ax+bu+c <= (A+bY)x+bG
-            lower_A_with_dyn = torch.matmul(A_out, torch.Tensor([dynamics.At])+torch.Tensor([dynamics.bt]).bmm(xi))
-            upper_A_with_dyn = torch.matmul(A_out, torch.Tensor([dynamics.At])+torch.Tensor([dynamics.bt]).bmm(upsilon))
-            lower_sum_b_with_dyn = torch.matmul(A_out, torch.Tensor([dynamics.bt]).bmm(gamma.unsqueeze(-1)) + torch.Tensor([dynamics.ct]).unsqueeze(-1))
-            upper_sum_b_with_dyn = torch.matmul(A_out, torch.Tensor([dynamics.bt]).bmm(psi.unsqueeze(-1)) + torch.Tensor([dynamics.ct]).unsqueeze(-1))
+            lower_A_with_dyn = \
+                torch.matmul(A_out, 
+                    torch.Tensor([dynamics.At]) +
+                    torch.Tensor([dynamics.bt]).bmm(xi)
+                    )
+            upper_A_with_dyn = \
+                torch.matmul(A_out, 
+                    torch.Tensor([dynamics.At]) +
+                    torch.Tensor([dynamics.bt]).bmm(upsilon)
+                    )
+            lower_sum_b_with_dyn = \
+                torch.matmul(A_out, 
+                    torch.Tensor([dynamics.bt]).bmm(gamma.unsqueeze(-1)) +
+                    torch.Tensor([dynamics.ct]).unsqueeze(-1) +
+                    process_noise_low.unsqueeze(-1)
+                    )
+            upper_sum_b_with_dyn = \
+                torch.matmul(A_out, 
+                    torch.Tensor([dynamics.bt]).bmm(psi.unsqueeze(-1)) +
+                    torch.Tensor([dynamics.ct]).unsqueeze(-1) +
+                    process_noise_high.unsqueeze(-1)
+                    )
 
         return lower_A_with_dyn, upper_A_with_dyn, lower_sum_b_with_dyn, upper_sum_b_with_dyn
 
@@ -97,10 +151,8 @@ class BoundClosedLoopController(BoundSequential):
                 lb = self._get_concrete_bound_lpball(lower_A_with_dyn, lower_sum_b_with_dyn, sign = -1, x_U=x_U, x_L=x_L, norm=norm)[0][0]
                 ub = self._get_concrete_bound_lpball(upper_A_with_dyn, upper_sum_b_with_dyn, sign = +1, x_U=x_U, x_L=x_L, norm=norm)[0][0]
             else:
-                # lb = self._get_concrete_bound_polytope_with_At_uncertainty(lower_A_with_dyn, lower_sum_b_with_dyn, A_in, b_in, A_out, sign = -1)
-                # ub = self._get_concrete_bound_polytope_with_At_uncertainty(upper_A_with_dyn, upper_sum_b_with_dyn, A_in, b_in, A_out, sign = +1)
                 lb = None
-                ub = self._get_concrete_bound_polytope(upper_A_with_dyn, upper_sum_b_with_dyn, A_in, b_in)
+                ub = self._get_concrete_bound_convprog(upper_A_with_dyn, upper_sum_b_with_dyn, A_in, b_in)
         else:
             # pi_U, pi_L (control bnds) require a little more work
             if A_in is None or b_in is None:
@@ -114,7 +166,7 @@ class BoundClosedLoopController(BoundSequential):
         ub, lb = self._check_if_bnds_exist(ub=ub, lb=lb, x_U=x_U, x_L=x_L)
         return ub, lb
 
-    def _get_concrete_bound_polytope(self, A, sum_b, A_in, b_in):
+    def _get_concrete_bound_convprog(self, A, sum_b, A_in, b_in):
         if A is None:
             return None
         A = A.view(A.size(0), A.size(1), -1)
@@ -135,98 +187,6 @@ class BoundClosedLoopController(BoundSequential):
 
         bound = bound + sum_b
         return bound
-
-    # sign = +1: upper bound, sign = -1: lower bound
-    def _get_concrete_bound_polytope_with_At_uncertainty(self, A, sum_b, A_in, b_in, A_out, sign = -1):
-        
-        dynamics = self.dynamics
-
-        if A is None:
-            return None
-        A_nom = A.view(A.size(0), A.size(1), -1).data.numpy().squeeze()
-
-        # A has shape (batch, specification_size, flattened_input_size)
-        logger.debug('Final A: %s', A.size())
-
-        n = A_nom.shape[0]
-
-        x = cp.Variable(n)
-        A = cp.Variable((n,))
-        # import pdb; pdb.set_trace()
-        A_var = cp.Variable((n,n))
-        cost = sign*A.T@x
-        constraints = [A_in @ x <= b_in, A == A_nom + (A_out@A_var)[0], cp.norm(A_var, "inf") <= 1]
-        objective = cp.Maximize(cost)
-
-        prob = cp.Problem(objective, constraints)
-        prob.solve()
-        bound = prob.value
-
-        bound = bound + sum_b
-        return bound
-
-    # # sign = +1: upper bound, sign = -1: lower bound
-    # def _get_concrete_bound_lp_with_control_limits(self, lower_A, upper_A, lower_sum_b, upper_sum_b, A_in, b_in, A_out, dynamics):
-
-    #     u_min = dynamics.u_limits[:,0]
-    #     u_max = dynamics.u_limits[:,1]
-
-    #     x = cp.Variable(dynamics.num_states, name='x')
-
-    #     constraints = []
-
-    #     if A_in is None and b_in is None:
-
-    #     constraints += [A_in @ x <= b_in]
-
-    #     upper_A_np = upper_A.data.numpy().squeeze()
-    #     lower_A_np = lower_A.data.numpy().squeeze()
-    #     upper_sum_b_np = upper_sum_b.data.numpy().squeeze()
-    #     lower_sum_b_np = lower_sum_b.data.numpy().squeeze()
-
-    #     A_dyn_np = dynamics.At.squeeze()
-    #     b_dyn_np = dynamics.bt.squeeze()
-    #     c_dyn_np = dynamics.ct.squeeze()
-    #     A_out_np = A_out.data.numpy().squeeze()
-
-    #     pi_l = lower_A_np@x+lower_sum_b_np
-    #     pi_u = upper_A_np@x+upper_sum_b_np
-
-    #     state_cost = A_out_np@(A_dyn_np@x)
-
-    #     if np.dot(A_out_np, b_dyn_np) >= 0:
-    #         u = cp.minimum(u_max, pi_u)
-    #         u2 = u_min
-    #     else:
-    #         u = cp.maximum(u_min, pi_l)
-    #         u2 = u_max
-    #     u_cost = (A_out_np@b_dyn_np)*u
-    #     u2_cost = (A_out_np@b_dyn_np)*u2
-    #     cost = state_cost + u_cost
-    #     cost2 = state_cost + u2_cost
-
-    #     objective = cp.Maximize(cost)
-
-    #     # Solve problem respecting one bound on u
-    #     prob = cp.Problem(objective, constraints)
-    #     prob.solve()
-    #     bound = prob.value
-
-    #     # Solve problem respecting other bound on u
-    #     # (if pi_u or pi_l exceeds other bound everywhere)
-    #     objective = cp.Maximize(cost2)
-    #     prob = cp.Problem(objective, constraints)
-    #     prob.solve()
-
-    #     if prob.value > bound:
-    #         bound = prob.value
-
-    #     if dynamics.continuous_time:
-    #         bound = bound + dynamics.dt*np.dot(A_out_np, c_dyn_np)
-    #     else:
-    #         bound = bound + np.dot(A_out_np, c_dyn_np)
-
-    #     return bound
 
     # sign = +1: upper bound, sign = -1: lower bound
     def _get_concrete_bound_convprog_with_control_limits(self, lower_A, upper_A, lower_sum_b, upper_sum_b, A_out, dynamics, x_L=None, x_U=None, A_in=None, b_in=None, sign=+1):
@@ -328,10 +288,17 @@ class BoundClosedLoopController(BoundSequential):
         if prob.value > bound:
             bound = prob.value
 
-        if dynamics.continuous_time:
-            bound = bound + dynamics.dt*np.dot(A_out_np, c_dyn_np)
+        # Add worst-case realization of process noise (if it exists) to bound
+        if dynamics.process_noise is None:
+            process_noise = np.zeros_like(bound)
         else:
-            bound = bound + np.dot(A_out_np, c_dyn_np)
+            process_noise = np.where(A_out_np>0, dynamics.process_noise[:,1], dynamics.process_noise[:,0])
+
+        # Add effect of ct dynamics term to bound
+        if dynamics.continuous_time:
+            bound = bound + dynamics.dt*np.dot(A_out_np, c_dyn_np+process_noise)
+        else:
+            bound = bound + np.dot(A_out_np, c_dyn_np+process_noise)
 
         return bound
 

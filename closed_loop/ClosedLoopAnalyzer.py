@@ -99,8 +99,8 @@ if __name__ == '__main__':
 
     np.random.seed(seed=0)
 
-    # system = 'quadrotor'
-    system = 'double_integrator_mpc'
+    system = 'quadrotor'
+    # system = 'double_integrator_mpc'
 
     ##############
     # Simple FF network
@@ -117,18 +117,20 @@ if __name__ == '__main__':
     # Dynamics
     ##############
     if system == 'double_integrator_mpc':
-        from closed_loop.Dynamics import DoubleIntegrator
-        dynamics = DoubleIntegrator()
-        # from closed_loop.Dynamics import DoubleIntegratorOutputFeedback
-        # dynamics = DoubleIntegratorOutputFeedback()
+        # from closed_loop.Dynamics import DoubleIntegrator
+        # dynamics = DoubleIntegrator()
+        from closed_loop.Dynamics import DoubleIntegratorOutputFeedback
+        dynamics = DoubleIntegratorOutputFeedback()
         init_state_range = np.array([ # (num_inputs, 2)
                           [2.5, 3.0], # x0min, x0max
                           [-0.25, 0.25], # x1min, x1max
         ])
         t_max = 1
     elif system == 'quadrotor':
-        from closed_loop.Dynamics import Quadrotor
-        dynamics = Quadrotor()
+        # from closed_loop.Dynamics import Quadrotor
+        # dynamics = Quadrotor()
+        from closed_loop.Dynamics import QuadrotorOutputFeedback
+        dynamics = QuadrotorOutputFeedback()
         init_state_range = np.array([ # (num_inputs, 2)
                       [4.65,4.65,2.95,0.94,-0.01,-0.01],
                       [4.75,4.75,3.05,0.96,0.01,0.01]
@@ -159,7 +161,7 @@ if __name__ == '__main__':
 
     partitioner_hyperparams = {
         "type": "None",
-        # "type": "Uniform",
+       #  "type": "Uniform",
        # "num_partitions": np.array([4,4]),
         # "num_partitions": np.array([4,4,1,1,1,1]),
         # "make_animation": False,
@@ -200,7 +202,7 @@ if __name__ == '__main__':
     # output_constraint = EllipsoidOutputConstraint()
 
     output_constraint, analyzer_info = analyzer.get_reachable_set(input_constraint, output_constraint, t_max=t_max)
-    print("output_constraint:", output_constraint.range)
+    # print("output_constraint:", output_constraint.range)
     # output_range, analyzer_info = analyzer.get_output_range(input_range)
     # print("Estimated output_range:\n", output_range)
     # print("Number of propagator calls:", analyzer_info["num_propagator_calls"])
