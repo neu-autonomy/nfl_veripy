@@ -2,10 +2,10 @@ import numpy as np
 from partition.Propagator import Propagator
 import torch
 import pypoman
-from closed_loop.reach_sdp import getE_in, getE_mid, getE_out, getInputConstraints, getOutputConstraints, getNNConstraints
+from closed_loop.reach_sdp import getE_in, getE_mid, getE_out, getInputConstraints, getOutputConstraints, getNNConstraints, getInputConstraintsEllipsoid, getOutputConstraintsEllipsoid
 import cvxpy as cp
 from tqdm import tqdm
-from closed_loop.ClosedLoopConstraints import PolytopeInputConstraint, LpInputConstraint, PolytopeOutputConstraint, LpOutputConstraint
+from closed_loop.ClosedLoopConstraints import PolytopeInputConstraint, LpInputConstraint, PolytopeOutputConstraint, LpOutputConstraint, EllipsoidInputConstraint, EllipsoidOutputConstraint
 from copy import deepcopy
 
 
@@ -40,6 +40,8 @@ class ClosedLoopSDPPropagator(ClosedLoopPropagator):
             A_out = output_constraint.A
         elif isinstance(output_constraint, LpOutputConstraint):
             A_out = np.vstack([np.eye(self.dynamics.num_states), -np.eye(self.dynamics.num_states)])
+        elif isinstance(output_constraint, EllipsoidOutputConstraint):
+            A_out = np.empty((1,1)) # dummy so that num_facets is right...
         else:
             raise NotImplementedError
 
@@ -52,6 +54,9 @@ class ClosedLoopSDPPropagator(ClosedLoopPropagator):
             else:
                 from closed_loop.utils import init_state_range_to_polytope
                 A_inputs, b_inputs = init_state_range_to_polytope(input_constraint.range)
+        elif isinstance(input_constraint, EllipsoidInputConstraint):
+            A = input_constraint.shape
+            b = input_constraint.center
         else:
             raise NotImplementedError
 
@@ -62,7 +67,6 @@ class ClosedLoopSDPPropagator(ClosedLoopPropagator):
         num_neurons = np.sum([layer.out_features for layer in self.network if isinstance(layer, torch.nn.Linear)][:-1])
 
         # Number of vertices in input polyhedron
-        m = A_inputs.shape[0]
         num_states = self.dynamics.At.shape[0]
         num_inputs = self.dynamics.bt.shape[1]
 
@@ -72,7 +76,11 @@ class ClosedLoopSDPPropagator(ClosedLoopPropagator):
         E_out = getE_out(num_states, num_neurons, num_inputs, self.dynamics.At, self.dynamics.bt, self.dynamics.ct)
 
         # Get P,Q,S and constraint lists
-        P, input_set_constrs = getInputConstraints(num_states, m, A_inputs, b_inputs)
+        if isinstance(input_constraint, PolytopeInputConstraint) or isinstance(input_constraint, LpInputConstraint):
+            P, input_set_constrs = getInputConstraints(num_states, A_inputs.shape[0], A_inputs, b_inputs)
+        elif isinstance(input_constraint, EllipsoidInputConstraint):
+            P, input_set_constrs = getInputConstraintsEllipsoid(num_states, A, b)
+        
         Q, nn_constrs = getNNConstraints(num_neurons, num_inputs)
 
         # M_in describes the input set in NN coords
@@ -82,17 +90,25 @@ class ClosedLoopSDPPropagator(ClosedLoopPropagator):
         num_facets = A_out.shape[0]
         bs = np.zeros((num_facets))
         for i in tqdm(range(num_facets)):
-            S_i, reachable_set_constrs, b_i = getOutputConstraints(num_states, A_out[i,:])
+
+            if isinstance(input_constraint, PolytopeInputConstraint) or isinstance(input_constraint, LpInputConstraint):
+                S_i, reachable_set_constrs, b_i = getOutputConstraints(num_states, A_out[i,:])
+            elif isinstance(input_constraint, EllipsoidInputConstraint):
+                S_i, reachable_set_constrs, A, b = getOutputConstraintsEllipsoid(num_states)
+
             M_out = cp.quad_form(E_out, S_i)
 
             constraints = input_set_constrs + nn_constrs + reachable_set_constrs
 
             constraints.append(M_in + M_mid + M_out << 0)
 
-            objective = cp.Minimize(b_i)
-            prob = cp.Problem(objective,
-                              constraints)
-            prob.solve()
+            if isinstance(input_constraint, PolytopeInputConstraint) or isinstance(input_constraint, LpInputConstraint):
+                objective = cp.Minimize(b_i)
+            elif isinstance(input_constraint, EllipsoidInputConstraint):
+                objective = cp.Minimize(-cp.log_det(A))
+
+            prob = cp.Problem(objective, constraints)
+            prob.solve(verbose=True, solver=cp.MOSEK)
             # print("status:", prob.status)
             bs[i] = b_i.value
 
@@ -102,6 +118,9 @@ class ClosedLoopSDPPropagator(ClosedLoopPropagator):
             output_constraint.range = np.empty((num_states,2))
             output_constraint.range[:,0] = -bs[num_facets//2:]
             output_constraint.range[:,1] = bs[:num_facets//2]
+        elif isinstance(output_constraint, EllipsoidOutputConstraint):
+            output_constraint.center = b
+            output_constraint.shape = A
         else:
             raise NotImplementedError
 

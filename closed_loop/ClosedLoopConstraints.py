@@ -28,6 +28,15 @@ class LpInputConstraint(InputConstraint):
     def to_output_constraint(self):
         return LpOutputConstraint(p=self.p, range=self.range)
 
+class EllipsoidInputConstraint(InputConstraint):
+    def __init__(self, center, shape):
+        InputConstraint.__init__(self)
+        self.center = center
+        self.shape = shape
+
+    def to_output_constraint(self):
+        return EllipsoidOutputConstraint(center=self.center, shape=self.shape)
+
 class OutputConstraint:
     def __init__(self):
         pass
@@ -49,4 +58,14 @@ class LpOutputConstraint(OutputConstraint):
 
     def to_input_constraint(self):
         return LpInputConstraint(p=self.p, range=self.range)
+
+class EllipsoidOutputConstraint(OutputConstraint):
+    def __init__(self, shape=None, center=None):
+        OutputConstraint.__init__(self)
+        self.center = center
+        self.shape = shape
+
+    def to_input_constraint(self):
+        return EllipsoidInputConstraint(center=center, shape=shape)
+
 

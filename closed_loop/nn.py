@@ -23,13 +23,14 @@ def create_and_train_model(neurons_per_layer, xs, us, epochs=20, batch_size=32, 
     model.fit(xs, us, epochs=epochs, batch_size=batch_size, verbose=verbose)
     return model
 
-def save_model(model, name='model'):
+def save_model(model, name='model', dir=dir_path+'/system/'):
+    os.makedirs(dir, exist_ok=True)
     # serialize model to JSON
     model_json = model.to_json()
-    with open(name+".json", "w") as json_file:
+    with open(dir+name+".json", "w") as json_file:
         json_file.write(model_json)
     # serialize weights to HDF5
-    model.save_weights(name+".h5")
+    model.save_weights(dir+name+".h5")
     print("Saved model to disk")
 
 def load_model(name='double_integrator_mpc'):
@@ -85,10 +86,11 @@ if __name__ == '__main__':
 
     xs, us = load_data()
 
-    neurons_per_layer = [32,32]
+    # neurons_per_layer = [32,32]
+    neurons_per_layer = [5,5]
     # model = create_model(neurons_per_layer)
     model = create_and_train_model(neurons_per_layer, xs, us, verbose=True)
 
-    save_model(model, name='quadrotor')
+    save_model(model, name='model', dir=dir_path+'/models/quadrotor_small/')
 
 

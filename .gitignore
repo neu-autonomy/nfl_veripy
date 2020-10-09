@@ -16,3 +16,4 @@ partition/results
 
 closed_loop/models/double_integrator_mpc
 closed_loop/models/quadrotor
+closed_loop/models/quadrotor_small

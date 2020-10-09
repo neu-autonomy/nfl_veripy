@@ -82,14 +82,9 @@ def getE_mid(num_states, num_neurons, num_inputs, model, u_limits):
     E_mid[-1,-1] = 1
     return E_mid
 
-def mat_constr(i,j,val,mat):
-    d = mat.shape[0]
-    Xtr = np.zeros((d,d))
-    Xtr[j,i]=1
-    return cp.trace(mat @ Xtr) == val
-
 def getInputConstraints(num_states, m, A_inputs, b_inputs):
     """ Set up M_in(P) which describes the input constraint """
+    
     # Set up P, the polyhedron constraint in state coordinates
     P = cp.Variable((num_states+1, num_states+1), symmetric=True)
     Gamma = cp.Variable((m,m), symmetric=True)
@@ -98,17 +93,33 @@ def getInputConstraints(num_states, m, A_inputs, b_inputs):
     input_set_constrs = []
     for i,j in itertools.combinations_with_replacement(range(m),2):
         input_set_constrs += [
-        # Ensure each term in Gamma >= 0
-            mat_constr(i=i,j=j,val=Gamma2[i,j],mat=Gamma)
+            # Ensure each term in Gamma >= 0
+            Gamma[i,j] == Gamma2[i,j]
         ]
     input_set_constrs += [
-        mat_constr(i=0,j=0,val=cp.quad_form(A_inputs, Gamma)[0,0],mat=P),
-        mat_constr(i=0,j=1,val=cp.quad_form(A_inputs, Gamma)[0,1],mat=P),
-        mat_constr(i=1,j=1,val=cp.quad_form(A_inputs, Gamma)[1,1],mat=P),
-        mat_constr(i=0,j=2,val=(-A_inputs.T@Gamma@b_inputs)[0],mat=P),
-        mat_constr(i=1,j=2,val=(-A_inputs.T@Gamma@b_inputs)[1],mat=P),
-        mat_constr(i=2,j=2,val=cp.quad_form(b_inputs, Gamma),mat=P),
+        P[0,0] == cp.quad_form(A_inputs, Gamma)[0,0],
+        P[0,1] == cp.quad_form(A_inputs, Gamma)[0,1],
+        P[1,1] == cp.quad_form(A_inputs, Gamma)[1,1],
+        P[0,2] == (-A_inputs.T@Gamma@b_inputs)[0],
+        P[1,2] == (-A_inputs.T@Gamma@b_inputs)[1],
+        P[2,2] == cp.quad_form(b_inputs, Gamma),
     ]
+    return P, input_set_constrs
+
+def getInputConstraintsEllipsoid(num_states, A, b):
+    """ Set up M_in(P) which describes the input constraint """
+    
+    # Set up P, the ellipsoid constraint in state coordinates
+    P = cp.Variable((num_states+1, num_states+1), symmetric=True)
+    mu = cp.Variable(1, nonneg=True)
+
+    input_set_constrs = [
+        P[:num_states,:num_states] == -mu*A.T@A,
+        P[:num_states, -1] == -mu*A.T@b,
+        P[-1, :num_states] == -mu*b.T@A,
+        P[-1,-1] == mu*(1 - b.T@b),
+    ]
+
     return P, input_set_constrs
 
 
@@ -133,11 +144,11 @@ def getNNConstraints(num_neurons, num_inputs):
         else:
             second = cp.sum(lamb_ij[i, i+1:])
         val = first+second+lamb_i[i]
-        nn_constrs += [mat_constr(i=i,j=i,val=val,mat=T)]
+        nn_constrs += [T[i,i] == val]
 
     for i,j in pairs:
         val = -lamb_ij[i,j]
-        nn_constrs += [mat_constr(i=i,j=j,val=val,mat=T)]
+        nn_constrs += [T[i,j] == val]
 
     # Set up Q (consists of T, eta, nu)
     Q = cp.Variable((2*d+1, 2*d+1))
@@ -145,23 +156,23 @@ def getNNConstraints(num_neurons, num_inputs):
     nu = cp.Variable((d), nonneg=True)
 
     # Zero block
-    nn_constrs += [mat_constr(i=i,j=j,val=0,mat=Q) for (i,j) in itertools.product(range(d), repeat=2)]
+    nn_constrs += [Q[i,j] == 0 for (i,j) in itertools.product(range(d), repeat=2)]
     # T block (top middle)
-    nn_constrs += [mat_constr(i=i,j=j+d,val=T[i,j],mat=Q) for (i,j) in itertools.product(range(d), repeat=2)]
+    nn_constrs += [Q[i,j+d] == T[i,j] for (i,j) in itertools.product(range(d), repeat=2)]
     # T block (left middle)
-    nn_constrs += [mat_constr(i=i+d,j=j,val=T[i,j],mat=Q) for (i,j) in itertools.product(range(d), repeat=2)]
+    nn_constrs += [Q[i+d,j] == T[i,j] for (i,j) in itertools.product(range(d), repeat=2)]
     # -2T block (middle)
-    nn_constrs += [mat_constr(i=i+d,j=j+d,val=-2*T[i,j],mat=Q) for (i,j) in itertools.product(range(d), repeat=2)]
+    nn_constrs += [Q[i+d,j+d] == -2*T[i,j] for (i,j) in itertools.product(range(d), repeat=2)]
     # -v block (top right)
-    nn_constrs += [mat_constr(i=i,j=-1,val=-nu[i],mat=Q) for i in range(d)]
+    nn_constrs += [Q[i,-1] == -nu[i] for i in range(d)]
     # v+nu block (middle right)
-    nn_constrs += [mat_constr(i=i+d,j=-1,val=(nu+eta)[i],mat=Q) for i in range(d)]
+    nn_constrs += [Q[i+d,-1] == (nu+eta)[i] for i in range(d)]
     # zero block (bottom right)
-    nn_constrs += [mat_constr(i=-1,j=-1,val=0,mat=Q)]
+    nn_constrs += [Q[-1,-1] == 0]
     # vT+nuT block (bottom middle)
-    nn_constrs += [mat_constr(i=-1,j=i+d,val=(nu+eta)[i],mat=Q) for i in range(d)]
+    nn_constrs += [Q[-1,i+d] == (nu+eta)[i] for i in range(d)]
     # -vT block (bottom left)
-    nn_constrs += [mat_constr(i=-1,j=i,val=-nu[i],mat=Q) for i in range(d)]
+    nn_constrs += [Q[-1,i] == -nu[i] for i in range(d)]
     return Q, nn_constrs
 
 def getOutputConstraints(num_states, a_i):
@@ -171,82 +182,98 @@ def getOutputConstraints(num_states, a_i):
     b_i = cp.Variable(1)
     S_i = cp.Variable((num_states+1, num_states+1), symmetric=True)
 
-    reachable_set_constrs = []
-    reachable_set_constrs += [
-        mat_constr(i=0,j=0,val=0,mat=S_i),
-        mat_constr(i=0,j=1,val=0,mat=S_i),
-        mat_constr(i=1,j=1,val=0,mat=S_i),
-        mat_constr(i=0,j=2,val=a_i[0],mat=S_i),
-        mat_constr(i=1,j=2,val=a_i[1],mat=S_i),
-        mat_constr(i=2,j=2,val=-2*b_i,mat=S_i),
+    reachable_set_constrs = [
+        S_i[0,0] == 0,
+        S_i[0,1] == 0,
+        S_i[1,1] == 0,
+        S_i[0,2] == a_i[0],
+        S_i[1,2] == a_i[1],
+        S_i[2,2] == -2*b_i,
     ]
     return S_i, reachable_set_constrs, b_i
 
+def getOutputConstraintsEllipsoid(num_states):
+    """ Set up M_out(S_i) which describes ... of the reachable set """
 
-def reachSDP_1(model, A_inputs, b_inputs, At, bt, ct, A_in, u_limits):
+    A = cp.Variable((num_states, num_states))
+    b = cp.Variable((num_states,))
+    S_i = cp.Variable((num_states+1, num_states+1), symmetric=True)
 
-    # Count number of units in each layer, except last layer
-    num_neurons = np.sum([layer.get_config()['units'] for layer in model.layers][:-1])
+    reachable_set_constrs = [
+        S_i[:num_states,:num_states] == A.T@A,
+        S_i[:num_states, -1] == A.T@b,
+        S_i[-1, :num_states] == b.T@A,
+        S_i[-1,-1] == b.T@b - 1,
+    ]
+    return S_i, reachable_set_constrs, A, b
 
-    # Number of vertices in input polyhedron
-    m = A_inputs.shape[0]
-    num_states = At.shape[0]
-    num_inputs = bt.shape[1]
 
-    # Get change of basis matrices
-    E_in = getE_in(num_states, num_neurons, num_inputs)
-    E_mid = getE_mid(num_states, num_neurons, num_inputs, model, u_limits)
-    E_out = getE_out(num_states, num_neurons, num_inputs, At, bt, ct)
+# def reachSDP_1(model, A_inputs, b_inputs, At, bt, ct, A_in, u_limits):
 
-    # Get P,Q,S and constraint lists
-    P, input_set_constrs = getInputConstraints(num_states, m, A_inputs, b_inputs)
-    Q, nn_constrs = getNNConstraints(num_neurons, num_inputs)
+#     # Count number of units in each layer, except last layer
+#     num_neurons = np.sum([layer.get_config()['units'] for layer in model.layers][:-1])
 
-    # M_in describes the input set in NN coords
-    M_in = cp.quad_form(E_in, P)
-    M_mid = cp.quad_form(E_mid, Q)
+#     # Number of vertices in input polyhedron
+#     m = A_inputs.shape[0]
+#     num_states = At.shape[0]
+#     num_inputs = bt.shape[1]
 
-    num_facets = A_in.shape[0]
-    bs = np.zeros((num_facets))
-    for i in tqdm(range(num_facets)):
-        S_i, reachable_set_constrs, b_i = getOutputConstraints(num_states, A_in[i,:])
-        M_out = cp.quad_form(E_out, S_i)
+#     # Get change of basis matrices
+#     E_in = getE_in(num_states, num_neurons, num_inputs)
+#     E_mid = getE_mid(num_states, num_neurons, num_inputs, model, u_limits)
+#     E_out = getE_out(num_states, num_neurons, num_inputs, At, bt, ct)
 
-        constraints = input_set_constrs + nn_constrs + reachable_set_constrs
+#     # Get P,Q,S and constraint lists
+#     # P, input_set_constrs = getInputConstraints(num_states, m, A_inputs, b_inputs)
+#     P, input_set_constrs = getInputConstraintsEllipsoid(num_states, m, A_inputs, b_inputs)
+#     Q, nn_constrs = getNNConstraints(num_neurons, num_inputs)
 
-        constraints.append(M_in + M_mid + M_out << 0)
+#     # M_in describes the input set in NN coords
+#     M_in = cp.quad_form(E_in, P)
+#     M_mid = cp.quad_form(E_mid, Q)
 
-        objective = cp.Minimize(b_i)
-        prob = cp.Problem(objective,
-                          constraints)
-        prob.solve()
-        # print("status:", prob.status)
-        bs[i] = b_i.value
+#     num_facets = A_in.shape[0]
+#     bs = np.zeros((num_facets))
+#     for i in tqdm(range(num_facets)):
+#         # S_i, reachable_set_constrs, b_i = getOutputConstraints(num_states, A_in[i,:])
+#         S_i, reachable_set_constrs, A, b = getOutputConstraintsEllipsoid(num_states)
+#         M_out = cp.quad_form(E_out, S_i)
 
-    # print("status:", prob.status)
-    # print("optimal value", prob.value)
-    # print("b_{i}: {val}".format(i=i, val=b_i.value))
-    # print("S_{i}: {val}".format(i=i, val=S_i.value))
+#         constraints = input_set_constrs + nn_constrs + reachable_set_constrs
 
-    return bs
+#         constraints.append(M_in + M_mid + M_out << 0)
 
-def reachSDP_n(n, model, A_inputs, b_inputs, At, bt, ct, A_in, u_limits):
-    all_bs = []
-    bs = reachSDP_1(model, A_inputs, b_inputs, At, bt, ct, A_in, u_limits)
-    all_bs.append(bs)
-    for i in range(1,n):
-        bs = reachSDP_1(model, A_in, bs, At, bt, ct, A_in, u_limits)
-        all_bs.append(bs)
-    return all_bs
+#         # objective = cp.Minimize(b_i)
+#         objective = cp.Minimize(-cp.log_det(A))
+#         prob = cp.Problem(objective, constraints)
+#         prob.solve()
+#         # print("status:", prob.status)
+#         bs[i] = b_i.value
 
-def save_dataset(bs):
-    with open("bs.pkl", "wb") as f:
-        pickle.dump(bs, f)
+#     # print("status:", prob.status)
+#     # print("optimal value", prob.value)
+#     # print("b_{i}: {val}".format(i=i, val=b_i.value))
+#     # print("S_{i}: {val}".format(i=i, val=S_i.value))
 
-def load_dataset():
-    with open("bs.pkl", "rb") as f:
-        bs = pickle.load(f)
-    return bs
+#     return bs
+
+# def reachSDP_n(n, model, A_inputs, b_inputs, At, bt, ct, A_in, u_limits):
+#     all_bs = []
+#     bs = reachSDP_1(model, A_inputs, b_inputs, At, bt, ct, A_in, u_limits)
+#     all_bs.append(bs)
+#     for i in range(1,n):
+#         bs = reachSDP_1(model, A_in, bs, At, bt, ct, A_in, u_limits)
+#         all_bs.append(bs)
+#     return all_bs
+
+# def save_dataset(bs):
+#     with open("bs.pkl", "wb") as f:
+#         pickle.dump(bs, f)
+
+# def load_dataset():
+#     with open("bs.pkl", "rb") as f:
+#         bs = pickle.load(f)
+#     return bs
 
 # save_dataset(all_bs)
 # all_bs = load_dataset()

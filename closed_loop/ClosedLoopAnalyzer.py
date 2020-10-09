@@ -12,7 +12,7 @@ import matplotlib.pyplot as plt
 
 from closed_loop.ClosedLoopPartitioner import ClosedLoopNoPartitioner, ClosedLoopUniformPartitioner
 from closed_loop.ClosedLoopPropagator import ClosedLoopCROWNPropagator, ClosedLoopIBPPropagator, ClosedLoopFastLinPropagator, ClosedLoopSDPPropagator
-from closed_loop.ClosedLoopConstraints import PolytopeInputConstraint, LpInputConstraint, PolytopeOutputConstraint, LpOutputConstraint
+from closed_loop.ClosedLoopConstraints import PolytopeInputConstraint, LpInputConstraint, PolytopeOutputConstraint, LpOutputConstraint, EllipsoidInputConstraint, EllipsoidOutputConstraint
 
 # save_dir = "{}/results/analyzer/".format(os.path.dirname(os.path.abspath(__file__)))
 # os.makedirs(save_dir, exist_ok=True)
@@ -100,7 +100,8 @@ if __name__ == '__main__':
     np.random.seed(seed=0)
 
     system = 'quadrotor'
-    system = 'double_integrator_mpc'
+
+    # system = 'double_integrator_mpc'
 
     ##############
     # Simple FF network
@@ -109,7 +110,7 @@ if __name__ == '__main__':
     if system == 'double_integrator_mpc':
         torch_model = load_model(name='double_integrator_mpc')
     elif system == 'quadrotor':
-        torch_model = load_model(name='quadrotor')
+        torch_model = load_model(name='quadrotor_small')
     else:
         raise NotImplementedError
     
@@ -117,21 +118,25 @@ if __name__ == '__main__':
     # Dynamics
     ##############
     if system == 'double_integrator_mpc':
-        from closed_loop.Dynamics import DoubleIntegrator
-        dynamics = DoubleIntegrator()
+        # from closed_loop.Dynamics import DoubleIntegrator
+        # dynamics = DoubleIntegrator()
+        from closed_loop.Dynamics import DoubleIntegratorOutputFeedback
+        dynamics = DoubleIntegratorOutputFeedback()
         init_state_range = np.array([ # (num_inputs, 2)
                           [2.5, 3.0], # x0min, x0max
                           [-0.25, 0.25], # x1min, x1max
         ])
         t_max = 1
     elif system == 'quadrotor':
-        from closed_loop.Dynamics import Quadrotor
-        dynamics = Quadrotor()
+        # from closed_loop.Dynamics import Quadrotor
+        # dynamics = Quadrotor()
+        from closed_loop.Dynamics import QuadrotorOutputFeedback
+        dynamics = QuadrotorOutputFeedback()
         init_state_range = np.array([ # (num_inputs, 2)
                       [4.65,4.65,2.95,0.94,-0.01,-0.01],
                       [4.75,4.75,3.05,0.96,0.01,0.01]
         ]).T
-        t_max = 0.5
+        t_max = 0.1
     else:
         raise NotImplementedError
 
@@ -157,9 +162,10 @@ if __name__ == '__main__':
 
     partitioner_hyperparams = {
         "type": "None",
-       # "type": "Uniform",
-      #  "num_partitions": np.array([4,4]),
-      #  "num_partitions": np.array([4,4,4,1,1,1]),
+
+       #  "type": "Uniform",
+       # "num_partitions": np.array([4,4]),
+        # "num_partitions": np.array([4,4,1,1,1,1]),
         # "make_animation": False,
         # "show_animation": False,
     }
@@ -177,6 +183,7 @@ if __name__ == '__main__':
     analyzer = ClosedLoopAnalyzer(torch_model, dynamics)
     analyzer.partitioner = partitioner_hyperparams
     analyzer.propagator = propagator_hyperparams
+
     # ## Polytope Boundaries
     from closed_loop.utils import init_state_range_to_polytope, get_polytope_A
     A_inputs, b_inputs = init_state_range_to_polytope(init_state_range)
@@ -189,8 +196,15 @@ if __name__ == '__main__':
    # input_constraint = LpInputConstraint(range=init_state_range, p=np.inf)
    # output_constraint = LpOutputConstraint(p=np.inf)
 
+    # ### Ellipsoid Boundaries
+    # input_constraint = EllipsoidInputConstraint(
+    #     center=np.mean(init_state_range, axis=1),
+    #     shape=np.diag((init_state_range[:,1]-init_state_range[:,0])**2)
+    # )
+    # output_constraint = EllipsoidOutputConstraint()
+
     output_constraint, analyzer_info = analyzer.get_reachable_set(input_constraint, output_constraint, t_max=t_max)
-    # print("output_constraint:", output_constraint)
+    # print("output_constraint:", output_constraint.range)
     # output_range, analyzer_info = analyzer.get_output_range(input_range)
     # print("Estimated output_range:\n", output_range)
     # print("Number of propagator calls:", analyzer_info["num_propagator_calls"])
