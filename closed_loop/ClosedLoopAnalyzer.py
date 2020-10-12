@@ -100,6 +100,7 @@ if __name__ == '__main__':
     np.random.seed(seed=0)
 
     system = 'quadrotor'
+
     # system = 'double_integrator_mpc'
 
     ##############
@@ -161,6 +162,7 @@ if __name__ == '__main__':
 
     partitioner_hyperparams = {
         "type": "None",
+
        #  "type": "Uniform",
        # "num_partitions": np.array([4,4]),
         # "num_partitions": np.array([4,4,1,1,1,1]),
@@ -183,16 +185,16 @@ if __name__ == '__main__':
     analyzer.propagator = propagator_hyperparams
 
     # ## Polytope Boundaries
-    # from closed_loop.utils import init_state_range_to_polytope, get_polytope_A
-    # A_inputs, b_inputs = init_state_range_to_polytope(init_state_range)
-    # if system == 'quadrotor': A_out = A_inputs
-    # else: A_out = get_polytope_A(8)
-    # input_constraint = PolytopeInputConstraint(A_inputs, b_inputs)
-    # output_constraint = PolytopeOutputConstraint(A_out)
+    from closed_loop.utils import init_state_range_to_polytope, get_polytope_A
+    A_inputs, b_inputs = init_state_range_to_polytope(init_state_range)
+    if system == 'quadrotor': A_out = A_inputs
+    else: A_out = get_polytope_A(8)
+    input_constraint = PolytopeInputConstraint(A_inputs, b_inputs)
+    output_constraint = PolytopeOutputConstraint(A_out)
 
     ### LP-Ball Boundaries
-    input_constraint = LpInputConstraint(range=init_state_range, p=np.inf)
-    output_constraint = LpOutputConstraint(p=np.inf)
+   # input_constraint = LpInputConstraint(range=init_state_range, p=np.inf)
+   # output_constraint = LpOutputConstraint(p=np.inf)
 
     # ### Ellipsoid Boundaries
     # input_constraint = EllipsoidInputConstraint(
