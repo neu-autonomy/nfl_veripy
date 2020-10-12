@@ -55,6 +55,15 @@ class BoundClosedLoopController(BoundSequential):
             process_noise_low = torch.where(flip_process_noise, torch.Tensor(dynamics.process_noise[:,1]), torch.Tensor(dynamics.process_noise[:,0]))
             process_noise_high = torch.where(flip_process_noise, torch.Tensor(dynamics.process_noise[:,0]), torch.Tensor(dynamics.process_noise[:,1]))
 
+        # Fill in best/worst-case sensor noise realizations
+        if dynamics.sensor_noise is None:
+            sensor_noise_low = sensor_noise_high = torch.zeros_like(torch.Tensor([dynamics.ct])).unsqueeze(-1)
+        else:
+            flip_sensor_noise_low = torch.matmul(A_out, torch.Tensor([dynamics.bt])).bmm(xi) < 0
+            flip_sensor_noise_high = torch.matmul(A_out, torch.Tensor([dynamics.bt])).bmm(upsilon) < 0
+            sensor_noise_low = torch.where(flip_sensor_noise_low, torch.Tensor(dynamics.sensor_noise[:,0]), torch.Tensor(dynamics.sensor_noise[:,1])).transpose(2,1)
+            sensor_noise_high = torch.where(flip_sensor_noise_high, torch.Tensor(dynamics.sensor_noise[:,0]), torch.Tensor(dynamics.sensor_noise[:,1])).transpose(2,1)
+
         # Compute slope and intercept of closed-loop system linear bounds
         if dynamics.continuous_time:
             # x_{t+1} = x_t+dt*x_dot = x_t+dt*(Ax+bu+c) <= (I+dt*(A+bY))x + dt*(bG)
@@ -79,7 +88,8 @@ class BoundClosedLoopController(BoundSequential):
                     dynamics.dt*(
                         torch.Tensor([dynamics.bt]).bmm(gamma.unsqueeze(-1)) + 
                         torch.Tensor([dynamics.ct]).unsqueeze(-1) +
-                        process_noise_low.unsqueeze(-1)
+                        process_noise_low.unsqueeze(-1) +
+                        torch.Tensor([dynamics.bt]).bmm(xi).bmm(sensor_noise_low)
                         )
                     )
             upper_sum_b_with_dyn = \
@@ -87,7 +97,8 @@ class BoundClosedLoopController(BoundSequential):
                     dynamics.dt*(
                         torch.Tensor([dynamics.bt]).bmm(psi.unsqueeze(-1)) +
                         torch.Tensor([dynamics.ct]).unsqueeze(-1) +
-                        process_noise_high.unsqueeze(-1)
+                        process_noise_high.unsqueeze(-1) +
+                        torch.Tensor([dynamics.bt]).bmm(upsilon).bmm(sensor_noise_high)
                         )
                     )
         else:
@@ -106,13 +117,15 @@ class BoundClosedLoopController(BoundSequential):
                 torch.matmul(A_out, 
                     torch.Tensor([dynamics.bt]).bmm(gamma.unsqueeze(-1)) +
                     torch.Tensor([dynamics.ct]).unsqueeze(-1) +
-                    process_noise_low.unsqueeze(-1)
+                    process_noise_low.unsqueeze(-1) +
+                    torch.Tensor([dynamics.bt]).bmm(xi).bmm(sensor_noise_low)
                     )
             upper_sum_b_with_dyn = \
                 torch.matmul(A_out, 
                     torch.Tensor([dynamics.bt]).bmm(psi.unsqueeze(-1)) +
                     torch.Tensor([dynamics.ct]).unsqueeze(-1) +
-                    process_noise_high.unsqueeze(-1)
+                    process_noise_high.unsqueeze(-1) +
+                    torch.Tensor([dynamics.bt]).bmm(upsilon).bmm(sensor_noise_high)
                     )
 
         return lower_A_with_dyn, upper_A_with_dyn, lower_sum_b_with_dyn, upper_sum_b_with_dyn
@@ -201,12 +214,12 @@ class BoundClosedLoopController(BoundSequential):
         if A_in is not None and b_in is not None:
             constraints += [A_in @ x <= b_in]
         else:
-            constraints += [x <= x_U.data.numpy().squeeze(), x >= x_L.data.numpy().squeeze()]
+            constraints += [x <= x_U.data.numpy().squeeze(0), x >= x_L.data.numpy().squeeze(0)]
 
-        A_dyn_np = dynamics.At.squeeze()
-        b_dyn_np = dynamics.bt.squeeze()
-        c_dyn_np = dynamics.ct.squeeze()
-        A_out_np = sign*A_out.data.numpy().squeeze()
+        A_dyn_np = dynamics.At
+        b_dyn_np = dynamics.bt
+        c_dyn_np = dynamics.ct
+        A_out_np = sign*A_out.data.numpy().squeeze(0)
 
         if dynamics.continuous_time:
             state_cost = A_out_np@(x+dynamics.dt*A_dyn_np@x)
@@ -214,60 +227,45 @@ class BoundClosedLoopController(BoundSequential):
             state_cost = A_out_np@(A_dyn_np@x)
 
         # Write pi_u, pi_l as linear function of state
-        upper_A_np = upper_A.data.numpy().squeeze()
-        lower_A_np = lower_A.data.numpy().squeeze()
-        upper_sum_b_np = upper_sum_b.data.numpy().squeeze()
-        lower_sum_b_np = lower_sum_b.data.numpy().squeeze()
+        upper_A_np = upper_A.data.numpy().squeeze(0)
+        lower_A_np = lower_A.data.numpy().squeeze(0)
+        upper_sum_b_np = upper_sum_b.data.numpy().squeeze(0).copy()
+        lower_sum_b_np = lower_sum_b.data.numpy().squeeze(0).copy()
+
+        if dynamics.sensor_noise is not None:
+            flip_sensor_noise_low = A_out_np@b_dyn_np@lower_A_np > 0
+            flip_sensor_noise_high = A_out_np@b_dyn_np@upper_A_np > 0
+            sensor_noise_low = np.where(flip_sensor_noise_low, dynamics.sensor_noise[:,1], dynamics.sensor_noise[:,0])
+            sensor_noise_high = np.where(flip_sensor_noise_high, dynamics.sensor_noise[:,1], dynamics.sensor_noise[:,0])
+            lower_sum_b_np += lower_A_np@sensor_noise_low
+            upper_sum_b_np += upper_A_np@sensor_noise_high
 
         pi_l = lower_A_np@x+lower_sum_b_np
         pi_u = upper_A_np@x+upper_sum_b_np
 
         # Weird logic for clipping control in a convex way
-        use_pi_u = np.where(np.dot(A_out_np, b_dyn_np) >= 0)
-        use_pi_l = np.where(np.dot(A_out_np, b_dyn_np) < 0)
+        use_pi_u = np.dot(A_out_np, b_dyn_np) >= 0
         u_cost = 0; u2_cost = 0
-        if len(use_pi_u[0]) > 0:
-            for i in use_pi_u:
-                try:
-                    u = cp.minimum(u_max[i], pi_u[i])
-                except:
-                    # bs to deal with one-action NNs
-                    u = cp.minimum(u_max[i], pi_u)
+        for i in range(dynamics.num_inputs):
+            if use_pi_u[i]:
+                u = cp.minimum(u_max[i], pi_u[i])
                 u2 = u_min[i]
-                try:
-                    u_cost_ = (A_out_np@b_dyn_np)[i]@u
-                    u2_cost_ = (A_out_np@b_dyn_np)[i]@u2
-                except:
-                    # bs to deal with one-action NNs
-                    u_cost_ = (A_out_np@b_dyn_np)*u
-                    u2_cost_ = (A_out_np@b_dyn_np)*u2
-                if dynamics.continuous_time:
-                    u_cost += dynamics.dt*u_cost_
-                    u2_cost += dynamics.dt*u2_cost_
-                else:
-                    u_cost += u_cost_
-                    u2_cost += u2_cost_
-        if len(use_pi_l[0]) > 0:
-            for i in use_pi_l:
-                try:
-                    u = cp.maximum(u_min[i], pi_l[i])
-                except:
-                    # bs to deal with one-action NNs
-                    u = cp.maximum(u_min[i], pi_l)
+            else:
+                u = cp.maximum(u_min[i], pi_l[i])
                 u2 = u_max[i]
-                try:
-                    u_cost_ = (A_out_np@b_dyn_np)[i]@u
-                    u2_cost_ = (A_out_np@b_dyn_np)[i]@u2
-                except:
-                    # bs to deal with one-action NNs
-                    u_cost_ = (A_out_np@b_dyn_np)*u
-                    u2_cost_ = (A_out_np@b_dyn_np)*u2
-                if dynamics.continuous_time:
-                    u_cost += dynamics.dt*u_cost_
-                    u2_cost += dynamics.dt*u2_cost_
-                else:
-                    u_cost += u_cost_
-                    u2_cost += u2_cost_
+            try:
+                u_cost_ = (A_out_np@b_dyn_np)[i]@u
+                u2_cost_ = (A_out_np@b_dyn_np)[i]@u2
+            except:
+                # bs to deal with single-input systems
+                u_cost_ = (A_out_np@b_dyn_np)[i]*u
+                u2_cost_ = (A_out_np@b_dyn_np)[i]*u2
+            if dynamics.continuous_time:
+                u_cost += dynamics.dt*u_cost_
+                u2_cost += dynamics.dt*u2_cost_
+            else:
+                u_cost += u_cost_
+                u2_cost += u2_cost_
 
         cost = state_cost + u_cost
         cost2 = state_cost + u2_cost
