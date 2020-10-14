@@ -413,7 +413,7 @@ class ClosedLoopUniformPartitioner(ClosedLoopPartitioner):
             else:
                 raise NotImplementedError
 
-            output_constraint_, info,_= propagator.get_reachable_set(input_constraint_, deepcopy(output_constraint), t_max)
+            output_constraint_, info= propagator.get_reachable_set(input_constraint_, deepcopy(output_constraint), t_max)
             num_propagator_calls += t_max
 
             if isinstance(output_constraint, PolytopeOutputConstraint):
@@ -503,7 +503,7 @@ class ClosedLoopProbabilisticPartitioner(ClosedLoopPartitioner):
                 else:
                     raise NotImplementedError
 
-                output_constraint_init, info_,_ = propagator.get_reachable_set(input_constraint_, deepcopy(output_constraint), 1)
+                output_constraint_init, info_ = propagator.get_reachable_set(input_constraint_, deepcopy(output_constraint), 1)
          
                 num_propagator_calls+=1
                 if likelihood_output is None:
