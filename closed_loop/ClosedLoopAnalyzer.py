@@ -10,7 +10,7 @@ import matplotlib.pyplot as plt
 # plt.rcParams['mathtext.fontset'] = 'stix'
 # plt.rcParams['font.family'] = 'STIXGeneral'
 
-from closed_loop.ClosedLoopPartitioner import ClosedLoopNoPartitioner, ClosedLoopUniformPartitioner
+from closed_loop.ClosedLoopPartitioner import ClosedLoopNoPartitioner, ClosedLoopUniformPartitioner, ClosedLoopProbabilisticPartitioner
 from closed_loop.ClosedLoopPropagator import ClosedLoopCROWNPropagator, ClosedLoopIBPPropagator, ClosedLoopFastLinPropagator, ClosedLoopSDPPropagator
 from closed_loop.ClosedLoopConstraints import PolytopeInputConstraint, LpInputConstraint, PolytopeOutputConstraint, LpOutputConstraint, EllipsoidInputConstraint, EllipsoidOutputConstraint
 
@@ -27,7 +27,10 @@ class ClosedLoopAnalyzer(Analyzer):
         self.partitioner_dict = {
             "None": ClosedLoopNoPartitioner,
             "Uniform": ClosedLoopUniformPartitioner,
+            "ProbPartition": ClosedLoopProbabilisticPartitioner,
+
         }
+
         self.propagator_dict = {
             "CROWN": ClosedLoopCROWNPropagator,
             "IBP": ClosedLoopIBPPropagator,
@@ -45,19 +48,19 @@ class ClosedLoopAnalyzer(Analyzer):
         return self.propagator_dict[propagator](**{**hyperparams, "dynamics": self.dynamics})
 
     def get_one_step_reachable_set(self, input_constraint, output_constraint):
-        reachable_set, info = self.partitioner.get_one_step_reachable_set(input_constraint, output_constraint, self.propagator)
-        return reachable_set, info
+        reachable_set, info, prob = self.partitioner.get_one_step_reachable_set(input_constraint, output_constraint, self.propagator)
+        return reachable_set, info, prob
 
     def get_reachable_set(self, input_constraint, output_constraint, t_max):
-        reachable_set, info = self.partitioner.get_reachable_set(input_constraint, output_constraint, self.propagator, t_max)
-        return reachable_set, info
+        reachable_set, info, prob_list = self.partitioner.get_reachable_set(input_constraint, output_constraint, self.propagator, t_max)
+        return reachable_set, info, prob_list
 
-    def visualize(self, input_constraint, output_constraint, show=True, show_samples=False, **kwargs):
+    def visualize(self, input_constraint, output_constraint, show=True, show_samples=False, prob_list=None,**kwargs):
         # sampled_outputs = self.get_sampled_outputs(input_range)
         # output_range_exact = self.samples_to_range(sampled_outputs)
 
-        self.partitioner.setup_visualization(input_constraint, output_constraint, self.propagator, show_samples=show_samples)
-        self.partitioner.visualize(kwargs.get("exterior_partitions", kwargs.get("all_partitions", [])), kwargs.get("interior_partitions", []), output_constraint)
+        self.partitioner.setup_visualization(input_constraint, output_constraint,self.propagator, prob_list = prob_list, show_samples=show_samples)
+        self.partitioner.visualize(kwargs.get("exterior_partitions", kwargs.get("all_partitions", [])), kwargs.get("interior_partitions", []), output_constraint, prob_list)
         
         # self.partitioner.animate_axes.legend(bbox_to_anchor=(0,1.02,1,0.2), loc="lower left",
         #         mode="expand", borderaxespad=0, ncol=1)
@@ -101,7 +104,7 @@ if __name__ == '__main__':
 
     system = 'quadrotor'
 
-    # system = 'double_integrator_mpc'
+    system = 'double_integrator_mpc'
 
     ##############
     # Simple FF network
@@ -110,7 +113,7 @@ if __name__ == '__main__':
     if system == 'double_integrator_mpc':
         torch_model = load_model(name='double_integrator_mpc')
     elif system == 'quadrotor':
-        torch_model = load_model(name='quadrotor_small')
+        torch_model = load_model(name='quadrotor')
     else:
         raise NotImplementedError
     
@@ -126,7 +129,7 @@ if __name__ == '__main__':
                           [2.5, 3.0], # x0min, x0max
                           [-0.25, 0.25], # x1min, x1max
         ])
-        t_max = 1
+        t_max = 5
     elif system == 'quadrotor':
         # from closed_loop.Dynamics import Quadrotor
         # dynamics = Quadrotor()
@@ -162,12 +165,13 @@ if __name__ == '__main__':
 
     partitioner_hyperparams = {
         "type": "None",
-
-       #  "type": "Uniform",
+       # "type": "Uniform",
        # "num_partitions": np.array([4,4]),
         # "num_partitions": np.array([4,4,1,1,1,1]),
         # "make_animation": False,
         # "show_animation": False,
+       # "type": "ProbPartition",
+       # "num_partitions": np.array([10])
     }
     propagator_hyperparams = {
         # "type": "SDP",
@@ -185,16 +189,16 @@ if __name__ == '__main__':
     analyzer.propagator = propagator_hyperparams
 
     # ## Polytope Boundaries
-    from closed_loop.utils import init_state_range_to_polytope, get_polytope_A
-    A_inputs, b_inputs = init_state_range_to_polytope(init_state_range)
-    if system == 'quadrotor': A_out = A_inputs
-    else: A_out = get_polytope_A(8)
-    input_constraint = PolytopeInputConstraint(A_inputs, b_inputs)
-    output_constraint = PolytopeOutputConstraint(A_out)
+   # from closed_loop.utils import init_state_range_to_polytope, get_polytope_A
+    #A_inputs, b_inputs = init_state_range_to_polytope(init_state_range)
+   # if system == 'quadrotor': A_out = A_inputs
+   # else: A_out = get_polytope_A(8)
+   # input_constraint = PolytopeInputConstraint(A_inputs, b_inputs)
+   # output_constraint = PolytopeOutputConstraint(A_out)
 
     ### LP-Ball Boundaries
-   # input_constraint = LpInputConstraint(range=init_state_range, p=np.inf)
-   # output_constraint = LpOutputConstraint(p=np.inf)
+    input_constraint = LpInputConstraint(range=init_state_range, p=np.inf)
+    output_constraint = LpOutputConstraint(p=np.inf)
 
     # ### Ellipsoid Boundaries
     # input_constraint = EllipsoidInputConstraint(
@@ -202,8 +206,8 @@ if __name__ == '__main__':
     #     shape=np.diag((init_state_range[:,1]-init_state_range[:,0])**2)
     # )
     # output_constraint = EllipsoidOutputConstraint()
-
-    output_constraint, analyzer_info = analyzer.get_reachable_set(input_constraint, output_constraint, t_max=t_max)
+     
+    output_constraint, analyzer_info, prob_list = analyzer.get_reachable_set(input_constraint, output_constraint, t_max=5)
     # print("output_constraint:", output_constraint.range)
     # output_range, analyzer_info = analyzer.get_output_range(input_range)
     # print("Estimated output_range:\n", output_range)
@@ -221,6 +225,7 @@ if __name__ == '__main__':
     # print('Final step approximation error:{:.2f}\nAverage approximation error: {:.2f}'.format(error, avg_error))
     #error, avg_error = analyzer.get_error(input_constraint,output_constraint)
    # print('Final step approximation error:{:.2f}\nAverage approximation error: {:.2f}'.format(error, avg_error))
-    analyzer.visualize(input_constraint, output_constraint, show_samples=True, **analyzer_info)
- 
+    
+    analyzer.visualize(input_constraint, output_constraint, show_samples=True, prob_list =prob_list ,**analyzer_info)
+    print(prob_list)
     print("--- done. ---")
