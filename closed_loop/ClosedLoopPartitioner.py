@@ -134,7 +134,7 @@ class ClosedLoopPartitioner(Partitioner):
          #    self.animate_axes.scatter(sampled_outputs[...,output_dims[0]], sampled_outputs[...,output_dims[1]], c='k', marker='.', zorder=2,
          #        label="Sampled States")
 
-
+        linewidth = 2
         if show_samples:
             self.dynamics.show_samples(t_max*self.dynamics.dt, input_constraint, ax=self.animate_axes, controller=propagator.network, input_dims=input_dims)
 
@@ -149,16 +149,16 @@ class ClosedLoopPartitioner(Partitioner):
                 print("[warning] Can't visualize polytopic input constraints for >2 states. Need to implement this to it extracts input_dims.")
                 raise NotImplementedError
             self.animate_axes.plot([v[0] for v in vertices]+[vertices[0][0]], [v[1] for v in vertices]+[vertices[0][1]],
-                color=color, linewidth=3, linestyle = line_style, label='Initial States')
+                color=color, linewidth=linewidth, linestyle = line_style, label='Initial States')
         elif isinstance(input_constraint, LpInputConstraint):
             rect = Rectangle(input_range[input_dims,0], input_range[input_dims[0],1]-input_range[input_dims[0],0], input_range[input_dims[1],1]-input_range[input_dims[1],0],
-                            fc='none', linewidth=3, linestyle =line_style, edgecolor=init_state_color)
+                            fc='none', linewidth=linewidth, linestyle =line_style, edgecolor=init_state_color)
             self.animate_axes.add_patch(rect)
             # self.default_patches[1].append(rect)
         else:
             raise NotImplementedError
       
-
+        linewidth=1.5
         # Reachable sets
         if prob_list is None:
            fc_color='none'
@@ -175,14 +175,14 @@ class ClosedLoopPartitioner(Partitioner):
             if prob_list is None:
                 for output_range_ in output_range:
                     rect = Rectangle(output_range_[input_dims,0], output_range_[input_dims[0],1]-output_range_[input_dims[0],0], output_range_[input_dims[1],1]-output_range_[input_dims[1],0],
-                       fc=fc_color, linewidth=2, linestyle = line_style,edgecolor=color)
+                       fc=fc_color, linewidth=linewidth, linestyle = line_style,edgecolor=color)
                     self.animate_axes.add_patch(rect)
 
             else:    
                 for output_range_,prob in zip(output_range,prob_list):
                     fc_color=cm.get_cmap('Greens')(prob)
                     rect = Rectangle(output_range_[input_dims,0], output_range_[input_dims[0],1]-output_range_[input_dims[0],0], output_range_[input_dims[1],1]-output_range_[input_dims[1],0],
-                        fc= fc_color, alpha = alpha ,linewidth=2, linestyle = line_style,edgecolor=None)
+                        fc= fc_color, alpha = alpha ,linewidth=linewidth, linestyle = line_style,edgecolor=None)
                     self.animate_axes.add_patch(rect)
 
                  
@@ -329,10 +329,10 @@ class ClosedLoopPartitioner(Partitioner):
       
         # Reachable sets
         if prob_list is None:
-           color = 'g'
+           color = 'blue'
            fc_color='none'
         else:
-           color = 'g'
+           color = 'blue'
            fc_color='none'
            alpha=0.17
         if isinstance(output_constraint, PolytopeOutputConstraint):
