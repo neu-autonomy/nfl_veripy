@@ -59,7 +59,7 @@ class ClosedLoopAnalyzer(Analyzer):
         # sampled_outputs = self.get_sampled_outputs(input_range)
         # output_range_exact = self.samples_to_range(sampled_outputs)
 
-        self.partitioner.setup_visualization(input_constraint, output_constraint,self.propagator, prob_list = prob_list, show_samples=show_samples)
+        self.partitioner.setup_visualization(input_constraint, output_constraint,self.propagator, prob_list = prob_list, show_samples=show_samples, outputs_to_highlight=[{'dim':[0], 'name':'py'}, {'dim':[1], 'name':'pz'}],inputs_to_highlight= [{'dim':[0], 'name':'py'}, {'dim':[1], 'name':'pz'}] )
         self.partitioner.visualize(kwargs.get("exterior_partitions", kwargs.get("all_partitions", [])), kwargs.get("interior_partitions", []), output_constraint, prob_list)
         
         # self.partitioner.animate_axes.legend(bbox_to_anchor=(0,1.02,1,0.2), loc="lower left",
@@ -165,13 +165,13 @@ if __name__ == '__main__':
 
     partitioner_hyperparams = {
         "type": "None",
-       # "type": "Uniform",
-       # "num_partitions": np.array([4,4]),
-        # "num_partitions": np.array([4,4,1,1,1,1]),
+      #  "type": "Uniform",
+      #  "num_partitions": np.array([4,4]),
+       # "num_partitions": np.array([4,4,1,1,1,1]),
         # "make_animation": False,
         # "show_animation": False,
        # "type": "ProbPartition",
-       # "num_partitions": np.array([10])
+      #  "num_partitions": np.array([10])
     }
     propagator_hyperparams = {
         # "type": "SDP",
@@ -225,7 +225,7 @@ if __name__ == '__main__':
     # print('Final step approximation error:{:.2f}\nAverage approximation error: {:.2f}'.format(error, avg_error))
     #error, avg_error = analyzer.get_error(input_constraint,output_constraint)
    # print('Final step approximation error:{:.2f}\nAverage approximation error: {:.2f}'.format(error, avg_error))
-    
+   # import pdb
+    #pdb.set_trace()
     analyzer.visualize(input_constraint, output_constraint, show_samples=True, prob_list =prob_list ,**analyzer_info)
-    print(prob_list)
     print("--- done. ---")

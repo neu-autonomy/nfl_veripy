@@ -262,20 +262,20 @@ class DoubleIntegratorOutputFeedback(DoubleIntegrator):
         #     [-0.5,0.5],
         #     [-0.01,0.01],
         # ])
-        self.process_noise = 0.1*np.dstack([-np.ones(self.num_states), np.ones(self.num_states)])[0]
+        self.process_noise = 1*0.1*np.dstack([-np.ones(self.num_states), np.ones(self.num_states)])[0]
 
         # self.sensor_noise = np.array([
         #     [-0.8,0.8],
         #     [-0.0,0.0],
         # ])
 
-        self.sensor_noise = 0.1*np.dstack([-np.ones(self.num_outputs), np.ones(self.num_outputs)])[0]
+        self.sensor_noise = 1*0.1*np.dstack([-np.ones(self.num_outputs), np.ones(self.num_outputs)])[0]
 
 class QuadrotorOutputFeedback(Quadrotor):
     def __init__(self):
         super().__init__()
-        self.process_noise = 0.*np.dstack([-np.ones(self.num_states), np.ones(self.num_states)])[0]
-        self.sensor_noise = 0.01*np.dstack([-np.ones(self.num_outputs), np.ones(self.num_outputs)])[0]
+        self.process_noise = 0.05*np.dstack([-np.ones(self.num_states), np.ones(self.num_states)])[0]
+        self.sensor_noise = 1*0.01*np.dstack([-np.ones(self.num_outputs), np.ones(self.num_outputs)])[0]
 
 if __name__ == '__main__':
     from closed_loop.nn import load_model
