@@ -21,6 +21,8 @@ import closed_loop.ClosedLoopAnalyzer
 from closed_loop.ClosedLoopPartitioner import ClosedLoopNoPartitioner, ClosedLoopUniformPartitioner
 from closed_loop.ClosedLoopPropagator import ClosedLoopCROWNPropagator, ClosedLoopIBPPropagator, ClosedLoopFastLinPropagator, ClosedLoopSDPPropagator
 from closed_loop.ClosedLoopConstraints import PolytopeInputConstraint, LpInputConstraint, PolytopeOutputConstraint, LpOutputConstraint
+from closed_loop.Dynamics import DoubleIntegratorOutputFeedback
+from closed_loop.Dynamics import QuadrotorOutputFeedback
 
 save_dir = "{}/results/experiments/closed_loop/".format(os.path.dirname(os.path.abspath(__file__)))
 os.makedirs(save_dir, exist_ok=True)
@@ -119,7 +121,7 @@ model_list= [
 ]
 
 def collect_data_for_table(propagators,partitioners, experiments_list, experiment_hyperparams, model_params, boundaries, show_reach_set):
-
+    t_max=5
     df = pd.DataFrame()
     animate_fig, animate_axes = plt.subplots(1,1)
 
@@ -134,12 +136,15 @@ def collect_data_for_table(propagators,partitioners, experiments_list, experimen
     ##############
         if model_fn == 'double_integrator_mpc':
 
-            dynamics = DoubleIntegrator()
+            #dynamics = DoubleIntegrator()
+            dynamics = DoubleIntegratorOutputFeedback(None,None)
+            
             init_state_range = model_params['input_range']
                 
         elif model_fn == 'quadrotor':
 
-            dynamics = Quadrotor()
+            #dynamics = Quadrotor()
+            dynamics =QuadrotorOutputFeedback(None, None)
             init_state_range = model_params['input_range']
         else:
                 
@@ -169,7 +174,9 @@ def collect_data_for_table(propagators,partitioners, experiments_list, experimen
 
 def run_experiment(model= None, dynamics= None, df=None, save_df=True, input_range=None,
  partitioners=None, propagators=None, partitioner_hyperparams_to_use=None, experiments =None, experiment_hyperparams=None , show_reach_set=False ,  animate_fig= None, animate_axes = None):
-  
+    process_noise=None
+    sensing_noise=None
+
     if model is None or dynamics is None :
      #   neurons = [10,5,2]
        # model, model_info = random_model(activation='relu', neurons=neurons, seed=0)
@@ -240,12 +247,20 @@ def run_experiment(model= None, dynamics= None, df=None, save_df=True, input_ran
             for exp_vals in itertools.product(*list(experiment_hyperparams[experiment].values())):
                 if  (len(exp_keys)==1  and  't_max' in exp_keys[0]):
                     t_max = exp_vals[0]
-    
+                elif  (len(exp_keys)==1  and  'process_noise' in exp_keys[0]):
+                    process_noise = exp_vals[0]            
+                    sensing_noise=None
+                    t_max =5
+
+                elif  (len(exp_keys)==1  and  'sensing_noise' in exp_keys[0]):
+                    sensing_noise = exp_vals[0]
+                    process_noise=None
+                    t_max =5
                 else:
                     raise NotImplementedError
 
 
-                data_row = run_and_add_row(model, dynamics, input_range, partitioner_hyperparams, propagator_hyperparams,show_reach_set, t_max , animate_fig ,animate_axes )
+                data_row = run_and_add_row(model, dynamics, input_range, partitioner_hyperparams, propagator_hyperparams,show_reach_set, t_max , animate_fig ,animate_axes, process_noise, sensing_noise )
                 df = df.append(data_row, ignore_index=True)
                 
     # Also record the "exact" bounds (via sampling) in the same dataframe
@@ -259,10 +274,12 @@ def run_experiment(model= None, dynamics= None, df=None, save_df=True, input_ran
 
     return df
 
-def run_and_add_row(model, dynamics, input_range, partitioner_hyperparams, propagator_hyperparams, show_reach_set=False, t_max=5 ,  animate_fig= None, animate_axes = None):
+def run_and_add_row(model, dynamics, input_range, partitioner_hyperparams, propagator_hyperparams, show_reach_set=False, t_max=5 ,  animate_fig= None, animate_axes = None, process_noise =None, sensing_noise=None):
   
     print("Partitioner: {},\n Propagator: {},\n Time steps:{}".format(partitioner_hyperparams, propagator_hyperparams, t_max))
     np.random.seed(0)
+    dynamics = DoubleIntegratorOutputFeedback(process_noise,sensing_noise)           
+             
     analyzer = closed_loop.ClosedLoopAnalyzer.ClosedLoopAnalyzer(model, dynamics)
     analyzer.partitioner = partitioner_hyperparams
     analyzer.propagator = propagator_hyperparams
@@ -387,7 +404,9 @@ def run_and_add_row(model, dynamics, input_range, partitioner_hyperparams, propa
         "partitioner": type(analyzer.partitioner).__name__,
         "propagator_info": propagator_hyperparams,
         "partitioner_info": partitioner_hyperparams,
-                
+        "process_noise": process_noise,
+        "sensing_noise": sensing_noise,
+
         "final_error": error,
         "avg_error": avg_error,
         "time_steps": t_max,
@@ -504,16 +523,23 @@ def plot_errors(df, stat, model_params, show_average=False):
         for propagator in df["propagator"].unique():
             if partitioner == "ClosedLoopNoPartitioner" and propagator == "ClosedLoopCROWNPropagator":
                 color ='blue'
+                linestyle= ':'
             elif partitioner == "ClosedLoopNoPartitioner" and  propagator == "ClosedLoopSDPPropagator":
                 color ='red'
+                linestyle= ':'
+
             elif partitioner == "ClosedLoopNoPartitioner" and  propagator == "ClosedLoopFastLinPropagator":
                 color ='green'
 
             elif partitioner == "ClosedLoopUniformPartitioner" and  propagator == "ClosedLoopCROWNPropagator":
-                color ='dodgerblue'
+                color ='blue'
+                linestyle= '-'
+
 
             elif partitioner == "ClosedLoopUniformPartitioner" and  propagator == "ClosedLoopSDPPropagator":
-                color ='palevioletred'
+                color ='red'
+                linestyle= '-'
+
       
             elif partitioner == "ClosedLoopUniformPartitioner" and  propagator == "ClosedLoopFastLinPropagator":
                 color ='springgreen'
@@ -525,11 +551,11 @@ def plot_errors(df, stat, model_params, show_average=False):
             df_ = df[(df["partitioner"] == partitioner) & (df["propagator"] == propagator)]
             if show_average ==True:
                 plt.plot(df_[stat] , df_["avg_error"], color=color,
-                linestyle='dashed', label=algs[partitioner]["name"]+'-'+algs[propagator]["name"]+'-'+'Average Error')   
+                linestyle=linestyle, label=algs[partitioner]["name"]+'-'+algs[propagator]["name"]+'-'+'Average Error')   
                 plt.yscale("log")   
             
             plt.plot(df_[stat] , df_["final_error"],  color=color,
-                linestyle='solid',label=algs[partitioner]["name"]+'-'+algs[propagator]["name"]+'-'+'Final Error')   
+                linestyle=linestyle,label=algs[partitioner]["name"]+'-'+algs[propagator]["name"]+'-'+'Final Error')   
             plt.yscale("log")
          
 
@@ -609,6 +635,12 @@ stats = {
     },
     "time_steps": {
         "name": "Time steps"
+    },
+    "sensing_noise": {
+        "name": "Sensing Noise Value"
+    },
+    "process_noise": {
+        "name": "Process Noise Value"
     },
 }
 
@@ -708,10 +740,10 @@ if __name__ == '__main__':
     # df = run_experiment()
     model_params = model_list[0]
 
-    partitioners = [ "None" ,"Uniform"]#, "GreedySimGuidedPartitioner", "AdaptiveSimGuidedPartitioner"]
-    propagators = ["CROWN"] #"SDP"
+    partitioners = [ "None" , "Uniform"]#, "GreedySimGuidedPartitioner", "AdaptiveSimGuidedPartitioner"]
+    propagators = ["CROWN"]
     boundaries = ["linf"]#, "convex_hull", "lower_bnds"]
-    experiments_list=["errorVstimeStep"]   #reachable_set #"errorVsPartitions", "errorVstimeStep" "timebudget"
+    experiments_list=["process_noise"]   #reachable_set #"errorVsPartitions", "errorVstimeStep" "timebudget" "process_noise" "sensing_noise"
     partitioner_hyperparams_to_use = {
             "None":
                 {
@@ -747,6 +779,18 @@ if __name__ == '__main__':
             {
             "t_budget": [1],
             "t_max": [5],
+
+            },
+
+            "process_noise":
+           { "process_noise": [0, 0.02, 0.05, 0.1, 0.15, 0.2],
+
+            },
+            "sensing_noise":
+
+            {
+
+            "sensing_noise": [0, 0.02, 0.05, 0.1, 0.15, 0.2],
             }
 
         }
@@ -757,20 +801,39 @@ if __name__ == '__main__':
    # pdb.set_trace()
     run_experiments = True  # comment this line if you do not want to run the experiments
     if run_experiments ==True:
+
         if experiments_list == ["reachable_set"]:
             show_reach_set =True
             df = collect_data_for_table(propagators,partitioners, experiments_list, experiment_hyperparams, model_params, boundaries, show_reach_set)
-        
-        else:
+    
+        elif experiments_list == ["errorVstimeStep"]:
             show_reach_set =False
             df = collect_data_for_table(propagators,partitioners, experiments_list, experiment_hyperparams, model_params, boundaries, show_reach_set)      
-            plot_errors(df,"time_steps", model_params, show_average=False)
-    elif experiments_list == ["errorVstimeStep"]:
-        list_of_files = glob.glob(save_dir+"/*.pkl")
-        latest_file = max(list_of_files, key=os.path.getctime)
-        df = pd.read_pickle(latest_file)
-        plot_errors(df,"time_steps", model_params, show_average=False)
-
+            plot_params ="time_steps"
+            plot_errors(df,plot_params, model_params, show_average=False)
+          
+        elif experiments_list == ["sensing_noise"]:
+            show_reach_set =False
+            df = collect_data_for_table(propagators,partitioners, experiments_list, experiment_hyperparams, model_params, boundaries, show_reach_set)      
+            plot_params ="sensing_noise"
+            plot_errors(df,plot_params, model_params, show_average=False)
+      
+        elif experiments_list == ["process_noise"]:
+             plot_params ="process_noise"
+             show_reach_set =False
+             df = collect_data_for_table(propagators,partitioners, experiments_list, experiment_hyperparams, model_params, boundaries, show_reach_set)      
+             plot_errors(df,plot_params, model_params, show_average=False)
+    
+    else:
+        if experiments_list == ["reachable_set"]:
+            NotImplementedError
+        else:
+            list_of_files = glob.glob(save_dir+"/*.pkl")
+            latest_file = max(list_of_files, key=os.path.getctime)
+            df = pd.read_pickle(latest_file)
+            plot_params = experiments_list[0]
+            plot_errors(df,plot_params, model_params, show_average=False)
+    
    # print(df["final_error"], df["avg_error"])
     #for df_info in df:
         #plt.plot(df_info["partitons"], df_info["final_error"] )

@@ -256,26 +256,40 @@ class Quadrotor(Dynamics):
         return xdot
 
 class DoubleIntegratorOutputFeedback(DoubleIntegrator):
-    def __init__(self):
+    def __init__(self, process_noise=None, sensing_noise=None):
         super().__init__()
         # self.process_noise = np.array([
         #     [-0.5,0.5],
         #     [-0.01,0.01],
         # ])
-        self.process_noise = 0*0.1*np.dstack([-np.ones(self.num_states), np.ones(self.num_states)])[0]
+        if process_noise is None:
+            self.process_noise = 0*0.1*np.dstack([-np.ones(self.num_states), np.ones(self.num_states)])[0]
+        else:
+            self.process_noise = process_noise*np.dstack([-np.ones(self.num_states), np.ones(self.num_states)])[0]
 
         # self.sensor_noise = np.array([
         #     [-0.8,0.8],
         #     [-0.0,0.0],
         # ])
 
-        self.sensor_noise = 0*0.1*np.dstack([-np.ones(self.num_outputs), np.ones(self.num_outputs)])[0]
-
+        if sensing_noise is None:
+            self.sensor_noise = 0*0.1*np.dstack([-np.ones(self.num_outputs), np.ones(self.num_outputs)])[0]
+        else:
+            self.sensor_noise = sensing_noise*np.dstack([-np.ones(self.num_outputs), np.ones(self.num_outputs)])[0]
+        print()
 class QuadrotorOutputFeedback(Quadrotor):
     def __init__(self):
-        super().__init__()
-        self.process_noise = 0*0.05*np.dstack([-np.ones(self.num_states), np.ones(self.num_states)])[0]
-        self.sensor_noise = 0*0.01*np.dstack([-np.ones(self.num_outputs), np.ones(self.num_outputs)])[0]
+        super().__init__(process_noise=None, sensing_noise=None)
+        if process_noise is None:
+            self.process_noise = 0*0.05*np.dstack([-np.ones(self.num_states), np.ones(self.num_states)])[0]
+        else:
+            self.process_noise = process_noise*0.05*np.dstack([-np.ones(self.num_states), np.ones(self.num_states)])[0]
+        
+        if sensing_noise is None:
+    
+            self.sensor_noise = 0*0.01*np.dstack([-np.ones(self.num_outputs), np.ones(self.num_outputs)])[0]
+        else:    
+            self.process_noise = sensing_noise*np.dstack([-np.ones(self.num_states), np.ones(self.num_states)])[0]
 
 if __name__ == '__main__':
     from closed_loop.nn import load_model
