@@ -100,7 +100,6 @@ if __name__ == '__main__':
     np.random.seed(seed=0)
 
     system = 'quadrotor'
-
     # system = 'double_integrator_mpc'
 
     ##############
@@ -110,7 +109,7 @@ if __name__ == '__main__':
     if system == 'double_integrator_mpc':
         torch_model = load_model(name='double_integrator_mpc')
     elif system == 'quadrotor':
-        torch_model = load_model(name='quadrotor_small')
+        torch_model = load_model(name='quadrotor')
     else:
         raise NotImplementedError
     
@@ -126,7 +125,7 @@ if __name__ == '__main__':
                           [2.5, 3.0], # x0min, x0max
                           [-0.25, 0.25], # x1min, x1max
         ])
-        t_max = 1
+        t_max = 5
     elif system == 'quadrotor':
         # from closed_loop.Dynamics import Quadrotor
         # dynamics = Quadrotor()
@@ -136,7 +135,7 @@ if __name__ == '__main__':
                       [4.65,4.65,2.95,0.94,-0.01,-0.01],
                       [4.75,4.75,3.05,0.96,0.01,0.01]
         ]).T
-        t_max = 0.1
+        t_max = 1.5
     else:
         raise NotImplementedError
 
@@ -184,17 +183,17 @@ if __name__ == '__main__':
     analyzer.partitioner = partitioner_hyperparams
     analyzer.propagator = propagator_hyperparams
 
-    # ## Polytope Boundaries
-    from closed_loop.utils import init_state_range_to_polytope, get_polytope_A
-    A_inputs, b_inputs = init_state_range_to_polytope(init_state_range)
-    if system == 'quadrotor': A_out = A_inputs
-    else: A_out = get_polytope_A(8)
-    input_constraint = PolytopeInputConstraint(A_inputs, b_inputs)
-    output_constraint = PolytopeOutputConstraint(A_out)
+    # # ## Polytope Boundaries
+    # from closed_loop.utils import init_state_range_to_polytope, get_polytope_A
+    # A_inputs, b_inputs = init_state_range_to_polytope(init_state_range)
+    # if system == 'quadrotor': A_out = A_inputs
+    # else: A_out = get_polytope_A(8)
+    # input_constraint = PolytopeInputConstraint(A_inputs, b_inputs)
+    # output_constraint = PolytopeOutputConstraint(A_out)
 
-    ### LP-Ball Boundaries
-   # input_constraint = LpInputConstraint(range=init_state_range, p=np.inf)
-   # output_constraint = LpOutputConstraint(p=np.inf)
+    ## LP-Ball Boundaries
+    input_constraint = LpInputConstraint(range=init_state_range, p=np.inf)
+    output_constraint = LpOutputConstraint(p=np.inf)
 
     # ### Ellipsoid Boundaries
     # input_constraint = EllipsoidInputConstraint(
@@ -203,7 +202,19 @@ if __name__ == '__main__':
     # )
     # output_constraint = EllipsoidOutputConstraint()
 
-    output_constraint, analyzer_info = analyzer.get_reachable_set(input_constraint, output_constraint, t_max=t_max)
+    # # Estimate time of running the calculations
+    # import time
+    # num_calls = 5
+    # times = np.empty(num_calls)
+    # for num in range(num_calls):
+    #     t_start = time.time()
+    #     output_constraint, analyzer_info = analyzer.get_reachable_set(input_constraint, output_constraint, t_max=t_max)
+    #     t_end = time.time()
+    #     t = t_end - t_start
+    #     times[num] = t
+    # print("All times: {}".format(times))
+    # print("Avg time: {}".format(times.mean()))
+    
     # print("output_constraint:", output_constraint.range)
     # output_range, analyzer_info = analyzer.get_output_range(input_range)
     # print("Estimated output_range:\n", output_range)
@@ -217,7 +228,7 @@ if __name__ == '__main__':
    # print("Analyzer:", analyzer_info)
   #  print('estimated output rang', analyzer.get_output_range(input_constraint, output_constraint))
   #  print('sampled output range', analyzer.get_sampled_output_range(input_constraint,t_max=5, num_samples=1000))
-    # error, avg_error = analyzer.get_error(input_constraint,output_constraint)
+    # error, avg_error = analyzer.get_error(input_constraint,output_constraint, t_max=t_max)
     # print('Final step approximation error:{:.2f}\nAverage approximation error: {:.2f}'.format(error, avg_error))
     #error, avg_error = analyzer.get_error(input_constraint,output_constraint)
    # print('Final step approximation error:{:.2f}\nAverage approximation error: {:.2f}'.format(error, avg_error))

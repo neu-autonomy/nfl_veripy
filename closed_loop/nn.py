@@ -60,10 +60,19 @@ def load_model(name='double_integrator_mpc'):
 #             return us
 
 def load_data():
-    import pandas as pd
 
-    xs = pd.read_csv('~/Downloads/quadrotor_nlmpc_x.csv', sep=',',header=None).to_numpy().T
-    us = pd.read_csv('~/Downloads/quadrotor_nlmpc_u.csv', sep=',',header=None).to_numpy().T
+    import pickle
+    with open('/Users/mfe/Downloads/dataset.pkl','rb') as f:
+        data = pickle.load(f)
+
+    xs, us = data
+    us = np.expand_dims(us, axis=-1)
+
+
+    # import pandas as pd
+
+    # xs = pd.read_csv('~/Downloads/quadrotor_nlmpc_x.csv', sep=',',header=None).to_numpy().T
+    # us = pd.read_csv('~/Downloads/quadrotor_nlmpc_u.csv', sep=',',header=None).to_numpy().T
 
     print(xs.shape)
     print(us.shape)
@@ -87,10 +96,18 @@ if __name__ == '__main__':
     xs, us = load_data()
 
     # neurons_per_layer = [32,32]
-    neurons_per_layer = [5,5]
-    # model = create_model(neurons_per_layer)
-    model = create_and_train_model(neurons_per_layer, xs, us, verbose=True)
-
-    save_model(model, name='model', dir=dir_path+'/models/quadrotor_small/')
-
+    neurons_per_layers = []
+    neurons_per_layers.append([5])
+    neurons_per_layers.append([5,5])
+    neurons_per_layers.append([5,5,5])
+    neurons_per_layers.append([5,5,5,5])
+    neurons_per_layers.append([5,5,5,5,5])
+    neurons_per_layers.append([5,5,5,5,5,5])
+    neurons_per_layers.append([5,5,5,5,5,5,5])
+    neurons_per_layers.append([5,5,5,5,5,5,5,5])
+    neurons_per_layers.append([5,5,5,5,5,5,5,5,5])
+    neurons_per_layers.append([5,5,5,5,5,5,5,5,5,5])
+    for neurons_per_layer in neurons_per_layers:
+        model = create_and_train_model(neurons_per_layer, xs, us, verbose=True)
+        save_model(model, name='model', dir=dir_path+'/models/double_integrator_test_{}/'.format('_'.join(map(str,neurons_per_layer))))
 

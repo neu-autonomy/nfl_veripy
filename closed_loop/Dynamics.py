@@ -11,6 +11,10 @@ from scipy.linalg import solve_discrete_are
 from closed_loop.nn_bounds import BoundClosedLoopController
 from closed_loop.ClosedLoopConstraints import PolytopeInputConstraint, LpInputConstraint, PolytopeOutputConstraint, LpOutputConstraint
 import torch
+import os
+import pickle
+
+dir_path = os.path.dirname(os.path.realpath(__file__))
 
 class Dynamics:
     def __init__(self, At, bt, ct, u_limits=None, dt=1.0, c=None, sensor_noise=None, process_noise=None):
@@ -57,7 +61,7 @@ class Dynamics:
         raise NotImplementedError
 
     def colors(self, t_max):
-        return [cm.get_cmap("tab10")(i) for i in range(t_max+1)]
+        return [cm.get_cmap("tab20")(i) for i in range(t_max+1)]
  
     def get_sampled_output_range(self, input_constraint, t_max =5, num_samples= 1000, controller='mpc'):
 
@@ -144,13 +148,14 @@ class Dynamics:
         t = 0
         step = 0
         while t < t_max:
+            print('--- t={} ---'.format(t))
 
             # Observe system (using observer matrix, possibly adding measurement noise)
             obs = self.observe_step(xs[:,step,:])
 
             # Compute Control
             if controller == 'mpc':
-                u = self.control_mpc(x0=x[step,:])
+                u = self.control_mpc(x0=obs)
             elif isinstance(controller, BoundClosedLoopController) or isinstance(controller, torch.nn.Sequential):
                 u = self.control_nn(x=obs, model=controller)
             else:
@@ -166,7 +171,7 @@ class Dynamics:
             t += self.dt +np.finfo(float).eps
 
         if collect_data:
-            return xs, us
+            return xs.reshape(-1, self.num_states), us.reshape(-1, self.num_inputs)
 
 class DoubleIntegrator(Dynamics):
     def __init__(self):
@@ -190,7 +195,7 @@ class DoubleIntegrator(Dynamics):
         self.Pinf = solve_discrete_are(self.At, self.bt, self.Q, self.R)
 
     def control_mpc(self, x0):
-        return control_mpc(x0, self.At, self.bt, self.ct, self.Q, self.R, self.Pinf, self.u_min, self.u_max, n_mpc=10, debug=False)
+        return control_mpc(x0, self.At, self.bt, self.ct, self.Q, self.R, self.Pinf, self.u_limits[:,0], self.u_limits[:,1], n_mpc=10, debug=False)
 
     def dynamics_step(self, xs, us):
         # Dynamics are already discretized:
@@ -282,12 +287,25 @@ if __name__ == '__main__':
 
     dynamics = DoubleIntegrator()
     init_state_range = np.array([ # (num_inputs, 2)
-                      [2.5, 3.0], # x0min, x0max
-                      [-0.25, 0.25], # x1min, x1max
+                      [-2.0, -0.5], # x0min, x0max
+                      [0.2, 0.8], # x1min, x1max
     ])
-    controller = load_model(name='double_integrator_mpc')
+    xs, us = dynamics.collect_data(t_max=10, input_constraint=LpInputConstraint(p=np.inf, range=init_state_range),
+        num_samples=2420)
+    print(xs.shape, us.shape)
+    with open(dir_path+'/datasets/double_integrator/xs.pkl', 'wb') as f:
+        pickle.dump(xs, f)
+    with open(dir_path+'/datasets/double_integrator/us.pkl', 'wb') as f:
+        pickle.dump(us, f)
 
-    # dynamics = Quadrotor()
+    # # dynamics = DoubleIntegrator()
+    # # init_state_range = np.array([ # (num_inputs, 2)
+    # #                   [2.5, 3.0], # x0min, x0max
+    # #                   [-0.25, 0.25], # x1min, x1max
+    # # ])
+    # # controller = load_model(name='double_integrator_mpc')
+
+    # dynamics = QuadrotorOutputFeedback()
     # init_state_range = np.array([ # (num_inputs, 2)
     #               [4.65,4.65,2.95,0.94,-0.01,-0.01], # x0min, x0max
     #               [4.75,4.75,3.05,0.96,0.01,0.01] # x1min, x1max
@@ -297,7 +315,7 @@ if __name__ == '__main__':
     #                       [4.1,3.5,2.6]            
     # ]).T
     # controller = load_model(name='quadrotor')
-    t_max = 1*dynamics.dt
-    input_constraint = LpInputConstraint(range=init_state_range, p=np.inf)
-    dynamics.show_samples(t_max, input_constraint, save_plot=False, ax=None, show=True, controller=controller)
+    # t_max = 15*dynamics.dt
+    # input_constraint = LpInputConstraint(range=init_state_range, p=np.inf)
+    # dynamics.show_samples(t_max, input_constraint, save_plot=False, ax=None, show=True, controller=controller)
 
