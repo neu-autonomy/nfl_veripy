@@ -10,7 +10,7 @@ import matplotlib.pyplot as plt
 # plt.rcParams['mathtext.fontset'] = 'stix'
 # plt.rcParams['font.family'] = 'STIXGeneral'
 
-from closed_loop.ClosedLoopPartitioner import ClosedLoopNoPartitioner, ClosedLoopUniformPartitioner
+from closed_loop.ClosedLoopPartitioner import ClosedLoopNoPartitioner, ClosedLoopUniformPartitioner, ClosedLoopProbabilisticPartitioner
 from closed_loop.ClosedLoopPropagator import ClosedLoopCROWNPropagator, ClosedLoopIBPPropagator, ClosedLoopFastLinPropagator, ClosedLoopSDPPropagator
 from closed_loop.ClosedLoopConstraints import PolytopeInputConstraint, LpInputConstraint, PolytopeOutputConstraint, LpOutputConstraint, EllipsoidInputConstraint, EllipsoidOutputConstraint
 
@@ -27,7 +27,9 @@ class ClosedLoopAnalyzer(Analyzer):
         self.partitioner_dict = {
             "None": ClosedLoopNoPartitioner,
             "Uniform": ClosedLoopUniformPartitioner,
+            "ProbPartition": ClosedLoopProbabilisticPartitioner,
         }
+
         self.propagator_dict = {
             "CROWN": ClosedLoopCROWNPropagator,
             "IBP": ClosedLoopIBPPropagator,
@@ -45,19 +47,19 @@ class ClosedLoopAnalyzer(Analyzer):
         return self.propagator_dict[propagator](**{**hyperparams, "dynamics": self.dynamics})
 
     def get_one_step_reachable_set(self, input_constraint, output_constraint):
-        reachable_set, info = self.partitioner.get_one_step_reachable_set(input_constraint, output_constraint, self.propagator)
-        return reachable_set, info
+        reachable_set, info, prob = self.partitioner.get_one_step_reachable_set(input_constraint, output_constraint, self.propagator)
+        return reachable_set, info, prob
 
     def get_reachable_set(self, input_constraint, output_constraint, t_max):
-        reachable_set, info = self.partitioner.get_reachable_set(input_constraint, output_constraint, self.propagator, t_max)
-        return reachable_set, info
+        reachable_set, info, prob_list = self.partitioner.get_reachable_set(input_constraint, output_constraint, self.propagator, t_max)
+        return reachable_set, info, prob_list
 
-    def visualize(self, input_constraint, output_constraint, show=True, show_samples=False, **kwargs):
+    def visualize(self, input_constraint, output_constraint, show=True, show_samples=False, prob_list=None,**kwargs):
         # sampled_outputs = self.get_sampled_outputs(input_range)
         # output_range_exact = self.samples_to_range(sampled_outputs)
 
-        self.partitioner.setup_visualization(input_constraint, output_constraint, self.propagator, show_samples=show_samples)
-        self.partitioner.visualize(kwargs.get("exterior_partitions", kwargs.get("all_partitions", [])), kwargs.get("interior_partitions", []), output_constraint)
+        self.partitioner.setup_visualization(input_constraint, output_constraint,self.propagator, prob_list = prob_list, show_samples=show_samples, outputs_to_highlight=[{'dim':[0], 'name':'py'}, {'dim':[1], 'name':'pz'}],inputs_to_highlight= [{'dim':[0], 'name':'py'}, {'dim':[1], 'name':'pz'}] )
+        self.partitioner.visualize(kwargs.get("exterior_partitions", kwargs.get("all_partitions", [])), kwargs.get("interior_partitions", []), output_constraint, prob_list)
         
         # self.partitioner.animate_axes.legend(bbox_to_anchor=(0,1.02,1,0.2), loc="lower left",
         #         mode="expand", borderaxespad=0, ncol=1)
@@ -161,12 +163,13 @@ if __name__ == '__main__':
 
     partitioner_hyperparams = {
         "type": "None",
-
-       #  "type": "Uniform",
-       # "num_partitions": np.array([4,4]),
-        # "num_partitions": np.array([4,4,1,1,1,1]),
+        "type": "Uniform",
+        "num_partitions": np.array([4,4]),
+       # "num_partitions": np.array([4,4,1,1,1,1]),
         # "make_animation": False,
         # "show_animation": False,
+       # "type": "ProbPartition",
+      #  "num_partitions": np.array([10])
     }
     propagator_hyperparams = {
         # "type": "SDP",
@@ -215,6 +218,7 @@ if __name__ == '__main__':
     # print("All times: {}".format(times))
     # print("Avg time: {}".format(times.mean()))
     
+    output_constraint, analyzer_info, prob_list = analyzer.get_reachable_set(input_constraint, output_constraint, t_max=0.8)
     # print("output_constraint:", output_constraint.range)
     # output_range, analyzer_info = analyzer.get_output_range(input_range)
     # print("Estimated output_range:\n", output_range)
@@ -232,6 +236,7 @@ if __name__ == '__main__':
     # print('Final step approximation error:{:.2f}\nAverage approximation error: {:.2f}'.format(error, avg_error))
     #error, avg_error = analyzer.get_error(input_constraint,output_constraint)
    # print('Final step approximation error:{:.2f}\nAverage approximation error: {:.2f}'.format(error, avg_error))
-    analyzer.visualize(input_constraint, output_constraint, show_samples=True, **analyzer_info)
- 
+   # import pdb
+    #pdb.set_trace()
+    analyzer.visualize(input_constraint, output_constraint, show_samples=True, prob_list =prob_list ,**analyzer_info)
     print("--- done. ---")

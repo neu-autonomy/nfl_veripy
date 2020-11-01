@@ -21,6 +21,8 @@ import closed_loop.ClosedLoopAnalyzer
 from closed_loop.ClosedLoopPartitioner import ClosedLoopNoPartitioner, ClosedLoopUniformPartitioner
 from closed_loop.ClosedLoopPropagator import ClosedLoopCROWNPropagator, ClosedLoopIBPPropagator, ClosedLoopFastLinPropagator, ClosedLoopSDPPropagator
 from closed_loop.ClosedLoopConstraints import PolytopeInputConstraint, LpInputConstraint, PolytopeOutputConstraint, LpOutputConstraint
+from closed_loop.Dynamics import DoubleIntegratorOutputFeedback
+from closed_loop.Dynamics import QuadrotorOutputFeedback
 
 save_dir = "{}/results/experiments/closed_loop/".format(os.path.dirname(os.path.abspath(__file__)))
 os.makedirs(save_dir, exist_ok=True)
@@ -118,9 +120,10 @@ model_list= [
    
 ]
 
-def collect_data_for_table(propagators,partitioners, experiments_list, experiment_hyperparams, model_params, boundaries):
-
+def collect_data_for_table(propagators,partitioners, experiments_list, experiment_hyperparams, model_params, boundaries, show_reach_set):
+    t_max=5
     df = pd.DataFrame()
+    animate_fig, animate_axes = plt.subplots(1,1)
 
     #for model_param in model_params:  ## TODO: fix it for creating the table
     for seed in model_params['seeds']:
@@ -133,32 +136,48 @@ def collect_data_for_table(propagators,partitioners, experiments_list, experimen
     ##############
         if model_fn == 'double_integrator_mpc':
 
-            dynamics = DoubleIntegrator()
+            #dynamics = DoubleIntegrator()
+            dynamics = DoubleIntegratorOutputFeedback(None,None)
+            
             init_state_range = model_params['input_range']
                 
         elif model_fn == 'quadrotor':
 
-            dynamics = Quadrotor()
+            #dynamics = Quadrotor()
+            dynamics =QuadrotorOutputFeedback(None, None)
             init_state_range = model_params['input_range']
         else:
                 
             raise NotImplementedError
-
           #  input_range = experiment_input_range(lstm=('lstm' in experiment and experiment['lstm']),
            #     neurons=experiment['model_args']['neurons'], input_shape=experiment.get('input_shape', None))
-        df = run_experiment(model=model, dynamics =dynamics,  model_info=None, df=df, save_df=False, input_range=init_state_range, 
+        df = run_experiment(model, dynamics, df=df, save_df=False, input_range=init_state_range, 
                 partitioners=partitioners, propagators=propagators, partitioner_hyperparams_to_use=partitioner_hyperparams_to_use,
-                experiments= experiments_list, experiment_hyperparams= experiment_hyperparams)
+                experiments= experiments_list, experiment_hyperparams= experiment_hyperparams , show_reach_set = show_reach_set , animate_fig = animate_fig, animate_axes = animate_axes)
 
+        # if "save_name" in kwargs and kwargs["save_name"] is not None:
+        #     plt.savefig(kwargs["save_name"])
+
+    if show_reach_set:
+
+        plt.tight_layout()
+        plt.xlim((-1.75,3.25))
+
+        plt.ylim((-1.25,0.75))
+        plt.show()
+    else:
+        plt.close()
     # Save the df in the "results" dir (so you don't have to re-run the expt)
     current_datetime = datetime.now().strftime("%m-%d-%Y_%H-%M-%S")
     df.to_pickle("{}/{}.pkl".format(save_dir, current_datetime))
     return df
 
-def run_experiment(model=None, dynamics= None, model_info=None, df=None, save_df=True, input_range=None,
- partitioners=None, propagators=None, partitioner_hyperparams_to_use=None, experiments =None, experiment_hyperparams=None):
-  
-    if model is None or dynamics is None:
+def run_experiment(model= None, dynamics= None, df=None, save_df=True, input_range=None,
+ partitioners=None, propagators=None, partitioner_hyperparams_to_use=None, experiments =None, experiment_hyperparams=None , show_reach_set=False ,  animate_fig= None, animate_axes = None):
+    process_noise=None
+    sensing_noise=None
+
+    if model is None or dynamics is None :
      #   neurons = [10,5,2]
        # model, model_info = random_model(activation='relu', neurons=neurons, seed=0)
         raise NotImplementedError
@@ -213,7 +232,6 @@ def run_experiment(model=None, dynamics= None, model_info=None, df=None, save_df
     if df is None:
         df = pd.DataFrame()
 
-    analyzer = closed_loop.ClosedLoopAnalyzer.ClosedLoopAnalyzer(model, dynamics)
     #analyzer = partition.Analyzer.Analyzer(model)
     for partitioner, propagator,experiment in itertools.product(partitioners, propagators, experiments):
         partitioner_keys = list(partitioner_hyperparams_to_use[partitioner].keys())
@@ -229,12 +247,22 @@ def run_experiment(model=None, dynamics= None, model_info=None, df=None, save_df
             for exp_vals in itertools.product(*list(experiment_hyperparams[experiment].values())):
                 if  (len(exp_keys)==1  and  't_max' in exp_keys[0]):
                     t_max = exp_vals[0]
-    
+                elif  (len(exp_keys)==1  and  'process_noise' in exp_keys[0]):
+                    process_noise = exp_vals[0]            
+                    sensing_noise=None
+                    t_max =5
+
+                elif  (len(exp_keys)==1  and  'sensing_noise' in exp_keys[0]):
+                    sensing_noise = exp_vals[0]
+                    process_noise=None
+                    t_max =5
                 else:
                     raise NotImplementedError
-                data_row = run_and_add_row(analyzer, input_range, partitioner_hyperparams, propagator_hyperparams, model_info, t_max)
+
+
+                data_row = run_and_add_row(model, dynamics, input_range, partitioner_hyperparams, propagator_hyperparams,show_reach_set, t_max , animate_fig ,animate_axes, process_noise, sensing_noise )
                 df = df.append(data_row, ignore_index=True)
-    
+                
     # Also record the "exact" bounds (via sampling) in the same dataframe
    # output_range_exact = analyzer.get_exact_output_range(input_range)
 
@@ -246,9 +274,13 @@ def run_experiment(model=None, dynamics= None, model_info=None, df=None, save_df
 
     return df
 
-def run_and_add_row(analyzer, input_range, partitioner_hyperparams, propagator_hyperparams, model_info={}, t_max=5):
+def run_and_add_row(model, dynamics, input_range, partitioner_hyperparams, propagator_hyperparams, show_reach_set=False, t_max=5 ,  animate_fig= None, animate_axes = None, process_noise =None, sensing_noise=None):
+  
     print("Partitioner: {},\n Propagator: {},\n Time steps:{}".format(partitioner_hyperparams, propagator_hyperparams, t_max))
     np.random.seed(0)
+    dynamics = DoubleIntegratorOutputFeedback(process_noise,sensing_noise)           
+             
+    analyzer = closed_loop.ClosedLoopAnalyzer.ClosedLoopAnalyzer(model, dynamics)
     analyzer.partitioner = partitioner_hyperparams
     analyzer.propagator = propagator_hyperparams
    # t_start = time.time()
@@ -260,11 +292,28 @@ def run_and_add_row(analyzer, input_range, partitioner_hyperparams, propagator_h
    #     exact_hull = analyzer.get_exact_hull(input_range, N=int(1e5))
   #      error = analyzer.partitioner.get_error(exact_hull, analyzer_info["estimated_hull"])
   #  else:
-    
-    input_constraint = LpInputConstraint(range=input_range, p=np.inf)
-    output_constraint = LpOutputConstraint(p=np.inf)
-    #output_constraint, analyzer_info = analyzer.get_reachable_set(input_constraint, output_constraint, t_max)
-    output_constraint, analyzer_info = analyzer.get_reachable_set(input_constraint, output_constraint, t_max)
+
+  # ## Polytope Boundaries
+    Polytope_constraint =False
+    if Polytope_constraint==True:
+        from closed_loop.utils import init_state_range_to_polytope, get_polytope_A
+        A_inputs, b_inputs = init_state_range_to_polytope(input_range)
+   # if system == 'quadrotor': A_out = A_inputs
+        A_out = get_polytope_A(12)
+        input_constraint = PolytopeInputConstraint(A_inputs, b_inputs)
+        output_constraint = PolytopeOutputConstraint(A_out)
+
+    ### LP-Ball Boundaries
+    else:
+        input_constraint = LpInputConstraint(range=input_range, p=np.inf)
+        output_constraint = LpOutputConstraint(p=np.inf)
+
+
+    tstart=time.time()
+    output_constraint, analyzer_info,_ = analyzer.get_reachable_set(input_constraint, output_constraint, t_max)
+    tfinish=time.time()
+    print('time', tfinish-tstart)  
+   
    # print("output_constraint:", output_constraint)
     # output_range, analyzer_info = analyzer.get_output_range(input_range)
     # print("Estimated output_range:\n", output_range)
@@ -276,29 +325,102 @@ def run_and_add_row(analyzer, input_range, partitioner_hyperparams, propagator_h
    # pars = '_'.join([str(key)+"_"+str(value) for key, value in sorted(partitioner_hyperparams.items(), key=lambda kv: kv[0]) if key not in ["make_animation", "show_animation", "type"]])
    # pars2 = '_'.join([str(key)+"_"+str(value) for key, value in sorted(propagator_hyperparams.items(), key=lambda kv: kv[0]) if key not in ["input_shape", "type"]])
  
-    error, avg_error = analyzer.get_error(input_constraint,output_constraint, t_max)
+    if show_reach_set==True:
+        analyzer.partitioner.animate_fig = animate_fig
+        analyzer.partitioner.animate_axes= animate_axes
+    
+        inputs_to_highlight =None
+        outputs_to_highlight =None
+
+        kwargs  =analyzer_info
+        if inputs_to_highlight is None:
+
+            input_dims = [[0], [1]]
+            input_names = ["State: {}".format(input_dims[0][0]), "State: {}".format(input_dims[1][0])]
+        else:
+            input_dims = [x['dim'] for x in inputs_to_highlight]
+            input_names = [x['name'] for x in inputs_to_highlight]
+        
+        if outputs_to_highlight is None:
+
+            output_dims = [[0], [1]]
+            output_names = ["State: {}".format(output_dims[0][0]), "State: {}".format(output_dims[1][0])]
+        else:
+            output_dims = [x['dim'] for x in outputs_to_highlight]
+            output_names = [x['name'] for x in outputs_to_highlight]
+       
+        analyzer.partitioner.input_dims_ = input_dims# tuple([tuple([input_dims[j][i] for j in range(len(input_dims))]) for i in range(len(input_dims[0]))])
+        analyzer.partitioner.output_dims_ = output_dims
+    
+        # self.partitioner.animate_axes.legend(bbox_to_anchor=(0,1.02,1,0.2), loc="lower left",
+        #         mode="expand", borderaxespad=0, ncol=1)
+        if  type(analyzer.propagator).__name__=='ClosedLoopCROWNPropagator':  
+            color = 'blue'
+        elif type(analyzer.propagator).__name__=="ClosedLoopSDPPropagator":
+            color = 'red'
+        elif type(analyzer.propagator).__name__=="ClosedLoopFastLinPropagator": 
+            color = 'g'
+        else:
+            color = 'm'
+        if  type(analyzer.partitioner).__name__=="ClosedLoopNoPartitioner":
+    
+            line_style = ':'
+        elif type(analyzer.partitioner).__name__=="ClosedLoopUniformPartitioner":
+            line_style = '-'
+        else:
+            line_style = '-.'
+
+
+        analyzer.partitioner.animate_axes.set_xlabel(input_names[0])
+        analyzer.partitioner.animate_axes.set_ylabel(input_names[1])
+        
+        analyzer.partitioner.setup_visualization_multiple(input_constraint, output_constraint,analyzer.propagator, input_dims, prob_list = None, show_samples=True , color=color ,line_style=line_style)
+     
+        analyzer.partitioner.visualize(kwargs.get("exterior_partitions", kwargs.get("all_partitions", [])), kwargs.get("interior_partitions", []), output_constraint, None)
+        analyzer.partitioner.animate_fig.tight_layout()
+
+    if  Polytope_constraint != True:  # implement computing error for poyltope
+         error, avg_error = analyzer.get_error(input_constraint,output_constraint, t_max)
+    else:
+        avg_error =None
+        error=None
 
     # analyzer_info["save_name"] = img_save_dir+partitioner_hyperparams['type']+"_"+propagator_hyperparams['type']+"_"+pars+"_"+pars2+".png"
     # analyzer.visualize(input_range, output_range, show=False, show_legend=False, **analyzer_info)
-    print('Average_error',avg_error )
-    print('Final error',error )
-
+        print('Average_error',avg_error )
+        print('Final error',error )
+    if  Polytope_constraint != True:  # implement computing error for poyltope
+        out_range =output_constraint.range
+        in_range = input_constraint.range
+    else:
+        out_range =None
+        in_range = None
     stats = {
        # "computation_time": t_end - t_start,
        # "propagator_computation_time": t_end - t_start,
-        "output_range_estimate": output_constraint.range,
-        "input_range": input_constraint.range,
+        "output_range_estimate": out_range,
+        "input_range":in_range,
         "propagator": type(analyzer.propagator).__name__,
         "partitioner": type(analyzer.partitioner).__name__,
+        "propagator_info": propagator_hyperparams,
+        "partitioner_info": partitioner_hyperparams,
+        "process_noise": process_noise,
+        "sensing_noise": sensing_noise,
+
         "final_error": error,
         "avg_error": avg_error,
         "time_steps": t_max,
+        "Analyzer": analyzer,
 
        # "num_partitions": partitioner_hyperparams,
 
         # "neurons": ,
         # "activation": ,
     }
+
+    print("Final error",error)
+    print("Average error",avg_error)
+
    # analyzer_info.pop("exact_hull", None)
    # analyzer_info.pop("estimated_hull", None)
     data_row = {**stats, **analyzer_info, **partitioner_hyperparams, **propagator_hyperparams}#, **model_info}
@@ -317,8 +439,6 @@ def add_approx_error_to_df(df):
         output_area_estimate = np.product(row["output_range_estimate"][:,1] - row["output_range_estimate"][:,0])
         df.at[index, 'output_area_estimate'] = output_area_estimate
         df.at[index, 'output_area_error'] = (output_area_estimate / output_area_exact) - 1.
-        
-
 
 
 def plot(df, stat):
@@ -332,9 +452,9 @@ def plot(df, stat):
                 continue
             df_ = df[(df["partitioner"] == partitioner) & (df["propagator"] == propagator)]
             if propagator == "IBPAutoLIRPAPropagator" and partitioner == "SimGuidedPartitioner":
-                linestyle = '--'
-            else:
                 linestyle = '-'
+            else:
+                linestyle = ':'
 
             plt.loglog(df_[stat].values, df_["error"],
                 marker=algs[partitioner]["marker"],
@@ -398,24 +518,44 @@ def plot(df, stat):
 
 
 
-def plot_errors(df, stat, model_params):
+def plot_errors(df, stat, model_params, show_average=False):
     for partitioner in df["partitioner"].unique():
         for propagator in df["propagator"].unique():
-            if partitioner == "ClosedLoopUniformPartitioner":
-                color ='green'
-            elif partitioner == "ClosedLoopNoPartitioner":
-                color='blue'
-            else:
+            if partitioner == "ClosedLoopNoPartitioner" and propagator == "ClosedLoopCROWNPropagator":
+                color ='blue'
+                linestyle= ':'
+            elif partitioner == "ClosedLoopNoPartitioner" and  propagator == "ClosedLoopSDPPropagator":
                 color ='red'
+                linestyle= ':'
+
+            elif partitioner == "ClosedLoopNoPartitioner" and  propagator == "ClosedLoopFastLinPropagator":
+                color ='green'
+
+            elif partitioner == "ClosedLoopUniformPartitioner" and  propagator == "ClosedLoopCROWNPropagator":
+                color ='blue'
+                linestyle= '-'
+
+
+            elif partitioner == "ClosedLoopUniformPartitioner" and  propagator == "ClosedLoopSDPPropagator":
+                color ='red'
+                linestyle= '-'
+
+      
+            elif partitioner == "ClosedLoopUniformPartitioner" and  propagator == "ClosedLoopFastLinPropagator":
+                color ='springgreen'
+
+            else:
+                color ='black'
 
 
             df_ = df[(df["partitioner"] == partitioner) & (df["propagator"] == propagator)]
-            plt.plot(df_[stat] , df_["avg_error"], color=color,
-                linestyle='solid', label=algs[partitioner]["name"]+'-'+algs[propagator]["name"]+'-'+'Average Error')   
-            plt.yscale("log")      
+            if show_average ==True:
+                plt.plot(df_[stat] , df_["avg_error"], color=color,
+                linestyle=linestyle, label=algs[partitioner]["name"]+'-'+algs[propagator]["name"]+'-'+'Average Error')   
+                plt.yscale("log")   
+            
             plt.plot(df_[stat] , df_["final_error"],  color=color,
-                linestyle='dashed',label=algs[partitioner]["name"]+'-'+algs[propagator]["name"]+'-'+'Final Error')   
-
+                linestyle=linestyle,label=algs[partitioner]["name"]+'-'+algs[propagator]["name"]+'-'+'Final Error')   
             plt.yscale("log")
          
 
@@ -494,7 +634,13 @@ stats = {
         "name": "Number of Propagator Calls"
     },
     "time_steps": {
-        "name": "Time (sec)"
+        "name": "Time steps"
+    },
+    "sensing_noise": {
+        "name": "Sensing Noise Value"
+    },
+    "process_noise": {
+        "name": "Process Noise Value"
     },
 }
 
@@ -592,12 +738,12 @@ if __name__ == '__main__':
 
     # Run an experiment
     # df = run_experiment()
-    model_params = model_list[1]
+    model_params = model_list[0]
 
-    partitioners = ["None", "Uniform"]#, "GreedySimGuidedPartitioner", "AdaptiveSimGuidedPartitioner"]
-    propagators = ["CROWN"]#, "SDP"]
+    partitioners = [ "None" , "Uniform"]#, "GreedySimGuidedPartitioner", "AdaptiveSimGuidedPartitioner"]
+    propagators = ["CROWN"]
     boundaries = ["linf"]#, "convex_hull", "lower_bnds"]
-    experiments_list=["errorVstimeStep"  ] #"errorVsPartitions", 
+    experiments_list=["process_noise"]   #reachable_set #"errorVsPartitions", "errorVstimeStep" "timebudget" "process_noise" "sensing_noise"
     partitioner_hyperparams_to_use = {
             "None":
                 {
@@ -605,8 +751,8 @@ if __name__ == '__main__':
             "Uniform":
                 {
                    # "num_partitions": [1,2,4,8,16,32,64,128]
-                "num_partitions":  [np.array([4,4,1,1,1,1])],
-               # "num_partitions": [np.array([4,4])],
+            #    "num_partitions":  [np.array([4,4,1,1,1,1])],
+                "num_partitions": [np.array([4,4])],
 
                 }
 
@@ -620,16 +766,74 @@ if __name__ == '__main__':
             "errorVstimeStep":
 
             {
-            "t_max": [0.1,0.5,1.0,1.5,2.,2.5,3], #TODO: make it universerval for all systems
-           # "t_max": range(1,11), #TODO: make it universerval for all systems
+           # "t_max": [0.1,0.5,1.0,1.5,2.,2.5,3], #TODO: make it universerval for all systems
+            "t_max": range(1,7), #TODO: make it universerval for all systems
+            #"t_budget": [10000],
 
                 },
+            "reachable_set":
+            {
+            "t_max": [5], 
+            },
+            "timebudget":
+            {
+            "t_budget": [1],
+            "t_max": [5],
+
+            },
+
+            "process_noise":
+           { "process_noise": [0, 0.02, 0.05, 0.1, 0.15, 0.2],
+
+            },
+            "sensing_noise":
+
+            {
+
+            "sensing_noise": [0, 0.02, 0.05, 0.1, 0.15, 0.2],
+            }
+
         }
     # Make table
     print(experiment_hyperparams[ 'errorVstimeStep']['t_max'])
-    df = collect_data_for_table(propagators,partitioners, experiments_list, experiment_hyperparams, model_params, boundaries)
    # plot_errors(df,"num_partitions")
-    plot_errors(df,"time_steps", model_params)
+  #  import pdb
+   # pdb.set_trace()
+    run_experiments = True  # comment this line if you do not want to run the experiments
+    if run_experiments ==True:
+
+        if experiments_list == ["reachable_set"]:
+            show_reach_set =True
+            df = collect_data_for_table(propagators,partitioners, experiments_list, experiment_hyperparams, model_params, boundaries, show_reach_set)
+    
+        elif experiments_list == ["errorVstimeStep"]:
+            show_reach_set =False
+            df = collect_data_for_table(propagators,partitioners, experiments_list, experiment_hyperparams, model_params, boundaries, show_reach_set)      
+            plot_params ="time_steps"
+            plot_errors(df,plot_params, model_params, show_average=False)
+          
+        elif experiments_list == ["sensing_noise"]:
+            show_reach_set =False
+            df = collect_data_for_table(propagators,partitioners, experiments_list, experiment_hyperparams, model_params, boundaries, show_reach_set)      
+            plot_params ="sensing_noise"
+            plot_errors(df,plot_params, model_params, show_average=False)
+      
+        elif experiments_list == ["process_noise"]:
+             plot_params ="process_noise"
+             show_reach_set =False
+             df = collect_data_for_table(propagators,partitioners, experiments_list, experiment_hyperparams, model_params, boundaries, show_reach_set)      
+             plot_errors(df,plot_params, model_params, show_average=False)
+    
+    else:
+        if experiments_list == ["reachable_set"]:
+            NotImplementedError
+        else:
+            list_of_files = glob.glob(save_dir+"/*.pkl")
+            latest_file = max(list_of_files, key=os.path.getctime)
+            df = pd.read_pickle(latest_file)
+            plot_params = experiments_list[0]
+            plot_errors(df,plot_params, model_params, show_average=False)
+    
    # print(df["final_error"], df["avg_error"])
     #for df_info in df:
         #plt.plot(df_info["partitons"], df_info["final_error"] )
@@ -641,10 +845,7 @@ if __name__ == '__main__':
      #   latest_file = save_dir+"14-07-2020_18-56-40.pkl"
 
         # If you want to look up most recently made df
-     #   list_of_files = glob.glob(save_dir+"/*.pkl")
-    #    latest_file = max(list_of_files, key=os.path.getctime)
-
-     #   df = pd.read_pickle(latest_file)
+       
 
     print("\n --- \n")
     print("done!")
