@@ -122,18 +122,31 @@ class Partitioner():
             y_off = max((input_range[input_dims[1]+(1,)] - input_range[input_dims[1]+(0,)])*(scale), 1e-5)
             self.ax_input.set_xlim(input_range[input_dims[0]+(0,)] - x_off, input_range[input_dims[0]+(1,)]+x_off)
             self.ax_input.set_ylim(input_range[input_dims[1]+(0,)] - y_off, input_range[input_dims[1]+(1,)]+y_off)
+
+
         if show_output:
             scale = 0.05
             x_off = max((output_range[output_dims[0]+(1,)] - output_range[output_dims[0]+(0,)])*(scale), 1e-5)
             y_off = max((output_range[output_dims[1]+(1,)] - output_range[output_dims[1]+(0,)])*(scale), 1e-5)
             self.ax_output.set_xlim(output_range[output_dims[0]+(0,)] - x_off, output_range[output_dims[0]+(1,)]+x_off)
             self.ax_output.set_ylim(output_range[output_dims[1]+(0,)] - y_off, output_range[output_dims[1]+(1,)]+y_off)
-        # if show_input:
-        #     self.ax_input.set_xlabel(input_names[0])
-        #     self.ax_input.set_ylabel(input_names[1])
-        # if show_output:
-        #     self.ax_output.set_xlabel(output_names[0])
-        #     self.ax_output.set_ylabel(output_names[1])
+
+
+        if show_input:
+            self.ax_input.set_xlabel(input_names[0])
+            self.ax_input.set_xlabel(input_names[0])
+            self.ax_input.set_ylabel(input_names[1])
+            self.ax_input.set_aspect('equal')
+
+        if show_output:
+           #  self.ax_output.set_xlabel("Output")
+            #self.ax_output.set_xlabel(output_names[0])
+
+            #  self.ax_output.set_ylabel(output_names[1])
+            # self.ax_output.set_aspect('equal')
+            self.ax_output.set_xlabel("x")
+            self.ax_output.set_ylabel("y")
+            self.ax_output.set_aspect('equal')
 
         # Make a rectangle for the Exact boundaries
         sampled_outputs = self.get_sampled_outputs(input_range, propagator)
@@ -714,10 +727,10 @@ class SimGuidedPartitioner(Partitioner):
         # Compute [u_sim], aka bounds on the sampled outputs (Line 6)
         # (Line 5-6)
         output_range_sim, sampled_outputs,sampled_inputs = self.sample(input_range, propagator)
-
         if self.adaptive_flag:
             M,M_e,num_propagator_calls,propagator_computation_time= self.expand_partition(propagator,sampled_inputs,sampled_outputs,output_range_sim, input_range, num_propagator_calls, propagator_computation_time)
             u_e=output_range_sim
+
         else:
 
             # Get initial output reachable set (Line 3)
@@ -752,11 +765,12 @@ class SimGuidedPartitioner(Partitioner):
         range_area = np.product(range_[...,1] - range_[...,0])
 
         if stage==1:
-            c=0.7
+            c=0.5
 
             pairwise_distance= np.zeros(len(outer_points))
             for (i,points) in enumerate(outer_points):
                 pairwise_distance[i] =((points[0]-expanded_box[0])**2+ (points[1]-expanded_box[1])**2)**0.5
+           
             delta_step = c*np.max((pairwise_distance/range_area**0.5))*np.ones((idx,2))
           #  print('delta step:',delta_step)
             return delta_step
@@ -790,16 +804,16 @@ class SimGuidedPartitioner(Partitioner):
         M = [] # (Line 4)
         interior_M = []
         
-        sampled_inputs = np.random.uniform(input_range[...,0], input_range[...,1], (self.num_simulations,)+input_shape)
-        sampled_outputs = propagator.forward_pass(sampled_inputs)
+        #sampled_inputs = np.random.uniform(input_range[...,0], input_range[...,1], (self.num_simulations,)+input_shape)
+        #sampled_outputs = propagator.forward_pass(sampled_inputs)
         if self.interior_condition == "convex_hull":
             from scipy.spatial import ConvexHull
             self.sim_convex_hull = ConvexHull(sampled_outputs)
 
         # Compute [u_sim], aka bounds on the sampled outputs (Line 6)
-        output_range_sim = np.empty(sampled_outputs.shape[1:]+(2,))
-        output_range_sim[:,1] = np.max(sampled_outputs, axis=0)
-        output_range_sim[:,0] = np.min(sampled_outputs, axis=0)
+       # output_range_sim = np.empty(sampled_outputs.shape[1:]+(2,))
+       # output_range_sim[:,1] = np.max(sampled_outputs, axis=0)
+      #  output_range_sim[:,0] = np.min(sampled_outputs, axis=0)
 
         ##sampled_output_center=output_range_sim.mean(axis=1)
         if self.interior_condition == "convex_hull":
@@ -819,11 +833,13 @@ class SimGuidedPartitioner(Partitioner):
 
         count =0
         M=[]
+
+        M_e = []
         delta_step = self.set_delta_step(output_range_sim,sampled_output_center, num_inputs, stage=1)
+
+            
         prev_range =np.inf
         terminating_condition=False
-      #  print("input", input_range_new )
-
         input_range_new= input_range_new+delta_step
       #  print("input", input_range_new )
         while terminating_condition==False:
@@ -838,28 +854,19 @@ class SimGuidedPartitioner(Partitioner):
                 break
             if self.check_if_partition_within_sim_bnds(output_range_new, output_range_sim):
                 input_range_new= input_range_new+delta_step
-            
+                if  np.all((input_range[...,0] - input_range_new[...,0]) >= 0) or \
+                    np.all((input_range[...,1] - input_range_new[...,1]) <= 0):
+                    input_range_new-= delta_step
+                    break  
               #  terminating_condition==False
             else:
                 input_range_new= input_range_new-delta_step
                 break
-                input_range_new+= 1*delta_step/2
 
-                while  np.all((input_range[...,0] - input_range_new[...,0]) >= 0) or \
-                       np.all((input_range[...,1] - input_range_new[...,1]) <= 0):
-                    #delta_step=1*delta_step/2
-                    #input_range_new+= 1*delta_step/2
-                    print(delta_step)
-                    if np.max(abs(delta_step))<tolerance_step:
-
-                        break
+               
 
 
-
-                if np.max(abs(delta_step))<tolerance_step:
-
-                    break
-
+               
                  #   diff=(input_range-input_range_new)
 
                #     max_range= (np.max(abs(diff)))

@@ -21,6 +21,20 @@ img_save_dir = save_dir+"/imgs/"
 os.makedirs(img_save_dir, exist_ok=True)
 
 experiments = [
+  #  {
+    #    'neurons': (2,100,2),
+    #    'activation': 'relu',
+     #   'seeds': range(10),
+    #    'name': "Small NN",
+  #  },
+   # {
+      #  'neurons': (2,10,20,50,20,10,2),
+     #   'neurons': (2, 100, 100, 100, 100, 100, 100, 2),
+
+    #    'activation': 'relu',
+    #    'seeds': range(10),
+    #    'name': "Deep NN",
+   # },
     # {
     #     'model_fn': cnn_2layer,
     #     'model_args': {
@@ -73,6 +87,18 @@ experiments = [
     #     'seeds': range(10),
     #     'name': "Larger Input/Output Dims",
     # },
+  #  {
+     #   'neurons': (2,5,10),
+   #     'activation': 'relu',
+   #     'seeds': range(10),
+   #     'name': "Larger Output Dimension",
+  #  },
+    {
+        'neurons': (4,100,100,10),
+        'activation': 'relu',
+        'seeds': range(10),
+       'name': "Different Activation",
+    },
 ]
 
 def experiment_input_range(lstm=False, neurons=None, input_shape=None):
@@ -87,8 +113,7 @@ def experiment_input_range(lstm=False, neurons=None, input_shape=None):
     return input_range
 
 # Select which algorithms and hyperparameters to evaluate
-# partitioners = ["None"]
-partitioners = ["SimGuided", "GreedySimGuided"]
+partitioners = ["None","SimGuided", "GreedySimGuided"]#, "AdaptiveSimGuided"]
 # propagators = ["IBP_LIRPA"]
 # propagators = ["CROWN_LIRPA", "FastLin_LIRPA"]
 propagators = ["IBP_LIRPA", "CROWN_LIRPA", "FastLin_LIRPA"]
@@ -100,21 +125,35 @@ partitioner_hyperparams_to_use = {
         },
     "UnGuided":
         {
-            "termination_condition_type": ["time_budget"],
-            "termination_condition_value": [2],
+            "termination_condition_type": ["num_propagator_calls"],
+            "termination_condition_value": [200],
             "num_simulations": [1000],
             "interior_condition": ["lower_bnds", "linf", "convex_hull"],
         },
     "SimGuided":
         {
             "termination_condition_type": ["time_budget"],
+
+          #  "termination_condition_type": ["num_propagator_calls"],
             "termination_condition_value": [2],
             "num_simulations": [1000],
-            "interior_condition": ["lower_bnds", "linf", "convex_hull"],
+            "interior_condition": ["lower_bnds", "linf"],
         },
     "GreedySimGuided":
         {
+            "termination_condition_type": ["num_propagator_calls"],
+
             "termination_condition_type": ["time_budget"],
+    
+            "termination_condition_value": [2],
+            "num_simulations": [1000],
+            "interior_condition": ["lower_bnds", "linf"],
+        },
+    "AdaptiveSimGuided":
+        {
+            "termination_condition_type": ["num_propagator_calls"],
+            "termination_condition_type": ["time_budget"],
+
             "termination_condition_value": [2],
             "num_simulations": [1000],
             "interior_condition": ["lower_bnds", "linf", "convex_hull"],
@@ -156,13 +195,13 @@ def run_experiment(model=None, model_info=None, df=None, save_df=True, input_ran
         # input_range = np.zeros(input_shape+(2,))
         # input_range[-1,0:2,1] = 1.
 
-        # # For random models
-        # input_range = np.zeros((model_info['model_neurons'][0],2))
-        # input_range[:,1] = 1.
-        # input_range[0,1] = 1.
-        # input_range[1,1] = 1.
-        # # uniform_partitions = np.ones((neurons[0]), dtype=int)
-        # # uniform_partitions[0:2] = 10
+        # For random models
+        input_range = np.zeros((model_info['model_neurons'][0],2))
+        input_range[:,1] = 1.
+        input_range[0,1] = 1.
+        input_range[1,1] = 1.
+        # uniform_partitions = np.ones((neurons[0]), dtype=int)
+        # uniform_partitions[0:2] = 10
 
         # model, model_info = random_model(activation='relu', neurons=[2,5,20,40,40,20,2], seed=0)
         # input_range = np.array([ # (num_inputs, 2)
@@ -178,24 +217,21 @@ def run_experiment(model=None, model_info=None, df=None, save_df=True, input_ran
         #                   [0., 1.] # x2min, x2max
         # ])
 
-        model, model_info = model_xiang_2020_robot_arm(activation="relu")
-        input_range = np.array([ # (num_inputs, 2)
-                          [np.pi/3, 2*np.pi/3], # x0min, x0max
-                          [np.pi/3, 2*np.pi/3] # x1min, x1max
-        ])
+        # model, model_info = model_xiang_2020_robot_arm(activation="relu")
+        # input_range = np.array([ # (num_inputs, 2)
+        #                   [np.pi/3, 2*np.pi/3], # x0min, x0max
+        #                   [np.pi/3, 2*np.pi/3] # x1min, x1max
+        # ])
     
 
     if partitioners is None or propagators is None or partitioner_hyperparams_to_use is None:
         # Select which algorithms and hyperparameters to evaluate
         # partitioners = ["SimGuided", "GreedySimGuided", "UnGuided"]
         # partitioners = ["AdaptiveSimGuided", "SimGuided", "GreedySimGuided"]
-        # partitioners = ["SimGuided", "GreedySimGuided"]
-        partitioners = ["AdaptiveSimGuided"]
+        partitioners = ["None", "SimGuided", "GreedySimGuided"]
         # partitioners = ["UnGuided"]
-        propagators = ["SDP"]
-        # propagators = ["IBP_LIRPA"]
-        # propagators = ["CROWN_LIRPA"]
-        # propagators = ["IBP_LIRPA", "CROWN_LIRPA", "FastLin_LIRPA"]
+        # propagators = ["SDP"]
+        propagators = ["IBP_LIRPA", "CROWN_LIRPA", "FastLin_LIRPA"]
         partitioner_hyperparams_to_use = {
             "None":
                 {
@@ -210,33 +246,29 @@ def run_experiment(model=None, model_info=None, df=None, save_df=True, input_ran
             "UnGuided":
                 {
                     "termination_condition_type": ["num_propagator_calls"],
-                    "termination_condition_value": [1,2,4,8,16,32,64,128, 256, 512, 1024],
-                    # "termination_condition_value": [100],
+                    # "termination_condition_value": [1,2,4,8,16,32,64,128, 256, 512, 1024],
+                    "termination_condition_value": [100],
                     # "termination_condition_type": ["input_cell_size"],
                     # "termination_condition_value": [1.0, 0.5, 0.2, 0.1, 0.05, 0.01],
                     "num_simulations": [1000],
-                    "interior_condition": ["convex_hull"],
+                    "interior_condition": ["linf"],
                 },
             "SimGuided":
                 {
                     "termination_condition_type": ["num_propagator_calls"],
-                    # "termination_condition_value": [100],
-                    # "termination_condition_value": [1,10,20,50],
-                    # "termination_condition_value": [1,10,20,30,40,50,60,70,80,90,100,200,300,400,500],
-                    "termination_condition_value": [1,2,4,8,16,32,64,128, 256, 512, 1024],
+                    "termination_condition_value": [100],
+                    # "termination_condition_value": [1,2,4,8,16,32,64,128, 256, 512, 1024],
                     # "termination_condition_value": [1,2,4,16,32,64,128,],
                     # "termination_condition_type": ["input_cell_size"],
                     # "termination_condition_value": [1.0, 0.5, 0.2, 0.1, 0.05, 0.01],
                     "num_simulations": [1000],
-                    "interior_condition": ["convex_hull"],
+                    "interior_condition": ["linf"],
                 },
             "GreedySimGuided":
                 {
                     "termination_condition_type": ["num_propagator_calls"],
-                    # "termination_condition_value": [100],
-                    "termination_condition_value": [1,2,4,8,16,32,64,128, 256, 512, 1024],
-                    # "termination_condition_value": [1,10,20,50],
-                    # "termination_condition_value": [1,10,20,30,40,50,60,70,80,90,100,200,300,400,500],
+                    "termination_condition_value": [100],
+                    # "termination_condition_value": [1,2,4,8,16,32,64,128, 256, 512, 1024],
                     # "termination_condition_value": [1,2,4,16,32,64,128,],
 
                     # "termination_condition_type": ["input_cell_size"],
@@ -244,21 +276,19 @@ def run_experiment(model=None, model_info=None, df=None, save_df=True, input_ran
                     # "termination_condition_value": [1.0, 0.5, 0.2, 0.1, 0.05, 0.01, 0.005, 0.001],
                     # "termination_condition_value": [1.0, 0.5, 0.2, 0.1, 0.05, 0.01, 0.005, 0.001, 1e-4, 1e-5],
                     "num_simulations": [1000],
-                    "interior_condition": ["convex_hull"],
+                    "interior_condition": ["linf"],
                 },
             "AdaptiveSimGuided":
                 {
                     "termination_condition_type": ["num_propagator_calls"],
-                    # "termination_condition_value": [100],
-                    "termination_condition_value": [1,2,4,8,16,32,64,128, 256, 512, 1024],
+                    "termination_condition_value": [100],
                     # "termination_condition_value": [1,2,4,8,16,32,64,128, 256, 512, 1024],
                     # "termination_condition_value": [1,2,4,16,32,64,128,],
                     # "tolerance_eps": [1.0, 0.5, 0.2, 0.1, 0.05, 0.01],
                     #"tolerance_expanding_step": [0.001],
                     #"k_NN": [1],
                     "num_simulations": [1000],
-                    "interior_condition": ["convex_hull"],
-                    # "interior_condition": ["linf"],
+                    "interior_condition": ["linf"],
                     #"tolerance_range": [0.05]
                 },
         }
@@ -295,28 +325,22 @@ def run_experiment(model=None, model_info=None, df=None, save_df=True, input_ran
     return df
 
 def run_and_add_row(analyzer, input_range, partitioner_hyperparams, propagator_hyperparams, model_info={}):
-    print(partitioner_hyperparams["type"]+"-"+propagator_hyperparams["type"])
-    # print("Partitioner: {},\n Propagator: {}".format(partitioner_hyperparams, propagator_hyperparams))
-    # print("Partitioner: {},\n Propagator: {}".format(partitioner_hyperparams, propagator_hyperparams))
+    print("Partitioner: {},\n Propagator: {}".format(partitioner_hyperparams, propagator_hyperparams))
     np.random.seed(0)
     analyzer.partitioner = partitioner_hyperparams
     analyzer.propagator = propagator_hyperparams
     t_start = time.time()
-    num_runs = 5
-    for i in range(num_runs):
-        output_range, analyzer_info = analyzer.get_output_range(input_range)
+    output_range, analyzer_info = analyzer.get_output_range(input_range)
     t_end = time.time()
-    time_per_analyzer_call = (t_end - t_start) / num_runs
-
+    
     np.random.seed(0)
     if partitioner_hyperparams["interior_condition"] == "convex_hull":
         exact_hull = analyzer.get_exact_hull(input_range, N=int(1e5))
         error = analyzer.partitioner.get_error(exact_hull, analyzer_info["estimated_hull"])
     else:
-        exact_output_range, _, _ = analyzer.partitioner.sample(input_range, analyzer.propagator, N=int(1e5))
+        exact_output_range, _,_ = analyzer.partitioner.sample(input_range, analyzer.propagator, N=int(1e5))
         error = analyzer.partitioner.get_error(exact_output_range, output_range)
-    print("error: {}".format(error))
-    print("time: {}".format(time_per_analyzer_call))
+    print(error)
     # print(t_end-t_start)
     # print(analyzer_info["propagator_computation_time"])
 
@@ -327,8 +351,8 @@ def run_and_add_row(analyzer, input_range, partitioner_hyperparams, propagator_h
     # analyzer.visualize(input_range, output_range, show=False, show_legend=False, **analyzer_info)
 
     stats = {
-        "computation_time": time_per_analyzer_call,
-        "propagator_computation_time": None,
+        "computation_time": t_end - t_start,
+        "propagator_computation_time": t_end - t_start,
         "output_range_estimate": output_range,
         "input_range": input_range,
         "propagator": type(analyzer.propagator).__name__,
@@ -499,9 +523,6 @@ stats = {
     "propagator_computation_time": {
         "name": "Computation Time (Propagator Only) [s]"
     },
-    "computation_time": {
-        "name": "Computation Time (Full) [s]"
-    },
     "num_partitions": {
         "name": "Number of Partitions"
     },
@@ -591,7 +612,8 @@ def table_single_model(df, partitioners, propagators, boundaries, neurons, name,
         print("\\hline")
 
 def make_big_table(df):
-    partitioners = ["NoPartitioner", "SimGuidedPartitioner", "GreedySimGuidedPartitioner"]
+    partitioners = ["NoPartitioner", "SimGuidedPartitioner", "GreedySimGuidedPartitioner", "AdaptiveSimGuidedPartitioner"]
+
     propagators = ["IBPAutoLIRPAPropagator", "FastLinAutoLIRPAPropagator", "CROWNAutoLIRPAPropagator", "SDPPropagator"]
     boundaries = ["lower_bnds", "linf", "convex_hull"]
 
@@ -710,10 +732,10 @@ def make_big_table(df):
 if __name__ == '__main__':
 
     # Run an experiment
-    df = run_experiment()
+    # df = run_experiment()
 
     # Make table
-    # df = collect_data_for_table()
+    df = collect_data_for_table()
 
     # If you want to plot w/o re-running the experiments, comment out the experiment line.
     if 'df' not in locals():
@@ -740,23 +762,14 @@ if __name__ == '__main__':
         # df2 = pd.read_pickle(latest_file)
         # df = pd.concat([df, df2])
 
-        # # Plot from acc 2020 revision...?
-        # latest_file = save_dir+"/11-22-2020_00-59-47.pkl"
-        # df = pd.read_pickle(latest_file)
-        # latest_file = save_dir+"/11-22-2020_01-02-12.pkl"
-        # df2 = pd.read_pickle(latest_file)
-        # latest_file = save_dir+"/11-22-2020_01-05-09.pkl"
-        # df3 = pd.read_pickle(latest_file)
-        # df = pd.concat([df, df2, df3])
-
     # add_approx_error_to_df(df)
     # plot(df, stat="num_partitions")
     # plot(df, stat="num_propagator_calls")
-    plot(df, stat="computation_time")
+    # plot(df, stat="computation_time")
     # plot(df, stat="propagator_computation_time")
     print("\n --- \n")
 
     # make_table(df)
-    # make_big_table(df)
+    make_big_table(df)
 
     print("\n --- \n")
