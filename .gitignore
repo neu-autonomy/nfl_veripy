@@ -13,3 +13,8 @@ data
 */torch_model
 tmp.txt
 partition/results
+
+/10_*
+/2_*
+/4_*
+/3_*
