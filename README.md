@@ -28,8 +28,8 @@ Now you can import things like:
 TODOS:
 
 - [x] Replicate Fig 4
-- [ ] Replicate Fig 5
-- [ ] Replicate Fig 6
+- [x] Replicate Fig 5
+- [x] Replicate Fig 6
 - [ ] Replicate Fig 8
 - [ ] Replicate Table 6b
 - [ ] Replicate Table I
@@ -90,8 +90,8 @@ python -m partition.Analyzer \
 
 Fig 4a | Fig 4b | Fig 4c
 ------------ | ------------- | -------------
-![Fig. 4a](docs/_static/lcss21/fig_4/random_weights_relu_GreedySimGuided_CROWN_LIRPA_interior_condition_lower_bnds_num_simulations_10000.0_termination_condition_type_time_budget_termination_condition_value_2.0.png) | ![Fig. 4b](docs/_static/lcss21/fig_4/random_weights_relu_GreedySimGuided_CROWN_LIRPA_interior_condition_linf_num_simulations_10000.0_termination_condition_type_time_budget_termination_condition_value_2.0.png) | ![Fig. 4c](docs/_static/lcss21/fig_4/random_weights_relu_GreedySimGuided_CROWN_LIRPA_interior_condition_convex_hull_num_simulations_10000.0_termination_condition_type_time_budget_termination_condition_value_2.0.png)
 Lower Bounds | Linf Ball | Convex Hull
+![Fig. 4a](docs/_static/lcss21/fig_4/random_weights_relu_GreedySimGuided_CROWN_LIRPA_interior_condition_lower_bnds_num_simulations_10000.0_termination_condition_type_time_budget_termination_condition_value_2.0.png) | ![Fig. 4b](docs/_static/lcss21/fig_4/random_weights_relu_GreedySimGuided_CROWN_LIRPA_interior_condition_linf_num_simulations_10000.0_termination_condition_type_time_budget_termination_condition_value_2.0.png) | ![Fig. 4c](docs/_static/lcss21/fig_4/random_weights_relu_GreedySimGuided_CROWN_LIRPA_interior_condition_convex_hull_num_simulations_10000.0_termination_condition_type_time_budget_termination_condition_value_2.0.png)
 
 ### Figure 5
 
@@ -157,33 +157,46 @@ python -m partition.Analyzer \
 
 Fig 5a | Fig 5b | Fig 5c | Fig 5d
 ------------ | ------------- | ------------- |  -------------
+SG+IBP | SG+CROWN | GSG+IBP | GSG+CROWN
 ![Fig. 5a](docs/_static/lcss21/fig_5/random_weights_relu_SimGuided_IBP_LIRPA_interior_condition_convex_hull_num_simulations_10000.0_termination_condition_type_time_budget_termination_condition_value_2.0.png) | ![Fig. 5b](docs/_static/lcss21/fig_5/random_weights_relu_SimGuided_CROWN_LIRPA_interior_condition_convex_hull_num_simulations_10000.0_termination_condition_type_time_budget_termination_condition_value_2.0.png) | ![Fig. 5c](docs/_static/lcss21/fig_5/random_weights_relu_GreedySimGuided_CROWN_LIRPA_interior_condition_convex_hull_num_simulations_10000.0_termination_condition_type_time_budget_termination_condition_value_2.0.png) | ![Fig. 5d](docs/_static/lcss21/fig_5/random_weights_relu_AdaptiveSimGuided_CROWN_LIRPA_interior_condition_convex_hull_num_simulations_10000.0_termination_condition_type_time_budget_termination_condition_value_2.0.png)
 
 
 ### Figure 6
 
+Figure 6a (SG+IBP):
 ```bash
 python -m partition.Analyzer \
 	--partitioner SimGuided \
 	--propagator IBP_LIRPA \
 	--term_type time_budget \
 	--term_val 2 \
-	--interior_condition conv_hull \
+	--interior_condition convex_hull \
 	--model robot_arm \
 	--activation tanh \
-	--output_plot_labels x y
+	--output_plot_labels x y \
+	--output_plot_aspect equal \
+	--skip_show_input
 ```
 
+Figure 6b (AGSG+CROWN):
 ```bash
 python -m partition.Analyzer \
 	--partitioner AdaptiveSimGuided \
 	--propagator CROWN_LIRPA \
 	--term_type time_budget \
 	--term_val 2 \
-	--interior_condition conv_hull \
+	--interior_condition convex_hull \
 	--model robot_arm \
-	--activation tanh
+	--activation tanh \
+	--output_plot_labels x y \
+	--output_plot_aspect equal \
+	--skip_show_input
 ```
+
+Fig 6a | Fig 6b |
+------------ | -------------
+SG+IBP | AGSG+CROWN
+![Fig. 6a](docs/_static/lcss21/fig_6/robot_arm_tanh_SimGuided_IBP_LIRPA_interior_condition_convex_hull_num_simulations_10000.0_termination_condition_type_time_budget_termination_condition_value_2.0.png) | ![Fig. 6b](docs/_static/lcss21/fig_6/robot_arm_tanh_AdaptiveSimGuided_CROWN_LIRPA_interior_condition_convex_hull_num_simulations_10000.0_termination_condition_type_time_budget_termination_condition_value_2.0.png)
 
 
 ---
