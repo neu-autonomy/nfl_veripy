@@ -37,9 +37,9 @@ TODOS:
 - [ ] Choices in analyzer argparse
 - [ ] add rtdocs
 - [x] move partitioners, propagators to separate dirs
-- [ ] move cartpole, pend, quadrotor files elsewhere
+- [x] move cartpole, pend, quadrotor files elsewhere
 - [ ] publish crown_ibp, auto-Lirpa forks
-- [ ] move MNIST data to right place
+- [x] move MNIST data to right place
 - [ ] release version w/o closed_loop
 - [ ] merge in closed_loop branch
 - [ ] replicate those figs

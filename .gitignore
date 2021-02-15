@@ -16,7 +16,6 @@ partition/results
 
 results/
 
-/10_*
-/2_*
-/4_*
-/3_*
+/models
+
+/venv
