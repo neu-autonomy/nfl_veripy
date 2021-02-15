@@ -128,9 +128,8 @@ class Partitioner():
             self.ax_output.set_xlim(output_range[output_dims[0]+(0,)] - x_off, output_range[output_dims[0]+(1,)]+x_off)
             self.ax_output.set_ylim(output_range[output_dims[1]+(0,)] - y_off, output_range[output_dims[1]+(1,)]+y_off)
 
-
         if show_input:
-            if "input" in labels:
+            if "input" in labels and len([x for x in labels["input"] if x is not None]) > 0:
                 self.ax_input.set_xlabel(labels["input"][0])
                 self.ax_input.set_ylabel(labels["input"][1])
             else:
@@ -140,7 +139,7 @@ class Partitioner():
                 self.ax_input.set_aspect(aspects["input"])
 
         if show_output:
-            if "output" in labels:
+            if "output" in labels and len([x for x in labels["output"] if x is not None]) > 0:
                 self.ax_output.set_xlabel(labels["output"][0])
                 self.ax_output.set_ylabel(labels["output"][1])
             else:

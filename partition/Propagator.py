@@ -2,6 +2,11 @@ import torch
 import numpy as np
 import partition.network_utils
 
+# Suppress autoLIRPA logging info...
+import logging
+from auto_LiRPA.utils import logger
+logger.setLevel(logging.WARNING)
+
 class Propagator:
     def __init__(self, input_shape=None):
         self.input_shape = input_shape

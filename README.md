@@ -25,6 +25,25 @@ Now you can import things like:
 >>> import crown_ibp.bound_layers
 ```
 
+TODOS:
+
+- [x] Replicate Fig 4
+- [ ] Replicate Fig 5
+- [ ] Replicate Fig 6
+- [ ] Replicate Fig 8
+- [ ] Replicate Table 6b
+- [ ] Replicate Table I
+- [ ] Choices in analyzer argparse
+- [ ] add rtdocs
+- [ ] move partitioners, propagators to separate dirs
+- [ ] move cartpole, pend, quadrotor files elsewhere
+- [ ] publish crown_ibp, auto-Lirpa forks
+- [ ] move MNIST data to right place
+- [ ] release version w/o closed_loop
+- [ ] merge in closed_loop branch
+- [ ] replicate those figs
+
+
 ## Reproduce Figures from LCSS/ACC 2021 Paper
 
 ### Figure 4
@@ -39,9 +58,8 @@ python -m partition.Analyzer \
 	--interior_condition lower_bnds \
 	--model random_weights \
 	--activation relu \
-	--show_input True
+	--show_input --show_output
 ```
-![Fig. 4a](docs/_static/random_weights_relu_GreedySimGuided_CROWN_LIRPA_interior_condition_lower_bnds_num_simulations_10000.0_termination_condition_type_time_budget_termination_condition_value_2.0.png)
 
 Figure 4b (Linf Ball):
 ```bash
@@ -53,9 +71,9 @@ python -m partition.Analyzer \
 	--interior_condition linf \
 	--model random_weights \
 	--activation relu \
-	--show_input True
+	--show_input --show_output
 ```
-![Fig. 4b](docs/_static/analyzer/random_weights_relu_GreedySimGuided_CROWN_LIRPA_interior_condition_linf_num_simulations_10000.0_termination_condition_type_time_budget_termination_condition_value_2.0.png)
+
 
 Figure 4c (Convex Hull):
 ```bash
@@ -67,9 +85,80 @@ python -m partition.Analyzer \
 	--interior_condition convex_hull \
 	--model random_weights \
 	--activation relu \
-	--show_input True
+	--show_input --show_output
 ```
-![Fig. 4c](docs/_static/analyzer/random_weights_relu_GreedySimGuided_CROWN_LIRPA_interior_condition_convex_hull_num_simulations_10000.0_termination_condition_type_time_budget_termination_condition_value_2.0.png)
+
+Fig 4a | Fig 4b | Fig 4c
+------------ | -------------
+![Fig. 4a](docs/_static/lcss21/fig_4/random_weights_relu_GreedySimGuided_CROWN_LIRPA_interior_condition_lower_bnds_num_simulations_10000.0_termination_condition_type_time_budget_termination_condition_value_2.0.png) | ![Fig. 4b](docs/_static/lcss21/fig_4/analyzer/random_weights_relu_GreedySimGuided_CROWN_LIRPA_interior_condition_linf_num_simulations_10000.0_termination_condition_type_time_budget_termination_condition_value_2.0.png) | ![Fig. 4c](docs/_static/lcss21/fig_4/analyzer/random_weights_relu_GreedySimGuided_CROWN_LIRPA_interior_condition_convex_hull_num_simulations_10000.0_termination_condition_type_time_budget_termination_condition_value_2.0.png)
+Lower Bounds | Linf Ball | Convex Hull
+
+### Figure 5
+
+Figure 5a (SG+IBP):
+```bash
+python -m partition.Analyzer \
+	--partitioner SimGuided \
+	--propagator IBP_LIRPA \
+	--term_type time_budget \
+	--term_val 2 \
+	--interior_condition convex_hull \
+	--model random_weights \
+	--activation relu \
+	--input_plot_labels None None \
+	--show_input --skip_show_output \
+	--input_plot_aspect equal
+```
+
+Figure 5b (SG+CROWN):
+```bash
+python -m partition.Analyzer \
+	--partitioner SimGuided \
+	--propagator CROWN_LIRPA \
+	--term_type time_budget \
+	--term_val 2 \
+	--interior_condition convex_hull \
+	--model random_weights \
+	--activation relu \
+	--input_plot_labels None None \
+	--show_input --skip_show_output \
+	--input_plot_aspect equal
+```
+
+Figure 5c (GSG+CROWN):
+```bash
+python -m partition.Analyzer \
+	--partitioner GreedySimGuided \
+	--propagator CROWN_LIRPA \
+	--term_type time_budget \
+	--term_val 2 \
+	--interior_condition convex_hull \
+	--model random_weights \
+	--activation relu \
+	--input_plot_labels None None \
+	--show_input --skip_show_output \
+	--input_plot_aspect equal
+```
+
+Figure 5d (GSG+CROWN):
+```bash
+python -m partition.Analyzer \
+	--partitioner AdaptiveSimGuided \
+	--propagator CROWN_LIRPA \
+	--term_type time_budget \
+	--term_val 2 \
+	--interior_condition convex_hull \
+	--model random_weights \
+	--activation relu \
+	--input_plot_labels None None \
+	--show_input --skip_show_output \
+	--input_plot_aspect equal
+```
+
+Fig 5a | Fig 5b | Fig 5c | Fig 5d
+------------ | ------------- | ------------- |  -------------
+![Fig. 5a](docs/_static/lcss21/random_weights_relu_SimGuided_IBP_LIRPA_interior_condition_convex_hull_num_simulations_10000.0_termination_condition_type_time_budget_termination_condition_value_2.0.png) | ![Fig. 5b](docs/_static/lcss21/analyzer/random_weights_relu_SimGuided_CROWN_LIRPA_interior_condition_convex_hull_num_simulations_10000.0_termination_condition_type_time_budget_termination_condition_value_2.0.png) | ![Fig. 5c](docs/_static/lcss21/analyzer/random_weights_relu_GreedySimGuided_CROWN_LIRPA_interior_condition_convex_hull_num_simulations_10000.0_termination_condition_type_time_budget_termination_condition_value_2.0.png) | ![Fig. 5d](docs/_static/lcss21/analyzer/random_weights_relu_AdaptiveSimGuided_CROWN_LIRPA_interior_condition_convex_hull_num_simulations_10000.0_termination_condition_type_time_budget_termination_condition_value_2.0.png)
+
 
 ### Figure 6
 
@@ -81,7 +170,8 @@ python -m partition.Analyzer \
 	--term_val 2 \
 	--interior_condition conv_hull \
 	--model robot_arm \
-	--activation tanh
+	--activation tanh \
+	--output_plot_labels x y
 ```
 
 ```bash

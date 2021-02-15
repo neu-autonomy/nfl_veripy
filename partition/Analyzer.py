@@ -74,7 +74,7 @@ class Analyzer:
         # output_range_exact = self.samples_to_range(sampled_outputs)
 
         self.partitioner.setup_visualization(input_range, output_range_estimate, self.propagator, show_samples=show_samples, inputs_to_highlight=kwargs.get('inputs_to_highlight', None), outputs_to_highlight=kwargs.get('outputs_to_highlight', None),
-            show_input=show_input, show_output=show_output, labels=labels)
+            show_input=show_input, show_output=show_output, labels=labels, aspects=aspects)
         self.partitioner.visualize(kwargs.get("exterior_partitions", kwargs.get("all_partitions", [])), kwargs.get("interior_partitions", []), output_range_estimate,
             show_input=show_input, show_output=show_output)
 
@@ -139,15 +139,30 @@ if __name__ == '__main__':
                         help='type of bound to optimize for (default: lower_bnds)')
     parser.add_argument('--num_simulations', default=1e4,
                         help='how many MC samples to begin with (default: 1e4)')
-    parser.add_argument('--save_plot', default=True, type=bool,
-                        help='whether to save the visualization (default: True)')
-    parser.add_argument('--show_plot', default=False, type=bool,
-                        help='whether to show the visualization (default: False)')
-    parser.add_argument('--show_input', default=False, type=bool,
-                        help='whether to show the input partition in the plot (default: False)')
-    parser.add_argument('--input_plot_labels', default=["Input", None], type=list,
+    
+    parser.add_argument('--save_plot', dest='save_plot', action='store_true',
+                        help='whether to save the visualization')
+    parser.add_argument('--skip_save_plot', dest='feature', action='store_false')
+    parser.set_defaults(save_plot=True)
+    
+    parser.add_argument('--show_plot', dest='show_plot', action='store_true',
+                        help='whether to show the visualization')
+    parser.add_argument('--skip_show_plot', dest='show_plot', action='store_false')
+    parser.set_defaults(show_plot=False)
+    
+    parser.add_argument('--show_input', dest='show_input', action='store_true',
+                        help='whether to show the input partition in the plot')
+    parser.add_argument('--skip_show_input', dest='show_input', action='store_false')
+    parser.set_defaults(show_input=True)
+    
+    parser.add_argument('--show_output', dest='show_output', action='store_true',
+                        help='whether to show the output set in the plot')
+    parser.add_argument('--skip_show_output', dest='show_output', action='store_false')
+    parser.set_defaults(show_output=True)
+
+    parser.add_argument('--input_plot_labels', metavar='N', default=["Input", None], type=str, nargs='+',
                         help='x and y labels on input partition plot (default: ["Input", None])')
-    parser.add_argument('--output_plot_labels', default=["Output", None], type=list,
+    parser.add_argument('--output_plot_labels', metavar='N', default=["Output", None], type=str, nargs='+',
                         help='x and y labels on output partition plot (default: ["Output", None])')
     parser.add_argument('--input_plot_aspect', default="auto",
                         help='aspect ratio on input partition plot (default: auto)')
@@ -215,27 +230,11 @@ if __name__ == '__main__':
     partitioner_hyperparams = {
         "num_simulations": args.num_simulations,
         "type": args.partitioner,
-
-        # "termination_condition_type": "verify",
-        # "termination_condition_value": [np.array([1., 0.]), np.array([100.])],
-
-       # "termination_condition_type": "input_cell_size",
-       # "termination_condition_value": 100,
-      # "termination_condition_type": "num_propagator_calls",
-      # "termination_condition_value": 0.05,
-      #   "termination_condition_type": "pct_improvement",
-       #  "termination_condition_value": 0.001,
-       
-       "termination_condition_type": args.term_type,
+        "termination_condition_type": args.term_type, # other options: ["verify", "input_cell_size", "num_propagator_calls", "pct_improvement", "pct_error"]
         "termination_condition_value": args.term_val,
-
-       #  "termination_condition_type": "pct_error",
-        # "num_partitions": 1,
-
         "interior_condition": args.interior_condition,
         "make_animation": False,
         "show_animation": False,
-        # "show_output": False,
     }
     propagator_hyperparams = {
         "type": args.propagator,
@@ -289,11 +288,13 @@ if __name__ == '__main__':
             analyzer_info["save_name"] = analyzer_info["save_name"] + "_" + pars2
         analyzer_info["save_name"] = analyzer_info["save_name"] + ".png"
         
-        # Plot settings
-        labels = {"input": args.input_plot_labels, "output": args.output_plot_labels}
+        # Plot shape/label settings
+        labels = {"input": [l if l != 'None' else None for l in args.input_plot_labels], "output": [l if l is not 'None' else None for l in args.output_plot_labels]}
         aspects = {"input": args.input_plot_aspect, "output": args.output_plot_aspect}
-        
+
         # Generate the plot & save
-        analyzer.visualize(input_range, output_range, show=args.show_plot, show_samples=True, show_legend=False, show_input=args.show_input, show_output=True, title=None, labels=labels, aspects=aspects, **analyzer_info)
+        analyzer.visualize(input_range, output_range, show=args.show_plot, show_samples=True, show_legend=False, 
+            show_input=args.show_input, show_output=args.show_output, 
+            title=None, labels=labels, aspects=aspects, **analyzer_info)
     
     print("done.")
