@@ -1,5 +1,24 @@
 import numpy as np
 
+def bisect(input_range):
+    return sect(input_range, num_sects=2)
+
+def sect(input_range, num_sects=3, select='random'):
+    input_shape = input_range.shape[:-1]
+    if select == 'random':
+        # doesnt work
+        input_dim_to_sect = np.random.randint(0, num_inputs)
+    else:
+        lengths = input_range[...,1] - input_range[...,0]
+        input_dim_to_sect = np.unravel_index(lengths.argmax(), lengths.shape)
+    input_ranges = np.tile(input_range, (num_sects,)+tuple([1 for _ in range(len(input_shape)+1)]))
+    diff = (input_range[input_dim_to_sect+(1,)]-input_range[input_dim_to_sect+(0,)])/float(num_sects)
+    for i in range(num_sects-1):
+        new_endpt = input_range[input_dim_to_sect+(0,)]+(i+1)*diff
+        input_ranges[(i,)+input_dim_to_sect+(1,)] = new_endpt
+        input_ranges[(i+1,)+input_dim_to_sect+(0,)] = new_endpt
+    return input_ranges
+
 def get_sampled_outputs(input_range, propagator, N=1000):
     input_shape = input_range.shape[:-1]
     sampled_inputs = np.random.uniform(input_range[...,0], input_range[...,1], (N,)+input_shape)

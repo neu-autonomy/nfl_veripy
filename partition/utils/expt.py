@@ -7,7 +7,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.patches import Rectangle
 
-from partition.models import model_xiang_2017, model_xiang_2020_robot_arm
+from partition.models.models import model_xiang_2017, model_xiang_2020_robot_arm
 
 def mfe_keras2torch():
     from keras.models import model_from_json

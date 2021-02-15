@@ -1,9 +1,7 @@
 import numpy as np
 import pickle
 
-from partition.Partitioner import *
-from partition.Propagator import *
-from partition.Analyzer import *
+import partition
 
 np.set_printoptions(suppress=True)
 
@@ -11,9 +9,9 @@ save_dir = "{}/results/rl/".format(os.path.dirname(os.path.abspath(__file__)))
 os.makedirs(save_dir, exist_ok=True)
 
 
-class RLAnalyzer(Analyzer):
+class RLAnalyzer(partition.Analyzer):
     def __init__(self, torch_model):
-        Analyzer.__init__(self, torch_model=torch_model)
+        partition.Analyzer.__init__(self, torch_model=torch_model)
 
     def get_output_range(self, input_range):
 

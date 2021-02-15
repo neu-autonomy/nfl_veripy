@@ -33,9 +33,10 @@ TODOS:
 - [ ] Replicate Fig 8
 - [ ] Replicate Table 6b
 - [ ] Replicate Table I
+- [ ] get animation working
 - [ ] Choices in analyzer argparse
 - [ ] add rtdocs
-- [ ] move partitioners, propagators to separate dirs
+- [x] move partitioners, propagators to separate dirs
 - [ ] move cartpole, pend, quadrotor files elsewhere
 - [ ] publish crown_ibp, auto-Lirpa forks
 - [ ] move MNIST data to right place
@@ -50,7 +51,7 @@ TODOS:
 
 Figure 4a (Lower Bounds):
 ```bash
-python -m partition.Analyzer \
+python -m partition.example \
 	--partitioner GreedySimGuided \
 	--propagator CROWN_LIRPA \
 	--term_type time_budget \
@@ -63,7 +64,7 @@ python -m partition.Analyzer \
 
 Figure 4b (Linf Ball):
 ```bash
-python -m partition.Analyzer \
+python -m partition.example \
 	--partitioner GreedySimGuided \
 	--propagator CROWN_LIRPA \
 	--term_type time_budget \
@@ -77,7 +78,7 @@ python -m partition.Analyzer \
 
 Figure 4c (Convex Hull):
 ```bash
-python -m partition.Analyzer \
+python -m partition.example \
 	--partitioner GreedySimGuided \
 	--propagator CROWN_LIRPA \
 	--term_type time_budget \
@@ -97,7 +98,7 @@ Lower Bounds | Linf Ball | Convex Hull
 
 Figure 5a (SG+IBP):
 ```bash
-python -m partition.Analyzer \
+python -m partition.example \
 	--partitioner SimGuided \
 	--propagator IBP_LIRPA \
 	--term_type time_budget \
@@ -112,7 +113,7 @@ python -m partition.Analyzer \
 
 Figure 5b (SG+CROWN):
 ```bash
-python -m partition.Analyzer \
+python -m partition.example \
 	--partitioner SimGuided \
 	--propagator CROWN_LIRPA \
 	--term_type time_budget \
@@ -127,7 +128,7 @@ python -m partition.Analyzer \
 
 Figure 5c (GSG+CROWN):
 ```bash
-python -m partition.Analyzer \
+python -m partition.example \
 	--partitioner GreedySimGuided \
 	--propagator CROWN_LIRPA \
 	--term_type time_budget \
@@ -142,8 +143,8 @@ python -m partition.Analyzer \
 
 Figure 5d (GSG+CROWN):
 ```bash
-python -m partition.Analyzer \
-	--partitioner AdaptiveSimGuided \
+python -m partition.example \
+	--partitioner AdaptiveGreedySimGuided \
 	--propagator CROWN_LIRPA \
 	--term_type time_budget \
 	--term_val 2 \
@@ -158,14 +159,14 @@ python -m partition.Analyzer \
 Fig 5a | Fig 5b | Fig 5c | Fig 5d
 ------------ | ------------- | ------------- |  -------------
 SG+IBP | SG+CROWN | GSG+IBP | GSG+CROWN
-![Fig. 5a](docs/_static/lcss21/fig_5/random_weights_relu_SimGuided_IBP_LIRPA_interior_condition_convex_hull_num_simulations_10000.0_termination_condition_type_time_budget_termination_condition_value_2.0.png) | ![Fig. 5b](docs/_static/lcss21/fig_5/random_weights_relu_SimGuided_CROWN_LIRPA_interior_condition_convex_hull_num_simulations_10000.0_termination_condition_type_time_budget_termination_condition_value_2.0.png) | ![Fig. 5c](docs/_static/lcss21/fig_5/random_weights_relu_GreedySimGuided_CROWN_LIRPA_interior_condition_convex_hull_num_simulations_10000.0_termination_condition_type_time_budget_termination_condition_value_2.0.png) | ![Fig. 5d](docs/_static/lcss21/fig_5/random_weights_relu_AdaptiveSimGuided_CROWN_LIRPA_interior_condition_convex_hull_num_simulations_10000.0_termination_condition_type_time_budget_termination_condition_value_2.0.png)
+![Fig. 5a](docs/_static/lcss21/fig_5/random_weights_relu_SimGuided_IBP_LIRPA_interior_condition_convex_hull_num_simulations_10000.0_termination_condition_type_time_budget_termination_condition_value_2.0.png) | ![Fig. 5b](docs/_static/lcss21/fig_5/random_weights_relu_SimGuided_CROWN_LIRPA_interior_condition_convex_hull_num_simulations_10000.0_termination_condition_type_time_budget_termination_condition_value_2.0.png) | ![Fig. 5c](docs/_static/lcss21/fig_5/random_weights_relu_GreedySimGuided_CROWN_LIRPA_interior_condition_convex_hull_num_simulations_10000.0_termination_condition_type_time_budget_termination_condition_value_2.0.png) | ![Fig. 5d](docs/_static/lcss21/fig_5/random_weights_relu_AdaptiveGreedySimGuided_CROWN_LIRPA_interior_condition_convex_hull_num_simulations_10000.0_termination_condition_type_time_budget_termination_condition_value_2.0.png)
 
 
 ### Figure 6
 
 Figure 6a (SG+IBP):
 ```bash
-python -m partition.Analyzer \
+python -m partition.example \
 	--partitioner SimGuided \
 	--propagator IBP_LIRPA \
 	--term_type time_budget \
@@ -180,8 +181,8 @@ python -m partition.Analyzer \
 
 Figure 6b (AGSG+CROWN):
 ```bash
-python -m partition.Analyzer \
-	--partitioner AdaptiveSimGuided \
+python -m partition.example \
+	--partitioner AdaptiveGreedySimGuided \
 	--propagator CROWN_LIRPA \
 	--term_type time_budget \
 	--term_val 2 \
@@ -196,26 +197,15 @@ python -m partition.Analyzer \
 Fig 6a | Fig 6b |
 ------------ | -------------
 SG+IBP | AGSG+CROWN
-![Fig. 6a](docs/_static/lcss21/fig_6/robot_arm_tanh_SimGuided_IBP_LIRPA_interior_condition_convex_hull_num_simulations_10000.0_termination_condition_type_time_budget_termination_condition_value_2.0.png) | ![Fig. 6b](docs/_static/lcss21/fig_6/robot_arm_tanh_AdaptiveSimGuided_CROWN_LIRPA_interior_condition_convex_hull_num_simulations_10000.0_termination_condition_type_time_budget_termination_condition_value_2.0.png)
+![Fig. 6a](docs/_static/lcss21/fig_6/robot_arm_tanh_SimGuided_IBP_LIRPA_interior_condition_convex_hull_num_simulations_10000.0_termination_condition_type_time_budget_termination_condition_value_2.0.png) | ![Fig. 6b](docs/_static/lcss21/fig_6/robot_arm_tanh_AdaptiveGreedySimGuided_CROWN_LIRPA_interior_condition_convex_hull_num_simulations_10000.0_termination_condition_type_time_budget_termination_condition_value_2.0.png)
+
+### Figure 7
+This figure unfortunately requires code for the RL implementation that is under IP protection.
+
+### Figure 8
 
 
 ---
-
-### Figure 4
-To reproduce this figure, please run:
-```bash
-python -m partition.Analyzer
-```
-This should pop up with a matplotlib window showing the partition being refined.
-You can change the `type` in `partitioner_hyperparams` at the bottom of `Analyzer.py` to modify which Partitioner is used.
-
-### Figure 5
-To reproduce this figure, please run:
-```bash
-python -m partition.Analyzer
-```
-This should pop up with a matplotlib window showing the partition being refined.
-You can change the `interior_condition` in `partitioner_hyperparams` at the bottom of `Analyzer.py` to modify which output shape is produced.
 
 ### Figure 6
 To reproduce this figure, please run:
@@ -226,18 +216,6 @@ This will iterate through combinations of `Partitioner`, `Propagator` and termin
 
 To plot the data from this dataframe (it should happen automatically by running `experiments.py`), comment out `df = experiment()` in `experiments.py` and it will just load the latest dataframe and plot it.
 You can switch which x axis to use with the argument of `plot()`.
-
-### Figure 7a
-This one unfortunately requires code for the RL implementation that is under IP protection.
-
-### Figure 7b
-Collect training data, train a Keras model, and evaluate the reachable set using
-```bash
-python -m partition.dynamics
-```
-
-
-
 
 ---
 

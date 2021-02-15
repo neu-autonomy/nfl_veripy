@@ -1,9 +1,9 @@
 import torch
 import numpy as np
-from partition.models import model_xiang_2017, model_xiang_2020_robot_arm, model_gh1
+from partition.models.models import model_xiang_2017, model_xiang_2020_robot_arm, model_gh1
 from crown_ibp.bound_layers import BoundSequential
 
-from partition.expt import robust_sdp, torch2net
+from partition.utils.expt import robust_sdp, torch2net
 
 use_julia = False
 if use_julia:
@@ -12,6 +12,8 @@ if use_julia:
 import matplotlib.pyplot as plt
 from matplotlib.patches import Rectangle
 from itertools import product
+
+
 
 def simulation_guided_partition(model, input_range, num_outputs, viz=False, bound_method="ibp"):
     # Algorithm 1 of (Xiang, 2020): https://arxiv.org/pdf/2004.12273.pdf
@@ -180,25 +182,6 @@ def get_output_range(model, input_range, num_outputs, bound_method="ibp"):
     elif bound_method in ["MaxSens"]:
         output_range = julia_output_range(net=model, input_range=input_range)
     return output_range
-
-def bisect(input_range):
-    return sect(input_range, num_sects=2)
-
-def sect(input_range, num_sects=3, select='random'):
-    input_shape = input_range.shape[:-1]
-    if select == 'random':
-        # doesnt work
-        input_dim_to_sect = np.random.randint(0, num_inputs)
-    else:
-        lengths = input_range[...,1] - input_range[...,0]
-        input_dim_to_sect = np.unravel_index(lengths.argmax(), lengths.shape)
-    input_ranges = np.tile(input_range, (num_sects,)+tuple([1 for _ in range(len(input_shape)+1)]))
-    diff = (input_range[input_dim_to_sect+(1,)]-input_range[input_dim_to_sect+(0,)])/float(num_sects)
-    for i in range(num_sects-1):
-        new_endpt = input_range[input_dim_to_sect+(0,)]+(i+1)*diff
-        input_ranges[(i,)+input_dim_to_sect+(1,)] = new_endpt
-        input_ranges[(i+1,)+input_dim_to_sect+(0,)] = new_endpt
-    return input_ranges
 
 def xiang2020example(input_range=None, model=None, bound_method="ibp", partition_methods=["simulation_guided", "uniform"]):
     

@@ -6,10 +6,8 @@ from keras.models import Sequential
 from keras.layers import Dense
 from keras.models import model_from_json
 
-from partition.models import model_dynamics
-from partition.Partitioner import *
-from partition.Propagator import *
-from partition.Analyzer import *
+from partition.models.models import model_dynamics
+import partition
 
 np.set_printoptions(suppress=True)
 simple_envs = ['CartPole-v0', 'Pendulum-v0']
@@ -18,9 +16,9 @@ not_simple_envs = ['HandManipulateBlock-v0']
 save_dir = "{}/results/dynamics/".format(os.path.dirname(os.path.abspath(__file__)))
 os.makedirs(save_dir, exist_ok=True)
 
-class DynamicsAnalyzer(Analyzer):
+class DynamicsAnalyzer(partition.Analyzer):
     def __init__(self, torch_model, env_name):
-        Analyzer.__init__(self, torch_model=torch_model)
+        partition.Analyzer.__init__(self, torch_model=torch_model)
         self.env_name = env_name
 
     def get_output_range(self, input_range):
