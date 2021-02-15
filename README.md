@@ -10,6 +10,12 @@ git clone --recursive git@gitlab.com:mit-acl/ford_ugvs/robustness_analysis.git
 
 ### Install
 
+I suggest creating a `virtualenv` for this repo:
+```bash
+python -m virtualenv venv
+source venv/bin/activate
+```
+
 In the root of this directory:
 ```bash
 python -m pip install -e .
@@ -236,6 +242,11 @@ This will pop up with:
 ### tmp
 ```bash
 source ~/code/gym-collision-avoidance/venv/bin/activate
+```
+
+### Closed-Loop Systems
+```bash
+python -m closed_loop.ClosedLoopAnalyzer
 ```
 
 ### getting julia code to work

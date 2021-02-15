@@ -6,7 +6,14 @@ setup(name='reach_lp',
           'torch',
           'alphashape',
           'sklearn',
-          'scipy'
+          'scipy',
+          'matplotlib',
+          'imageio',
+          'keras',
+          'tensorflow',
+          'pypoman',
+          'tqdm',
+          'pyclipper',
           ],
       packages=find_packages()
 )
