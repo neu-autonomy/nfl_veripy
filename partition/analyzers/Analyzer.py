@@ -26,7 +26,10 @@ class Analyzer:
         if hyperparams is None: return
         hyperparams_ = hyperparams.copy()
         partitioner = hyperparams_.pop('type', None)
-        self._partitioner = partitioners.partitioner_dict[partitioner](**hyperparams_)
+        self._partitioner = self.instantiate_partitioner(partitioner, hyperparams_)
+
+    def instantiate_partitioner(self, partitioner, hyperparams):
+        return partitioners.partitioner_dict[partitioner](**hyperparams)
 
     @property
     def propagator(self):
@@ -37,9 +40,12 @@ class Analyzer:
         if hyperparams is None: return
         hyperparams_ = hyperparams.copy()
         propagator = hyperparams_.pop('type', None)
-        self._propagator = propagators.propagator_dict[propagator](**hyperparams_)
+        self._propagator = self.instantiate_propagator(propagator, hyperparams_)
         if propagator is not None:
             self._propagator.network = self.torch_model
+
+    def instantiate_propagator(self, propagator, hyperparams):
+        return propagators.propagator_dict[propagator](**hyperparams)
 
     def get_output_range(self, input_range, verbose=False):
         output_range, info = self.partitioner.get_output_range(input_range, self.propagator)

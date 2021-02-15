@@ -34,7 +34,7 @@ def save_model(model, name='model', dir=dir_path+'/system/'):
     print("Saved model to disk")
 
 def load_model(name='double_integrator_mpc'):
-    path = '{}/models/{}'.format(dir_path, name)
+    path = '{}/../models/{}'.format(dir_path, name)
     with open(path+'/model.json', 'r') as f:
         loaded_model_json = f.read()
     model = model_from_json(loaded_model_json)

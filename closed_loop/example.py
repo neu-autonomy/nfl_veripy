@@ -1,113 +1,20 @@
 import numpy as np
-from partition.Analyzer import Analyzer
-import torch
-
-import matplotlib.pyplot as plt
-# from matplotlib.patches import Rectangle
-# from partition.network_utils import get_sampled_outputs, samples_to_range
-# import os
-
-# plt.rcParams['mathtext.fontset'] = 'stix'
-# plt.rcParams['font.family'] = 'STIXGeneral'
-
-from closed_loop.ClosedLoopPartitioner import ClosedLoopNoPartitioner, ClosedLoopUniformPartitioner, ClosedLoopProbabilisticPartitioner
-from closed_loop.ClosedLoopPropagator import ClosedLoopCROWNPropagator, ClosedLoopIBPPropagator, ClosedLoopFastLinPropagator, ClosedLoopSDPPropagator
-from closed_loop.ClosedLoopConstraints import PolytopeInputConstraint, LpInputConstraint, PolytopeOutputConstraint, LpOutputConstraint, EllipsoidInputConstraint, EllipsoidOutputConstraint
-
-# save_dir = "{}/results/analyzer/".format(os.path.dirname(os.path.abspath(__file__)))
-# os.makedirs(save_dir, exist_ok=True)
-
-class ClosedLoopAnalyzer(Analyzer):
-    def __init__(self, torch_model, dynamics):
-        self.torch_model = torch_model
-        self.dynamics = dynamics
-        Analyzer.__init__(self, torch_model=torch_model)
-
-        # All possible partitioners, propagators
-        self.partitioner_dict = {
-            "None": ClosedLoopNoPartitioner,
-            "Uniform": ClosedLoopUniformPartitioner,
-            "ProbPartition": ClosedLoopProbabilisticPartitioner,
-        }
-
-        self.propagator_dict = {
-            "CROWN": ClosedLoopCROWNPropagator,
-            "IBP": ClosedLoopIBPPropagator,
-            "FastLin": ClosedLoopFastLinPropagator,
-            "SDP": ClosedLoopSDPPropagator,
-        }
-
-    def instantiate_partitioner(self, partitioner, hyperparams):
-        # dynamics = {"At": self.dynamics.At, "bt": self.dynamics.bt, "ct": self.dynamics.ct}
-        # return self.partitioner_dict[partitioner](**{**hyperparams, **dynamics})
-        return self.partitioner_dict[partitioner](**{**hyperparams, "dynamics": self.dynamics})
-
-    def instantiate_propagator(self, propagator, hyperparams):
-        # dynamics = {"At": self.dynamics.At, "bt": self.dynamics.bt, "ct": self.dynamics.ct}
-        return self.propagator_dict[propagator](**{**hyperparams, "dynamics": self.dynamics})
-
-    def get_one_step_reachable_set(self, input_constraint, output_constraint):
-        reachable_set, info, prob = self.partitioner.get_one_step_reachable_set(input_constraint, output_constraint, self.propagator)
-        return reachable_set, info, prob
-
-    def get_reachable_set(self, input_constraint, output_constraint, t_max):
-        reachable_set, info, prob_list = self.partitioner.get_reachable_set(input_constraint, output_constraint, self.propagator, t_max)
-        return reachable_set, info, prob_list
-
-    def visualize(self, input_constraint, output_constraint, show=True, show_samples=False, prob_list=None,**kwargs):
-        # sampled_outputs = self.get_sampled_outputs(input_range)
-        # output_range_exact = self.samples_to_range(sampled_outputs)
-
-        self.partitioner.setup_visualization(input_constraint, output_constraint,self.propagator, prob_list = prob_list, show_samples=show_samples, outputs_to_highlight=[{'dim':[0], 'name':'py'}, {'dim':[1], 'name':'pz'}],inputs_to_highlight= [{'dim':[0], 'name':'py'}, {'dim':[1], 'name':'pz'}] )
-        self.partitioner.visualize(kwargs.get("exterior_partitions", kwargs.get("all_partitions", [])), kwargs.get("interior_partitions", []), output_constraint, prob_list)
-        
-        # self.partitioner.animate_axes.legend(bbox_to_anchor=(0,1.02,1,0.2), loc="lower left",
-        #         mode="expand", borderaxespad=0, ncol=1)
-
-        self.partitioner.animate_fig.tight_layout()
-
-        # if "save_name" in kwargs and kwargs["save_name"] is not None:
-        #     plt.savefig(kwargs["save_name"])
-
-        if show:
-            plt.show()
-        else:
-            plt.close()
-
-    #def get_sampled_outputs(self, input_range, N=1000):
-      #  return get_sampled_outputs(input_range, self.propagator, N=N)
-    def get_sampled_output_range(self, input_constraint, t_max =5, num_samples =1000):
-        return  self.partitioner.get_sampled_out_range(input_constraint, self.propagator, t_max, num_samples)
-   
-
-
-    def get_output_range(self, input_constraint, output_constraint):
-        return self.partitioner.get_output_range(input_constraint, output_constraint)
-
-    def samples_to_range(self, sampled_outputs):
-        return samples_to_range(sampled_outputs)
-
-    def get_exact_output_range(self, input_range):
-        sampled_outputs = self.get_sampled_outputs(input_range)
-        output_range = self.samples_to_range(sampled_outputs)
-        return output_range
-
-    def  get_error(self, input_constraint,output_constraint, t_max):
-        return self.partitioner.get_error(input_constraint,output_constraint , self.propagator, t_max)
+import closed_loop.dynamics as dynamics
+import closed_loop.analyzers as analyzers
+import closed_loop.constraints as constraints
+from closed_loop.utils.nn import load_model
 
 if __name__ == '__main__':
     # Import all deps
-    import numpy as np
 
     np.random.seed(seed=0)
 
-    system = 'quadrotor'
-    # system = 'double_integrator_mpc'
+    # system = 'quadrotor'
+    system = 'double_integrator_mpc'
 
     ##############
     # Simple FF network
     ###############
-    from closed_loop.nn import load_model
     if system == 'double_integrator_mpc':
         torch_model = load_model(name='double_integrator_mpc')
     elif system == 'quadrotor':
@@ -119,19 +26,15 @@ if __name__ == '__main__':
     # Dynamics
     ##############
     if system == 'double_integrator_mpc':
-        # from closed_loop.Dynamics import DoubleIntegrator
-        # dynamics = DoubleIntegrator()
-        from closed_loop.Dynamics import DoubleIntegratorOutputFeedback
-        dynamics = DoubleIntegratorOutputFeedback()
+        dynamics = dynamics.DoubleIntegrator()
+        # dynamics = DoubleIntegratorOutputFeedback()
         init_state_range = np.array([ # (num_inputs, 2)
                           [2.5, 3.0], # x0min, x0max
                           [-0.25, 0.25], # x1min, x1max
         ])
         t_max = 5
     elif system == 'quadrotor':
-        # from closed_loop.Dynamics import Quadrotor
         # dynamics = Quadrotor()
-        from closed_loop.Dynamics import QuadrotorOutputFeedback
         dynamics = QuadrotorOutputFeedback()
         init_state_range = np.array([ # (num_inputs, 2)
                       [4.65,4.65,2.95,0.94,-0.01,-0.01],
@@ -182,9 +85,11 @@ if __name__ == '__main__':
     # Run analysis & generate a plot
    # print(torch_model,dynamics)
 
-    analyzer = ClosedLoopAnalyzer(torch_model, dynamics)
+    analyzer = analyzers.ClosedLoopAnalyzer(torch_model, dynamics)
     analyzer.partitioner = partitioner_hyperparams
     analyzer.propagator = propagator_hyperparams
+    print(analyzer)
+    print(analyzer.partitioner)
 
     # # ## Polytope Boundaries
     # from closed_loop.utils import init_state_range_to_polytope, get_polytope_A
@@ -195,8 +100,8 @@ if __name__ == '__main__':
     # output_constraint = PolytopeOutputConstraint(A_out)
 
     ## LP-Ball Boundaries
-    input_constraint = LpInputConstraint(range=init_state_range, p=np.inf)
-    output_constraint = LpOutputConstraint(p=np.inf)
+    input_constraint = constraints.LpInputConstraint(range=init_state_range, p=np.inf)
+    output_constraint = constraints.LpOutputConstraint(p=np.inf)
 
     # ### Ellipsoid Boundaries
     # input_constraint = EllipsoidInputConstraint(

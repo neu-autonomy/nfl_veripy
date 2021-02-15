@@ -5,11 +5,10 @@ from matplotlib import patches as ptch
 from tqdm import tqdm
 # from reach_lp.nn import control_nn
 import pypoman
-from closed_loop.mpc import control_mpc
-from scipy.linalg import solve_discrete_are
+from closed_loop.utils.mpc import control_mpc
 
-from closed_loop.nn_bounds import BoundClosedLoopController
-from closed_loop.ClosedLoopConstraints import PolytopeInputConstraint, LpInputConstraint, PolytopeOutputConstraint, LpOutputConstraint
+from closed_loop.utils.nn_bounds import BoundClosedLoopController
+import closed_loop.constraints as constraints
 import torch
 import os
 import pickle
@@ -61,7 +60,7 @@ class Dynamics:
         raise NotImplementedError
 
     def colors(self, t_max):
-        return [cm.get_cmap("tab20")(i) for i in range(t_max+1)]
+        return [cm.get_cmap(self.cmap_name)(i) for i in range(t_max+1)]
  
     def get_sampled_output_range(self, input_constraint, t_max =5, num_samples= 1000, controller='mpc'):
 
@@ -69,9 +68,9 @@ class Dynamics:
          
         num_runs, num_timesteps, num_states = xs.shape
 
-        if isinstance(input_constraint, PolytopeInputConstraint):
+        if isinstance(input_constraint, constraints.PolytopeInputConstraint):
             raise NotImplementedError
-        elif isinstance(input_constraint, LpInputConstraint):
+        elif isinstance(input_constraint, constraints.LpInputConstraint):
             sampled_range= np.zeros((num_timesteps-1,num_states,2))
             for t in range(1,num_timesteps):
                 sampled_range[t-1,:,0] = np.min(xs[:,t,:], axis =0)
@@ -85,7 +84,7 @@ class Dynamics:
         if ax is None:
             ax = plt.subplot()
 
-        xs, us = self.collect_data(t_max, input_constraint, num_samples=1000, controller=controller)
+        xs, us = self.collect_data(t_max, input_constraint, num_samples=10000, controller=controller, merge_cols=False)
 
         num_runs, num_timesteps, num_states = xs.shape
         colors = self.colors(num_timesteps)
@@ -115,11 +114,11 @@ class Dynamics:
         if show:
             plt.show()
 
-    def collect_data(self, t_max, input_constraint, num_samples=2420, controller='mpc'):
-        xs, us = self.run(t_max, input_constraint, num_samples, collect_data=True, controller=controller)
+    def collect_data(self, t_max, input_constraint, num_samples=2420, controller='mpc', merge_cols=True):
+        xs, us = self.run(t_max, input_constraint, num_samples, collect_data=True, controller=controller, merge_cols=merge_cols)
         return xs, us
 
-    def run(self, t_max, input_constraint, num_samples=100, collect_data=False, clip_control=True, controller='mpc'):
+    def run(self, t_max, input_constraint, num_samples=100, collect_data=False, clip_control=True, controller='mpc', merge_cols=False):
         np.random.seed(0)
         num_timesteps = int((t_max+self.dt + np.finfo(float).eps)/(self.dt))
         if collect_data:
@@ -128,7 +127,7 @@ class Dynamics:
             xs = np.zeros((num_runs, num_timesteps, self.num_states))
             us = np.zeros((num_runs, num_timesteps, self.num_inputs))
         # Initial state
-        if isinstance(input_constraint, LpInputConstraint):
+        if isinstance(input_constraint, constraints.LpInputConstraint):
             if input_constraint.p == np.inf:
                 xs[:,0,:] = np.random.uniform(
                     low=input_constraint.range[:,0], 
@@ -136,7 +135,7 @@ class Dynamics:
                     size=(num_runs, self.num_states))
             else:
                 raise NotImplementedError
-        elif isinstance(input_constraint, PolytopeInputConstraint):
+        elif isinstance(input_constraint, constraints.PolytopeInputConstraint):
             init_state_range = input_constraint.to_linf()
             xs[:,0,:] = np.random.uniform(low=init_state_range[:,0], high=init_state_range[:,1], size=(num_runs, self.num_states))
             within_constraint_inds = np.where(np.all((np.dot(input_constraint.A, xs[:,0,:].T) - np.expand_dims(input_constraint.b, axis=-1)) <= 0, axis=0))
@@ -170,131 +169,10 @@ class Dynamics:
             step += 1
             t += self.dt +np.finfo(float).eps
 
-        if collect_data:
+        if merge_cols:
             return xs.reshape(-1, self.num_states), us.reshape(-1, self.num_inputs)
-
-class DoubleIntegrator(Dynamics):
-    def __init__(self):
-
-        self.continuous_time = False
-
-        At = np.array([[1, 1],[0, 1]])
-        bt = np.array([[0.5], [1]])
-        ct = np.array([0., 0.]).T
-
-        # u_limits = None
-        u_limits = np.array([
-            [-1., 1.] # (u0_min, u0_max)
-        ])
-
-        super().__init__(At=At, bt=bt, ct=ct, u_limits=u_limits)
-
-        # LQR-MPC parameters
-        self.Q = np.eye(2)
-        self.R = 1
-        self.Pinf = solve_discrete_are(self.At, self.bt, self.Q, self.R)
-
-    def control_mpc(self, x0):
-        return control_mpc(x0, self.At, self.bt, self.ct, self.Q, self.R, self.Pinf, self.u_limits[:,0], self.u_limits[:,1], n_mpc=10, debug=False)
-
-    def dynamics_step(self, xs, us):
-        # Dynamics are already discretized:
-        xs_t1 = (np.dot(self.At, xs.T) + np.dot(self.bt, us.T)).T + self.ct
-        if self.process_noise is not None:
-            noise = np.random.uniform(
-                low=self.process_noise[:,0],
-                high=self.process_noise[:,1],
-                size=xs.shape,
-            )
-            xs_t1 += noise
-        return xs_t1
-
-class Quadrotor(Dynamics):
-    def __init__(self):
-
-        self.continuous_time = True
-
-        g = 9.8 # m/s^2
-
-        At = np.zeros((6,6))
-        At[0][3] = 1
-        At[1][4] = 1
-        At[2][5] = 1
-
-        bt = np.zeros((6,3))
-        bt[3][0] = g
-        bt[4][1] = -g
-        bt[5][2] = 1
-
-        ct = np.zeros((6,))
-        ct[-1] = -g
-        # ct = np.array([0., 0., 0. ,0., 0., -g]).T
-
-        # u_limits = None
-        u_limits = np.array([
-            [-np.pi/9, np.pi/9],
-            [-np.pi/9, np.pi/9],
-            [0, 2*g],
-        ])
-
-        dt = 0.1
-
-        super().__init__(At=At, bt=bt, ct=ct, u_limits=u_limits, dt=dt)
-
-        # # LQR-MPC parameters
-        # self.Q = np.eye(2)
-        # self.R = 1
-        # self.Pinf = solve_discrete_are(self.At, self.bt, self.Q, self.R)
-
-    def dynamics_step(self, xs, us):
-        return xs + self.dt*self.dynamics(xs, us)
-
-    def dynamics(self, xs, us):
-        xdot = (np.dot(self.At, xs.T) + np.dot(self.bt, us.T)).T + self.ct
-        if self.process_noise is not None:
-            noise = np.random.uniform(
-                low=self.process_noise[:,0],
-                high=self.process_noise[:,1],
-                size=xs.shape,
-            )
-            xdot += noise
-        return xdot
-
-class DoubleIntegratorOutputFeedback(DoubleIntegrator):
-    def __init__(self, process_noise=None, sensing_noise=None):
-        super().__init__()
-        # self.process_noise = np.array([
-        #     [-0.5,0.5],
-        #     [-0.01,0.01],
-        # ])
-        if process_noise is None:
-            self.process_noise = 0*0.1*np.dstack([-np.ones(self.num_states), np.ones(self.num_states)])[0]
         else:
-            self.process_noise = process_noise*np.dstack([-np.ones(self.num_states), np.ones(self.num_states)])[0]
-
-        # self.sensor_noise = np.array([
-        #     [-0.8,0.8],
-        #     [-0.0,0.0],
-        # ])
-
-        if sensing_noise is None:
-            self.sensor_noise = 0*0.1*np.dstack([-np.ones(self.num_outputs), np.ones(self.num_outputs)])[0]
-        else:
-            self.sensor_noise = sensing_noise*np.dstack([-np.ones(self.num_outputs), np.ones(self.num_outputs)])[0]
-        print()
-class QuadrotorOutputFeedback(Quadrotor):
-    def __init__(self):
-        super().__init__(process_noise=None, sensing_noise=None)
-        if process_noise is None:
-            self.process_noise = 0*0.05*np.dstack([-np.ones(self.num_states), np.ones(self.num_states)])[0]
-        else:
-            self.process_noise = process_noise*0.05*np.dstack([-np.ones(self.num_states), np.ones(self.num_states)])[0]
-        
-        if sensing_noise is None:
-    
-            self.sensor_noise = 0*0.01*np.dstack([-np.ones(self.num_outputs), np.ones(self.num_outputs)])[0]
-        else:    
-            self.process_noise = sensing_noise*np.dstack([-np.ones(self.num_states), np.ones(self.num_states)])[0]
+            return xs, us
 
 if __name__ == '__main__':
     from closed_loop.nn import load_model
@@ -304,7 +182,7 @@ if __name__ == '__main__':
                       [-2.0, -0.5], # x0min, x0max
                       [0.2, 0.8], # x1min, x1max
     ])
-    xs, us = dynamics.collect_data(t_max=10, input_constraint=LpInputConstraint(p=np.inf, range=init_state_range),
+    xs, us = dynamics.collect_data(t_max=10, input_constraint=constraints.LpInputConstraint(p=np.inf, range=init_state_range),
         num_samples=2420)
     print(xs.shape, us.shape)
     with open(dir_path+'/datasets/double_integrator/xs.pkl', 'wb') as f:
