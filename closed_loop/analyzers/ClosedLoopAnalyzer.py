@@ -28,23 +28,10 @@ class ClosedLoopAnalyzer(analyzers.Analyzer):
         analyzers.Analyzer.__init__(self, torch_model=torch_model)
 
     def instantiate_partitioner(self, partitioner, hyperparams):
-        print(partitioner)
-        print(hyperparams)
         return partitioners.partitioner_dict[partitioner](**{**hyperparams, "dynamics": self.dynamics})
 
     def instantiate_propagator(self, propagator, hyperparams):
         return propagators.propagator_dict[propagator](**{**hyperparams, "dynamics": self.dynamics})
-
-    # def instantiate_partitioner(self, partitioner, hyperparams):
-    #     print(closed_loop_partitioner_dict)
-    #     print(closed_loop_partitioner_dict[partitioner])
-    #     # dynamics = {"At": self.dynamics.At, "bt": self.dynamics.bt, "ct": self.dynamics.ct}
-    #     # return self.partitioner_dict[partitioner](**{**hyperparams, **dynamics})
-    #     return 
-
-    # def instantiate_propagator(self, propagator, hyperparams):
-    #     # dynamics = {"At": self.dynamics.At, "bt": self.dynamics.bt, "ct": self.dynamics.ct}
-    #     return closed_loop_propagator_dict[propagator](**{**hyperparams, "dynamics": self.dynamics})
 
     def get_one_step_reachable_set(self, input_constraint, output_constraint):
         reachable_set, info, prob = self.partitioner.get_one_step_reachable_set(input_constraint, output_constraint, self.propagator)

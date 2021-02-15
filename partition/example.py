@@ -34,7 +34,7 @@ if __name__ == '__main__':
     
     parser.add_argument('--save_plot', dest='save_plot', action='store_true',
                         help='whether to save the visualization')
-    parser.add_argument('--skip_save_plot', dest='feature', action='store_false')
+    parser.add_argument('--skip_save_plot', dest='save_plot', action='store_false')
     parser.set_defaults(save_plot=True)
     
     parser.add_argument('--show_plot', dest='show_plot', action='store_true',

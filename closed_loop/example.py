@@ -3,39 +3,100 @@ import closed_loop.dynamics as dynamics
 import closed_loop.analyzers as analyzers
 import closed_loop.constraints as constraints
 from closed_loop.utils.nn import load_model
+import argparse
 
 if __name__ == '__main__':
-    # Import all deps
+    parser = argparse.ArgumentParser(description='Analyze a closed loop system w/ NN controller.')
+    parser.add_argument('--system', default='double_integrator_mpc',
+                        choices=["double_integrator_mpc", "quarotor"],
+                        help='which system to analyze (default: double_integrator_mpc)')
+    
+    parser.add_argument('--state_feedback', dest='state_feedback', action='store_true',
+                        help='whether to save the visualization')
+    parser.add_argument('--output_feedback', dest='state_feedback', action='store_false')
+    parser.set_defaults(state_feedback=True)
+
+    parser.add_argument('--partitioner', default='Uniform',
+                        choices=["None", "Uniform"],
+                        help='which partitioner to use (default: Uniform)')
+    parser.add_argument('--propagator', default='IBP',
+                        choices=["IBP", "CROWN", "FastLin", "SDP"],
+                        help='which propagator to use (default: IBP)')
+    
+    parser.add_argument('--num_partitions', default=np.array([4,4]),
+                        help='how many cells per dimension to use (default: [4,4])')
+    parser.add_argument('--boundaries', default="lp",
+                        choices=["lp", "polytope"],
+                        help='what shape of convex set to bound reachable sets (default: lp)')
+
+    # parser.add_argument('--term_type', default='time_budget',
+    #                     choices=["time_budget", "verify", "input_cell_size", "num_propagator_calls", "pct_improvement", "pct_error"],
+    #                     help='type of condition to terminate (default: time_budget)')
+    # parser.add_argument('--term_val', default=2., type=float,
+    #                     help='value of condition to terminate (default: 2)')
+    # parser.add_argument('--interior_condition', default='lower_bnds',
+    #                     choices=["lower_bnds", "linf", "convex_hull"],
+    #                     help='type of bound to optimize for (default: lower_bnds)')
+    # parser.add_argument('--num_simulations', default=1e4,
+    #                     help='how many MC samples to begin with (default: 1e4)')
+    
+    # parser.add_argument('--save_plot', dest='save_plot', action='store_true',
+    #                     help='whether to save the visualization')
+    # parser.add_argument('--skip_save_plot', dest='feature', action='store_false')
+    # parser.set_defaults(save_plot=True)
+    
+    # parser.add_argument('--show_plot', dest='show_plot', action='store_true',
+    #                     help='whether to show the visualization')
+    # parser.add_argument('--skip_show_plot', dest='show_plot', action='store_false')
+    # parser.set_defaults(show_plot=False)
+    
+    # parser.add_argument('--show_input', dest='show_input', action='store_true',
+    #                     help='whether to show the input partition in the plot')
+    # parser.add_argument('--skip_show_input', dest='show_input', action='store_false')
+    # parser.set_defaults(show_input=True)
+    
+    # parser.add_argument('--show_output', dest='show_output', action='store_true',
+    #                     help='whether to show the output set in the plot')
+    # parser.add_argument('--skip_show_output', dest='show_output', action='store_false')
+    # parser.set_defaults(show_output=True)
+
+    # parser.add_argument('--input_plot_labels', metavar='N', default=["Input", None], type=str, nargs='+',
+    #                     help='x and y labels on input partition plot (default: ["Input", None])')
+    # parser.add_argument('--output_plot_labels', metavar='N', default=["Output", None], type=str, nargs='+',
+    #                     help='x and y labels on output partition plot (default: ["Output", None])')
+    # parser.add_argument('--input_plot_aspect', default="auto",
+    #                     choices=["auto", "equal"],
+    #                     help='aspect ratio on input partition plot (default: auto)')
+    # parser.add_argument('--output_plot_aspect', default="auto",
+    #                     choices=["auto", "equal"],
+    #                     help='aspect ratio on output partition plot (default: auto)')
+
+    args = parser.parse_args()
+
 
     np.random.seed(seed=0)
 
-    # system = 'quadrotor'
-    system = 'double_integrator_mpc'
-
-    ##############
-    # Simple FF network
-    ###############
-    if system == 'double_integrator_mpc':
-        torch_model = load_model(name='double_integrator_mpc')
-    elif system == 'quadrotor':
-        torch_model = load_model(name='quadrotor')
-    else:
-        raise NotImplementedError
+    # Load NN
+    torch_model = load_model(name=args.system)
     
     ##############
     # Dynamics
     ##############
-    if system == 'double_integrator_mpc':
-        dynamics = dynamics.DoubleIntegrator()
-        # dynamics = DoubleIntegratorOutputFeedback()
+    if args.system == 'double_integrator_mpc':
+        if args.state_feedback:
+            dyn = dynamics.DoubleIntegrator()
+        else:
+            dyn = dynamics.DoubleIntegratorOutputFeedback()
         init_state_range = np.array([ # (num_inputs, 2)
                           [2.5, 3.0], # x0min, x0max
                           [-0.25, 0.25], # x1min, x1max
         ])
         t_max = 5
-    elif system == 'quadrotor':
-        # dynamics = Quadrotor()
-        dynamics = QuadrotorOutputFeedback()
+    elif args.system == 'quadrotor':
+        if args.state_feedback:
+            dyn = dynamics.Quadrotor()
+        else:
+            dyn = dynamics.QuadrotorOutputFeedback()
         init_state_range = np.array([ # (num_inputs, 2)
                       [4.65,4.65,2.95,0.94,-0.01,-0.01],
                       [4.75,4.75,3.05,0.96,0.01,0.01]
@@ -65,44 +126,35 @@ if __name__ == '__main__':
     # all_all_bs.append(sdp_all_bs)
 
     partitioner_hyperparams = {
-        "type": "None",
-        "type": "Uniform",
-        "num_partitions": np.array([4,4]),
-       # "num_partitions": np.array([4,4,1,1,1,1]),
+        "type": args.partitioner,
+        "num_partitions": args.num_partitions,
         # "make_animation": False,
         # "show_animation": False,
-       # "type": "ProbPartition",
-      #  "num_partitions": np.array([10])
     }
     propagator_hyperparams = {
-        # "type": "SDP",
-        # "type": "IBP",
-        "type": "CROWN",
-      #  "type": "FastLin",
+        "type": args.propagator,
         "input_shape": init_state_range.shape[:-1],
     }
 
     # Run analysis & generate a plot
-   # print(torch_model,dynamics)
 
-    analyzer = analyzers.ClosedLoopAnalyzer(torch_model, dynamics)
+    analyzer = analyzers.ClosedLoopAnalyzer(torch_model, dyn)
     analyzer.partitioner = partitioner_hyperparams
     analyzer.propagator = propagator_hyperparams
-    print(analyzer)
-    print(analyzer.partitioner)
 
-    # # ## Polytope Boundaries
-    # from closed_loop.utils import init_state_range_to_polytope, get_polytope_A
-    # A_inputs, b_inputs = init_state_range_to_polytope(init_state_range)
-    # if system == 'quadrotor': A_out = A_inputs
-    # else: A_out = get_polytope_A(8)
-    # input_constraint = PolytopeInputConstraint(A_inputs, b_inputs)
-    # output_constraint = PolytopeOutputConstraint(A_out)
-
-    ## LP-Ball Boundaries
-    input_constraint = constraints.LpInputConstraint(range=init_state_range, p=np.inf)
-    output_constraint = constraints.LpOutputConstraint(p=np.inf)
-
+    if args.boundaries == "polytope":
+        from closed_loop.utils import init_state_range_to_polytope, get_polytope_A
+        A_inputs, b_inputs = init_state_range_to_polytope(init_state_range)
+        if system == 'quadrotor': A_out = A_inputs
+        else: A_out = get_polytope_A(8)
+        input_constraint = PolytopeInputConstraint(A_inputs, b_inputs)
+        output_constraint = PolytopeOutputConstraint(A_out)
+    elif args.boundaries == "lp":
+        input_constraint = constraints.LpInputConstraint(range=init_state_range, p=np.inf)
+        output_constraint = constraints.LpOutputConstraint(p=np.inf)
+    else:
+        raise NotImplementedError
+    
     # ### Ellipsoid Boundaries
     # input_constraint = EllipsoidInputConstraint(
     #     center=np.mean(init_state_range, axis=1),

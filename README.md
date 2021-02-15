@@ -46,9 +46,23 @@ TODOS:
 - [x] move cartpole, pend, quadrotor files elsewhere
 - [ ] publish crown_ibp, auto-Lirpa forks
 - [x] move MNIST data to right place
-- [ ] release version w/o closed_loop
 - [ ] merge in closed_loop branch
 - [ ] replicate those figs
+- [ ] setup ci and simple tests to run the various expts
+- [ ] setup sync with github
+
+## Reproduce Figures from submitted ICRA 2021 Paper
+
+### todo
+
+```bash
+python -m closed_loop.example \
+	--partitioner Uniform \
+	--propagator CROWN \
+	--system double_integrator_mpc \
+	--state_feedback
+```
+
 
 
 ## Reproduce Figures from LCSS/ACC 2021 Paper
