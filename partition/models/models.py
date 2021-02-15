@@ -1,6 +1,8 @@
 import torch
 from torch.nn import Sequential, Conv2d, Linear, ReLU, Tanh, Sigmoid
 import numpy as np
+import os
+model_dir = "{}/../../models/".format(os.path.dirname(os.path.abspath(__file__)))
 
 activations = {"tanh": Tanh, "relu": ReLU, "sigmoid": Sigmoid}
 
@@ -193,6 +195,7 @@ def random_model(activation='relu', neurons=[2,5,20,40,40,20,2], seed=0):
 
 def get_model_filename(activation='relu', neurons=[2,5,20,40,40,20,2], seed=0):
     filename = "_".join(map(str, neurons))+"_"+activation+"_"+str(seed)
+    filename = os.path.join(model_dir, filename)
     return filename
 
 def lstm(hidden_size=64, num_classes=10, input_size=784, num_slices=8, seed=0):
