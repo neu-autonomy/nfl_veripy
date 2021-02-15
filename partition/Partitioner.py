@@ -18,9 +18,6 @@ label_dict = {
     "lower_bnds": "Lower Bounds",
 }
 
-
-
-
 class Partitioner():
     def __init__(self):
         return
@@ -78,7 +75,7 @@ class Partitioner():
         return hull
 
 
-    def setup_visualization(self, input_range, output_range, propagator, show_samples=True, outputs_to_highlight=None, inputs_to_highlight=None, show_input=True, show_output=True):
+    def setup_visualization(self, input_range, output_range, propagator, show_samples=True, outputs_to_highlight=None, inputs_to_highlight=None, show_input=True, show_output=True, labels={}, aspects={}):
         num_subplots = int(show_input)+int(show_output)
         self.animate_fig, self.animate_axes = plt.subplots(1,num_subplots)
 
@@ -133,20 +130,24 @@ class Partitioner():
 
 
         if show_input:
-            self.ax_input.set_xlabel(input_names[0])
-            self.ax_input.set_xlabel(input_names[0])
-            self.ax_input.set_ylabel(input_names[1])
-            self.ax_input.set_aspect('equal')
+            if "input" in labels:
+                self.ax_input.set_xlabel(labels["input"][0])
+                self.ax_input.set_ylabel(labels["input"][1])
+            else:
+                self.ax_input.set_xlabel(input_names[0])
+                self.ax_input.set_ylabel(input_names[1])
+            if "input" in aspects:
+                self.ax_input.set_aspect(aspects["input"])
 
         if show_output:
-           #  self.ax_output.set_xlabel("Output")
-            #self.ax_output.set_xlabel(output_names[0])
-
-            #  self.ax_output.set_ylabel(output_names[1])
-            # self.ax_output.set_aspect('equal')
-            self.ax_output.set_xlabel("x")
-            self.ax_output.set_ylabel("y")
-            self.ax_output.set_aspect('equal')
+            if "output" in labels:
+                self.ax_output.set_xlabel(labels["output"][0])
+                self.ax_output.set_ylabel(labels["output"][1])
+            else:
+                self.ax_output.set_xlabel(output_names[0])
+                self.ax_output.set_ylabel(output_names[1])
+            if "output" in aspects:
+                self.ax_output.set_aspect(aspects["output"])
 
         # Make a rectangle for the Exact boundaries
         sampled_outputs = self.get_sampled_outputs(input_range, propagator)

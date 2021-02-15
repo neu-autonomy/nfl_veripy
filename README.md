@@ -1,5 +1,5 @@
 ### About
-This repository provides Analyzer, Propagator, and Partitioner classes from the CORL '20 submission.
+This repository provides Analyzer, Propagator, and Partitioner classes from the LCSS/ACC '21 paper.
 We import `auto_LIRPA`, `crown_ibp` and `robust_sdp` codebases from open source repositories (as Git submodules) and implement `Partitioner` methods from Xiang '17 and Xiang '20 in Python (open source implementation is in Matlab), along with our own methods from the paper.
 
 ### Get the code
@@ -25,7 +25,78 @@ Now you can import things like:
 >>> import crown_ibp.bound_layers
 ```
 
-## Reproduce Figures from Paper
+## Reproduce Figures from LCSS/ACC 2021 Paper
+
+### Figure 4
+
+Figure 4a (Lower Bounds):
+```bash
+python -m partition.Analyzer \
+	--partitioner GreedySimGuided \
+	--propagator CROWN_LIRPA \
+	--term_type time_budget \
+	--term_val 2 \
+	--interior_condition lower_bnds \
+	--model random_weights \
+	--activation relu \
+	--show_input True
+```
+![Fig. 4a](docs/_static/random_weights_relu_GreedySimGuided_CROWN_LIRPA_interior_condition_lower_bnds_num_simulations_10000.0_termination_condition_type_time_budget_termination_condition_value_2.0.png)
+
+Figure 4b (Linf Ball):
+```bash
+python -m partition.Analyzer \
+	--partitioner GreedySimGuided \
+	--propagator CROWN_LIRPA \
+	--term_type time_budget \
+	--term_val 2 \
+	--interior_condition linf \
+	--model random_weights \
+	--activation relu \
+	--show_input True
+```
+![Fig. 4b](docs/_static/analyzer/random_weights_relu_GreedySimGuided_CROWN_LIRPA_interior_condition_linf_num_simulations_10000.0_termination_condition_type_time_budget_termination_condition_value_2.0.png)
+
+Figure 4c (Convex Hull):
+```bash
+python -m partition.Analyzer \
+	--partitioner GreedySimGuided \
+	--propagator CROWN_LIRPA \
+	--term_type time_budget \
+	--term_val 2 \
+	--interior_condition convex_hull \
+	--model random_weights \
+	--activation relu \
+	--show_input True
+```
+![Fig. 4c](docs/_static/analyzer/random_weights_relu_GreedySimGuided_CROWN_LIRPA_interior_condition_convex_hull_num_simulations_10000.0_termination_condition_type_time_budget_termination_condition_value_2.0.png)
+
+### Figure 6
+
+```bash
+python -m partition.Analyzer \
+	--partitioner SimGuided \
+	--propagator IBP_LIRPA \
+	--term_type time_budget \
+	--term_val 2 \
+	--interior_condition conv_hull \
+	--model robot_arm \
+	--activation tanh
+```
+
+```bash
+python -m partition.Analyzer \
+	--partitioner AdaptiveSimGuided \
+	--propagator CROWN_LIRPA \
+	--term_type time_budget \
+	--term_val 2 \
+	--interior_condition conv_hull \
+	--model robot_arm \
+	--activation tanh
+```
+
+
+---
 
 ### Figure 4
 To reproduce this figure, please run:

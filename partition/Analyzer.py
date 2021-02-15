@@ -4,6 +4,7 @@ from matplotlib.patches import Rectangle
 from partition.network_utils import get_sampled_outputs, samples_to_range
 import os
 import time
+import argparse
 
 plt.rcParams['mathtext.fontset'] = 'stix'
 plt.rcParams['font.family'] = 'STIXGeneral'
@@ -68,12 +69,12 @@ class Analyzer:
         output_range, info = self.partitioner.get_output_range(input_range, self.propagator)
         return output_range, info
 
-    def visualize(self, input_range, output_range_estimate, show=True, show_samples=True, show_legend=True, show_input=True, show_output=True, title=None, **kwargs):
+    def visualize(self, input_range, output_range_estimate, show=True, show_samples=True, show_legend=True, show_input=True, show_output=True, title=None, labels={}, **kwargs):
         # sampled_outputs = self.get_sampled_outputs(input_range)
         # output_range_exact = self.samples_to_range(sampled_outputs)
 
         self.partitioner.setup_visualization(input_range, output_range_estimate, self.propagator, show_samples=show_samples, inputs_to_highlight=kwargs.get('inputs_to_highlight', None), outputs_to_highlight=kwargs.get('outputs_to_highlight', None),
-            show_input=show_input, show_output=show_output)
+            show_input=show_input, show_output=show_output, labels=labels)
         self.partitioner.visualize(kwargs.get("exterior_partitions", kwargs.get("all_partitions", [])), kwargs.get("interior_partitions", []), output_range_estimate,
             show_input=show_input, show_output=show_output)
 
@@ -121,6 +122,40 @@ if __name__ == '__main__':
 
     np.random.seed(seed=0)
 
+    parser = argparse.ArgumentParser(description='Analyze a NN.')
+    parser.add_argument('--model', default='robot_arm',
+                        help='which NN to analyze (default: robot_arm)')
+    parser.add_argument('--activation', default='tanh',
+                        help='nonlinear activation fn in NN (default: tanh)')
+    parser.add_argument('--partitioner', default='GreedySimGuided',
+                        help='which partitioner to use (default: GreedySimGuided)')
+    parser.add_argument('--propagator', default='CROWN_LIRPA',
+                        help='which propagator to use (default: CROWN_LIRPA)')
+    parser.add_argument('--term_type', default='time_budget',
+                        help='type of condition to terminate (default: time_budget)')
+    parser.add_argument('--term_val', default=2., type=float,
+                        help='value of condition to terminate (default: 2)')
+    parser.add_argument('--interior_condition', default='lower_bnds',
+                        help='type of bound to optimize for (default: lower_bnds)')
+    parser.add_argument('--num_simulations', default=1e4,
+                        help='how many MC samples to begin with (default: 1e4)')
+    parser.add_argument('--save_plot', default=True, type=bool,
+                        help='whether to save the visualization (default: True)')
+    parser.add_argument('--show_plot', default=False, type=bool,
+                        help='whether to show the visualization (default: False)')
+    parser.add_argument('--show_input', default=False, type=bool,
+                        help='whether to show the input partition in the plot (default: False)')
+    parser.add_argument('--input_plot_labels', default=["Input", None], type=list,
+                        help='x and y labels on input partition plot (default: ["Input", None])')
+    parser.add_argument('--output_plot_labels', default=["Output", None], type=list,
+                        help='x and y labels on output partition plot (default: ["Output", None])')
+    parser.add_argument('--input_plot_aspect', default="auto",
+                        help='aspect ratio on input partition plot (default: auto)')
+    parser.add_argument('--output_plot_aspect', default="auto",
+                        help='aspect ratio on output partition plot (default: auto)')
+
+    args = parser.parse_args()
+
     # Choose experiment settings
     ##############
     # LSTM
@@ -163,26 +198,23 @@ if __name__ == '__main__':
     ##############
     # Simple FF network
     ###############
-    torch_model, model_info = model_xiang_2020_robot_arm()
-    input_range = np.array([ # (num_inputs, 2)
-                      [np.pi/3, 2*np.pi/3], # x0min, x0max
-                      [np.pi/3, 2*np.pi/3], # x1min, x1max
-    ])
+    if args.model == 'robot_arm':
+        torch_model, model_info = model_xiang_2020_robot_arm(activation=args.activation)
+        input_range = np.array([ # (num_inputs, 2)
+                          [np.pi/3, 2*np.pi/3], # x0min, x0max
+                          [np.pi/3, 2*np.pi/3], # x1min, x1max
+        ])
+    elif args.model == 'random_weights':
+         neurons = [2,50,2]
+         torch_model, model_info = random_model(activation=args.activation, neurons=neurons, seed=0)
+         input_range = np.zeros((model_info['model_neurons'][0],2))
+         input_range[:,1] = 1.
+    else:
+        raise NotImplementedError
 
-   # neurons = [2,50,2]
-   # torch_model, model_info = random_model(activation='relu', neurons=neurons, seed=0)
-   # input_range = np.zeros((model_info['model_neurons'][0],2))
-  #  input_range[:,1] = 1.
-
-    # partitioner = "Uniform"
-    # partitioner_hyperparams = {"num_partitions": [4,4,1,1,1]}
     partitioner_hyperparams = {
-        "num_simulations": int(10000),
-        # "type": "Uniform",
-        "type": "SimGuided",
-      #  "type": "GreedySimGuided",
-        "type": "AdaptiveSimGuided",
-        # "type": "UnGuided",
+        "num_simulations": args.num_simulations,
+        "type": args.partitioner,
 
         # "termination_condition_type": "verify",
         # "termination_condition_value": [np.array([1., 0.]), np.array([100.])],
@@ -194,27 +226,19 @@ if __name__ == '__main__':
       #   "termination_condition_type": "pct_improvement",
        #  "termination_condition_value": 0.001,
        
-       "termination_condition_type": "time_budget",
+       "termination_condition_type": args.term_type,
+        "termination_condition_value": args.term_val,
 
        #  "termination_condition_type": "pct_error",
-        "termination_condition_value": 2,
         # "num_partitions": 1,
 
-        "interior_condition": "lower_bnds",
-        "interior_condition": "linf",
-        "interior_condition": "convex_hull",
-      #  "interior_condition": "linf",
-     #   "interior_condition": "lower_bnds",
+        "interior_condition": args.interior_condition,
         "make_animation": False,
         "show_animation": False,
         # "show_output": False,
     }
     propagator_hyperparams = {
-       "type": "IBP_LIRPA",
-       "type": "CROWN_LIRPA",
-     # "type": "FastLin_LIRPA",
-
-    
+        "type": args.propagator,
         "input_shape": input_range.shape[:-1],
     }
 
@@ -223,11 +247,9 @@ if __name__ == '__main__':
     analyzer.partitioner = partitioner_hyperparams
     analyzer.propagator = propagator_hyperparams
     t_start = time.time()
-   # print( input_range)
     output_range, analyzer_info = analyzer.get_output_range(input_range)
     t_end = time.time()
     computation_time = t_end - t_start
-  #  print(analyzer_info)
     np.random.seed(seed=0)
    # output_range_exact = analyzer.get_exact_output_range(input_range)
     #if analyzer.partitioner["interior_condition"] == "convex_hull":
@@ -256,19 +278,22 @@ if __name__ == '__main__':
     print("Number of iteration :",analyzer_info["num_iteration"] )
     print("Error (inloop) :",analyzer_info["estimation_error"] )
   #  print(output_range , analyzer_info["estimated_hull"] )
-    pars = '_'.join([str(key)+"_"+str(value) for key, value in sorted(partitioner_hyperparams.items(), key=lambda kv: kv[0]) if key not in ["make_animation", "show_animation", "type"]])
-    pars2 = '_'.join([str(key)+"_"+str(value) for key, value in sorted(propagator_hyperparams.items(), key=lambda kv: kv[0]) if key not in ["input_shape", "type"]])
-   # analyzer_info["save_name"] = save_dir+partitioner_hyperparams['type']+"_"+propagator_hyperparams['type']+"_"+pars+"_"+pars2+".pdf"
-    analyzer_info["save_name"] = save_dir+partitioner_hyperparams['type']+"_"+propagator_hyperparams["type"]+"_"+partitioner_hyperparams["interior_condition"]+"_robotic_arm"+"boundary.pdf"
 
-    #title = "# Partitions: {}, Error: {}".format(str(analyzer_info['num_partitions']), str(round(error, 3)))
-   # analyzer.visualize(input_range, output_range, show_legend=False, show_input=True, show_output=True, title=title, **analyzer_info)
- #   title = "# Partitions: {}, Error: {}".format(str(analyzer_info["num_partitions"]), str(round(error, 3)))
-   
-    figure_save_dir = "{}/results/tmp/".format(os.path.dirname(os.path.abspath(__file__)))
-
-    #analyzer.visualize(input_range, output_range, show=False, show_samples=True, show_legend =False, show_input=False, show_output=True, title=None, **analyzer_info)
-
-  #  plt.savefig(figure_save_dir+partitioner_hyperparams["type"]+"+"+propagator_hyperparams["type"]+partitioner_hyperparams["termination_condition_type"]+"_robotic_arm"+".png")
+    if args.save_plot:
+        # Ugly logic to embed parameters in filename:
+        pars = '_'.join([str(key)+"_"+str(value) for key, value in sorted(partitioner_hyperparams.items(), key=lambda kv: kv[0]) if key not in ["make_animation", "show_animation", "type"]])
+        pars2 = '_'.join([str(key)+"_"+str(value) for key, value in sorted(propagator_hyperparams.items(), key=lambda kv: kv[0]) if key not in ["input_shape", "type"]])
+        model_str = args.model + '_' + args.activation + '_'
+        analyzer_info["save_name"] = save_dir+model_str+partitioner_hyperparams['type']+"_"+propagator_hyperparams['type']+"_"+pars
+        if len(pars2) > 0:
+            analyzer_info["save_name"] = analyzer_info["save_name"] + "_" + pars2
+        analyzer_info["save_name"] = analyzer_info["save_name"] + ".png"
+        
+        # Plot settings
+        labels = {"input": args.input_plot_labels, "output": args.output_plot_labels}
+        aspects = {"input": args.input_plot_aspect, "output": args.output_plot_aspect}
+        
+        # Generate the plot & save
+        analyzer.visualize(input_range, output_range, show=args.show_plot, show_samples=True, show_legend=False, show_input=args.show_input, show_output=True, title=None, labels=labels, aspects=aspects, **analyzer_info)
     
     print("done.")
