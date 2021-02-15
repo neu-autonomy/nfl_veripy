@@ -34,7 +34,7 @@ TODOS:
 - [ ] Replicate Table 6b
 - [ ] Replicate Table I
 - [ ] get animation working
-- [ ] Choices in analyzer argparse
+- [x] Choices in analyzer argparse
 - [ ] add rtdocs
 - [x] move partitioners, propagators to separate dirs
 - [x] move cartpole, pend, quadrotor files elsewhere

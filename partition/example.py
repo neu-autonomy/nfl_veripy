@@ -6,24 +6,28 @@ import time
 import os
 
 if __name__ == '__main__':
-    # Import all deps
-
     np.random.seed(seed=0)
 
     parser = argparse.ArgumentParser(description='Analyze a NN.')
     parser.add_argument('--model', default='robot_arm',
+                        choices=["robot_arm", "random_weights"],
                         help='which NN to analyze (default: robot_arm)')
     parser.add_argument('--activation', default='tanh',
+                        choices=["tanh", "sigmoid", "relu"],
                         help='nonlinear activation fn in NN (default: tanh)')
     parser.add_argument('--partitioner', default='GreedySimGuided',
+                        choices=["None", "Uniform", "SimGuided", "GreedySimGuided", "AdaptiveGreedySimGuided", "UnGuided"],
                         help='which partitioner to use (default: GreedySimGuided)')
     parser.add_argument('--propagator', default='CROWN_LIRPA',
+                        choices=["IBP", "CROWN", "CROWN_LIRPA", "IBP_LIRPA", "CROWN-IBP_LIRPA", "FastLin_LIRPA", "Exhaustive_LIRPA", "SDP"],
                         help='which propagator to use (default: CROWN_LIRPA)')
     parser.add_argument('--term_type', default='time_budget',
+                        choices=["time_budget", "verify", "input_cell_size", "num_propagator_calls", "pct_improvement", "pct_error"],
                         help='type of condition to terminate (default: time_budget)')
     parser.add_argument('--term_val', default=2., type=float,
                         help='value of condition to terminate (default: 2)')
     parser.add_argument('--interior_condition', default='lower_bnds',
+                        choices=["lower_bnds", "linf", "convex_hull"],
                         help='type of bound to optimize for (default: lower_bnds)')
     parser.add_argument('--num_simulations', default=1e4,
                         help='how many MC samples to begin with (default: 1e4)')
@@ -53,54 +57,15 @@ if __name__ == '__main__':
     parser.add_argument('--output_plot_labels', metavar='N', default=["Output", None], type=str, nargs='+',
                         help='x and y labels on output partition plot (default: ["Output", None])')
     parser.add_argument('--input_plot_aspect', default="auto",
+                        choices=["auto", "equal"],
                         help='aspect ratio on input partition plot (default: auto)')
     parser.add_argument('--output_plot_aspect', default="auto",
+                        choices=["auto", "equal"],
                         help='aspect ratio on output partition plot (default: auto)')
 
     args = parser.parse_args()
 
-    # Choose experiment settings
-    ##############
-    # LSTM
-    ###############
-    # ## A disastrous hack...
-    # import sys, os, auto_LiRPA
-    # sequence_path = os.path.dirname(os.path.dirname(auto_LiRPA.__file__))+'/examples/sequence'
-    # sys.path.append(sequence_path)
-    # from lstm import LSTM
-    # import argparse
-    # parser = argparse.ArgumentParser()
-    # parser.add_argument("--seed", type=int, default=0)
-    # parser.add_argument("--device", type=str, default="cpu", choices=["cuda", "cpu"])
-    # parser.add_argument("--norm", type=int, default=2)
-    # parser.add_argument("--eps", type=float, default=0.1)
-    # parser.add_argument("--num_epochs", type=int, default=20)  
-    # parser.add_argument("--batch_size", type=int, default=128)
-    # parser.add_argument("--num_slices", type=int, default=8)
-    # parser.add_argument("--hidden_size", type=int, default=64)
-    # parser.add_argument("--num_classes", type=int, default=10) 
-    # parser.add_argument("--input_size", type=int, default=784)
-    # parser.add_argument("--lr", type=float, default=5e-3)
-    # parser.add_argument("--dir", type=str, default=sequence_path+"/model", help="directory to load or save the model")
-    # parser.add_argument("--num_epochs_warmup", type=int, default=1, help="number of epochs for the warmup stage when eps is linearly increased from 0 to the full value")
-    # parser.add_argument("--log_interval", type=int, default=10, help="interval of printing the log during training")
-    # args = parser.parse_args()   
-    # torch_model = LSTM(args).to(args.device)
-    # input_shape = (8,98)
-    # input_range = np.zeros(input_shape+(2,))
-    # input_range[-1,0:1,1] = 0.01
-    # num_partitions = np.ones(input_shape, dtype=int)
-    # partitioner = "SimGuided"
-    # partitioner_hyperparams = {"tolerance_eps": 0.001}
-    # # partitioner = "Uniform"
-    # # num_partitions[-1,0] = 4
-    # # partitioner_hyperparams = {"num_partitions": num_partitions}
-    # propagator = "IBP (LIRPA)"
-    # propagator_hyperparams = {}
-
-    ##############
-    # Simple FF network
-    ###############
+    # Setup NN
     if args.model == 'robot_arm':
         torch_model, model_info = model_xiang_2020_robot_arm(activation=args.activation)
         input_range = np.array([ # (num_inputs, 2)
@@ -118,7 +83,7 @@ if __name__ == '__main__':
     partitioner_hyperparams = {
         "num_simulations": args.num_simulations,
         "type": args.partitioner,
-        "termination_condition_type": args.term_type, # other options: ["verify", "input_cell_size", "num_propagator_calls", "pct_improvement", "pct_error"]
+        "termination_condition_type": args.term_type,
         "termination_condition_value": args.term_val,
         "interior_condition": args.interior_condition,
         "make_animation": False,
@@ -166,6 +131,8 @@ if __name__ == '__main__':
     print("Error (inloop) :",analyzer_info["estimation_error"] )
   #  print(output_range , analyzer_info["estimated_hull"] )
 
+
+    # Generate a visualization of the input/output mapping
     if args.save_plot:
         save_dir = "{}/../results/analyzer/".format(os.path.dirname(os.path.abspath(__file__)))
         os.makedirs(save_dir, exist_ok=True)
