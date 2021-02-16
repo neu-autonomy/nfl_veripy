@@ -1,9 +1,9 @@
 [submodule "crown_ibp"]
 	path = crown_ibp
-	url = git@gitlab.com:mit-acl/ford_ugvs/crown_ibp.git
+	url = https://gitlab.com/mit-acl/ford_ugvs/crown_ibp.git
 [submodule "RobustNN"]
 	path = robust_sdp
-	url = git@gitlab.com:mit-acl/ford_ugvs/robust_sdp.git
+	url = https://gitlab.com/mit-acl/ford_ugvs/robust_sdp.git
 [submodule "auto_LiRPA"]
 	path = auto_LiRPA
 	url = https://github.com/KaidiXu/auto_LiRPA.git
