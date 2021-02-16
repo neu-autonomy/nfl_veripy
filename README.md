@@ -119,7 +119,7 @@ For the closed-loop system analysis code (ICRA '21 subm.):
 - [x] Replicate ICRA Fig 3b individuals + table
 - [x] Replicate ICRA Fig 4b individuals
 - [x] Replicate ICRA Fig 5
-- [ ] publish crown_ibp, auto-Lirpa forks
+- [x] publish crown_ibp, auto-Lirpa forks
 - [ ] setup ci and simple tests to run the various expts
 - [x] add citation to papers, add description of repo to top of readme
 - [x] add license & copyright?
