@@ -8,8 +8,9 @@ from nn_closed_loop.utils.utils import init_state_range_to_polytope
 import torch
 
 class ClosedLoopSDPPropagator(ClosedLoopPropagator):
-    def __init__(self, input_shape=None, dynamics=None):
+    def __init__(self, input_shape=None, dynamics=None, cvxpy_solver="default"):
         ClosedLoopPropagator.__init__(self, input_shape=input_shape, dynamics=dynamics)
+        self.cvxpy_solver = cvxpy_solver
 
     def torch2network(self, torch_model):
         return torch_model
@@ -86,7 +87,11 @@ class ClosedLoopSDPPropagator(ClosedLoopPropagator):
                 objective = cp.Minimize(-cp.log_det(A))
 
             prob = cp.Problem(objective, constrs)
-            prob.solve(verbose=False, solver=cp.MOSEK)
+            
+            solver_args = {"verbose": False}
+            if self.cvxpy_solver == "MOSEK":
+                solver_args["solver"] = cp.MOSEK
+            prob.solve(**solver_args)
             # print("status:", prob.status)
             bs[i] = b_i.value
 

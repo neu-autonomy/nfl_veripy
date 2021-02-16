@@ -12,7 +12,7 @@ python -m nn_closed_loop.example \
 	--t_max 5 \
 	--save_plot --skip_show_plot
 ```
-Note: If SDP isn't working, consider using a different solver and/or making it verbose (look for `prob.solve(verbose=False, solver=cp.MOSEK)` in `ClosedLoopSDPPropagator`).
+Note: If SDP isn't working, consider using a different solver and/or making it verbose (look for `prob.solve(**solver_args)` in `ClosedLoopSDPPropagator`). If you have MOSEK installed, you could add the arg `--cvxpy_solver MOSEK` to use it, as the example script uses cvxpy's default solver as is.
 
 Reach-SDP-Partition (Final Step Error: `19.35`):
 ```bash

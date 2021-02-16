@@ -53,6 +53,7 @@ def main(args):
         "type": args.propagator,
         "input_shape": init_state_range.shape[:-1],
     }
+    if args.propagator == "SDP": propagator_hyperparams["cvxpy_solver"] = args.cvxpy_solver
 
     # Set up analyzer (+ parititoner + propagator)
     analyzer = analyzers.ClosedLoopAnalyzer(controller, dyn)
@@ -120,6 +121,9 @@ if __name__ == '__main__':
     parser.add_argument('--output_feedback', dest='state_feedback', action='store_false')
     parser.set_defaults(state_feedback=True)
 
+    parser.add_argument('--cvxpy_solver', default='default',
+                        choices=["MOSEK", "default"],
+                        help='which solver to use with cvxpy (default: default)')
     parser.add_argument('--partitioner', default='Uniform',
                         choices=["None", "Uniform"],
                         help='which partitioner to use (default: Uniform)')
