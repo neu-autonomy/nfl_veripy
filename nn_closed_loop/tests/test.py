@@ -2,6 +2,7 @@ import unittest
 import os
 from importlib import reload, import_module
 import subprocess
+import shlex
 
 EPS = 1e-6
 
@@ -9,7 +10,7 @@ class TestSum(unittest.TestCase):
 
     def check_if_cmd_runs(self, command):
         # Check that code runs without error
-        output = subprocess.run(command.split())
+        output = subprocess.run(shlex.split(command, posix=True))
         self.assertEqual(output.returncode, 0)
 
     def test_fig3_reach_sdp(self):
@@ -43,7 +44,7 @@ class TestSum(unittest.TestCase):
         self.check_if_cmd_runs(command)
 
     def test_fig4b(self):
-        command = "python -m nn_closed_loop.example \
+        command = 'python -m nn_closed_loop.example \
                     --partitioner None \
                     --propagator CROWN \
                     --system double_integrator \
@@ -52,8 +53,8 @@ class TestSum(unittest.TestCase):
                     --save_plot --skip_show_plot \
                     --boundaries polytope \
                     --num_polytope_facets 8 \
-                    --init_state_range '[[-2., -1.5], [0.4, 0.8]]' \
-                    --save_plot --skip_show_plot"
+                    --init_state_range "[[-2., -1.5], [0.4, 0.8]]" \
+                    --save_plot --skip_show_plot'
         self.check_if_cmd_runs(command)
 
     def test_fig5a(self):

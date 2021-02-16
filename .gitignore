@@ -14,6 +14,9 @@ torch_model
 tmp.txt
 partition/results
 
+# autoLiRPA pre-computes tanh/sigmoid stuff and saves a /tmp/tanh.pkl
+/tmp
+
 results/
 
 /models
