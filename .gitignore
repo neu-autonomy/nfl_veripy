@@ -4,7 +4,7 @@
 *.swp
 __pycache__
 data
-*.h5
+# *.h5
 *.hdf5
 *.egg-info
 *.DS_Store

@@ -7,7 +7,7 @@ Reach-SDP (Final Step Error: `206`):
 python -m nn_closed_loop.example \
 	--partitioner None \
 	--propagator SDP \
-	--system double_integrator_mpc \
+	--system double_integrator \
 	--state_feedback \
 	--t_max 5 \
 	--save_plot --skip_show_plot
@@ -19,7 +19,7 @@ Reach-SDP-Partition (Final Step Error: `19.35`):
 python -m nn_closed_loop.example \
 	--partitioner Uniform \
 	--propagator SDP \
-	--system double_integrator_mpc \
+	--system double_integrator \
 	--state_feedback \
 	--t_max 5 \
 	--save_plot --skip_show_plot
@@ -30,7 +30,7 @@ Reach-LP (Final Step Error: `848`):
 python -m nn_closed_loop.example \
 	--partitioner None \
 	--propagator CROWN \
-	--system double_integrator_mpc \
+	--system double_integrator \
 	--state_feedback \
 	--t_max 5 \
 	--save_plot --skip_show_plot
@@ -41,7 +41,7 @@ Reach-LP-Partition (Final Step Error: `19.87`):
 python -m nn_closed_loop.example \
 	--partitioner Uniform \
 	--propagator CROWN \
-	--system double_integrator_mpc \
+	--system double_integrator \
 	--state_feedback \
 	--t_max 5 \
 	--save_plot --skip_show_plot
@@ -60,7 +60,7 @@ For Fig. 4b, use a polytope description of the reachable sets with different num
 python -m nn_closed_loop.example \
 	--partitioner None \
 	--propagator CROWN \
-	--system double_integrator_mpc \
+	--system double_integrator \
 	--state_feedback \
 	--t_max 4 \
 	--save_plot --skip_show_plot \
