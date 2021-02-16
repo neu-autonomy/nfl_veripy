@@ -4,7 +4,7 @@
 
 Figure 4a (Lower Bounds):
 ```bash
-python -m partition.example \
+python -m nn_partition.example \
 	--partitioner GreedySimGuided \
 	--propagator CROWN_LIRPA \
 	--term_type time_budget \
@@ -17,7 +17,7 @@ python -m partition.example \
 
 Figure 4b (Linf Ball):
 ```bash
-python -m partition.example \
+python -m nn_partition.example \
 	--partitioner GreedySimGuided \
 	--propagator CROWN_LIRPA \
 	--term_type time_budget \
@@ -31,7 +31,7 @@ python -m partition.example \
 
 Figure 4c (Convex Hull):
 ```bash
-python -m partition.example \
+python -m nn_partition.example \
 	--partitioner GreedySimGuided \
 	--propagator CROWN_LIRPA \
 	--term_type time_budget \
@@ -51,7 +51,7 @@ Lower Bounds | Linf Ball | Convex Hull
 
 Figure 5a (SG+IBP):
 ```bash
-python -m partition.example \
+python -m nn_partition.example \
 	--partitioner SimGuided \
 	--propagator IBP_LIRPA \
 	--term_type time_budget \
@@ -66,7 +66,7 @@ python -m partition.example \
 
 Figure 5b (SG+CROWN):
 ```bash
-python -m partition.example \
+python -m nn_partition.example \
 	--partitioner SimGuided \
 	--propagator CROWN_LIRPA \
 	--term_type time_budget \
@@ -81,7 +81,7 @@ python -m partition.example \
 
 Figure 5c (GSG+CROWN):
 ```bash
-python -m partition.example \
+python -m nn_partition.example \
 	--partitioner GreedySimGuided \
 	--propagator CROWN_LIRPA \
 	--term_type time_budget \
@@ -96,7 +96,7 @@ python -m partition.example \
 
 Figure 5d (GSG+CROWN):
 ```bash
-python -m partition.example \
+python -m nn_partition.example \
 	--partitioner AdaptiveGreedySimGuided \
 	--propagator CROWN_LIRPA \
 	--term_type time_budget \
@@ -119,7 +119,7 @@ SG+IBP | SG+CROWN | GSG+IBP | GSG+CROWN
 
 Figure 6a (SG+IBP):
 ```bash
-python -m partition.example \
+python -m nn_partition.example \
 	--partitioner SimGuided \
 	--propagator IBP_LIRPA \
 	--term_type time_budget \
@@ -134,7 +134,7 @@ python -m partition.example \
 
 Figure 6b (AGSG+CROWN):
 ```bash
-python -m partition.example \
+python -m nn_partition.example \
 	--partitioner AdaptiveGreedySimGuided \
 	--propagator CROWN_LIRPA \
 	--term_type time_budget \

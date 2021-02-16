@@ -2,7 +2,7 @@
 
 This repository provides Python implementations for the robustness analysis tools in some of our recent papers.
 
-#### `partition`
+#### `nn_partition`
 
 Michael Everett and Golnaz Habibi and Jonathan P. How, ["Robustness Analysis of Neural Networks via Efficient Partitioning with Applications in Control Systems"](https://doi.org/10.1109/LCSYS.2020.3045323), IEEE LCSS 2020 & ACC 2021.
 
@@ -10,12 +10,12 @@ We introduce the concepts of `Analyzer`, `Propagator`, and `Partitioner` in our 
 This modular view on NN robustness analysis essentially defines an API that decouples each component.
 This decoupling enables improvements in either `Propagator` or `Partitioner` algorithms to have a wide impact across many analysis/verification problems.
 
-#### `closed_loop`
+#### `nn_closed_loop`
 
 Michael Everett and Golnaz Habibi and Jonathan P. How, ["Efficient Reachability Analysis for Closed-Loop Systems with Neural Network Controllers"](https://arxiv.org/pdf/2101.01815.pdf), ICRA 2021 (in review).
 
 Since NNs are rarely deployed in isolation, we developed a framework for analyzing closed-loop systems that employ NN control policies.
-The `closed_loop` codebase follows a similar API as the `partition` package, leveraging analogous `ClosedLoopAnalyzer`, `ClosedLoopPropagator` and `ClosedLoopPartitioner` concepts.
+The `nn_closed_loop` codebase follows a similar API as the `nn_partition` package, leveraging analogous `ClosedLoopAnalyzer`, `ClosedLoopPropagator` and `ClosedLoopPartitioner` concepts.
 The typical problem statement is: given a known initial state set (and a known dynamics model), compute bounds on the reachable sets for N steps into the future.
 These bounds provide a safety guarantee for autonomous systems employing NN controllers, as they guarantee that the system will never enter parts of the state space outside of the reachable set bounds.
 
@@ -43,7 +43,7 @@ source venv/bin/activate
 
 Install the various python packages in this repo:
 ```bash
-python -m pip install -e crown_ibp auto_LIRPA robust_sdp partition closed_loop
+python -m pip install -e crown_ibp auto_LIRPA robust_sdp nn_partition nn_closed_loop
 ```
 
 You're good to go!
@@ -52,7 +52,7 @@ You're good to go!
 
 Try running a simple example where the Analyzer computes bounds on the NN output (given bounds on the NN input):
 ```bash
-python -m partition.example \
+python -m nn_partition.example \
 	--partitioner GreedySimGuided \
 	--propagator CROWN_LIRPA \
 	--term_type time_budget \
@@ -65,7 +65,7 @@ python -m partition.example \
 
 Or, compute reachable sets for a closed-loop system with a pre-trained NN control policy:
 ```bash
-python -m closed_loop.example \
+python -m nn_closed_loop.example \
 	--partitioner None \
 	--propagator CROWN \
 	--system double_integrator_mpc \
