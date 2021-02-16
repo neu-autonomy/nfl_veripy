@@ -4,11 +4,18 @@ variables:
 test_partition:
   image: python:3.6
   script:
-    - python -m pip install -e crown_ibp auto_LIRPA robust_sdp nn_partition
+    - python -m pip install -e crown_ibp
+    - python -m pip install -e auto_LIRPA
+    - python -m pip install -e robust_sdp
+    - python -m pip install -e nn_partition
     - python -m nn_partition.tests.test
 
 test_closed_loop:
   image: python:3.6
   script:
-    - python -m pip install -e crown_ibp auto_LIRPA robust_sdp nn_partition nn_closed_loop
+    - python -m pip install -e crown_ibp
+    - python -m pip install -e auto_LIRPA
+    - python -m pip install -e robust_sdp
+    - python -m pip install -e nn_partition
+    - python -m pip install -e nn_closed_loop
     - python -m nn_closed_loop.tests.test

@@ -43,7 +43,11 @@ source venv/bin/activate
 
 Install the various python packages in this repo:
 ```bash
-python -m pip install -e crown_ibp auto_LIRPA robust_sdp nn_partition nn_closed_loop
+python -m pip install -e crown_ibp 
+python -m pip install -e auto_LIRPA
+python -m pip install -e robust_sdp
+python -m pip install -e nn_partition
+python -m pip install -e nn_closed_loop
 ```
 
 You're good to go!
