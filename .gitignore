@@ -10,7 +10,7 @@ data
 *.DS_Store
 *.ipynb_checkpoints/
 
-*/torch_model
+torch_model
 tmp.txt
 partition/results
 
