@@ -1,0 +1,14 @@
+variables:
+  GIT_SUBMODULE_STRATEGY: recursive
+
+test_partition:
+  image: python:3.5
+  script:
+    - python -m pip install crown_ibp auto_LIRPA robust_sdp nn_partition
+    - python -m nn_partition.tests.test
+
+test_closed_loop:
+  image: python:3.5
+  script:
+    - python -m pip install crown_ibp auto_LIRPA robust_sdp nn_partition nn_closed_loop
+    - python -m nn_closed_loop.tests.test
