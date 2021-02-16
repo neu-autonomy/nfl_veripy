@@ -19,19 +19,27 @@ def main(args):
             dyn = dynamics.DoubleIntegrator()
         else:
             dyn = dynamics.DoubleIntegratorOutputFeedback()
-        init_state_range = np.array([ # (num_inputs, 2)
-                        [2.5, 3.0], # x0min, x0max
-                        [-0.25, 0.25], # x1min, x1max
-        ])
+        if args.init_state_range is None:
+            init_state_range = np.array([ # (num_inputs, 2)
+                            [2.5, 3.0], # x0min, x0max
+                            [-0.25, 0.25], # x1min, x1max
+            ])
+        else:
+            import ast
+            init_state_range = np.array(ast.literal_eval(args.init_state_range))
     elif args.system == 'quadrotor':
         if args.state_feedback:
             dyn = dynamics.Quadrotor()
         else:
             dyn = dynamics.QuadrotorOutputFeedback()
+        if args.init_state_range is None:
             init_state_range = np.array([ # (num_inputs, 2)
                 [4.65,4.65,2.95,0.94,-0.01,-0.01],
                 [4.75,4.75,3.05,0.96,0.01,0.01]
             ]).T
+        else:
+            import ast
+            init_state_range = np.array(ast.literal_eval(args.init_state_range))
     else:
         raise NotImplementedError
 
@@ -54,7 +62,7 @@ def main(args):
     # Set up initial state set (and placeholder for reachable sets)
     if args.boundaries == "polytope":
         A_inputs, b_inputs = init_state_range_to_polytope(init_state_range)
-        if system == 'quadrotor': A_out = A_inputs
+        if args.system == 'quadrotor': A_out = A_inputs
         else: A_out = get_polytope_A(args.num_polytope_facets)
         input_constraint = constraints.PolytopeInputConstraint(A_inputs, b_inputs)
         output_constraint = constraints.PolytopeOutputConstraint(A_out)
@@ -80,18 +88,17 @@ def main(args):
 
     # Run analysis & generate a plot
     output_constraint, analyzer_info = analyzer.get_reachable_set(input_constraint, output_constraint, t_max=args.t_max)
-    error, avg_error = analyzer.get_error(input_constraint,output_constraint, t_max=args.t_max)
-    print('Final step approximation error:{:.2f}\nAverage approximation error: {:.2f}'.format(error, avg_error))
+    # error, avg_error = analyzer.get_error(input_constraint,output_constraint, t_max=args.t_max)
+    # print('Final step approximation error:{:.2f}\nAverage approximation error: {:.2f}'.format(error, avg_error))
 
     if args.save_plot:
         save_dir = "{}/../results/closed_loop/analyzer/".format(os.path.dirname(os.path.abspath(__file__)))
         os.makedirs(save_dir, exist_ok=True)
 
         # Ugly logic to embed parameters in filename:
-        pars = '_'.join([str(key)+"_"+str(value) for key, value in sorted(partitioner_hyperparams.items(), key=lambda kv: kv[0]) if key not in ["make_animation", "show_animation", "type"]])
+        pars = '_'.join([str(key)+"_"+str(value) for key, value in sorted(partitioner_hyperparams.items(), key=lambda kv: kv[0]) if key not in ["make_animation", "show_animation", "type", "num_partitions"]])
         pars2 = '_'.join([str(key)+"_"+str(value) for key, value in sorted(propagator_hyperparams.items(), key=lambda kv: kv[0]) if key not in ["input_shape", "type"]])
-        model_str = args.system + '_'
-        analyzer_info["save_name"] = save_dir+model_str+partitioner_hyperparams['type']+"_"+propagator_hyperparams['type']+"_"+pars
+        analyzer_info["save_name"] = save_dir+args.system+pars+"_"+partitioner_hyperparams['type']+"_"+propagator_hyperparams['type']+'_' + "tmax" + "_" + str(round(args.t_max,1)) + "_" + args.boundaries + "_" + str(args.num_polytope_facets)
         if len(pars2) > 0:
             analyzer_info["save_name"] = analyzer_info["save_name"] + "_" + pars2
         analyzer_info["save_name"] = analyzer_info["save_name"] + ".png"
@@ -105,6 +112,8 @@ if __name__ == '__main__':
     parser.add_argument('--system', default='double_integrator_mpc',
                         choices=["double_integrator_mpc", "quarotor"],
                         help='which system to analyze (default: double_integrator_mpc)')
+    parser.add_argument('--init_state_range', default=None,
+                        help='2*num_states values (default: None)')
     
     parser.add_argument('--state_feedback', dest='state_feedback', action='store_true',
                         help='whether to save the visualization')
