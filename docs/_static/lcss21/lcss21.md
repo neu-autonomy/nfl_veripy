@@ -153,20 +153,10 @@ SG+IBP | AGSG+CROWN
 ![Fig. 6a](docs/_static/lcss21/fig_6/robot_arm_tanh_SimGuided_IBP_LIRPA_interior_condition_convex_hull_num_simulations_10000.0_termination_condition_type_time_budget_termination_condition_value_2.0.png) | ![Fig. 6b](docs/_static/lcss21/fig_6/robot_arm_tanh_AdaptiveGreedySimGuided_CROWN_LIRPA_interior_condition_convex_hull_num_simulations_10000.0_termination_condition_type_time_budget_termination_condition_value_2.0.png)
 
 ### Figure 7
-This figure unfortunately requires code for the RL implementation that is under IP protection.
+
+This figure unfortunately requires code for the RL implementation that is under IP protection from our research sponsor.
 
 ### Figure 8
 
+Info coming soon...
 
----
-
-### Examples
-
-See the implementation of Xiang 2017 and Xiang 2020:
-```bash
-python -m partition.xiang
-```
-
-This will pop up with:
-- randomly initialized DNN & 25 uniform partitioned inputs (from Xiang 2017)
-- robot arm example using CROWN & IBP and Uniform & Simulation-Guided partitioning (from Xiang 2020)

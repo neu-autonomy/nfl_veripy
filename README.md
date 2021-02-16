@@ -22,13 +22,64 @@ Install the various python packages in this repo:
 python -m pip install -e crown_ibp auto_LIRPA robust_sdp partition closed_loop
 ```
 
+### Simple Examples
+
+You're good to go! Try running a simple example where the Analyzer computes bounds on the NN output (given bounds on the NN input):
+```bash
+python -m partition.example \
+	--partitioner GreedySimGuided \
+	--propagator CROWN_LIRPA \
+	--term_type time_budget \
+	--term_val 2 \
+	--interior_condition lower_bnds \
+	--model random_weights \
+	--activation relu \
+	--show_input --show_output --show_plot
+```
+
+Or, compute reachable sets for a closed-loop system with a pre-trained NN control policy:
+```bash
+python -m closed_loop.example \
+	--partitioner None \
+	--propagator CROWN \
+	--system double_integrator_mpc \
+	--state_feedback \
+	--t_max 5 \
+	--show_plot
+```
+
 ### Replicate plots from the papers:
 
 * LCSS/ACC '21: [README](docs/_static/lcss21/lcss21.md)
 * ICRA '21 (submission): [README](docs/_static/icra21/icra21.md)
 
+### If you find this code useful, please consider citing:
+For the partitioning-only code (LCSS/ACC '21):
+```
+@article{everett2020robustness,
+  title={Robustness Analysis of Neural Networks via Efficient Partitioning with Applications in Control Systems},
+  author={Everett, Michael and Habibi, Golnaz and How, Jonathan P},
+  journal={IEEE Control Systems Letters},
+  year={2020},
+  publisher={IEEE},
+  doi={10.1109/LCSYS.2020.3045323}
+}
+```
+
+For the closed-loop system analysis code (ICRA '21 subm.):
+```
+@inproceedings{Everett21_ICRA,
+    Author = {Michael Everett and Golnaz Habibi and Jonathan P. How},
+    Booktitle = {IEEE International Conference on Robotics and Automation (ICRA)},
+    Title = {Efficient Reachability Analysis for Closed-Loop Systems with Neural Network Controllers},
+    Year = {2021},
+    Pages = {(in review)},
+    Url = {https://arxiv.org/pdf/2101.01815.pdf},
+    }
+```
 
 ### TODOS:
+
 - [x] Choices in analyzer argparse
 - [x] move partitioners, propagators to separate dirs
 - [x] move cartpole, pend, quadrotor files elsewhere
@@ -63,37 +114,3 @@ Someday soon...
 - [ ] ICRA Fig 4b load correct model
 - [ ] ICRA Fig 5 axes names & spacings
 
----
-
-### Figure 6
-To reproduce this figure, please run:
-```bash
-python -m partition.experiments
-```
-This will iterate through combinations of `Partitioner`, `Propagator` and termination conditions and produce a timestamped `.pkl` file in `results` containing a `pandas` dataframe with the results.
-
-To plot the data from this dataframe (it should happen automatically by running `experiments.py`), comment out `df = experiment()` in `experiments.py` and it will just load the latest dataframe and plot it.
-You can switch which x axis to use with the argument of `plot()`.
-
----
-
-## Older stuff
-
-### getting julia code to work
-
-- Install julia via https://julialang.org/downloads
-- Be sure to create a pointer to the executable (https://julialang.org/downloads/platform/)
-```bash
-# For OSX:
-ln -s /Applications/Julia-<version>.app/Contents/Resources/julia/bin/julia /usr/local/bin/julia
-```
-- Install NeuralVerification.jl from Stanford's github
-```bash
-julia
-# Press `]`
-add https://github.com/sisl/NeuralVerification.jl
-```
-- Install pyjulia
-```bash
-python -m pip install julia
-```
