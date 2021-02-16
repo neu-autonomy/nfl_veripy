@@ -22,11 +22,10 @@ These bounds provide a safety guarantee for autonomous systems employing NN cont
 ---
 
 We build on excellent open-source repositories from the neural network analysis community. These repositories are imported as Git submodules or re-implemented in Python here, with some changes to reflect the slightly different problem statements:
-* `auto_LIRPA`
-* `crown_ibp`
+* [`auto_LIRPA`](https://github.com/KaidiXu/auto_LiRPA)
+* [`crown_ibp`](https://github.com/huanzhang12/CROWN-IBP)
 * [`robust_nn`](https://github.com/arobey1/RobustNN)
-* `nnv` (MATLAB implementation)
-
+* [`nnv`](https://github.com/verivital/nnv)
 
 ### Get the code
 
