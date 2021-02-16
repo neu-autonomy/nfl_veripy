@@ -44,41 +44,34 @@ def load_controller(name='double_integrator_mpc'):
 
 def load_data():
 
-    import pickle
-    with open('/Users/mfe/Downloads/dataset.pkl','rb') as f:
-        data = pickle.load(f)
+    # import pickle
+    # with open('/Users/mfe/Downloads/dataset.pkl','rb') as f:
+    #     data = pickle.load(f)
 
-    xs, us = data
-    us = np.expand_dims(us, axis=-1)
+    # xs, us = data
+    # us = np.expand_dims(us, axis=-1)
 
 
-    # import pandas as pd
+    import pandas as pd
 
-    # xs = pd.read_csv('~/Downloads/quadrotor_nlmpc_x.csv', sep=',',header=None).to_numpy().T
-    # us = pd.read_csv('~/Downloads/quadrotor_nlmpc_u.csv', sep=',',header=None).to_numpy().T
+    xs = pd.read_csv('~/Downloads/quadrotor_nlmpc_x.csv', sep=',',header=None).to_numpy().T
+    us = pd.read_csv('~/Downloads/quadrotor_nlmpc_u.csv', sep=',',header=None).to_numpy().T
 
     print(xs.shape)
     print(us.shape)
 
-    # # For plotting
-    # xs = np.reshape(xs, (-1,11,6))
-    # us = np.reshape(tmp, (-1,11,6))
+    # For plotting
+    xs = np.reshape(xs, (-1,11,6))
+    us = np.reshape(us, (-1,11,3))
 
-    # import matplotlib.pyplot as plt
-    # for i in range(100):
-    #     plt.plot(xs[i,1:,0], xs[i,1:,1])
-    # plt.show()
+    import matplotlib.pyplot as plt
+    for i in range(100):
+        plt.plot(xs[i,1:,0], xs[i,1:,1])
+    plt.show()
 
     return xs, us
 
-if __name__ == '__main__':
-    # neurons_per_layer = [10,5]
-    # model = create_model(neurons_per_layer)
-    # model = create_and_train_model(neurons_per_layer, xs, us)
-
-    xs, us = load_data()
-
-    # neurons_per_layer = [32,32]
+def create_and_save_deep_models():
     neurons_per_layers = []
     neurons_per_layers.append([5])
     neurons_per_layers.append([5,5])
@@ -94,3 +87,17 @@ if __name__ == '__main__':
         model = create_and_train_model(neurons_per_layer, xs, us, verbose=True)
         save_model(model, name='model', dir=dir_path+'/models/double_integrator_test_{}/'.format('_'.join(map(str,neurons_per_layer))))
 
+if __name__ == '__main__':
+    print('uncomment something')
+
+    # neurons_per_layer = [10,5]
+    # model = create_model(neurons_per_layer)
+    # model = create_and_train_model(neurons_per_layer, xs, us)
+
+    # View some of the trajectory data
+    # xs, us = load_data()
+
+    # Generate the NNs of various numbers of layers...
+    # create_and_save_deep_models()
+
+    

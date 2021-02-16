@@ -14,7 +14,7 @@ def main(args):
     controller = load_controller(name=args.system)
 
     # Dynamics
-    if args.system == 'double_integrator_mpc':
+    if args.system == 'double_integrator':
         if args.state_feedback:
             dyn = dynamics.DoubleIntegrator()
         else:
@@ -92,7 +92,7 @@ def main(args):
     # print('Final step approximation error:{:.2f}\nAverage approximation error: {:.2f}'.format(error, avg_error))
 
     if args.save_plot:
-        save_dir = "{}/../results/closed_loop/analyzer/".format(os.path.dirname(os.path.abspath(__file__)))
+        save_dir = "{}/results/analyzer/".format(os.path.dirname(os.path.abspath(__file__)))
         os.makedirs(save_dir, exist_ok=True)
 
         # Ugly logic to embed parameters in filename:
@@ -109,8 +109,8 @@ def main(args):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Analyze a closed loop system w/ NN controller.')
-    parser.add_argument('--system', default='double_integrator_mpc',
-                        choices=["double_integrator_mpc", "quadrotor"],
+    parser.add_argument('--system', default='double_integrator',
+                        choices=["double_integrator", "quadrotor"],
                         help='which system to analyze (default: double_integrator_mpc)')
     parser.add_argument('--init_state_range', default=None,
                         help='2*num_states values (default: None)')

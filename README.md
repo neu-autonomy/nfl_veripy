@@ -131,6 +131,7 @@ For the closed-loop system analysis code (ICRA '21 subm.):
 
 Someday soon...
 - [ ] add rtdocs
+- [ ] track down trained model for Fig 4b
 - [ ] get animation working for LCSS
 - [ ] get animation working for ICRA
 - [ ] LCSS Fig 8

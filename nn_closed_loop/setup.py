@@ -5,6 +5,7 @@ setup(name='closed_loop',
       install_requires=[
           'torch',
           'matplotlib',
+          'pandas',
           ],
       packages=find_packages()
 )

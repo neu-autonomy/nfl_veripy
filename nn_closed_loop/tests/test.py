@@ -12,7 +12,7 @@ class TestSum(unittest.TestCase):
             "python", "-m", "nn_closed_loop.example",
                 "--partitioner", "None",
                 "--propagator", "CROWN",
-                "--system", "double_integrator_mpc",
+                "--system", "double_integrator",
                 "--t_max", "5",
                 "--state_feedback",
                 "--skip_show_plot", "--save_plot",
@@ -20,7 +20,7 @@ class TestSum(unittest.TestCase):
         # Check that code runs without error
         self.assertEqual(output.returncode, 0)
         # # Check that plot was generated
-        # plot_filename = os.path.dirname(os.path.realpath(__file__)) + '/../experiments/results/example/000_learning_2agents.png'
+        # plot_filename = os.path.dirname(os.path.realpath(__file__)) + '/../results/analyzer/'
         # self.assertTrue(os.path.isfile(plot_filename))
 
 if __name__ == '__main__':

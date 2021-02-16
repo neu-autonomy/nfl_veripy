@@ -2,7 +2,7 @@ import torch
 from torch.nn import Sequential, Conv2d, Linear, ReLU, Tanh, Sigmoid
 import numpy as np
 import os
-model_dir = "{}/../../models/".format(os.path.dirname(os.path.abspath(__file__)))
+model_dir = "{}/model_files".format(os.path.dirname(os.path.abspath(__file__)))
 
 activations = {"tanh": Tanh, "relu": ReLU, "sigmoid": Sigmoid}
 
