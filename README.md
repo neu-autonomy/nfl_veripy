@@ -13,12 +13,12 @@ The `closed_loop` codebase follows a similar API as the `partition` package, lev
 The typical problem statement is: given a known initial state set (and a known dynamics model), compute bounds on the reachable sets for N steps into the future.
 These bounds provide a safety guarantee for autonomous systems employing NN controllers, as they guarantee that the system will never enter parts of the state space outside of the reachable set bounds.
 
-We build on excellent open-source repositories from the neural network analysis community, including:
+We build on excellent open-source repositories from the neural network analysis community. These repositories are imported as Git submodules or re-implemented in Python here, with some changes to reflect the slightly different problem statements:
 * `auto_LIRPA`
 * `crown_ibp`
 * `robust_sdp`
 * `nnv` (MATLAB implementation)
-These repositories are imported as Git submodules (or re-implemented in Python here), with some changes to reflect the slightly different problem statements.
+
 
 ### Get the code
 
@@ -39,9 +39,11 @@ Install the various python packages in this repo:
 python -m pip install -e crown_ibp auto_LIRPA robust_sdp partition closed_loop
 ```
 
+You're good to go!
+
 ### Simple Examples
 
-You're good to go! Try running a simple example where the Analyzer computes bounds on the NN output (given bounds on the NN input):
+Try running a simple example where the Analyzer computes bounds on the NN output (given bounds on the NN input):
 ```bash
 python -m partition.example \
 	--partitioner GreedySimGuided \
@@ -112,7 +114,7 @@ For the closed-loop system analysis code (ICRA '21 subm.):
 - [x] Replicate ICRA Fig 5
 - [ ] publish crown_ibp, auto-Lirpa forks
 - [ ] setup ci and simple tests to run the various expts
-- [ ] add citation to papers, add description of repo to top of readme
+- [x] add citation to papers, add description of repo to top of readme
 - [ ] add license & copyright?
 - [ ] setup sync with github
 
