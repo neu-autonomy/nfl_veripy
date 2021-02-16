@@ -24,7 +24,7 @@ These bounds provide a safety guarantee for autonomous systems employing NN cont
 We build on excellent open-source repositories from the neural network analysis community. These repositories are imported as Git submodules or re-implemented in Python here, with some changes to reflect the slightly different problem statements:
 * `auto_LIRPA`
 * `crown_ibp`
-* `robust_sdp`
+* [`robust_nn`](https://github.com/arobey1/RobustNN)
 * `nnv` (MATLAB implementation)
 
 
