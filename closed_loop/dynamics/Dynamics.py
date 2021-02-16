@@ -62,10 +62,10 @@ class Dynamics:
     def colors(self, t_max):
         return [cm.get_cmap(self.cmap_name)(i) for i in range(t_max+1)]
  
-    def get_sampled_output_range(self, input_constraint, t_max =5, num_samples= 1000, controller='mpc'):
+    def get_sampled_output_range(self, input_constraint, t_max=5, num_samples=1000, controller='mpc'):
 
-        xs, us = self.collect_data(t_max, input_constraint, num_samples, controller=controller)
-         
+        xs, us = self.collect_data(t_max, input_constraint, num_samples, controller=controller, merge_cols=False)
+
         num_runs, num_timesteps, num_states = xs.shape
 
         if isinstance(input_constraint, constraints.PolytopeInputConstraint):
@@ -73,8 +73,8 @@ class Dynamics:
         elif isinstance(input_constraint, constraints.LpInputConstraint):
             sampled_range= np.zeros((num_timesteps-1,num_states,2))
             for t in range(1,num_timesteps):
-                sampled_range[t-1,:,0] = np.min(xs[:,t,:], axis =0)
-                sampled_range[t-1,:,1] = np.max(xs[:,t,:], axis =0)
+                sampled_range[t-1,:,0] = np.min(xs[:,t,:], axis=0)
+                sampled_range[t-1,:,1] = np.max(xs[:,t,:], axis=0)
         else:
             raise NotImplementedError
      
@@ -147,7 +147,6 @@ class Dynamics:
         t = 0
         step = 0
         while t < t_max:
-            print('--- t={} ---'.format(t))
 
             # Observe system (using observer matrix, possibly adding measurement noise)
             obs = self.observe_step(xs[:,step,:])

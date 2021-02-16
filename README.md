@@ -1,228 +1,66 @@
 ### About
+
 This repository provides Analyzer, Propagator, and Partitioner classes from the LCSS/ACC '21 paper.
 We import `auto_LIRPA`, `crown_ibp` and `robust_sdp` codebases from open source repositories (as Git submodules) and implement `Partitioner` methods from Xiang '17 and Xiang '20 in Python (open source implementation is in Matlab), along with our own methods from the paper.
 
 ### Get the code
 
 ```bash
-git clone --recursive git@gitlab.com:mit-acl/ford_ugvs/robustness_analysis.git
+git clone --recursive <this_repo>
 ```
 
 ### Install
 
-I suggest creating a `virtualenv` for this repo:
+Create a `virtualenv` for this repo:
 ```bash
 python -m virtualenv venv
 source venv/bin/activate
 ```
 
-In the root of this directory:
+Install the various python packages in this repo:
 ```bash
-python -m pip install -e .
-python -m pip install -e crown_ibp
-python -m pip install -e partition
-python -m pip install -e robust_sdp
-python -m pip install -e auto_LIRPA
+python -m pip install -e crown_ibp auto_LIRPA robust_sdp partition closed_loop
 ```
 
-Now you can import things like:
-```bash
->>> from reach_lp.reach_lp import reachLP_1
->>> import crown_ibp.bound_layers
-```
+### Replicate plots from the papers:
 
-TODOS:
+* LCSS/ACC '21: [README](docs/_static/lcss21/lcss21.md)
+* ICRA '21 (submission): [README](docs/_static/icra21/icra21.md)
 
-- [x] Replicate Fig 4
-- [x] Replicate Fig 5
-- [x] Replicate Fig 6
-- [ ] Replicate Fig 8
-- [ ] Replicate Table 6b
-- [ ] Replicate Table I
-- [ ] get animation working
+
+### TODOS:
 - [x] Choices in analyzer argparse
-- [ ] add rtdocs
 - [x] move partitioners, propagators to separate dirs
 - [x] move cartpole, pend, quadrotor files elsewhere
-- [ ] publish crown_ibp, auto-Lirpa forks
 - [x] move MNIST data to right place
-- [ ] merge in closed_loop branch
-- [ ] replicate those figs
+- [x] merge in closed_loop branch
+- [x] Fig 3b individual images
+- [x] Fig 3a individual table
+- [x] Replicate LCSS Fig 4
+- [x] Replicate LCSS Fig 5
+- [x] Replicate LCSS Fig 6
+- [x] Replicate ICRA Fig 3b individuals + table
+- [ ] Replicate ICRA Fig 4b individuals
+- [ ] Replicate ICRA Fig 5
+- [ ] publish crown_ibp, auto-Lirpa forks
 - [ ] setup ci and simple tests to run the various expts
+- [ ] add citation to papers, add description of repo to top of readme
+- [ ] add license & copyright?
 - [ ] setup sync with github
 
-## Reproduce Figures from submitted ICRA 2021 Paper
+Someday soon...
+- [ ] add rtdocs
+- [ ] get animation working
+- [ ] LCSS Fig 8
+- [ ] Replicate LCSS Table 6b
+- [ ] Replicate LCSS Table I
+- [ ] ICRA Fig 3 as single script
+- [ ] ICRA Fig 3c make pkl
+- [ ] ICRA Fig 3c from pkl
+- [ ] ICRA Fig 4a make pkl
+- [ ] ICRA Fig 4a from pkl
+- [ ] ICRA Fig 4b as single script
 
-### todo
-
-```bash
-python -m closed_loop.example \
-	--partitioner Uniform \
-	--propagator CROWN \
-	--system double_integrator_mpc \
-	--state_feedback
-```
-
-
-
-## Reproduce Figures from LCSS/ACC 2021 Paper
-
-### Figure 4
-
-Figure 4a (Lower Bounds):
-```bash
-python -m partition.example \
-	--partitioner GreedySimGuided \
-	--propagator CROWN_LIRPA \
-	--term_type time_budget \
-	--term_val 2 \
-	--interior_condition lower_bnds \
-	--model random_weights \
-	--activation relu \
-	--show_input --show_output
-```
-
-Figure 4b (Linf Ball):
-```bash
-python -m partition.example \
-	--partitioner GreedySimGuided \
-	--propagator CROWN_LIRPA \
-	--term_type time_budget \
-	--term_val 2 \
-	--interior_condition linf \
-	--model random_weights \
-	--activation relu \
-	--show_input --show_output
-```
-
-
-Figure 4c (Convex Hull):
-```bash
-python -m partition.example \
-	--partitioner GreedySimGuided \
-	--propagator CROWN_LIRPA \
-	--term_type time_budget \
-	--term_val 2 \
-	--interior_condition convex_hull \
-	--model random_weights \
-	--activation relu \
-	--show_input --show_output
-```
-
-Fig 4a | Fig 4b | Fig 4c
------------- | ------------- | -------------
-Lower Bounds | Linf Ball | Convex Hull
-![Fig. 4a](docs/_static/lcss21/fig_4/random_weights_relu_GreedySimGuided_CROWN_LIRPA_interior_condition_lower_bnds_num_simulations_10000.0_termination_condition_type_time_budget_termination_condition_value_2.0.png) | ![Fig. 4b](docs/_static/lcss21/fig_4/random_weights_relu_GreedySimGuided_CROWN_LIRPA_interior_condition_linf_num_simulations_10000.0_termination_condition_type_time_budget_termination_condition_value_2.0.png) | ![Fig. 4c](docs/_static/lcss21/fig_4/random_weights_relu_GreedySimGuided_CROWN_LIRPA_interior_condition_convex_hull_num_simulations_10000.0_termination_condition_type_time_budget_termination_condition_value_2.0.png)
-
-### Figure 5
-
-Figure 5a (SG+IBP):
-```bash
-python -m partition.example \
-	--partitioner SimGuided \
-	--propagator IBP_LIRPA \
-	--term_type time_budget \
-	--term_val 2 \
-	--interior_condition convex_hull \
-	--model random_weights \
-	--activation relu \
-	--input_plot_labels None None \
-	--show_input --skip_show_output \
-	--input_plot_aspect equal
-```
-
-Figure 5b (SG+CROWN):
-```bash
-python -m partition.example \
-	--partitioner SimGuided \
-	--propagator CROWN_LIRPA \
-	--term_type time_budget \
-	--term_val 2 \
-	--interior_condition convex_hull \
-	--model random_weights \
-	--activation relu \
-	--input_plot_labels None None \
-	--show_input --skip_show_output \
-	--input_plot_aspect equal
-```
-
-Figure 5c (GSG+CROWN):
-```bash
-python -m partition.example \
-	--partitioner GreedySimGuided \
-	--propagator CROWN_LIRPA \
-	--term_type time_budget \
-	--term_val 2 \
-	--interior_condition convex_hull \
-	--model random_weights \
-	--activation relu \
-	--input_plot_labels None None \
-	--show_input --skip_show_output \
-	--input_plot_aspect equal
-```
-
-Figure 5d (GSG+CROWN):
-```bash
-python -m partition.example \
-	--partitioner AdaptiveGreedySimGuided \
-	--propagator CROWN_LIRPA \
-	--term_type time_budget \
-	--term_val 2 \
-	--interior_condition convex_hull \
-	--model random_weights \
-	--activation relu \
-	--input_plot_labels None None \
-	--show_input --skip_show_output \
-	--input_plot_aspect equal
-```
-
-Fig 5a | Fig 5b | Fig 5c | Fig 5d
------------- | ------------- | ------------- |  -------------
-SG+IBP | SG+CROWN | GSG+IBP | GSG+CROWN
-![Fig. 5a](docs/_static/lcss21/fig_5/random_weights_relu_SimGuided_IBP_LIRPA_interior_condition_convex_hull_num_simulations_10000.0_termination_condition_type_time_budget_termination_condition_value_2.0.png) | ![Fig. 5b](docs/_static/lcss21/fig_5/random_weights_relu_SimGuided_CROWN_LIRPA_interior_condition_convex_hull_num_simulations_10000.0_termination_condition_type_time_budget_termination_condition_value_2.0.png) | ![Fig. 5c](docs/_static/lcss21/fig_5/random_weights_relu_GreedySimGuided_CROWN_LIRPA_interior_condition_convex_hull_num_simulations_10000.0_termination_condition_type_time_budget_termination_condition_value_2.0.png) | ![Fig. 5d](docs/_static/lcss21/fig_5/random_weights_relu_AdaptiveGreedySimGuided_CROWN_LIRPA_interior_condition_convex_hull_num_simulations_10000.0_termination_condition_type_time_budget_termination_condition_value_2.0.png)
-
-
-### Figure 6
-
-Figure 6a (SG+IBP):
-```bash
-python -m partition.example \
-	--partitioner SimGuided \
-	--propagator IBP_LIRPA \
-	--term_type time_budget \
-	--term_val 2 \
-	--interior_condition convex_hull \
-	--model robot_arm \
-	--activation tanh \
-	--output_plot_labels x y \
-	--output_plot_aspect equal \
-	--skip_show_input
-```
-
-Figure 6b (AGSG+CROWN):
-```bash
-python -m partition.example \
-	--partitioner AdaptiveGreedySimGuided \
-	--propagator CROWN_LIRPA \
-	--term_type time_budget \
-	--term_val 2 \
-	--interior_condition convex_hull \
-	--model robot_arm \
-	--activation tanh \
-	--output_plot_labels x y \
-	--output_plot_aspect equal \
-	--skip_show_input
-```
-
-Fig 6a | Fig 6b |
------------- | -------------
-SG+IBP | AGSG+CROWN
-![Fig. 6a](docs/_static/lcss21/fig_6/robot_arm_tanh_SimGuided_IBP_LIRPA_interior_condition_convex_hull_num_simulations_10000.0_termination_condition_type_time_budget_termination_condition_value_2.0.png) | ![Fig. 6b](docs/_static/lcss21/fig_6/robot_arm_tanh_AdaptiveGreedySimGuided_CROWN_LIRPA_interior_condition_convex_hull_num_simulations_10000.0_termination_condition_type_time_budget_termination_condition_value_2.0.png)
-
-### Figure 7
-This figure unfortunately requires code for the RL implementation that is under IP protection.
-
-### Figure 8
 
 
 ---
@@ -240,28 +78,6 @@ You can switch which x axis to use with the argument of `plot()`.
 ---
 
 ## Older stuff
-
-### Examples
-
-See the implementation of Xiang 2017 and Xiang 2020:
-```bash
-python -m partition.xiang
-```
-
-This will pop up with:
-- their randomly initialized DNN & 25 uniform partitioned inputs (from Xiang 2017)
-- their robot arm example using CROWN & IBP and Uniform & Simulation-Guided partitioning (from Xiang 2020)
-
-
-### tmp
-```bash
-source ~/code/gym-collision-avoidance/venv/bin/activate
-```
-
-### Closed-Loop Systems
-```bash
-python -m closed_loop.ClosedLoopAnalyzer
-```
 
 ### getting julia code to work
 

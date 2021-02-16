@@ -1,13 +1,6 @@
 import numpy as np
 import partition.propagators as propagators
-import torch
-import pypoman
-from closed_loop.utils.reach_sdp import getE_in, getE_mid, getE_out, getInputConstraints, getOutputConstraints, getNNConstraints, getInputConstraintsEllipsoid, getOutputConstraintsEllipsoid
-import cvxpy as cp
-from tqdm import tqdm
-import closed_loop.constraints as constraints
 from copy import deepcopy
-
 
 class ClosedLoopPropagator(propagators.Propagator):
     def __init__(self, input_shape=None, dynamics=None):
@@ -27,4 +20,3 @@ class ClosedLoopPropagator(propagators.Propagator):
             output_constraint, _ = self.get_one_step_reachable_set(next_input_constraint, next_output_constraint)
             output_constraints.append(deepcopy(output_constraint))
         return output_constraints, {}
-

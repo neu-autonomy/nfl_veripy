@@ -33,7 +33,7 @@ def save_model(model, name='model', dir=dir_path+'/system/'):
     model.save_weights(dir+name+".h5")
     print("Saved model to disk")
 
-def load_model(name='double_integrator_mpc'):
+def load_controller(name='double_integrator_mpc'):
     path = '{}/../models/{}'.format(dir_path, name)
     with open(path+'/model.json', 'r') as f:
         loaded_model_json = f.read()
@@ -41,23 +41,6 @@ def load_model(name='double_integrator_mpc'):
     model.load_weights(path+"/model.h5")
     torch_model = keras2torch(model, "torch_model")
     return torch_model
-
-# def control_nn(x, model=None, use_torch=True):
-#     if model is None:
-#         model = load_model()
-#     if x.ndim == 1:
-#         batch_x = np.expand_dims(x, axis=0)
-#     else:
-#         batch_x = x
-#     if use_torch:
-#         us = model.forward(torch.Tensor(batch_x)).data.numpy()[0][0]
-#         return us
-#     else:
-#         us = model.predict(batch_x)
-#         if x.ndim == 1:
-#             return us[0][0]
-#         else:
-#             return us
 
 def load_data():
 

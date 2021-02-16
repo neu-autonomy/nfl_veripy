@@ -146,6 +146,7 @@ if __name__ == '__main__':
             analyzer_info["save_name"] = analyzer_info["save_name"] + "_" + pars2
         analyzer_info["save_name"] = analyzer_info["save_name"] + ".png"
         
+    if args.save_plot or args.show_plot:
         # Plot shape/label settings
         labels = {"input": [l if l != 'None' else None for l in args.input_plot_labels], "output": [l if l is not 'None' else None for l in args.output_plot_labels]}
         aspects = {"input": args.input_plot_aspect, "output": args.output_plot_aspect}

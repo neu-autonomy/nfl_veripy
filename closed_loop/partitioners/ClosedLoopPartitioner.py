@@ -44,8 +44,8 @@ class ClosedLoopPartitioner(partitioners.Partitioner):
             # ranges.append((input_range_, np.stack(reachable_set_)))
         else:
             raise NotImplementedError
-        prob_list =None
-        return output_constraint, info,prob_list
+
+        return output_constraint, info
 
     def get_output_range(self, input_constraint, output_constraint):
 
@@ -90,6 +90,7 @@ class ClosedLoopPartitioner(partitioners.Partitioner):
         
     def get_sampled_out_range(self, input_constraint, propagator, t_max =5, num_samples =1000):
         return self.dynamics.get_sampled_output_range(input_constraint, t_max,  num_samples, controller=propagator.network)
+
     def setup_visualization_multiple(self, input_constraint, output_constraint, propagator, input_dims_, prob_list =None, show_samples=True, outputs_to_highlight=None, color='g', line_style='-'):
         input_dims = input_dims_
         if isinstance(output_constraint, constraints.PolytopeOutputConstraint):
@@ -226,7 +227,8 @@ class ClosedLoopPartitioner(partitioners.Partitioner):
         #     self.default_lines[1].append(line[0])
         # else:
         #     raise NotImplementedError
-    def setup_visualization(self, input_constraint, output_constraint, propagator, prob_list =None, show_samples=True, outputs_to_highlight=None, inputs_to_highlight=None):
+
+    def setup_visualization(self, input_constraint, output_constraint, propagator, show_samples=True, outputs_to_highlight=None, inputs_to_highlight=None):
         if isinstance(output_constraint, constraints.PolytopeOutputConstraint):
             A_out = output_constraint.A
             b_out = output_constraint.b
@@ -234,7 +236,6 @@ class ClosedLoopPartitioner(partitioners.Partitioner):
         elif isinstance(output_constraint, constraints.LpOutputConstraint):
             output_range = output_constraint.range
             output_p = output_constraint.p
-            output_prob = prob_list
             t_max = len(output_range)
         else:
             raise NotImplementedError
@@ -242,13 +243,11 @@ class ClosedLoopPartitioner(partitioners.Partitioner):
             A_inputs = input_constraint.A
             b_inputs = input_constraint.b
             num_states = A_inputs.shape[-1]
-            output_prob = prob_list
 
         elif isinstance(input_constraint, constraints.LpInputConstraint):
             input_range = input_constraint.range
             input_p = input_constraint.p
             num_states = input_range.shape[0]
-            output_prob = prob_list
         else:
             raise NotImplementedError
 
@@ -269,9 +268,6 @@ class ClosedLoopPartitioner(partitioners.Partitioner):
             input_names = [x['name'] for x in inputs_to_highlight]
       #  self.input_dims_ = tuple([tuple([input_dims[j][i] for j in range(len(input_dims))]) for i in range(len(input_dims[0]))])
         self.input_dims_ = input_dims
-
-
-
 
         if outputs_to_highlight is None:
             # Automatically detect which input dims to show based on input_range
@@ -299,17 +295,8 @@ class ClosedLoopPartitioner(partitioners.Partitioner):
         if show_samples:
             self.dynamics.show_samples(t_max*self.dynamics.dt, input_constraint, ax=self.animate_axes, controller=propagator.network, input_dims=input_dims)
 
-        # # Make a rectangle for the Exact boundaries
-        # sampled_outputs = self.get_sampled_outputs(input_range, propagator)
-        # if show_samples:
-        #     self.animate_axes.scatter(sampled_outputs[...,output_dims[0]], sampled_outputs[...,output_dims[1]], c='k', marker='.', zorder=2,
-        #         label="Sampled States")
-
         # Initial state set
-        if prob_list is None:
-           color = 'k'
-        else:
-           color = None
+        color = 'tab:gray'
         if isinstance(input_constraint, constraints.PolytopeInputConstraint):
             # TODO: this doesn't use the computed input_dims...
             try:
@@ -328,13 +315,8 @@ class ClosedLoopPartitioner(partitioners.Partitioner):
             raise NotImplementedError
       
         # Reachable sets
-        if prob_list is None:
-           color = 'blue'
-           fc_color='none'
-        else:
-           color = 'blue'
-           fc_color='none'
-           alpha=0.17
+        color = 'tab:blue'
+        fc_color = 'None'
         if isinstance(output_constraint, constraints.PolytopeOutputConstraint):
             # TODO: this doesn't use the computed input_dims...
             for i in range(len(b_out)):
@@ -342,62 +324,14 @@ class ClosedLoopPartitioner(partitioners.Partitioner):
                 self.animate_axes.plot([v[0] for v in vertices]+[vertices[0][0]], [v[1] for v in vertices]+[vertices[0][1]],
                     color=color, label='$\mathcal{R}_'+str(i+1)+'$')
         elif isinstance(output_constraint, constraints.LpOutputConstraint):
-            if prob_list is None:
-                for output_range_ in output_range:
-                    rect = Rectangle(output_range_[input_dims,0], output_range_[input_dims[0],1]-output_range_[input_dims[0],0], output_range_[input_dims[1],1]-output_range_[input_dims[1],0],
-                       fc=fc_color, linewidth=3,edgecolor=color)
-                    self.animate_axes.add_patch(rect)
-
-            else:    
-                for output_range_,prob in zip(output_range,prob_list):
-                    fc_color=cm.get_cmap('Greens')(prob)
-                    rect = Rectangle(output_range_[input_dims,0], output_range_[input_dims[0],1]-output_range_[input_dims[0],0], output_range_[input_dims[1],1]-output_range_[input_dims[1],0],
-                        fc= fc_color, alpha = alpha ,linewidth=3,edgecolor=None)
-                    self.animate_axes.add_patch(rect)
-
-                 
-
+            for output_range_ in output_range:
+                rect = Rectangle(output_range_[input_dims,0], output_range_[input_dims[0],1]-output_range_[input_dims[0],0], output_range_[input_dims[1],1]-output_range_[input_dims[1],0],
+                   fc=fc_color, linewidth=3,edgecolor=color)
+                self.animate_axes.add_patch(rect)
         else:
             raise NotImplementedError
 
-
-        # self.default_patches = [[], []]
-        # self.default_lines = [[], []]
-        # self.default_patches[0] = [input_rect]
-        
-        # # Exact output range
-        # color = 'black'
-        # linewidth = 3
-        # if self.interior_condition == "linf":
-        #     output_range_exact = self.samples_to_range(sampled_outputs)
-        #     output_range_exact_ = output_range_exact[self.output_dims_]
-        #     rect = Rectangle(output_range_exact_[:2,0], output_range_exact_[0,1]-output_range_exact_[0,0], output_range_exact_[1,1]-output_range_exact_[1,0],
-        #                     fc='none', linewidth=linewidth,edgecolor=color,
-        #                     label="True Bounds ({})".format(label_dict[self.interior_condition]))
-        #     self.animate_axes[1].add_patch(rect)
-        #     self.default_patches[1].append(rect)
-        # elif self.interior_condition == "lower_bnds":
-        #     output_range_exact = self.samples_to_range(sampled_outputs)
-        #     output_range_exact_ = output_range_exact[self.output_dims_]
-        #     line1 = self.animate_axes[1].axhline(output_range_exact_[1,0], linewidth=linewidth,color=color,
-        #         label="True Bounds ({})".format(label_dict[self.interior_condition]))
-        #     line2 = self.animate_axes[1].axvline(output_range_exact_[0,0], linewidth=linewidth,color=color)
-        #     self.default_lines[1].append(line1)
-        #     self.default_lines[1].append(line2)
-        # elif self.interior_condition == "convex_hull":
-        #     from scipy.spatial import ConvexHull
-        #     self.true_hull = ConvexHull(sampled_outputs)
-        #     self.true_hull_ = ConvexHull(sampled_outputs[...,output_dims].squeeze())
-        #     line = self.animate_axes[1].plot(
-        #         np.append(sampled_outputs[self.true_hull_.vertices][...,output_dims[0]], sampled_outputs[self.true_hull_.vertices[0]][...,output_dims[0]]),
-        #         np.append(sampled_outputs[self.true_hull_.vertices][...,output_dims[1]], sampled_outputs[self.true_hull_.vertices[0]][...,output_dims[1]]),
-        #         color=color, linewidth=linewidth,
-        #         label="True Bounds ({})".format(label_dict[self.interior_condition]))
-        #     self.default_lines[1].append(line[0])
-        # else:
-        #     raise NotImplementedError
-
-    def visualize(self, M, interior_M, output_constraint, prob_list =None, iteration=0):
+    def visualize(self, M, interior_M, output_constraint, iteration=0):
         if isinstance(output_constraint, constraints.PolytopeOutputConstraint):
             A_out = output_constraint.A
             b_out = output_constraint.b
@@ -422,11 +356,7 @@ class ClosedLoopPartitioner(partitioners.Partitioner):
             else:
                 input_label = None
                 output_label = None
-            if prob_list is None:
-               color = 'grey'
-            else:
-               color = 'none'
-
+            color = 'grey'
         
             if isinstance(output_constraint, constraints.PolytopeOutputConstraint):
                 for i in range(len(output_range_)):
@@ -446,59 +376,3 @@ class ClosedLoopPartitioner(partitioners.Partitioner):
             rect = Rectangle(input_range_[:,0], input_range_[input_dims_[0][0],1]-input_range_[input_dims_[0][0],0], input_range_[input_dims_[1][0],1]-input_range_[input_dims_[1][0],0],
                     fc='none', linewidth=1,edgecolor=color)
             self.animate_axes.add_patch(rect)
-
-            # vertices = pypoman.compute_polygon_hull(A_out, input_range[i])
-            # bnd_color = 'k--'
-            # self.animate_axes.plot([v[0] for v in vertices]+[vertices[0][0]], [v[1] for v in vertices]+[vertices[0][1]],
-            #     bnd_color, label='$\mathcal{R}_'+str(i+1)+'$')
-
-        # # Rectangles that are within the sim pts
-        # for (input_range_, output_range_) in interior_M:
-        #     output_range__ = output_range_[self.output_dims_]
-        #     rect = Rectangle(output_range__[:2,0], output_range__[0,1]-output_range__[0,0], output_range__[1,1]-output_range__[1,0],
-        #             fc='none', linewidth=1,edgecolor='tab:purple')
-        #     self.animate_axes[1].add_patch(rect)
-
-        #     input_range__ = input_range_[input_dims_]
-        #     rect = Rectangle(input_range__[:,0], input_range__[0,1]-input_range__[0,0], input_range__[1,1]-input_range__[1,0],
-        #             fc='none', linewidth=1,edgecolor='tab:purple')
-        #     self.animate_axes[0].add_patch(rect)
-
-        # linewidth = 2
-        # color = 'tab:green'
-        # if self.interior_condition == "linf":
-        #     # Make a rectangle for the estimated boundaries
-        #     output_range_estimate = self.squash_down_to_one_range(u_e, M)
-        #     output_range_estimate_ = output_range_estimate[self.output_dims_]
-        #     rect = Rectangle(output_range_estimate_[:2,0], output_range_estimate_[0,1]-output_range_estimate_[0,0], output_range_estimate_[1,1]-output_range_estimate_[1,0],
-        #                     fc='none', linewidth=linewidth,edgecolor=color,
-        #                     label="Estimated Bounds ({})".format(label_dict[self.interior_condition]))
-        #     self.animate_axes[1].add_patch(rect)
-        # elif self.interior_condition == "lower_bnds":
-        #     output_range_estimate = self.squash_down_to_one_range(u_e, M)
-        #     output_range_estimate_ = output_range_estimate[self.output_dims_]
-        #     self.animate_axes[1].axhline(output_range_estimate_[1,0],
-        #         linewidth=linewidth,color=color,
-        #         label="Estimated Bounds ({})".format(label_dict[self.interior_condition]))
-        #     self.animate_axes[1].axvline(output_range_estimate_[0,0],
-        #         linewidth=linewidth,color=color)
-        # elif self.interior_condition == "convex_hull":
-        #     from scipy.spatial import ConvexHull
-        #     M_ = [(input_range_, output_range_[self.output_dims_]) for (input_range_, output_range_) in M]
-        #     hull = self.squash_down_to_convex_hull(M_, self.true_hull_.points)
-        #     self.animate_axes[1].plot(
-        #         np.append(hull.points[hull.vertices,0], hull.points[hull.vertices[0],0]),
-        #         np.append(hull.points[hull.vertices,1], hull.points[hull.vertices[0],1]),
-        #         color=color, linewidth=linewidth,
-        #         label="Estimated Bounds ({})".format(label_dict[self.interior_condition]))
-        # else:
-        #     raise NotImplementedError
-
-        # if self.show_animation:
-        #     plt.pause(0.01)
-
-        # animation_save_dir = "{}/results/tmp/".format(os.path.dirname(os.path.abspath(__file__)))
-        # os.makedirs(animation_save_dir, exist_ok=True)
-        # plt.savefig(animation_save_dir+"tmp_{}.png".format(str(iteration).zfill(6)))
-
-

@@ -2,24 +2,11 @@ import numpy as np
 import partition.analyzers as analyzers
 import closed_loop.partitioners as partitioners
 import closed_loop.propagators as propagators
-import closed_loop.constraints as constraints
-
-import torch
 
 import matplotlib.pyplot as plt
-# from matplotlib.patches import Rectangle
-# from partition.network_utils import get_sampled_outputs, samples_to_range
-# import os
 
 # plt.rcParams['mathtext.fontset'] = 'stix'
 # plt.rcParams['font.family'] = 'STIXGeneral'
-
-# from closed_loop.ClosedLoopPartitioner import ClosedLoopNoPartitioner, ClosedLoopUniformPartitioner, ClosedLoopProbabilisticPartitioner
-# from closed_loop.ClosedLoopPropagator import ClosedLoopCROWNPropagator, ClosedLoopIBPPropagator, ClosedLoopFastLinPropagator, ClosedLoopSDPPropagator
-# from closed_loop.ClosedLoopConstraints import PolytopeInputConstraint, LpInputConstraint, PolytopeOutputConstraint, LpOutputConstraint, EllipsoidInputConstraint, EllipsoidOutputConstraint
-
-# save_dir = "{}/results/analyzer/".format(os.path.dirname(os.path.abspath(__file__)))
-# os.makedirs(save_dir, exist_ok=True)
 
 class ClosedLoopAnalyzer(analyzers.Analyzer):
     def __init__(self, torch_model, dynamics):
@@ -34,37 +21,46 @@ class ClosedLoopAnalyzer(analyzers.Analyzer):
         return propagators.propagator_dict[propagator](**{**hyperparams, "dynamics": self.dynamics})
 
     def get_one_step_reachable_set(self, input_constraint, output_constraint):
-        reachable_set, info, prob = self.partitioner.get_one_step_reachable_set(input_constraint, output_constraint, self.propagator)
-        return reachable_set, info, prob
+        reachable_set, info = self.partitioner.get_one_step_reachable_set(input_constraint, output_constraint, self.propagator)
+        return reachable_set, info
 
     def get_reachable_set(self, input_constraint, output_constraint, t_max):
-        reachable_set, info, prob_list = self.partitioner.get_reachable_set(input_constraint, output_constraint, self.propagator, t_max)
-        return reachable_set, info, prob_list
+        reachable_set, info = self.partitioner.get_reachable_set(input_constraint, output_constraint, self.propagator, t_max)
+        return reachable_set, info
 
-    def visualize(self, input_constraint, output_constraint, show=True, show_samples=False, prob_list=None,**kwargs):
+    def visualize(self, input_constraint, output_constraint, show=True, show_samples=False, aspect="auto", labels={}, **kwargs):
         # sampled_outputs = self.get_sampled_outputs(input_range)
         # output_range_exact = self.samples_to_range(sampled_outputs)
 
-        self.partitioner.setup_visualization(input_constraint, output_constraint,self.propagator, prob_list = prob_list, show_samples=show_samples, outputs_to_highlight=[{'dim':[0], 'name':'py'}, {'dim':[1], 'name':'pz'}],inputs_to_highlight= [{'dim':[0], 'name':'py'}, {'dim':[1], 'name':'pz'}] )
-        self.partitioner.visualize(kwargs.get("exterior_partitions", kwargs.get("all_partitions", [])), kwargs.get("interior_partitions", []), output_constraint, prob_list)
+        self.partitioner.setup_visualization(
+            input_constraint, output_constraint,
+            self.propagator, show_samples=show_samples,
+            outputs_to_highlight=[{'dim':[0], 'name':'py'}, {'dim':[1], 'name':'pz'}],
+            inputs_to_highlight=[{'dim':[0], 'name':'py'}, {'dim':[1], 'name':'pz'}] )
+        self.partitioner.visualize(
+            kwargs.get("exterior_partitions", kwargs.get("all_partitions", [])), 
+            kwargs.get("interior_partitions", []),
+            output_constraint)
         
         # self.partitioner.animate_axes.legend(bbox_to_anchor=(0,1.02,1,0.2), loc="lower left",
         #         mode="expand", borderaxespad=0, ncol=1)
 
         self.partitioner.animate_fig.tight_layout()
 
-        # if "save_name" in kwargs and kwargs["save_name"] is not None:
-        #     plt.savefig(kwargs["save_name"])
+        if "save_name" in kwargs and kwargs["save_name"] is not None:
+            print(kwargs["save_name"])
+            plt.savefig(kwargs["save_name"])
 
         if show:
             plt.show()
         else:
             plt.close()
 
-    #def get_sampled_outputs(self, input_range, N=1000):
-      #  return get_sampled_outputs(input_range, self.propagator, N=N)
-    def get_sampled_output_range(self, input_constraint, t_max =5, num_samples =1000):
-        return  self.partitioner.get_sampled_out_range(input_constraint, self.propagator, t_max, num_samples)
+    def get_sampled_outputs(self, input_range, N=1000):
+        return get_sampled_outputs(input_range, self.propagator, N=N)
+
+    def get_sampled_output_range(self, input_constraint, t_max=5, num_samples=1000):
+        return self.partitioner.get_sampled_out_range(input_constraint, self.propagator, t_max, num_samples)
 
     def get_output_range(self, input_constraint, output_constraint):
         return self.partitioner.get_output_range(input_constraint, output_constraint)

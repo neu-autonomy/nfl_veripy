@@ -3,6 +3,8 @@ from .ClosedLoopPartitioner import ClosedLoopPartitioner
 class ClosedLoopProbabilisticPartitioner(ClosedLoopPartitioner):
 
     def __init__(self, dynamics, num_partitions=16):
+        print("I don't think this fully works yet.")
+        raise NotImplementedError
         ClosedLoopPartitioner.__init__(self, dynamics=dynamics)
         self.num_partitions = num_partitions
         self.interior_condition = "linf"

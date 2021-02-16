@@ -14,8 +14,8 @@ class ClosedLoopUniformPartitioner(ClosedLoopPartitioner):
         self.make_animation = False
 
     def get_one_step_reachable_set(self, input_constraint, output_constraint, propagator, num_partitions=None):
-        reachable_set, info, prob = self.get_reachable_set(input_constraint, output_constraint, propagator, t_max=1, num_partitions=num_partitions)
-        return reachable_set, info, prob
+        reachable_set, info = self.get_reachable_set(input_constraint, output_constraint, propagator, t_max=1, num_partitions=num_partitions)
+        return reachable_set, info
 
     def get_reachable_set(self, input_constraint, output_constraint, propagator, t_max, num_partitions=None):
 
@@ -99,5 +99,5 @@ class ClosedLoopUniformPartitioner(ClosedLoopPartitioner):
         info["all_partitions"] = ranges
         info["num_propagator_calls"] = num_propagator_calls
         info["num_partitions"] = np.product(num_partitions)
-        prob_list =None
-        return output_constraint, info,prob_list
+
+        return output_constraint, info
