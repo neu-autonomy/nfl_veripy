@@ -1,7 +1,24 @@
 ### About
 
-This repository provides Analyzer, Propagator, and Partitioner classes from the LCSS/ACC '21 paper.
-We import `auto_LIRPA`, `crown_ibp` and `robust_sdp` codebases from open source repositories (as Git submodules) and implement `Partitioner` methods from Xiang '17 and Xiang '20 in Python (open source implementation is in Matlab), along with our own methods from the paper.
+This repository provides Python implementations for the robustness analysis tools in some of our recent papers.
+
+`partition`:
+We introduce the concepts of `Analyzer`, `Propagator`, and `Partitioner` in our LCSS/ACC '21 paper and implement several instances of each concept as a starting point.
+This modular view on NN robustness analysis essentially defines an API that decouples each component.
+This decoupling enables improvements in either `Propagator` or `Partitioner` algorithms to have a wide impact across many analysis/verification problems.
+
+`closed_loop`:
+Since NNs are rarely deployed in isolation, we developed a framework for analyzing closed-loop systems that employ NN control policies.
+The `closed_loop` codebase follows a similar API as the `partition` package, leveraging analogous `ClosedLoopAnalyzer`, `ClosedLoopPropagator` and `ClosedLoopPartitioner` concepts.
+The typical problem statement is: given a known initial state set (and a known dynamics model), compute bounds on the reachable sets for N steps into the future.
+These bounds provide a safety guarantee for autonomous systems employing NN controllers, as they guarantee that the system will never enter parts of the state space outside of the reachable set bounds.
+
+We build on excellent open-source repositories from the neural network analysis community, including:
+* `auto_LIRPA`
+* `crown_ibp`
+* `robust_sdp`
+* `nnv` (MATLAB implementation)
+These repositories are imported as Git submodules (or re-implemented in Python here), with some changes to reflect the slightly different problem statements.
 
 ### Get the code
 
