@@ -40,8 +40,8 @@ python -m pip install -e crown_ibp auto_LIRPA robust_sdp partition closed_loop
 - [x] Replicate LCSS Fig 5
 - [x] Replicate LCSS Fig 6
 - [x] Replicate ICRA Fig 3b individuals + table
-- [ ] Replicate ICRA Fig 4b individuals
-- [ ] Replicate ICRA Fig 5
+- [x] Replicate ICRA Fig 4b individuals
+- [x] Replicate ICRA Fig 5
 - [ ] publish crown_ibp, auto-Lirpa forks
 - [ ] setup ci and simple tests to run the various expts
 - [ ] add citation to papers, add description of repo to top of readme
@@ -60,8 +60,8 @@ Someday soon...
 - [ ] ICRA Fig 4a make pkl
 - [ ] ICRA Fig 4a from pkl
 - [ ] ICRA Fig 4b as single script
-
-
+- [ ] ICRA Fig 4b load correct model
+- [ ] ICRA Fig 5 axes names & spacings
 
 ---
 

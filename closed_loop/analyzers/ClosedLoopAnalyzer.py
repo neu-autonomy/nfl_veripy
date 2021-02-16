@@ -36,7 +36,8 @@ class ClosedLoopAnalyzer(analyzers.Analyzer):
             input_constraint, output_constraint,
             self.propagator, show_samples=show_samples,
             outputs_to_highlight=[{'dim':[0], 'name':'py'}, {'dim':[1], 'name':'pz'}],
-            inputs_to_highlight=[{'dim':[0], 'name':'py'}, {'dim':[1], 'name':'pz'}] )
+            inputs_to_highlight=[{'dim':[0], 'name':'py'}, {'dim':[1], 'name':'pz'}],
+            aspect=aspect)
         self.partitioner.visualize(
             kwargs.get("exterior_partitions", kwargs.get("all_partitions", [])), 
             kwargs.get("interior_partitions", []),

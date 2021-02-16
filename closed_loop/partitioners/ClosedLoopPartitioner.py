@@ -228,7 +228,7 @@ class ClosedLoopPartitioner(partitioners.Partitioner):
         # else:
         #     raise NotImplementedError
 
-    def setup_visualization(self, input_constraint, output_constraint, propagator, show_samples=True, outputs_to_highlight=None, inputs_to_highlight=None):
+    def setup_visualization(self, input_constraint, output_constraint, propagator, show_samples=True, outputs_to_highlight=None, inputs_to_highlight=None, aspect="auto"):
         if isinstance(output_constraint, constraints.PolytopeOutputConstraint):
             A_out = output_constraint.A
             b_out = output_constraint.b
@@ -291,6 +291,8 @@ class ClosedLoopPartitioner(partitioners.Partitioner):
         # self.animate_axes[0].set_ylim(input_range[input_dims[1]+(0,)] - y_off, input_range[input_dims[1]+(1,)]+y_off)
         self.animate_axes.set_xlabel(input_names[0])
         self.animate_axes.set_ylabel(input_names[1])
+
+        self.animate_axes.set_aspect(aspect)
 
         if show_samples:
             self.dynamics.show_samples(t_max*self.dynamics.dt, input_constraint, ax=self.animate_axes, controller=propagator.network, input_dims=input_dims)

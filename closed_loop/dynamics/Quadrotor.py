@@ -34,7 +34,7 @@ class Quadrotor(Dynamics):
 
         super().__init__(At=At, bt=bt, ct=ct, u_limits=u_limits, dt=dt)
 
-        self.cmap_name = "tab20c"
+        self.cmap_name = "tab20"
 
         # # LQR-MPC parameters
         # self.Q = np.eye(2)

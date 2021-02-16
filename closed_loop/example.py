@@ -110,7 +110,7 @@ def main(args):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Analyze a closed loop system w/ NN controller.')
     parser.add_argument('--system', default='double_integrator_mpc',
-                        choices=["double_integrator_mpc", "quarotor"],
+                        choices=["double_integrator_mpc", "quadrotor"],
                         help='which system to analyze (default: double_integrator_mpc)')
     parser.add_argument('--init_state_range', default=None,
                         help='2*num_states values (default: None)')
@@ -152,7 +152,7 @@ if __name__ == '__main__':
 
     parser.add_argument('--plot_labels', metavar='N', default=["x_0", "x_1"], type=str, nargs='+',
                         help='x and y labels on input partition plot (default: ["Input", None])')
-    parser.add_argument('--plot_aspect', default="equal",
+    parser.add_argument('--plot_aspect', default="auto",
                         choices=["auto", "equal"],
                         help='aspect ratio on input partition plot (default: auto)')
 

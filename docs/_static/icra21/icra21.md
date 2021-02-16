@@ -55,22 +55,55 @@ Reach-SDP | Reach-SDP-Partition | Reach-LP | Reach-LP-Partition
 
 ### Figure 4
 
-For Fig. 4b, use a polytope description of the reachable sets with different numbers of facets (change `--num_polytope_facets`!):
+For Fig. 4b, use a polytope description of the reachable sets with different numbers of facets (just change `--num_polytope_facets`):
 ```bash
 python -m closed_loop.example \
 	--partitioner None \
 	--propagator CROWN \
 	--system double_integrator_mpc \
 	--state_feedback \
-	--t_max 8 \
+	--t_max 4 \
 	--save_plot --skip_show_plot \
 	--boundaries polytope \
-	--num_polytope_facets 4 \
+	--num_polytope_facets 8 \
 	--init_state_range "[[-2., -1.5], [0.4, 0.8]]"
 ```
+
+Note: currently this doesn't use the right NN model that was trained to drive the system to the origin from this initial state set, but the idea is the same.
 
 4-Polytope (Rectangle) | 8-Polytope | 35-Polytope
 ------------ | ------------- | -------------
 ![4-Polytope](docs/_static/icra21/fig_4/double_integrator_mpc_None_CROWN_tmax_4.0_polytope_4.png) | ![8-Polytope](docs/_static/icra21/fig_4/double_integrator_mpc_None_CROWN_tmax_4.0_polytope_8.png) | ![35-Polytope](docs/_static/icra21/fig_4/double_integrator_mpc_None_CROWN_tmax_4.0_polytope_35.png)
 
 ### Figure 5
+
+Fig 5a (no noise ==> `--state_feedback`):
+```bash
+python -m closed_loop.example \
+	--partitioner None \
+	--propagator CROWN \
+	--system quadrotor \
+	--state_feedback \
+	--t_max 1.2 \
+	--save_plot --skip_show_plot \
+	--boundaries lp \
+	--plot_aspect equal
+```
+
+Fig 5b (process & sensor noise ==> `--output_feedback`):
+```bash
+python -m closed_loop.example \
+	--partitioner None \
+	--propagator CROWN \
+	--system quadrotor \
+	--output_feedback \
+	--t_max 1.2 \
+	--save_plot --skip_show_plot \
+	--boundaries lp \
+	--plot_aspect equal
+```
+
+No Noise | Noise
+------------ | -------------
+![No Noise](docs/_static/icra21/fig_5/quadrotor_None_CROWN_tmax_1.2_lp_8_state_feedback.png) | ![Noise](docs/_static/icra21/fig_5/quadrotor_None_CROWN_tmax_1.2_lp_8_output_feedback.png)
+
