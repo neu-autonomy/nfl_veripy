@@ -2,16 +2,24 @@
 
 This repository provides Python implementations for the robustness analysis tools in some of our recent papers.
 
-`partition`:
+#### `partition`
+
+Michael Everett and Golnaz Habibi and Jonathan P. How, ["Robustness Analysis of Neural Networks via Efficient Partitioning with Applications in Control Systems"](https://doi.org/10.1109/LCSYS.2020.3045323), IEEE LCSS 2020 & ACC 2021.
+
 We introduce the concepts of `Analyzer`, `Propagator`, and `Partitioner` in our LCSS/ACC '21 paper and implement several instances of each concept as a starting point.
 This modular view on NN robustness analysis essentially defines an API that decouples each component.
 This decoupling enables improvements in either `Propagator` or `Partitioner` algorithms to have a wide impact across many analysis/verification problems.
 
-`closed_loop`:
+#### `closed_loop`
+
+Michael Everett and Golnaz Habibi and Jonathan P. How, ["Efficient Reachability Analysis for Closed-Loop Systems with Neural Network Controllers"](https://arxiv.org/pdf/2101.01815.pdf), ICRA 2021 (in review).
+
 Since NNs are rarely deployed in isolation, we developed a framework for analyzing closed-loop systems that employ NN control policies.
 The `closed_loop` codebase follows a similar API as the `partition` package, leveraging analogous `ClosedLoopAnalyzer`, `ClosedLoopPropagator` and `ClosedLoopPartitioner` concepts.
 The typical problem statement is: given a known initial state set (and a known dynamics model), compute bounds on the reachable sets for N steps into the future.
 These bounds provide a safety guarantee for autonomous systems employing NN controllers, as they guarantee that the system will never enter parts of the state space outside of the reachable set bounds.
+
+---
 
 We build on excellent open-source repositories from the neural network analysis community. These repositories are imported as Git submodules or re-implemented in Python here, with some changes to reflect the slightly different problem statements:
 * `auto_LIRPA`
@@ -115,12 +123,13 @@ For the closed-loop system analysis code (ICRA '21 subm.):
 - [ ] publish crown_ibp, auto-Lirpa forks
 - [ ] setup ci and simple tests to run the various expts
 - [x] add citation to papers, add description of repo to top of readme
-- [ ] add license & copyright?
+- [x] add license & copyright?
 - [ ] setup sync with github
 
 Someday soon...
 - [ ] add rtdocs
-- [ ] get animation working
+- [ ] get animation working for LCSS
+- [ ] get animation working for ICRA
 - [ ] LCSS Fig 8
 - [ ] Replicate LCSS Table 6b
 - [ ] Replicate LCSS Table I
