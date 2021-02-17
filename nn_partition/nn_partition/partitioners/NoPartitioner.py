@@ -1,4 +1,6 @@
 from .Partitioner import Partitioner
+import numpy as np
+import time
 
 class NoPartitioner(Partitioner):
 
@@ -14,7 +16,7 @@ class NoPartitioner(Partitioner):
     def get_output_range(self, input_range, propagator):
         input_shape = input_range.shape[:-1]
         iteration=-1
-        sampled_inputs = np.random.uniform(input_range[...,0], input_range[...,1], (self.num_simulations,)+input_shape)
+        sampled_inputs = np.random.uniform(input_range[...,0], input_range[...,1], (int(self.num_simulations),)+input_shape)
         sampled_outputs = propagator.forward_pass(sampled_inputs)
 
         if self.interior_condition == "convex_hull":
