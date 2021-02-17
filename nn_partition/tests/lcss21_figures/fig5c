@@ -1,0 +1,11 @@
+python -m nn_partition.example \
+	--partitioner GreedySimGuided \
+	--propagator CROWN_LIRPA \
+	--term_type time_budget \
+	--term_val 2 \
+	--interior_condition convex_hull \
+	--model random_weights \
+	--activation relu \
+	--input_plot_labels None None \
+	--show_input --skip_show_output \
+	--input_plot_aspect equal

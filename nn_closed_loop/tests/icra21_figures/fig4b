@@ -1,0 +1,10 @@
+python -m nn_closed_loop.example \
+	--partitioner None \
+	--propagator CROWN \
+	--system double_integrator \
+	--state_feedback \
+	--t_max 4 \
+	--save_plot --skip_show_plot \
+	--boundaries polytope \
+	--num_polytope_facets 8 \
+	--init_state_range "[[-2., -1.5], [0.4, 0.8]]"

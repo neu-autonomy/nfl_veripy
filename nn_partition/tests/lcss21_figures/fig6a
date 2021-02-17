@@ -1,0 +1,11 @@
+python -m nn_partition.example \
+	--partitioner SimGuided \
+	--propagator IBP_LIRPA \
+	--term_type time_budget \
+	--term_val 2 \
+	--interior_condition convex_hull \
+	--model robot_arm \
+	--activation tanh \
+	--output_plot_labels x y \
+	--output_plot_aspect equal \
+	--skip_show_input

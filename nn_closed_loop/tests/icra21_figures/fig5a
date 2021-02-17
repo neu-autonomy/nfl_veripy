@@ -1,0 +1,9 @@
+python -m nn_closed_loop.example \
+	--partitioner None \
+	--propagator CROWN \
+	--system quadrotor \
+	--state_feedback \
+	--t_max 1.2 \
+	--save_plot --skip_show_plot \
+	--boundaries lp \
+	--plot_aspect equal

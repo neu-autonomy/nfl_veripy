@@ -1,85 +1,39 @@
 import unittest
+import os
 import subprocess
 import shlex
 
 EPS = 1e-6
+figure_dir = "{}/icra21_figures/".format(
+    os.path.dirname(os.path.abspath(__file__))
+)
 
 
 class TestSum(unittest.TestCase):
-    def check_if_cmd_runs(self, command):
+    def check_if_cmd_runs(self, cmd_filename):
+        with open(figure_dir + cmd_filename, "r") as file:
+            command = file.read().replace("\\", "")
         # Check that code runs without error
         output = subprocess.run(shlex.split(command, posix=True))
         self.assertEqual(output.returncode, 0)
 
     def test_fig3_reach_sdp(self):
-        command = "python -m nn_closed_loop.example \
-                    --partitioner None \
-                    --propagator SDP \
-                    --system double_integrator \
-                    --state_feedback \
-                    --t_max 5 \
-                    --save_plot --skip_show_plot"
-        self.check_if_cmd_runs(command)
+        self.check_if_cmd_runs("fig3_reach_sdp")
 
     def test_fig3_reach_lp(self):
-        command = "python -m nn_closed_loop.example \
-                    --partitioner None \
-                    --propagator CROWN \
-                    --system double_integrator \
-                    --state_feedback \
-                    --t_max 5 \
-                    --save_plot --skip_show_plot"
-        self.check_if_cmd_runs(command)
+        self.check_if_cmd_runs("fig3_reach_lp")
 
     def test_fig3_reach_lp_partition(self):
-        command = "python -m nn_closed_loop.example \
-                    --partitioner Uniform \
-                    --propagator CROWN \
-                    --system double_integrator \
-                    --state_feedback \
-                    --t_max 5 \
-                    --save_plot --skip_show_plot"
-        self.check_if_cmd_runs(command)
+        self.check_if_cmd_runs("fig3_reach_lp_parition")
 
     def test_fig4b(self):
-        command = 'python -m nn_closed_loop.example \
-                    --partitioner None \
-                    --propagator CROWN \
-                    --system double_integrator \
-                    --state_feedback \
-                    --t_max 4 \
-                    --save_plot --skip_show_plot \
-                    --boundaries polytope \
-                    --num_polytope_facets 8 \
-                    --init_state_range "[[-2., -1.5], [0.4, 0.8]]" \
-                    --save_plot --skip_show_plot'
-        self.check_if_cmd_runs(command)
+        self.check_if_cmd_runs("fig4b")
 
     def test_fig5a(self):
-        command = "python -m nn_closed_loop.example \
-                    --partitioner None \
-                    --propagator CROWN \
-                    --system quadrotor \
-                    --state_feedback \
-                    --t_max 1.2 \
-                    --save_plot --skip_show_plot \
-                    --boundaries lp \
-                    --plot_aspect equal \
-                    --save_plot --skip_show_plot"
-        self.check_if_cmd_runs(command)
+        self.check_if_cmd_runs("fig5a")
 
     def test_fig5b(self):
-        command = "python -m nn_closed_loop.example \
-                    --partitioner None \
-                    --propagator CROWN \
-                    --system quadrotor \
-                    --output_feedback \
-                    --t_max 1.2 \
-                    --save_plot --skip_show_plot \
-                    --boundaries lp \
-                    --plot_aspect equal \
-                    --save_plot --skip_show_plot"
-        self.check_if_cmd_runs(command)
+        self.check_if_cmd_runs("fig5b")
 
         # # Check that plot was generated
         # plot_filename = os.path.dirname(os.path.realpath(__file__)) + '/../results/analyzer/'

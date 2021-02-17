@@ -1,0 +1,7 @@
+python -m nn_closed_loop.example \
+	--partitioner Uniform \
+	--propagator CROWN \
+	--system double_integrator \
+	--state_feedback \
+	--t_max 5 \
+	--save_plot --skip_show_plot

@@ -1,0 +1,10 @@
+python -m nn_partition.example \
+	--partitioner GreedySimGuided \
+	--propagator CROWN_LIRPA \
+	--term_type time_budget \
+	--term_val 2 \
+	--interior_condition lower_bnds \
+	--model random_weights \
+	--activation relu \
+	--show_input --show_output \
+	--skip_show_plot --save_plot
