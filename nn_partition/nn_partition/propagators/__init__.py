@@ -1,6 +1,12 @@
 from .Propagator import Propagator
 from .CrownIBP import IBPPropagator, CROWNPropagator
-from .AutoLIRPA import CROWNAutoLIRPAPropagator, IBPAutoLIRPAPropagator, CROWNIBPAutoLIRPAPropagator, FastLinAutoLIRPAPropagator, ExhaustiveAutoLIRPAPropagator
+from .AutoLIRPA import (
+    CROWNAutoLIRPAPropagator,
+    IBPAutoLIRPAPropagator,
+    CROWNIBPAutoLIRPAPropagator,
+    FastLinAutoLIRPAPropagator,
+    ExhaustiveAutoLIRPAPropagator,
+)
 from .SDP import SDPPropagator
 
 propagator_dict = {

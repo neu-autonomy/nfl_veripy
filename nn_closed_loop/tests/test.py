@@ -24,7 +24,7 @@ class TestSum(unittest.TestCase):
         self.check_if_cmd_runs("fig3_reach_lp")
 
     def test_fig3_reach_lp_partition(self):
-        self.check_if_cmd_runs("fig3_reach_lp_parition")
+        self.check_if_cmd_runs("fig3_reach_lp_partition")
 
     def test_fig4b(self):
         self.check_if_cmd_runs("fig4b")
