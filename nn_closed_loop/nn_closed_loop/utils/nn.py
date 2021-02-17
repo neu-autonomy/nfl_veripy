@@ -1,11 +1,12 @@
 import numpy as np
 import os
+
+os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
 from keras.models import Sequential
 from keras.layers import Dense
 from keras.models import model_from_json
 from crown_ibp.conversions.keras2torch import keras2torch
 
-os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
 dir_path = os.path.dirname(os.path.realpath(__file__))
 
 

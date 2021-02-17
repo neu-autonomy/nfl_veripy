@@ -158,6 +158,8 @@ class ClosedLoopSDPPropagator(ClosedLoopPropagator):
             solver_args = {"verbose": False}
             if self.cvxpy_solver == "MOSEK":
                 solver_args["solver"] = cp.MOSEK
+            else:
+                solver_args["solver"] = cp.SCS
             prob.solve(**solver_args)
             # print("status:", prob.status)
             bs[i] = b_i.value

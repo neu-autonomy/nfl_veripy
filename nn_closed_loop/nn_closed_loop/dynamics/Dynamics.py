@@ -221,7 +221,7 @@ class Dynamics:
         step = 0
         while t < t_max:
 
-            # Observe system (using observer matrix, 
+            # Observe system (using observer matrix,
             # possibly adding measurement noise)
             obs = self.observe_step(xs[:, step, :])
 

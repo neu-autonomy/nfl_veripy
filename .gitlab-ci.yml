@@ -4,6 +4,7 @@ variables:
 test_partition:
   image: python:3.6
   script:
+    - apt-get install libblas-dev liblapack-dev
     - python -m pip install -e crown_ibp
     - python -m pip install -e auto_LiRPA
     - python -m pip install -e robust_sdp
@@ -13,6 +14,7 @@ test_partition:
 test_closed_loop:
   image: python:3.6
   script:
+    - apt-get install libblas-dev liblapack-dev
     - python -m pip install -e crown_ibp
     - python -m pip install -e auto_LiRPA
     - python -m pip install -e robust_sdp

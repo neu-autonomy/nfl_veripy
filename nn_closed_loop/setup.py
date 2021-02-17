@@ -1,12 +1,13 @@
 from setuptools import setup, find_packages
 
 setup(
-    name="closed_loop",
+    name="nn_closed_loop",
     version="0.0.1",
     install_requires=[
         "torch",
         "matplotlib",
         "pandas",
+        "nn_partition",
     ],
     packages=find_packages(),
 )
