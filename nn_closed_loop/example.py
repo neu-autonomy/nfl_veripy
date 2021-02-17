@@ -119,7 +119,7 @@ def main(args):
     # print('Final step approximation error:{:.2f}\nAverage approximation error: {:.2f}'.format(error, avg_error))
 
     if args.save_plot:
-        save_dir = "{}/results/analyzer/".format(
+        save_dir = "{}/results/examples/".format(
             os.path.dirname(os.path.abspath(__file__))
         )
         os.makedirs(save_dir, exist_ok=True)
@@ -299,5 +299,3 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     main(args)
-
-    print("--- done. ---")

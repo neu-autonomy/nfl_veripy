@@ -1,6 +1,6 @@
 ### About
 
-This repository provides Python implementations for the robustness analysis tools in some of our recent papers.
+This repository provides Python implementations for the robustness analysis tools in some of our recent papers. This research is supported by Ford Motor Company.
 
 #### `nn_partition`
 
@@ -21,6 +21,10 @@ The `nn_closed_loop` codebase follows a similar API as the `nn_partition` packag
 The typical problem statement is: given a known initial state set (and a known dynamics model), compute bounds on the reachable sets for N steps into the future.
 These bounds provide a safety guarantee for autonomous systems employing NN controllers, as they guarantee that the system will never enter parts of the state space outside of the reachable set bounds.
 
+Reach-LP-Partition | Reach-LP w/ Polytopes
+----- | -----
+![nn_partition_polytope](docs/_static/icra21/other/double_integrator_Uniform_CROWN_tmax_5.0_lp_8.png) | ![nn_partition_polytope](docs/_static/icra21/other/double_integrator_None_CROWN_tmax_4.0_polytope_35.png)
+
 ---
 
 We build on excellent open-source repositories from the neural network analysis community. These repositories are imported as Git submodules or re-implemented in Python here, with some changes to reflect the slightly different problem statements:
@@ -36,6 +40,11 @@ git clone --recursive <this_repo>
 ```
 
 ### Install
+
+You *might* need to install these dependencies on Linux (for `cvxpy`'s SCS solver and to generate reasonably sized animation files) (did not need to on OSX):
+```bash
+sudo apt-get install libblas-dev liblapack-dev gifsicle
+```
 
 Create a `virtualenv` for this repo:
 ```bash
@@ -130,7 +139,6 @@ For the closed-loop system analysis code (ICRA '21 subm.):
 - [x] add citation to papers, add description of repo to top of readme
 - [x] add license & copyright?
 - [x] get animation working for LCSS
-- [ ] get animation working for ICRA
 - [ ] setup sync with github
 
 Someday soon...
@@ -147,4 +155,4 @@ Someday soon...
 - [ ] ICRA Fig 4b as single script
 - [ ] ICRA Fig 4b load correct model
 - [ ] ICRA Fig 5 axes names & spacings
-
+- [ ] get animation working for ICRA

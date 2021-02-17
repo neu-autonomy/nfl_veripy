@@ -83,7 +83,6 @@ class ClosedLoopAnalyzer(analyzers.Analyzer):
         self.partitioner.animate_fig.tight_layout()
 
         if "save_name" in kwargs and kwargs["save_name"] is not None:
-            print(kwargs["save_name"])
             plt.savefig(kwargs["save_name"])
 
         if show:

@@ -5,7 +5,7 @@ test_partition:
   image: python:3.6
   script:
     - apt-get update -qy
-    - apt-get install -y libblas-dev liblapack-dev
+    - apt-get install -y libblas-dev liblapack-dev gifsicle
     - python -m pip install -e crown_ibp
     - python -m pip install -e auto_LiRPA
     - python -m pip install -e robust_sdp
@@ -16,7 +16,7 @@ test_closed_loop:
   image: python:3.6
   script:
     - apt-get update -qy
-    - apt-get install -y libblas-dev liblapack-dev
+    - apt-get install -y libblas-dev liblapack-dev gifsicle
     - python -m pip install -e crown_ibp
     - python -m pip install -e auto_LiRPA
     - python -m pip install -e robust_sdp
