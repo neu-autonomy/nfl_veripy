@@ -160,3 +160,22 @@ This figure unfortunately requires code for the RL implementation that is under 
 
 Info coming soon...
 
+### Animations
+
+For any of the above examples, you can add the `--make_animation` flag which will save a `.gif` in `results/animations/`, e.g.,
+```bash
+python -m nn_partition.example \
+	--partitioner GreedySimGuided \
+	--propagator CROWN_LIRPA \
+	--term_type time_budget \
+	--term_val 5 \
+	--interior_condition lower_bnds \
+	--model random_weights \
+	--activation relu \
+	--show_input --show_output \
+	--make_animation
+```
+
+will produce something like this:
+![animation](docs/_static/lcss21/animations/GSG_CROWN_random_relu_lowerbnds.gif)
+

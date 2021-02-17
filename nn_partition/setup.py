@@ -14,6 +14,7 @@ setup(
         "pypoman",
         "tqdm",
         "pyclipper",
+        "pygifsicle",
     ],
     packages=find_packages(),
 )

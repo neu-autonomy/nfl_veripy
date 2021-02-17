@@ -1,7 +1,5 @@
 from .Partitioner import Partitioner
 import numpy as np
-import imageio
-import os
 import time
 
 
@@ -30,35 +28,6 @@ class UnGuidedPartitioner(Partitioner):
     def grab_from_M(self, M, output_range_sim):
         input_range_, output_range_ = M.pop(0)
         return input_range_, output_range_
-
-    def compile_animation(self, iteration):
-        animation_save_dir = "{}/results/tmp/".format(
-            os.path.dirname(os.path.abspath(__file__))
-        )
-        filenames = [
-            animation_save_dir + "tmp_{}.png".format(str(i).zfill(6))
-            for i in range(iteration)
-        ]
-        images = []
-        for filename in filenames:
-            try:
-                image = imageio.imread(filename)
-            except:
-                continue
-            images.append(imageio.imread(filename))
-            if filename == filenames[-1]:
-                for i in range(10):
-                    images.append(imageio.imread(filename))
-            os.remove(filename)
-
-        # Save the gif in a new animations sub-folder
-        animation_filename = "tmp.gif"
-        animation_save_dir = "{}/results/animations/".format(
-            os.path.dirname(os.path.abspath(__file__))
-        )
-        os.makedirs(animation_save_dir, exist_ok=True)
-        animation_filename = animation_save_dir + animation_filename
-        imageio.mimsave(animation_filename, images)
 
     def get_output_range(self, input_range, propagator, verbose=False):
         t_start_overall = time.time()

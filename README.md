@@ -4,15 +4,17 @@ This repository provides Python implementations for the robustness analysis tool
 
 #### `nn_partition`
 
-Michael Everett and Golnaz Habibi and Jonathan P. How, ["Robustness Analysis of Neural Networks via Efficient Partitioning with Applications in Control Systems"](https://doi.org/10.1109/LCSYS.2020.3045323), IEEE LCSS 2020 & ACC 2021.
+* Michael Everett, Golnaz Habibi, Jonathan P. How, ["Robustness Analysis of Neural Networks via Efficient Partitioning with Applications in Control Systems"](https://doi.org/10.1109/LCSYS.2020.3045323), IEEE LCSS 2020 & ACC 2021.
 
 We introduce the concepts of `Analyzer`, `Propagator`, and `Partitioner` in our LCSS/ACC '21 paper and implement several instances of each concept as a starting point.
 This modular view on NN robustness analysis essentially defines an API that decouples each component.
 This decoupling enables improvements in either `Propagator` or `Partitioner` algorithms to have a wide impact across many analysis/verification problems.
 
+![nn_partition](docs/_static/lcss21/animations/GreedySimGuidedPartitioner.gif)
+
 #### `nn_closed_loop`
 
-Michael Everett and Golnaz Habibi and Jonathan P. How, ["Efficient Reachability Analysis for Closed-Loop Systems with Neural Network Controllers"](https://arxiv.org/pdf/2101.01815.pdf), ICRA 2021 (in review).
+* Michael Everett, Golnaz Habibi, Jonathan P. How, ["Efficient Reachability Analysis for Closed-Loop Systems with Neural Network Controllers"](https://arxiv.org/pdf/2101.01815.pdf), ICRA 2021 (in review).
 
 Since NNs are rarely deployed in isolation, we developed a framework for analyzing closed-loop systems that employ NN control policies.
 The `nn_closed_loop` codebase follows a similar API as the `nn_partition` package, leveraging analogous `ClosedLoopAnalyzer`, `ClosedLoopPropagator` and `ClosedLoopPartitioner` concepts.
@@ -124,16 +126,16 @@ For the closed-loop system analysis code (ICRA '21 subm.):
 - [x] Replicate ICRA Fig 4b individuals
 - [x] Replicate ICRA Fig 5
 - [x] publish crown_ibp, auto-Lirpa forks
-- [ ] setup ci and simple tests to run the various expts
+- [x] setup ci and simple tests to run the various expts
 - [x] add citation to papers, add description of repo to top of readme
 - [x] add license & copyright?
+- [x] get animation working for LCSS
+- [ ] get animation working for ICRA
 - [ ] setup sync with github
 
 Someday soon...
-- [ ] add rtdocs
+- [ ] add rtdocs (auto-fill code snippets from test files)
 - [ ] track down trained model for Fig 4b
-- [ ] get animation working for LCSS
-- [ ] get animation working for ICRA
 - [ ] LCSS Fig 8
 - [ ] Replicate LCSS Table 6b
 - [ ] Replicate LCSS Table I

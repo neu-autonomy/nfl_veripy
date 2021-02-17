@@ -6,6 +6,8 @@ from matplotlib.patches import Rectangle
 from nn_partition.utils.utils import get_sampled_outputs, samples_to_range
 import os
 import time
+import imageio
+from pygifsicle import optimize
 
 label_dict = {
     "linf": "$\ell_\infty$-ball",
@@ -16,7 +18,12 @@ label_dict = {
 
 class Partitioner:
     def __init__(self):
-        return
+        self.tmp_animation_save_dir = "{}/../../results/tmp_animation/".format(
+            os.path.dirname(os.path.abspath(__file__))
+        )
+        self.animation_save_dir = "{}/../../results/animations/".format(
+            os.path.dirname(os.path.abspath(__file__))
+        )
 
     def get_output_range(self):
         raise NotImplementedError
@@ -114,8 +121,8 @@ class Partitioner:
                 for flat_dim in flat_dims
             ]
             input_names = [
-                "NN Input Dimension: {}".format(input_dims[0][0]),
-                "NN Input Dimension: {}".format(input_dims[1][0]),
+                "NN Input Dim. {}".format(input_dims[0][0]),
+                "NN Input Dim. {}".format(input_dims[1][0]),
             ]
         else:
             input_dims = [x["dim"] for x in inputs_to_highlight]
@@ -129,7 +136,7 @@ class Partitioner:
 
         if outputs_to_highlight is None:
             output_dims = [(0,), (1,)]
-            output_names = ["NN Output Dimension 0", "NN Output Dimension 1"]
+            output_names = ["NN Output Dim. 0", "NN Output Dim. 1"]
         else:
             output_dims = [x["dim"] for x in outputs_to_highlight]
             output_names = [x["name"] for x in outputs_to_highlight]
@@ -334,12 +341,14 @@ class Partitioner:
             else:
                 raise NotImplementedError
 
+        plt.tight_layout()
+
     def visualize(
         self,
         M,
         interior_M,
         u_e,
-        iteration=0,
+        iteration=None,
         show_input=True,
         show_output=True,
         title=None,
@@ -489,22 +498,25 @@ class Partitioner:
             else:
                 raise NotImplementedError
 
-        plt.tight_layout()
-
         if title is not None:
             plt.suptitle(title)
+
+        if iteration == 0:
+            plt.tight_layout()
 
         if self.show_animation:
             plt.pause(0.01)
 
-        if self.make_animation:
-            animation_save_dir = "{}/results/tmp/".format(
-                os.path.dirname(os.path.abspath(__file__))
-            )
-            os.makedirs(animation_save_dir, exist_ok=True)
-        # plt.savefig(animation_save_dir+"tmp_{}.png".format(str(iteration).zfill(6)))
+        if self.make_animation and iteration is not None:
+            os.makedirs(self.tmp_animation_save_dir, exist_ok=True)
+            filename = self.get_tmp_animation_filename(iteration)
+            plt.savefig(filename)
 
-    #      plt.savefig(animation_save_dir+"tmp.png".format(str(iteration).zfill(6)))
+    def get_tmp_animation_filename(self, iteration):
+        filename = self.tmp_animation_save_dir + "tmp_{}.png".format(
+            str(iteration).zfill(6)
+        )
+        return filename
 
     def get_error(self, output_range_exact, output_range_estimate):
         if self.interior_condition == "linf":
@@ -724,6 +736,7 @@ class Partitioner:
                         str(num_propagator_calls)
                     )
                     # title = None
+
                     self.visualize(
                         M,
                         interior_M,
@@ -779,3 +792,32 @@ class Partitioner:
             self.sim_convex_hull = ConvexHull(sampled_outputs)
 
         return output_range_sim, sampled_outputs, sampled_inputs
+
+    def compile_animation(self, iteration):
+        filenames = [
+            self.get_tmp_animation_filename(i) for i in range(iteration)
+        ]
+        images = []
+        for filename in filenames:
+            try:
+                image = imageio.imread(filename)
+            except FileNotFoundError:
+                # not every iteration has a plot
+                continue
+            images.append(image)
+            if filename == filenames[-1]:
+                for i in range(10):
+                    images.append(imageio.imread(filename))
+            os.remove(filename)
+
+        # Save the gif in a new animations sub-folder
+        os.makedirs(self.animation_save_dir, exist_ok=True)
+        animation_filename = (
+            self.animation_save_dir + self.get_animation_filename()
+        )
+        imageio.mimsave(animation_filename, images)
+        optimize(animation_filename)  # compress gif file size
+
+    def get_animation_filename(self):
+        animation_filename = self.__class__.__name__ + ".gif"
+        return animation_filename

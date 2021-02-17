@@ -36,8 +36,10 @@ def main(args):
         "termination_condition_type": args.term_type,
         "termination_condition_value": args.term_val,
         "interior_condition": args.interior_condition,
-        "make_animation": False,
-        "show_animation": False,
+        "make_animation": args.make_animation,
+        "show_animation": args.show_animation,
+        "show_input": args.show_input,
+        "show_output": args.show_output,
     }
     propagator_hyperparams = {
         "type": args.propagator,
@@ -53,41 +55,41 @@ def main(args):
     # output_range_exact = analyzer.get_exact_output_range(input_range)
     # if analyzer.partitioner["interior_condition"] == "convex_hull":
     # else:
-    if partitioner_hyperparams["interior_condition"] == "convex_hull":
-        exact_hull = analyzer.get_exact_hull(input_range)
+    # if partitioner_hyperparams["interior_condition"] == "convex_hull":
+    #     exact_hull = analyzer.get_exact_hull(input_range)
 
-        error = analyzer.partitioner.get_error(
-            exact_hull, analyzer_info["estimated_hull"]
-        )
-    if partitioner_hyperparams["interior_condition"] in ["lower_bnds", "linf"]:
-        output_range_exact = analyzer.get_exact_output_range(input_range)
+    #     error = analyzer.partitioner.get_error(
+    #         exact_hull, analyzer_info["estimated_hull"]
+    #     )
+    # if partitioner_hyperparams["interior_condition"] in ["lower_bnds", "linf"]:
+    #     output_range_exact = analyzer.get_exact_output_range(input_range)
 
-        error = analyzer.partitioner.get_error(
-            output_range_exact, output_range
-        )
+    #     error = analyzer.partitioner.get_error(
+    #         output_range_exact, output_range
+    #     )
 
     # output_range_exact = analyzer.get_exact_output_range(input_range)
 
     # error = analyzer.partitioner.get_error(output_range_exact, output_range)
-    print("\n")
-    print(
-        "{}+{}".format(
-            partitioner_hyperparams["type"], propagator_hyperparams["type"]
-        )
-    )
+    # print("\n")
+    # print(
+    #     "{}+{}".format(
+    #         partitioner_hyperparams["type"], propagator_hyperparams["type"]
+    #     )
+    # )
     # print("Estimated output_range:\n", output_range)
     # print("True output_range:\n", output_range_exact)
-    print("Number of propagator calls:", analyzer_info["num_propagator_calls"])
-    print("Error: ", error)
-    print("Number of partitions:", analyzer_info["num_partitions"])
-    print("Computation time:", analyzer_info["computation_time"])
-    print("Number of iteration :", analyzer_info["num_iteration"])
-    print("Error (inloop) :", analyzer_info["estimation_error"])
+    # print("Number of propagator calls:", analyzer_info["num_propagator_calls"])
+    # print("Error: ", error)
+    # print("Number of partitions:", analyzer_info["num_partitions"])
+    # print("Computation time:", analyzer_info["computation_time"])
+    # print("Number of iteration :", analyzer_info["num_iteration"])
+    # print("Error (inloop) :", analyzer_info["estimation_error"])
     #  print(output_range , analyzer_info["estimated_hull"] )
 
     # Generate a visualization of the input/output mapping
     if args.save_plot:
-        save_dir = "{}/results/analyzer/".format(
+        save_dir = "{}/results/examples/".format(
             os.path.dirname(os.path.abspath(__file__))
         )
         os.makedirs(save_dir, exist_ok=True)
@@ -131,10 +133,12 @@ def main(args):
         # Plot shape/label settings
         labels = {
             "input": [
-                l if l != "None" else None for l in args.input_plot_labels
+                label if label != "None" else None
+                for label in args.input_plot_labels
             ],
             "output": [
-                l if l is not "None" else None for l in args.output_plot_labels
+                label if label != "None" else None
+                for label in args.output_plot_labels
             ],
         }
         aspects = {
@@ -307,6 +311,26 @@ if __name__ == "__main__":
         choices=["auto", "equal"],
         help="aspect ratio on output plot (default: auto)",
     )
+    parser.add_argument(
+        "--make_animation",
+        dest="make_animation",
+        action="store_true",
+        help="whether to animate the partitioning process",
+    )
+    parser.add_argument(
+        "--skip_make_animation", dest="make_animation", action="store_false"
+    )
+    parser.set_defaults(make_animation=False)
+    parser.add_argument(
+        "--show_animation",
+        dest="show_animation",
+        action="store_true",
+        help="whether to show animation of the partitioning process",
+    )
+    parser.add_argument(
+        "--skip_show_animation", dest="show_animation", action="store_false"
+    )
+    parser.set_defaults(show_animation=False)
 
     args = parser.parse_args()
 

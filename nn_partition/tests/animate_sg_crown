@@ -1,0 +1,11 @@
+python -m nn_partition.example \
+    --partitioner SimGuided \
+    --propagator CROWN_LIRPA \
+    --term_type time_budget \
+    --term_val 2 \
+    --interior_condition convex_hull \
+    --model random_weights \
+    --activation relu \
+    --show_input --show_output \
+    --skip_show_plot --skip_save_plot \
+    --make_animation
