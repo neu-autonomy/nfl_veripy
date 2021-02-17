@@ -1,13 +1,11 @@
 import unittest
-import os
-from importlib import reload, import_module
 import subprocess
 import shlex
 
 EPS = 1e-6
 
-class TestSum(unittest.TestCase):
 
+class TestSum(unittest.TestCase):
     def check_if_cmd_runs(self, command):
         # Check that code runs without error
         output = subprocess.run(shlex.split(command, posix=True))
@@ -87,5 +85,6 @@ class TestSum(unittest.TestCase):
         # plot_filename = os.path.dirname(os.path.realpath(__file__)) + '/../results/analyzer/'
         # self.assertTrue(os.path.isfile(plot_filename))
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     unittest.main()
