@@ -83,7 +83,7 @@ Or, compute reachable sets for a closed-loop system with a pre-trained NN contro
 python -m nn_closed_loop.example \
 	--partitioner None \
 	--propagator CROWN \
-	--system double_integrator_mpc \
+	--system double_integrator \
 	--state_feedback \
 	--t_max 5 \
 	--show_plot
@@ -92,7 +92,7 @@ python -m nn_closed_loop.example \
 ### Replicate plots from the papers:
 
 * LCSS/ACC '21: [README](docs/_static/lcss21/lcss21.md)
-* ICRA '21 (submission): [README](docs/_static/icra21/icra21.md)
+* ICRA '21: [README](docs/_static/icra21/icra21.md)
 
 ### If you find this code useful, please consider citing:
 For the partitioning-only code (LCSS/ACC '21):
@@ -101,20 +101,20 @@ For the partitioning-only code (LCSS/ACC '21):
   title={Robustness Analysis of Neural Networks via Efficient Partitioning with Applications in Control Systems},
   author={Everett, Michael and Habibi, Golnaz and How, Jonathan P},
   journal={IEEE Control Systems Letters},
-  year={2020},
+  year={2021},
   publisher={IEEE},
   doi={10.1109/LCSYS.2020.3045323}
 }
 ```
 
-For the closed-loop system analysis code (ICRA '21 subm.):
+For the closed-loop system analysis code (ICRA '21):
 ```
 @inproceedings{Everett21_ICRA,
     Author = {Michael Everett and Golnaz Habibi and Jonathan P. How},
     Booktitle = {IEEE International Conference on Robotics and Automation (ICRA)},
     Title = {Efficient Reachability Analysis for Closed-Loop Systems with Neural Network Controllers},
     Year = {2021},
-    Pages = {(in review)},
+    Pages = {(to appear)},
     Url = {https://arxiv.org/pdf/2101.01815.pdf},
     }
 ```
@@ -139,7 +139,7 @@ For the closed-loop system analysis code (ICRA '21 subm.):
 - [x] add citation to papers, add description of repo to top of readme
 - [x] add license & copyright?
 - [x] get animation working for LCSS
-- [ ] setup sync with github
+- [x] setup sync with github
 
 Someday soon...
 - [ ] add rtdocs (auto-fill code snippets from test files)
