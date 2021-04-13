@@ -13,6 +13,7 @@ import argparse
 
 def main(args):
     np.random.seed(seed=0)
+    stats = {}
 
     # Load NN control policy
     controller = load_controller(name=args.system)
@@ -57,9 +58,18 @@ def main(args):
     else:
         raise NotImplementedError
 
+    if args.num_partitions is None:
+        num_partitions = np.array([4, 4])
+    else:
+        import ast
+
+        num_partitions = np.array(
+            ast.literal_eval(args.num_partitions)
+        )
+
     partitioner_hyperparams = {
         "type": args.partitioner,
-        "num_partitions": args.num_partitions,
+        "num_partitions": num_partitions,
         # "make_animation": False,
         # "show_animation": False,
     }
@@ -108,6 +118,8 @@ def main(args):
             t_end = time.time()
             t = t_end - t_start
             times[num] = t
+
+        stats['runtimes'] = times
         print("All times: {}".format(times))
         print("Avg time: {}".format(times.mean()))
 
@@ -183,8 +195,11 @@ def main(args):
             **analyzer_info
         )
 
+    return stats
 
-if __name__ == "__main__":
+
+def setup_parser():
+
     parser = argparse.ArgumentParser(
         description="Analyze a closed loop system w/ NN controller."
     )
@@ -226,14 +241,14 @@ if __name__ == "__main__":
     parser.add_argument(
         "--propagator",
         default="IBP",
-        choices=["IBP", "CROWN", "FastLin", "SDP"],
+        choices=["IBP", "CROWN", "FastLin", "SDP", "CROWNLP"],
         help="which propagator to use (default: IBP)",
     )
 
     parser.add_argument(
         "--num_partitions",
-        default=np.array([4, 4]),
-        help="how many cells per dimension to use (default: [4,4])",
+        default=None,
+        help="how many cells per dimension to use (default: None)",
     )
     parser.add_argument(
         "--boundaries",
@@ -295,6 +310,13 @@ if __name__ == "__main__":
         choices=["auto", "equal"],
         help="aspect ratio on input partition plot (default: auto)",
     )
+
+    return parser
+
+
+if __name__ == "__main__":
+
+    parser = setup_parser()
 
     args = parser.parse_args()
 

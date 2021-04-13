@@ -1,4 +1,4 @@
-## Reproduce Figures from submitted ICRA 2021 Paper
+## Reproduce Figures from ICRA 2021 Paper
 
 ### Figure 3
 
