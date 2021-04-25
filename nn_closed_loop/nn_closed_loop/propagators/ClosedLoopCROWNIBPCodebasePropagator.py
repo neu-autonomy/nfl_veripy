@@ -31,7 +31,6 @@ class ClosedLoopCROWNIBPCodebasePropagator(ClosedLoopPropagator):
             b_inputs = input_constraint.b
 
             # Get bounds on each state from A_inputs, b_inputs
-            num_states = self.dynamics.At.shape[0]
             try:
                 vertices = np.stack(
                     pypoman.compute_polytope_vertices(A_inputs, b_inputs)
@@ -154,6 +153,16 @@ class ClosedLoopCROWNPropagator(ClosedLoopCROWNIBPCodebasePropagator):
         )
         self.method_opt = "full_backward_range"
         self.params = {"same-slope": False}
+
+
+class ClosedLoopCROWNLPPropagator(ClosedLoopCROWNPropagator):
+    # Same as ClosedLoopCROWNPropagator but don't allow the
+    # use of closed-form soln to the optimization, even if it's possible
+    def __init__(self, input_shape=None, dynamics=None):
+        ClosedLoopCROWNPropagator.__init__(
+            self, input_shape=input_shape, dynamics=dynamics
+        )
+        self.params['try_to_use_closed_form'] = False
 
 
 class ClosedLoopFastLinPropagator(ClosedLoopCROWNIBPCodebasePropagator):
