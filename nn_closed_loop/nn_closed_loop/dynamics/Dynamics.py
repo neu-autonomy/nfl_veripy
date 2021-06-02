@@ -176,15 +176,18 @@ class Dynamics:
         controller="mpc",
         merge_cols=False,
     ):
+        
         np.random.seed(0)
         num_timesteps = int(
             (t_max + self.dt + np.finfo(float).eps) / (self.dt)
         )
+        
         if collect_data:
             np.random.seed(1)
             num_runs = int(num_samples / num_timesteps)
             xs = np.zeros((num_runs, num_timesteps, self.num_states))
             us = np.zeros((num_runs, num_timesteps, self.num_inputs))
+        
         # Initial state
         if isinstance(input_constraint, constraints.LpInputConstraint):
             if input_constraint.p == np.inf:
@@ -197,23 +200,65 @@ class Dynamics:
                 raise NotImplementedError
         elif isinstance(input_constraint, constraints.PolytopeInputConstraint):
             init_state_range = input_constraint.to_linf()
-            xs[:, 0, :] = np.random.uniform(
-                low=init_state_range[:, 0],
-                high=init_state_range[:, 1],
-                size=(num_runs, self.num_states),
-            )
-            within_constraint_inds = np.where(
-                np.all(
-                    (
-                        np.dot(input_constraint.A, xs[:, 0, :].T)
-                        - np.expand_dims(input_constraint.b, axis=-1)
+            if isinstance(init_state_range, list):
+                # For backreachability, We will have N polytope input 
+                # constraints, so sample from those N sets individually then 
+                # merge to get (xs, us)
+
+                # want total of num_runs samples, so allocate a (roughly)
+                # equal number of "runs" to each polytope
+                num_runs_ = np.append(np.arange(0, num_runs, num_runs // len(init_state_range)), num_runs)
+                for i in range(len(init_state_range)):
+                    # Sample a handful of points
+                    xs_ = np.random.uniform(
+                        low=init_state_range[i][:, 0],
+                        high=init_state_range[i][:, 1],
+                        size=(num_runs_[i+1]-num_runs_[i], self.num_states),
                     )
-                    <= 0,
-                    axis=0,
+                    # check which of those are within this polytope
+                    within_constraint_inds = np.where(
+                        np.all(
+                            (
+                                np.dot(input_constraint.A[i], xs_.T)
+                                - np.expand_dims(input_constraint.b[i], axis=-1)
+                            )
+                            <= 0,
+                            axis=0,
+                        )
+                    )
+
+                    # append polytope-satisfying samples to xs__
+                    if i == 0:
+                        xs__ = xs_[within_constraint_inds]
+                    else:
+                        xs__ = np.vstack([xs__, xs_[within_constraint_inds]])
+
+                # assign things so (xs, us) end up as the right shape
+                us = np.zeros((xs__.shape[0], num_timesteps, self.num_inputs))
+                xs = np.zeros((xs__.shape[0], num_timesteps, self.num_states))
+                xs[:, 0, :] = xs__
+            else:
+                # For forward reachability...
+                # sample num_runs pts from within the state range (box)
+                # and drop all the points that don't satisfy the polytope
+                # constraint
+                xs[:, 0, :] = np.random.uniform(
+                    low=init_state_range[:, 0],
+                    high=init_state_range[:, 1],
+                    size=(num_runs, self.num_states),
                 )
-            )
-            xs = xs[within_constraint_inds]
-            us = us[within_constraint_inds]
+                within_constraint_inds = np.where(
+                    np.all(
+                        (
+                            np.dot(input_constraint.A, xs[:, 0, :].T)
+                            - np.expand_dims(input_constraint.b, axis=-1)
+                        )
+                        <= 0,
+                        axis=0,
+                    )
+                )
+                xs = xs[within_constraint_inds]
+                us = us[within_constraint_inds]
         else:
             raise NotImplementedError
 

@@ -296,8 +296,8 @@ def run_and_add_row(model, dynamics, input_range, partitioner_hyperparams, propa
   # ## Polytope Boundaries
     Polytope_constraint =False
     if Polytope_constraint==True:
-        from closed_loop.utils import init_state_range_to_polytope, get_polytope_A
-        A_inputs, b_inputs = init_state_range_to_polytope(input_range)
+        from closed_loop.utils import range_to_polytope, get_polytope_A
+        A_inputs, b_inputs = range_to_polytope(input_range)
    # if system == 'quadrotor': A_out = A_inputs
         A_out = get_polytope_A(12)
         input_constraint = PolytopeInputConstraint(A_inputs, b_inputs)
