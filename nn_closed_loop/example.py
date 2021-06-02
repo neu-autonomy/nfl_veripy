@@ -4,7 +4,7 @@ import nn_closed_loop.analyzers as analyzers
 import nn_closed_loop.constraints as constraints
 from nn_closed_loop.utils.nn import load_controller
 from nn_closed_loop.utils.utils import (
-    init_state_range_to_polytope,
+    range_to_polytope,
     get_polytope_A,
 )
 import os
@@ -87,7 +87,7 @@ def main(args):
 
     # Set up initial state set (and placeholder for reachable sets)
     if args.boundaries == "polytope":
-        A_inputs, b_inputs = init_state_range_to_polytope(init_state_range)
+        A_inputs, b_inputs = range_to_polytope(init_state_range)
         if args.system == "quadrotor":
             A_out = A_inputs
         else:

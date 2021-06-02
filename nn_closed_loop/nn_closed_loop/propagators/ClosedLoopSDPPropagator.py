@@ -13,7 +13,7 @@ from nn_closed_loop.utils.reach_sdp import (
     getInputConstraintsEllipsoid,
     getOutputConstraintsEllipsoid,
 )
-from nn_closed_loop.utils.utils import init_state_range_to_polytope
+from nn_closed_loop.utils.utils import range_to_polytope
 import torch
 
 
@@ -53,7 +53,7 @@ class ClosedLoopSDPPropagator(ClosedLoopPropagator):
             if input_constraint.p != np.inf:
                 raise NotImplementedError
             else:
-                A_inputs, b_inputs = init_state_range_to_polytope(
+                A_inputs, b_inputs = range_to_polytope(
                     input_constraint.range
                 )
         elif isinstance(
@@ -163,6 +163,8 @@ class ClosedLoopSDPPropagator(ClosedLoopPropagator):
             prob.solve(**solver_args)
             # print("status:", prob.status)
             bs[i] = b_i.value
+
+        # output_constraint = self.to_output_constraint(bs, output_constraint)
 
         if isinstance(output_constraint, constraints.PolytopeOutputConstraint):
             output_constraint.b = bs

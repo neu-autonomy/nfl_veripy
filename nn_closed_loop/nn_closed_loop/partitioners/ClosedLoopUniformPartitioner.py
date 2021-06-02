@@ -4,7 +4,7 @@ import numpy as np
 import pypoman
 from itertools import product
 from copy import deepcopy
-from nn_closed_loop.utils.utils import init_state_range_to_polytope
+from nn_closed_loop.utils.utils import range_to_polytope
 
 
 class ClosedLoopUniformPartitioner(ClosedLoopPartitioner):
@@ -95,7 +95,7 @@ class ClosedLoopUniformPartitioner(ClosedLoopPartitioner):
                 input_constraint, constraints.PolytopeInputConstraint
             ):
                 # This is a disaster hack to partition polytopes
-                A_rect, b_rect = init_state_range_to_polytope(input_range_)
+                A_rect, b_rect = range_to_polytope(input_range_)
                 rectangle_verts = pypoman.polygon.compute_polygon_hull(
                     A_rect, b_rect
                 )
