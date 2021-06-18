@@ -10,7 +10,7 @@ setup(
         "scipy",
         "matplotlib",
         "imageio",
-        "keras",
+        "tensorflow",
         "pypoman",
         "tqdm",
         "pyclipper",

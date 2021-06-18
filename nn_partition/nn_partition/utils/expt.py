@@ -14,7 +14,7 @@ from nn_partition.models.models import (
 
 
 def mfe_keras2torch():
-    from keras.models import model_from_json
+    from tensorflow.keras.models import model_from_json
     from crown_ibp.conversions.keras2torch import keras2torch, get_keras_model
 
     # load json and create model

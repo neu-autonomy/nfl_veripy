@@ -413,7 +413,7 @@ class BoundClosedLoopController(BoundSequential):
 
 
 if __name__ == "__main__":
-    from keras.models import model_from_json
+    from tensorflow.keras.models import model_from_json
     from crown_ibp.conversions.keras2torch import keras2torch
     import matplotlib.pyplot as plt
 
