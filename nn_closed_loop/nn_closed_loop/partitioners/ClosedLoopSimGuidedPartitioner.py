@@ -18,7 +18,7 @@ class ClosedLoopSimGuidedPartitioner(ClosedLoopPartitioner):
         self.make_animation = False
 
         self.termination_condition_type = "num_propagator_calls"
-        self.termination_condition_value = 100
+        self.termination_condition_value = 500
 
     def check_termination(
         self,
@@ -146,7 +146,7 @@ class ClosedLoopSimGuidedPartitioner(ClosedLoopPartitioner):
         while len(M) != 0 and not terminate:
             # print('------')
             # print("Iteration {}".format(iteration))
-            input_constraint_, reachable_set_ = self.grab_from_M(M)  # (Line 9)
+            input_constraint_, reachable_set_ = self.grab_from_M(M, output_range_sim)  # (Line 9)
             # print("Grabbed the following from M:")
             # print("input_constraint_.range: {}".format(input_constraint_.range))
             # print("reachable_set_: {}".format(reachable_set_))

@@ -235,7 +235,7 @@ def setup_parser():
     parser.add_argument(
         "--partitioner",
         default="Uniform",
-        choices=["None", "Uniform", "SimGuided"],
+        choices=["None", "Uniform", "SimGuided", "GreedySimGuided"],
         help="which partitioner to use (default: Uniform)",
     )
     parser.add_argument(
