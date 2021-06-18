@@ -35,6 +35,15 @@ class TestSum(unittest.TestCase):
     def test_fig5b(self):
         self.check_if_cmd_runs("fig5b")
 
+    def test_sg(self):
+        self.check_if_cmd_runs("../journal_figures/simguided")
+
+    def test_gsg(self):
+        self.check_if_cmd_runs("../journal_figures/greedysimguided")
+
+    def test_backreach(self):
+        self.check_if_cmd_runs("../journal_figures/backreach")
+
         # # Check that plot was generated
         # plot_filename = os.path.dirname(os.path.realpath(__file__)) + '/../results/analyzer/'
         # self.assertTrue(os.path.isfile(plot_filename))
