@@ -1,0 +1,7 @@
+python -m nn_closed_loop.example \
+	--partitioner GreedySimGuided \
+	--propagator CROWN \
+	--system double_integrator \
+	--state_feedback \
+	--t_max 5 \
+	--skip_show_plot

@@ -320,15 +320,13 @@ class ClosedLoopPartitioner(partitioners.Partitioner):
             t_max = len(output_range)
         else:
             raise NotImplementedError
+
+        input_constraint = input_constraint
         if isinstance(input_constraint, constraints.PolytopeInputConstraint):
             A_inputs = input_constraint.A
             b_inputs = input_constraint.b
-            num_states = A_inputs.shape[-1]
-
         elif isinstance(input_constraint, constraints.LpInputConstraint):
             input_range = input_constraint.range
-            input_p = input_constraint.p
-            num_states = input_range.shape[0]
         else:
             raise NotImplementedError
 
@@ -393,20 +391,43 @@ class ClosedLoopPartitioner(partitioners.Partitioner):
         # Initial state set
         color = "tab:gray"
         if isinstance(input_constraint, constraints.PolytopeInputConstraint):
-            # TODO: this doesn't use the computed input_dims...
-            try:
-                vertices = pypoman.compute_polygon_hull(A_inputs, b_inputs)
-            except:
-                print(
-                    "[warning] Can't visualize polytopic input constraints for >2 states. Need to implement this to it extracts input_dims."
+            if isinstance(input_constraint.A, list):
+                # For backreachability, input_constraint.A will be a list
+                # of polytope facets, whose union is the estimated
+                # backprojection set
+
+                # Draw the polytope corresponding to each element 
+                # of input_constraint.A
+                for i in range(len(input_constraint.A)):
+                    # TODO: this doesn't use the computed input_dims...
+                    vertices = np.stack(
+                        pypoman.polygon.compute_polygon_hull(
+                            input_constraint.A[i], input_constraint.b[i] + 1e-10
+                        )
+                    )
+                    self.animate_axes.plot(
+                        [v[0] for v in vertices] + [vertices[0][0]],
+                        [v[1] for v in vertices] + [vertices[0][1]],
+                        color=color,
+                        label="Initial States",
+                    )
+            else:
+                # For forward reachability, should just have a single
+                # input_constraint (per timestep)
+                # TODO: this doesn't use the computed input_dims...
+                try:
+                    vertices = pypoman.compute_polygon_hull(A_inputs, b_inputs)
+                except:
+                    print(
+                        "[warning] Can't visualize polytopic input constraints for >2 states. Need to implement this to it extracts input_dims."
+                    )
+                    raise NotImplementedError
+                self.animate_axes.plot(
+                    [v[0] for v in vertices] + [vertices[0][0]],
+                    [v[1] for v in vertices] + [vertices[0][1]],
+                    color=color,
+                    label="Initial States",
                 )
-                raise NotImplementedError
-            self.animate_axes.plot(
-                [v[0] for v in vertices] + [vertices[0][0]],
-                [v[1] for v in vertices] + [vertices[0][1]],
-                color=color,
-                label="Initial States",
-            )
         elif isinstance(input_constraint, constraints.LpInputConstraint):
             rect = Rectangle(
                 input_range[input_dims, 0],
@@ -506,7 +527,7 @@ class ClosedLoopPartitioner(partitioners.Partitioner):
             else:
                 raise NotImplementedError
 
-            color = "tab:purple"
+            color = "tab:red"
             rect = Rectangle(
                 input_range_[:, 0],
                 input_range_[input_dims_[0][0], 1]
@@ -514,7 +535,25 @@ class ClosedLoopPartitioner(partitioners.Partitioner):
                 input_range_[input_dims_[1][0], 1]
                 - input_range_[input_dims_[1][0], 0],
                 fc="none",
-                linewidth=1,
+                linewidth=1.5,
                 edgecolor=color,
             )
             self.animate_axes.add_patch(rect)
+
+    def get_one_step_backprojection_set(
+        self, output_constraint, input_constraint, propagator
+    ):
+        input_constraint, info = propagator.get_one_step_backprojection_set(
+            output_constraint, deepcopy(input_constraint)
+        )
+        return input_constraint, info
+
+    def get_backprojection_set(
+        self, output_constraint, input_constraint, propagator, t_max
+    ):
+        input_constraint_, info = propagator.get_backprojection_set(
+            output_constraint, deepcopy(input_constraint), t_max
+        )
+        input_constraint = input_constraint_.copy()
+
+        return input_constraint, info

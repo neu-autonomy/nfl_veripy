@@ -2,9 +2,9 @@ import numpy as np
 import gym
 import pickle
 
-from keras.models import Sequential
-from keras.layers import Dense
-from keras.models import model_from_json
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.layers import Dense
+from tensorflow.keras.models import model_from_json
 
 from nn_partition.models.models import model_dynamics
 import nn_partition.analyzers as analyzers

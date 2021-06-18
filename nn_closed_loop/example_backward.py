@@ -23,21 +23,28 @@ def main(args):
         if args.state_feedback:
             dyn = dynamics.DoubleIntegrator()
         else:
+            raise NotImplementedError
             dyn = dynamics.DoubleIntegratorOutputFeedback()
-        if args.init_state_range is None:
-            init_state_range = np.array(
+        if args.final_state_range is None:
+            final_state_range = np.array(
                 [  # (num_inputs, 2)
-                    [2.5, 3.0],  # x0min, x0max
-                    [-0.25, 0.25],  # x1min, x1max
+                    [-0.25, 0.25],  # x0min, x0max
+                    [-0.1, 0.1],  # x1min, x1max
+                    # [2.49, 2.5],  # x0min, x0max
+                    # [-0.1, 0.1],  # x1min, x1max
+                    # [2.59, 2.6],  # x0min, x0max
+                    # [-0.01, 0.01],  # x1min, x1max
                 ]
             )
         else:
+            raise NotImplementedError
             import ast
 
             init_state_range = np.array(
                 ast.literal_eval(args.init_state_range)
             )
     elif args.system == "quadrotor":
+        raise NotImplementedError
         if args.state_feedback:
             dyn = dynamics.Quadrotor()
         else:
@@ -75,37 +82,35 @@ def main(args):
     }
     propagator_hyperparams = {
         "type": args.propagator,
-        "input_shape": init_state_range.shape[:-1],
+        "input_shape": final_state_range.shape[:-1],
     }
     if args.propagator == "SDP":
+        raise NotImplementedError
         propagator_hyperparams["cvxpy_solver"] = args.cvxpy_solver
 
     # Set up analyzer (+ parititoner + propagator)
-    analyzer = analyzers.ClosedLoopAnalyzer(controller, dyn)
+    analyzer = analyzers.ClosedLoopBackwardAnalyzer(controller, dyn)
     analyzer.partitioner = partitioner_hyperparams
     analyzer.propagator = propagator_hyperparams
 
     # Set up initial state set (and placeholder for reachable sets)
     if args.boundaries == "polytope":
-        A_inputs, b_inputs = range_to_polytope(init_state_range)
-        if args.system == "quadrotor":
-            A_out = A_inputs
-        else:
-            A_out = get_polytope_A(args.num_polytope_facets)
-        input_constraint = constraints.PolytopeInputConstraint(
-            A_inputs, b_inputs
+        A_out, b_out = range_to_polytope(final_state_range)
+        output_constraint = constraints.PolytopeOutputConstraint(
+            A=A_out, b=[b_out]
         )
-        output_constraint = constraints.PolytopeOutputConstraint(A_out)
+        input_constraint = constraints.PolytopeInputConstraint(None, None)
     elif args.boundaries == "lp":
-        input_constraint = constraints.LpInputConstraint(
-            range=init_state_range, p=np.inf
+        output_constraint = constraints.LpOutputConstraint(
+            range=final_state_range, p=np.inf
         )
-        output_constraint = constraints.LpOutputConstraint(p=np.inf)
+        input_constraint = constraints.LpInputConstraint(p=np.inf, range=None)
     else:
         raise NotImplementedError
 
     # Run the analyzer N times to compute an estimated runtime
     if args.estimate_runtime:
+        raise NotImplementedError
         import time
 
         num_calls = 5
@@ -124,9 +129,10 @@ def main(args):
         print("Avg time: {}".format(times.mean()))
 
     # Run analysis & generate a plot
-    output_constraint, analyzer_info = analyzer.get_reachable_set(
-        input_constraint, output_constraint, t_max=args.t_max
+    input_constraint, analyzer_info = analyzer.get_backprojection_set(
+        output_constraint, input_constraint, t_max=args.t_max
     )
+    # print(input_constraint.A, input_constraint.b)
     # error, avg_error = analyzer.get_error(input_constraint,output_constraint, t_max=args.t_max)
     # print('Final step approximation error:{:.2f}\nAverage approximation error: {:.2f}'.format(error, avg_error))
 
@@ -186,7 +192,7 @@ def main(args):
 
     if args.show_plot or args.save_plot:
         analyzer.visualize(
-            input_constraint,
+            input_constraint[0],
             output_constraint,
             show_samples=True,
             show=args.show_plot,
@@ -201,7 +207,7 @@ def main(args):
 def setup_parser():
 
     parser = argparse.ArgumentParser(
-        description="Analyze a closed loop system w/ NN controller."
+        description="Backward analyze a closed loop system w/ NN controller."
     )
     parser.add_argument(
         "--system",
@@ -210,7 +216,7 @@ def setup_parser():
         help="which system to analyze (default: double_integrator_mpc)",
     )
     parser.add_argument(
-        "--init_state_range",
+        "--final_state_range",
         default=None,
         help="2*num_states values (default: None)",
     )
@@ -235,7 +241,7 @@ def setup_parser():
     parser.add_argument(
         "--partitioner",
         default="Uniform",
-        choices=["None", "Uniform", "SimGuided", "GreedySimGuided"],
+        choices=["None", "Uniform"],
         help="which partitioner to use (default: Uniform)",
     )
     parser.add_argument(

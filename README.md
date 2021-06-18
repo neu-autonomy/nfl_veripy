@@ -89,6 +89,17 @@ python -m nn_closed_loop.example \
 	--show_plot
 ```
 
+Or, compute backward reachable sets for a closed-loop system with a pre-trained NN control policy:
+```bash
+python -m nn_closed_loop.example_backward \
+	--partitioner None \
+	--propagator CROWN \
+	--system double_integrator \
+	--state_feedback \
+	--t_max 0.9 \
+	--show_plot --boundaries polytope
+```
+
 ### Replicate plots from the papers:
 
 * LCSS/ACC '21: [README](docs/_static/lcss21/lcss21.md)
@@ -114,7 +125,6 @@ For the closed-loop system analysis code (ICRA '21):
     Booktitle = {IEEE International Conference on Robotics and Automation (ICRA)},
     Title = {Efficient Reachability Analysis for Closed-Loop Systems with Neural Network Controllers},
     Year = {2021},
-    Pages = {(to appear)},
     Url = {https://arxiv.org/pdf/2101.01815.pdf},
     }
 ```

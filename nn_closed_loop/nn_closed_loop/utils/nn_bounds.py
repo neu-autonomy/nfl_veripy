@@ -339,8 +339,7 @@ class BoundClosedLoopController(BoundSequential):
         ub, lb = self._check_if_bnds_exist(ub=ub, lb=lb, x_U=x_U, x_L=x_L)
         return ub, lb
 
-    def _get_concrete_bound_linearprog(self, A, sum_b, 
-        A_in=None, b_in=None, x_U=None, x_L=None, sign=1):
+    def _get_concrete_bound_linearprog(self, A, sum_b, A_in=None, b_in=None, x_U=None, x_L=None, sign=1):
         if A is None:
             return None
         A = A.view(A.size(0), A.size(1), -1)
@@ -375,136 +374,6 @@ class BoundClosedLoopController(BoundSequential):
         bound = bound + sum_b
         return bound
 
-    # # sign = +1: upper bound, sign = -1: lower bound
-    # def _get_concrete_bound_linearprog_with_control_limits(
-    #     self,
-    #     lower_A,
-    #     upper_A,
-    #     lower_sum_b,
-    #     upper_sum_b,
-    #     A_out,
-    #     dynamics,
-    #     x_L=None,
-    #     x_U=None,
-    #     A_in=None,
-    #     b_in=None,
-    #     sign=+1,
-    # ):
-
-    #     u_min = dynamics.u_limits[:, 0]
-    #     u_max = dynamics.u_limits[:, 1]
-
-    #     x = cp.Variable(dynamics.num_states, name="x")
-
-    #     # Initial state constraints
-    #     constraints = []
-    #     if A_in is not None and b_in is not None:
-    #         constraints += [A_in @ x <= b_in]
-    #     else:
-    #         constraints += [
-    #             x <= x_U.data.numpy().squeeze(0),
-    #             x >= x_L.data.numpy().squeeze(0),
-    #         ]
-
-    #     A_dyn_np = dynamics.At
-    #     b_dyn_np = dynamics.bt
-    #     c_dyn_np = dynamics.ct
-    #     A_out_np = sign * A_out.data.numpy().squeeze(0)
-
-    #     if dynamics.continuous_time:
-    #         state_cost = A_out_np @ (x + dynamics.dt * A_dyn_np @ x)
-    #     else:
-    #         state_cost = A_out_np @ (A_dyn_np @ x)
-
-    #     # Write pi_u, pi_l as linear function of state
-    #     upper_A_np = upper_A.data.numpy().squeeze(0)
-    #     lower_A_np = lower_A.data.numpy().squeeze(0)
-    #     upper_sum_b_np = upper_sum_b.data.numpy().squeeze(0).copy()
-    #     lower_sum_b_np = lower_sum_b.data.numpy().squeeze(0).copy()
-
-    #     if dynamics.sensor_noise is not None:
-    #         flip_sensor_noise_low = A_out_np @ b_dyn_np @ lower_A_np > 0
-    #         flip_sensor_noise_high = A_out_np @ b_dyn_np @ upper_A_np > 0
-    #         sensor_noise_low = np.where(
-    #             flip_sensor_noise_low,
-    #             dynamics.sensor_noise[:, 1],
-    #             dynamics.sensor_noise[:, 0],
-    #         )
-    #         sensor_noise_high = np.where(
-    #             flip_sensor_noise_high,
-    #             dynamics.sensor_noise[:, 1],
-    #             dynamics.sensor_noise[:, 0],
-    #         )
-    #         lower_sum_b_np += lower_A_np @ sensor_noise_low
-    #         upper_sum_b_np += upper_A_np @ sensor_noise_high
-
-    #     pi_l = lower_A_np @ x + lower_sum_b_np
-    #     pi_u = upper_A_np @ x + upper_sum_b_np
-
-    #     # Weird logic for clipping control in a convex way
-    #     use_pi_u = np.dot(A_out_np, b_dyn_np) >= 0
-    #     u_cost = 0
-    #     u2_cost = 0
-    #     for i in range(dynamics.num_inputs):
-    #         if use_pi_u[i]:
-    #             u = cp.minimum(u_max[i], pi_u[i])
-    #             u2 = u_min[i]
-    #         else:
-    #             u = cp.maximum(u_min[i], pi_l[i])
-    #             u2 = u_max[i]
-    #         try:
-    #             u_cost_ = (A_out_np @ b_dyn_np)[i] @ u
-    #             u2_cost_ = (A_out_np @ b_dyn_np)[i] @ u2
-    #         except:
-    #             # bs to deal with single-input systems
-    #             u_cost_ = (A_out_np @ b_dyn_np)[i] * u
-    #             u2_cost_ = (A_out_np @ b_dyn_np)[i] * u2
-    #         if dynamics.continuous_time:
-    #             u_cost += dynamics.dt * u_cost_
-    #             u2_cost += dynamics.dt * u2_cost_
-    #         else:
-    #             u_cost += u_cost_
-    #             u2_cost += u2_cost_
-
-    #     cost = state_cost + u_cost
-    #     cost2 = state_cost + u2_cost
-
-    #     objective = cp.Maximize(cost)
-
-    #     # Solve problem respecting one bound on u
-    #     prob = cp.Problem(objective, constraints)
-    #     prob.solve()
-    #     bound = prob.value
-
-    #     # Solve problem respecting other bound on u
-    #     # (if pi_u or pi_l exceeds other bound everywhere)
-    #     objective = cp.Maximize(cost2)
-    #     prob = cp.Problem(objective, constraints)
-    #     prob.solve()
-
-    #     if prob.value > bound:
-    #         bound = prob.value
-
-    #     # Add worst-case realization of process noise (if it exists) to bound
-    #     if dynamics.process_noise is None:
-    #         process_noise = np.zeros_like(bound)
-    #     else:
-    #         process_noise = np.where(
-    #             A_out_np > 0,
-    #             dynamics.process_noise[:, 1],
-    #             dynamics.process_noise[:, 0],
-    #         )
-
-    #     # Add effect of ct dynamics term to bound
-    #     if dynamics.continuous_time:
-    #         bound = bound + dynamics.dt * np.dot(
-    #             A_out_np, c_dyn_np + process_noise
-    #         )
-    #     else:
-    #         bound = bound + np.dot(A_out_np, c_dyn_np + process_noise)
-
-    #     return bound
-
     # sign = +1: upper bound, sign = -1: lower bound
     def _get_concrete_bound_lpball(
         self, A, sum_b, x_U=None, x_L=None, norm=np.inf, sign=-1
@@ -528,10 +397,12 @@ class BoundClosedLoopController(BoundSequential):
             bound = A.bmm(center) + sign * A.abs().bmm(diff)
             logger.debug("bound shape: %s", bound.size())
         else:
-            x = x_U.view(x_U.size(0), -1, 1)
-            dual_norm = np.float64(1.0) / (1 - 1.0 / norm)
-            deviation = A.norm(dual_norm, -1) * eps
-            bound = A.bmm(x) + sign * deviation.unsqueeze(-1)
+            print("Haven't handled non-linf norm yet.")
+            raise NotImplementedError
+            # x = x_U.view(x_U.size(0), -1, 1)
+            # dual_norm = np.float64(1.0) / (1 - 1.0 / norm)
+            # deviation = A.norm(dual_norm, -1) * eps
+            # bound = A.bmm(x) + sign * deviation.unsqueeze(-1)
 
         # Add big summation term from Eq. 20 of: https://arxiv.org/pdf/1811.00866.pdf
         if sum_b.ndim == 3:
@@ -542,7 +413,7 @@ class BoundClosedLoopController(BoundSequential):
 
 
 if __name__ == "__main__":
-    from keras.models import model_from_json
+    from tensorflow.keras.models import model_from_json
     from crown_ibp.conversions.keras2torch import keras2torch
     import matplotlib.pyplot as plt
 

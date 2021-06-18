@@ -17,17 +17,29 @@ class PolytopeInputConstraint(InputConstraint):
         return PolytopeOutputConstraint(A=self.A)
 
     def to_linf(self):
-        vertices = np.stack(
-            pypoman.duality.compute_polytope_vertices(self.A, self.b)
-        )
-        ranges = np.dstack(
-            [np.min(vertices, axis=0), np.max(vertices, axis=0)]
-        )[0]
+        if isinstance(self.A, list):
+            # Mainly for backreachability, return a list of ranges if
+            # the constraint contains a list of polytopes
+            ranges = []
+            for i in range(len(self.A)):
+                vertices = np.stack(
+                    pypoman.duality.compute_polytope_vertices(self.A[i], self.b[i])
+                )
+                ranges.append(np.dstack(
+                    [np.min(vertices, axis=0), np.max(vertices, axis=0)]
+                )[0])
+        else:
+            vertices = np.stack(
+                pypoman.duality.compute_polytope_vertices(self.A, self.b)
+            )
+            ranges = np.dstack(
+                [np.min(vertices, axis=0), np.max(vertices, axis=0)]
+            )[0]
         return ranges
 
 
 class LpInputConstraint(InputConstraint):
-    def __init__(self, p, range):
+    def __init__(self, range, p=np.inf):
         InputConstraint.__init__(self)
         self.range = range
         self.p = p
@@ -62,7 +74,7 @@ class PolytopeOutputConstraint(OutputConstraint):
 
 
 class LpOutputConstraint(OutputConstraint):
-    def __init__(self, p, range=None):
+    def __init__(self, p=np.inf, range=None):
         OutputConstraint.__init__(self)
         self.range = range
         self.p = p
