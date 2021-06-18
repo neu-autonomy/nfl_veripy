@@ -321,7 +321,7 @@ class ClosedLoopPartitioner(partitioners.Partitioner):
         else:
             raise NotImplementedError
 
-        input_constraint = input_constraint[0]
+        input_constraint = input_constraint
         if isinstance(input_constraint, constraints.PolytopeInputConstraint):
             A_inputs = input_constraint.A
             b_inputs = input_constraint.b
@@ -527,7 +527,7 @@ class ClosedLoopPartitioner(partitioners.Partitioner):
             else:
                 raise NotImplementedError
 
-            color = "tab:purple"
+            color = "tab:red"
             rect = Rectangle(
                 input_range_[:, 0],
                 input_range_[input_dims_[0][0], 1]
@@ -535,7 +535,7 @@ class ClosedLoopPartitioner(partitioners.Partitioner):
                 input_range_[input_dims_[1][0], 1]
                 - input_range_[input_dims_[1][0], 0],
                 fc="none",
-                linewidth=1,
+                linewidth=1.5,
                 edgecolor=color,
             )
             self.animate_axes.add_patch(rect)

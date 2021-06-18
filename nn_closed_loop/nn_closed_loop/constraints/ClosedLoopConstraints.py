@@ -39,7 +39,7 @@ class PolytopeInputConstraint(InputConstraint):
 
 
 class LpInputConstraint(InputConstraint):
-    def __init__(self, p, range):
+    def __init__(self, range, p=np.inf):
         InputConstraint.__init__(self)
         self.range = range
         self.p = p
@@ -74,7 +74,7 @@ class PolytopeOutputConstraint(OutputConstraint):
 
 
 class LpOutputConstraint(OutputConstraint):
-    def __init__(self, p, range=None):
+    def __init__(self, p=np.inf, range=None):
         OutputConstraint.__init__(self)
         self.range = range
         self.p = p

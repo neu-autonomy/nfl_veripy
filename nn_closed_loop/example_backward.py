@@ -192,7 +192,7 @@ def main(args):
 
     if args.show_plot or args.save_plot:
         analyzer.visualize(
-            input_constraint,
+            input_constraint[0],
             output_constraint,
             show_samples=True,
             show=args.show_plot,
