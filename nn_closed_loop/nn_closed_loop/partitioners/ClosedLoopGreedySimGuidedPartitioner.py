@@ -1,50 +1,10 @@
 from .ClosedLoopSimGuidedPartitioner import ClosedLoopSimGuidedPartitioner
-import nn_closed_loop.constraints as constraints
 import numpy as np
-import pypoman
-from itertools import product
-from copy import deepcopy
-from nn_closed_loop.utils.utils import range_to_polytope
-import time
-from nn_partition.utils.utils import sect
-from sklearn.metrics import pairwise_distances
 
 
 class ClosedLoopGreedySimGuidedPartitioner(ClosedLoopSimGuidedPartitioner):
-    def __init__(self, dynamics, num_partitions=16):
-        ClosedLoopSimGuidedPartitioner.__init__(self, dynamics=dynamics)
-
-    # def check_if_partition_within_sim_bnds(
-    #     self, output_range, output_range_sim
-    # ):
-    #     if self.interior_condition == "linf":
-    #         # Check if output_range's linf ball is within
-    #         # output_range_sim's linf ball
-    #         inside = np.all(
-    #             (output_range_sim[..., 0] - output_range[..., 0]) <= 0
-    #         ) and np.all(
-    #             (output_range_sim[..., 1] - output_range[..., 1]) >= 0
-    #         )
-    #     elif self.interior_condition == "lower_bnds":
-    #         # Check if output_range's lower bnds are above each of
-    #         # output_range_sim's lower bnds
-    #         inside = np.all(
-    #             (output_range_sim[..., 0] - output_range[..., 0]) <= 0
-    #         )
-    #     elif self.interior_condition == "convex_hull":
-    #         # Check if every vertex of the hyperrectangle of output_ranges
-    #         # lies within the convex hull of the sim pts
-    #         ndim = output_range.shape[0]
-    #         pts = np.empty((2 ** ndim, ndim + 1))
-    #         pts[:, -1] = 1.0
-    #         for i, pt in enumerate(product(*output_range)):
-    #             pts[i, :-1] = pt
-    #         inside = np.all(
-    #             np.matmul(self.sim_convex_hull.equations, pts.T) <= 0
-    #         )
-    #     else:
-    #         raise NotImplementedError
-    #     return inside
+    def __init__(self, dynamics, num_partitions=16, make_animation=False, show_animation=False):
+        ClosedLoopSimGuidedPartitioner.__init__(self, dynamics=dynamics, make_animation=make_animation, show_animation=show_animation)
 
     def grab_from_M(self, M, output_range_sim):
         if len(M) == 1:

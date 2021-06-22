@@ -82,9 +82,9 @@ class Dynamics:
 
         num_runs, num_timesteps, num_states = xs.shape
 
-        if isinstance(input_constraint, constraints.PolytopeInputConstraint):
+        if isinstance(input_constraint, constraints.PolytopeConstraint):
             raise NotImplementedError
-        elif isinstance(input_constraint, constraints.LpInputConstraint):
+        elif isinstance(input_constraint, constraints.LpConstraint):
             sampled_range = np.zeros((num_timesteps - 1, num_states, 2))
             for t in range(1, num_timesteps):
                 sampled_range[t - 1, :, 0] = np.min(xs[:, t, :], axis=0)
@@ -124,11 +124,12 @@ class Dynamics:
                 xs[:, t, input_dims[1]],
                 color=colors[t],
                 s=4,
+                zorder=3,
             )
 
-        # if isinstance(input_constraint, PolytopeInputConstraint):
+        # if isinstance(input_constraint, PolytopeConstraint):
 
-        # elif isinstance(input_constraint, LpInputConstraint):
+        # elif isinstance(input_constraint, LpConstraint):
         #     if input_constraint.p == np.inf:
         #         # Input state rectangle
         #         rect = ptch.Rectangle(init_state_range[:,0],
@@ -189,7 +190,7 @@ class Dynamics:
             us = np.zeros((num_runs, num_timesteps, self.num_inputs))
         
         # Initial state
-        if isinstance(input_constraint, constraints.LpInputConstraint):
+        if isinstance(input_constraint, constraints.LpConstraint):
             if input_constraint.p == np.inf:
                 xs[:, 0, :] = np.random.uniform(
                     low=input_constraint.range[:, 0],
@@ -198,7 +199,7 @@ class Dynamics:
                 )
             else:
                 raise NotImplementedError
-        elif isinstance(input_constraint, constraints.PolytopeInputConstraint):
+        elif isinstance(input_constraint, constraints.PolytopeConstraint):
             init_state_range = input_constraint.to_linf()
             if isinstance(init_state_range, list):
                 # For backreachability, We will have N polytope input 
@@ -308,7 +309,7 @@ if __name__ == "__main__":
     )
     xs, us = dynamics.collect_data(
         t_max=10,
-        input_constraint=constraints.LpInputConstraint(
+        input_constraint=constraints.LpConstraint(
             p=np.inf, range=init_state_range
         ),
         num_samples=2420,
@@ -339,5 +340,5 @@ if __name__ == "__main__":
     # ]).T
     # controller = load_model(name='quadrotor')
     # t_max = 15*dynamics.dt
-    # input_constraint = LpInputConstraint(range=init_state_range, p=np.inf)
+    # input_constraint = LpConstraint(range=init_state_range, p=np.inf)
     # dynamics.show_samples(t_max, input_constraint, save_plot=False, ax=None, show=True, controller=controller)

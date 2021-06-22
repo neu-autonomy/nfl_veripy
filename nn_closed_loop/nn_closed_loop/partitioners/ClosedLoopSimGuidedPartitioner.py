@@ -1,21 +1,16 @@
 from .ClosedLoopPartitioner import ClosedLoopPartitioner
 import nn_closed_loop.constraints as constraints
 import numpy as np
-import pypoman
-from itertools import product
 from copy import deepcopy
-from nn_closed_loop.utils.utils import range_to_polytope
 import time
 from nn_partition.utils.utils import sect
 
 
 class ClosedLoopSimGuidedPartitioner(ClosedLoopPartitioner):
-    def __init__(self, dynamics, num_partitions=16):
-        ClosedLoopPartitioner.__init__(self, dynamics=dynamics)
+    def __init__(self, dynamics, num_partitions=16, make_animation=False, show_animation=False):
+        ClosedLoopPartitioner.__init__(self, dynamics=dynamics, make_animation=make_animation, show_animation=show_animation)
         self.num_partitions = num_partitions
         self.interior_condition = "linf"
-        self.show_animation = False
-        self.make_animation = False
 
         self.termination_condition_type = "num_propagator_calls"
         self.termination_condition_value = 500
@@ -31,58 +26,16 @@ class ClosedLoopSimGuidedPartitioner(ClosedLoopPartitioner):
     ):
         if self.termination_condition_type == "input_cell_size":
             raise NotImplementedError
-            # #  print(input_range_[...,1] - input_range_[...,0])
-            # M_numpy = np.dstack([input_range for (input_range, _) in M])
-
-            # terminate = (
-            #     np.min(M_numpy[:, 1] - M_numpy[:, 0])
-            #     <= self.termination_condition_value
-            # )
         elif self.termination_condition_type == "num_propagator_calls":
             terminate = (
                 num_propagator_calls >= self.termination_condition_value
             )
         elif self.termination_condition_type == "pct_improvement":
             raise NotImplementedError
-            # # This doesnt work very well, because a lot of times
-            # # the one-step improvement is zero
-            # last_u_e = u_e.copy()
-            # if self.interior_condition in ["lower_bnds", "linf"]:
-            #     u_e = self.squash_down_to_one_range(output_range_sim, M)
-            #     improvement = self.get_error(last_u_e, u_e)
-            #     if iteration == 0:
-            #         improvement = np.inf
-            # elif self.interior_condition == "convex_hull":
-            #     # raise NotImplementedError
-            #     last_hull = estimated_hull.copy()
-
-            #     estimated_hull = self.squash_down_to_convex_hull(
-            #         M, self.sim_convex_hull.points
-            #     )
-            #     improvement = self.get_error(last_hull, estimated_hull)
-            # terminate = improvement <= self.termination_condition_value
         elif self.termination_condition_type == "pct_error":
             raise NotImplementedError
-        #     if self.interior_condition in ["lower_bnds", "linf"]:
-        #         u_e = self.squash_down_to_one_range(output_range_sim, M)
-        #         error = self.get_error(output_range_sim, u_e)
-        #     elif self.interior_condition == "convex_hull":
-        #         estimated_hull = self.squash_down_to_convex_hull(
-        #             M, self.sim_convex_hull.points
-        #         )
-        #         error = self.get_error(self.sim_convex_hull, estimated_hull)
-        #     terminate = error <= self.termination_condition_value
-        # #   print(error)
         elif self.termination_condition_type == "verify":
             raise NotImplementedError
-            # M_ = M + [(input_range_, output_range_)]
-            # ndim = M_[0][1].shape[0]
-            # pts = np.empty((len(M_) * (2 ** (ndim)), ndim))
-            # i = 0
-            # for (input_range, output_range) in M:
-            #     for pt in product(*output_range):
-            #         pts[i, :] = pt
-            #         i += 1
         elif self.termination_condition_type == "time_budget":
             raise NotImplementedError
             # terminate = elapsed_time >= self.termination_condition_value
@@ -136,30 +89,22 @@ class ClosedLoopSimGuidedPartitioner(ClosedLoopPartitioner):
         t_max,
         output_constraint
     ):
-        # if self.make_animation:
-        #     self.call_visualizer(output_range_sim, M, num_propagator_calls, interior_M, iteration=-1)
+        if self.make_animation:
+            self.call_visualizer(output_range_sim, M+interior_M, num_propagator_calls, interior_M, iteration=-1)
 
         # Used by UnGuided, SimGuided, GreedySimGuided, etc.
         iteration = 0
         terminate = False
         start_time_partition_loop = t_start_overall
         while len(M) != 0 and not terminate:
-            # print('------')
-            # print("Iteration {}".format(iteration))
             input_constraint_, reachable_set_ = self.grab_from_M(M, output_range_sim)  # (Line 9)
-            # print("Grabbed the following from M:")
-            # print("input_constraint_.range: {}".format(input_constraint_.range))
-            # print("reachable_set_: {}".format(reachable_set_))
-            # print('---')
 
             if self.check_if_partition_within_sim_bnds(
                 reachable_set_, output_range_sim
             ):
-                print("Was within sim bounds. Add to interior_M.")
                 # Line 11
                 interior_M.append((input_constraint_, reachable_set_))
             else:
-                # print("Was not within sim bounds. Check for termination or sect.")
                 # Line 14
                 elapsed_time = time.time() - start_time_partition_loop
                 terminate = self.check_termination(
@@ -172,17 +117,13 @@ class ClosedLoopSimGuidedPartitioner(ClosedLoopPartitioner):
                 )
 
                 if not terminate:
-                    # print("Don't terminate. Sect.")
                     # Line 15
                     input_ranges_ = sect(input_constraint_.range, 2, select=sect_method)
-                    # print("input_ranges_: {}".format(input_ranges_))
                     # Lines 16-17
-                    # print("Looping through...")
                     for input_range_ in input_ranges_:
-                        # print("input_range_: {}".format(input_range_))
                         t_start = time.time()
 
-                        input_constraint_ = constraints.LpInputConstraint(range=input_range_)
+                        input_constraint_ = constraints.LpConstraint(range=input_range_)
                         output_constraint_, info = propagator.get_reachable_set(
                             input_constraint_, deepcopy(output_constraint), t_max
                         )
@@ -191,16 +132,13 @@ class ClosedLoopSimGuidedPartitioner(ClosedLoopPartitioner):
                         num_propagator_calls += t_max
 
                         reachable_set_ = [o.range for o in output_constraint_]
-                        # print("reachable_set_: {}".format(reachable_set_))
                         M.append((input_constraint_, reachable_set_))  # Line 18
 
                 else:  # Lines 19-20
-                    # print("Terminate.")
                     M.append((input_constraint_, reachable_set_))
 
-                # print("M: {}".format(M))
-                # if self.make_animation:
-                #     self.call_visualizer(output_range_sim, M, num_propagator_calls, interior_M, iteration=iteration)
+                if self.make_animation:
+                    self.call_visualizer(output_range_sim, M+interior_M, num_propagator_calls, interior_M, iteration=iteration)
             iteration += 1
 
         # Line 24
@@ -224,10 +162,21 @@ class ClosedLoopSimGuidedPartitioner(ClosedLoopPartitioner):
         #     propagator_computation_time,
         #     iteration,
         # )
-        # if self.make_animation:
-        #     self.compile_animation(iteration)
+        if self.make_animation:
+            self.compile_animation(iteration, delete_files=True)
 
         return u_e, info
+
+    def call_visualizer(self, output_range_sim, M, num_propagator_calls, interior_M, iteration):
+        u_e = self.squash_down_to_one_range(output_range_sim, M)
+        # title = "# Partitions: {}, Error: {}".format(str(len(M)+len(interior_M)), str(round(error, 3)))
+        title = "# Propagator Calls: {}".format(
+            str(int(num_propagator_calls))
+        )
+        # title = None
+
+        output_constraint = constraints.LpConstraint(range=u_e)
+        self.visualize(M, interior_M, output_constraint, iteration=iteration, title=title)
 
     def squash_down_to_one_range(self, output_range_sim, M):
 
@@ -236,33 +185,6 @@ class ClosedLoopSimGuidedPartitioner(ClosedLoopPartitioner):
         mins = np.min(tmp[...,0], axis=0)
         maxs = np.max(tmp[...,1], axis=0)
         return np.stack([mins, maxs], axis=2)
-
-        # tmp = np.stack(
-        #     [output_constraint.range, np.stack(reachable_set_)],
-        #     axis=-1,
-        # )
-
-        # output_constraint.range[..., 0] = np.min(
-        #     tmp[..., 0, :], axis=-1
-        # )
-        # output_constraint.range[..., 1] = np.max(
-        #     tmp[..., 1, :], axis=-1
-        # )
-        # ranges.append((input_range_, np.stack(reachable_set_)))
-
-
-        # u_e = np.empty_like(output_range_sim)
-        # if len(M) > 0:
-        #     # Squash all of M down to one range
-        #     M_numpy = np.dstack([output_range_ for (_, output_range_) in M])
-        #     u_e[:, 1] = np.max(M_numpy[:, 1, :], axis=1)
-        #     u_e[:, 0] = np.min(M_numpy[:, 0, :], axis=1)
-
-        #     # Combine M (remaining ranges) with u_e (interior ranges)
-        #     tmp = np.dstack([output_range_sim, u_e])
-        #     u_e[:, 1] = np.max(tmp[:, 1, :], axis=1)
-        #     u_e[:, 0] = np.min(tmp[:, 0, :], axis=1)
-        # return u_e
 
     def get_reachable_set(
         self,
@@ -273,7 +195,7 @@ class ClosedLoopSimGuidedPartitioner(ClosedLoopPartitioner):
         num_partitions=None,
     ):
 
-        if isinstance(input_constraint, constraints.PolytopeInputConstraint):
+        if isinstance(input_constraint, constraints.PolytopeConstraint):
             raise NotImplementedError
             # A_inputs = input_constraint.A
             # b_inputs = input_constraint.b
@@ -286,7 +208,7 @@ class ClosedLoopSimGuidedPartitioner(ClosedLoopPartitioner):
             # input_range[:, 0] = np.min(np.stack(input_polytope_verts), axis=0)
             # input_range[:, 1] = np.max(np.stack(input_polytope_verts), axis=0)
 
-        elif isinstance(input_constraint, constraints.LpInputConstraint):
+        elif isinstance(input_constraint, constraints.LpConstraint):
             input_range = input_constraint.range
         else:
             raise NotImplementedError
@@ -321,10 +243,10 @@ class ClosedLoopSimGuidedPartitioner(ClosedLoopPartitioner):
         num_propagator_calls += t_max
 
         if isinstance(
-            output_constraint, constraints.PolytopeOutputConstraint
+            output_constraint, constraints.PolytopeConstraint
         ):
             raise NotImplementedError
-        elif isinstance(output_constraint, constraints.LpOutputConstraint):
+        elif isinstance(output_constraint, constraints.LpConstraint):
             reachable_set = [o.range for o in output_constraint_]
             M = [(input_constraint, reachable_set)]  # (Line 4)
         else:
@@ -332,14 +254,23 @@ class ClosedLoopSimGuidedPartitioner(ClosedLoopPartitioner):
 
         u_e = reachable_set.copy()
 
-        # if self.make_animation:
-        #     self.setup_visualization(
-        #         input_range,
-        #         output_range,
-        #         propagator,
-        #         show_input=self.show_input,
-        #         show_output=self.show_output,
-        #     )
+        if self.make_animation:
+            output_constraint_ = constraints.LpConstraint(range=[o.range for o in output_constraint_])
+            self.setup_visualization(
+                input_constraint,
+                output_constraint_,
+                propagator,
+                show_samples=True,
+                outputs_to_highlight=[
+                    {"dim": [0], "name": "py"},
+                    {"dim": [1], "name": "pz"},
+                ],
+                inputs_to_highlight=[
+                    {"dim": [0], "name": "py"},
+                    {"dim": [1], "name": "pz"},
+                ],
+                aspect="auto",
+            )
 
         u_e, info = self.partition_loop(
             M,
@@ -355,8 +286,6 @@ class ClosedLoopSimGuidedPartitioner(ClosedLoopPartitioner):
             t_max,
             output_constraint,
         )
-
-
 
         # info["all_partitions"] = ranges
         info["num_propagator_calls"] = num_propagator_calls

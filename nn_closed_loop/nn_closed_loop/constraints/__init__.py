@@ -1,6 +1,8 @@
 from .ClosedLoopConstraints import (
-    LpInputConstraint,
-    PolytopeInputConstraint,
-    LpOutputConstraint,
-    PolytopeOutputConstraint,
+    LpConstraint,
+    PolytopeConstraint,
+    # LpInputConstraint,
+    # PolytopeInputConstraint,
+    # LpOutputConstraint,
+    # PolytopeOutputConstraint,
 )

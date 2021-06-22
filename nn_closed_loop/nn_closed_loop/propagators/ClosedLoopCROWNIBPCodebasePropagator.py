@@ -29,7 +29,7 @@ class ClosedLoopCROWNIBPCodebasePropagator(ClosedLoopPropagator):
 
     def get_one_step_reachable_set(self, input_constraint, output_constraint):
 
-        if isinstance(input_constraint, constraints.PolytopeInputConstraint):
+        if isinstance(input_constraint, constraints.PolytopeConstraint):
             A_inputs = input_constraint.A
             b_inputs = input_constraint.b
 
@@ -48,7 +48,7 @@ class ClosedLoopCROWNIBPCodebasePropagator(ClosedLoopPropagator):
             x_max = np.max(vertices, 0)
             x_min = np.min(vertices, 0)
             norm = np.inf
-        elif isinstance(input_constraint, constraints.LpInputConstraint):
+        elif isinstance(input_constraint, constraints.LpConstraint):
             x_min = input_constraint.range[..., 0]
             x_max = input_constraint.range[..., 1]
             norm = input_constraint.p
@@ -57,11 +57,11 @@ class ClosedLoopCROWNIBPCodebasePropagator(ClosedLoopPropagator):
         else:
             raise NotImplementedError
 
-        if isinstance(output_constraint, constraints.PolytopeOutputConstraint):
+        if isinstance(output_constraint, constraints.PolytopeConstraint):
             A_out = output_constraint.A
             num_facets = A_out.shape[0]
             bs = np.zeros((num_facets))
-        elif isinstance(output_constraint, constraints.LpOutputConstraint):
+        elif isinstance(output_constraint, constraints.LpConstraint):
             A_out = np.eye(x_min.shape[0])
             num_facets = A_out.shape[0]
             ranges = np.zeros((num_facets, 2))
@@ -119,18 +119,18 @@ class ClosedLoopCROWNIBPCodebasePropagator(ClosedLoopPropagator):
             )
 
             if isinstance(
-                output_constraint, constraints.PolytopeOutputConstraint
+                output_constraint, constraints.PolytopeConstraint
             ):
                 bs[i] = A_out_xt1_max
-            elif isinstance(output_constraint, constraints.LpOutputConstraint):
+            elif isinstance(output_constraint, constraints.LpConstraint):
                 ranges[i, 0] = A_out_xt1_min
                 ranges[i, 1] = A_out_xt1_max
             else:
                 raise NotImplementedError
 
-        if isinstance(output_constraint, constraints.PolytopeOutputConstraint):
+        if isinstance(output_constraint, constraints.PolytopeConstraint):
             output_constraint.b = bs
-        elif isinstance(output_constraint, constraints.LpOutputConstraint):
+        elif isinstance(output_constraint, constraints.LpConstraint):
             output_constraint.range = ranges
         else:
             raise NotImplementedError
@@ -142,7 +142,7 @@ class ClosedLoopCROWNIBPCodebasePropagator(ClosedLoopPropagator):
         # will lead to a state within the output_constraint
 
         # Extract elementwise bounds on xt1 from the lp-ball or polytope constraint
-        if isinstance(output_constraint, constraints.PolytopeOutputConstraint):
+        if isinstance(output_constraint, constraints.PolytopeConstraint):
             A_t1 = output_constraint.A
             b_t1 = output_constraint.b[0]
 
@@ -161,7 +161,7 @@ class ClosedLoopCROWNIBPCodebasePropagator(ClosedLoopPropagator):
             xt1_max = np.max(vertices, 0)
             xt1_min = np.min(vertices, 0)
             norm = np.inf
-        elif isinstance(output_constraint, constraints.LpOutputConstraint):
+        elif isinstance(output_constraint, constraints.LpConstraint):
             xt1_min = output_constraint.range[..., 0]
             xt1_max = output_constraint.range[..., 1]
             norm = output_constraint.p
@@ -234,8 +234,8 @@ class ClosedLoopCROWNIBPCodebasePropagator(ClosedLoopPropagator):
             (input_range[..., 1] - input_range[..., 0]), num_partitions
         )
 
-        # Set an empty InputConstraint that will get filled in
-        input_constraint = constraints.PolytopeInputConstraint(A=[], b=[])
+        # Set an empty Constraint that will get filled in
+        input_constraint = constraints.PolytopeConstraint(A=[], b=[])
 
         # Iterate through each partition
         for element in product(

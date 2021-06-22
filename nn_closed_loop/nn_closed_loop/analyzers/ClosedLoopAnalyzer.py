@@ -70,6 +70,7 @@ class ClosedLoopAnalyzer(analyzers.Analyzer):
             ),
             kwargs.get("interior_partitions", []),
             output_constraint,
+            kwargs.get("iteration", None),
         )
 
         # self.partitioner.animate_axes.legend(

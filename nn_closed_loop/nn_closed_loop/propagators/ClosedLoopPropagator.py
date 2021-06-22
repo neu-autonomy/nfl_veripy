@@ -19,7 +19,7 @@ class ClosedLoopPropagator(propagators.Propagator):
         )
         output_constraints.append(deepcopy(output_constraint))
         for i in np.arange(0 + self.dynamics.dt, t_max, self.dynamics.dt):
-            next_input_constraint = output_constraint.to_input_constraint()
+            next_input_constraint = deepcopy(output_constraint)
             next_output_constraint = deepcopy(output_constraint)
             output_constraint, _ = self.get_one_step_reachable_set(
                 next_input_constraint, next_output_constraint

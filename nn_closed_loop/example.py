@@ -70,8 +70,8 @@ def main(args):
     partitioner_hyperparams = {
         "type": args.partitioner,
         "num_partitions": num_partitions,
-        # "make_animation": False,
-        # "show_animation": False,
+        "make_animation": args.make_animation,
+        "show_animation": args.show_animation,
     }
     propagator_hyperparams = {
         "type": args.propagator,
@@ -92,15 +92,15 @@ def main(args):
             A_out = A_inputs
         else:
             A_out = get_polytope_A(args.num_polytope_facets)
-        input_constraint = constraints.PolytopeInputConstraint(
+        input_constraint = constraints.PolytopeConstraint(
             A_inputs, b_inputs
         )
-        output_constraint = constraints.PolytopeOutputConstraint(A_out)
+        output_constraint = constraints.PolytopeConstraint(A_out)
     elif args.boundaries == "lp":
-        input_constraint = constraints.LpInputConstraint(
+        input_constraint = constraints.LpConstraint(
             range=init_state_range, p=np.inf
         )
-        output_constraint = constraints.LpOutputConstraint(p=np.inf)
+        output_constraint = constraints.LpConstraint(p=np.inf)
     else:
         raise NotImplementedError
 
@@ -192,6 +192,7 @@ def main(args):
             show=args.show_plot,
             labels=args.plot_labels,
             aspect=args.plot_aspect,
+            iteration=None,
             **analyzer_info
         )
 
@@ -310,6 +311,27 @@ def setup_parser():
         choices=["auto", "equal"],
         help="aspect ratio on input partition plot (default: auto)",
     )
+
+    parser.add_argument(
+        "--make_animation",
+        dest="make_animation",
+        action="store_true",
+        help="whether to animate the partitioning process",
+    )
+    parser.add_argument(
+        "--skip_make_animation", dest="make_animation", action="store_false"
+    )
+    parser.set_defaults(make_animation=False)
+    parser.add_argument(
+        "--show_animation",
+        dest="show_animation",
+        action="store_true",
+        help="whether to show animation of the partitioning process",
+    )
+    parser.add_argument(
+        "--skip_show_animation", dest="show_animation", action="store_false"
+    )
+    parser.set_defaults(show_animation=False)
 
     return parser
 
