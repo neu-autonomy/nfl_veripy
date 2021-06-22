@@ -8,8 +8,8 @@ from nn_closed_loop.utils.utils import range_to_polytope
 
 
 class ClosedLoopUniformPartitioner(ClosedLoopPartitioner):
-    def __init__(self, dynamics, num_partitions=16):
-        ClosedLoopPartitioner.__init__(self, dynamics=dynamics)
+    def __init__(self, dynamics, num_partitions=16, make_animation=False, show_animation=False):
+        ClosedLoopPartitioner.__init__(self, dynamics=dynamics, make_animation=make_animation, show_animation=show_animation)
         self.num_partitions = num_partitions
         self.interior_condition = "linf"
         self.show_animation = False
@@ -40,7 +40,7 @@ class ClosedLoopUniformPartitioner(ClosedLoopPartitioner):
         num_partitions=None,
     ):
 
-        if isinstance(input_constraint, constraints.PolytopeInputConstraint):
+        if isinstance(input_constraint, constraints.PolytopeConstraint):
             A_inputs = input_constraint.A
             b_inputs = input_constraint.b
 
@@ -52,7 +52,7 @@ class ClosedLoopUniformPartitioner(ClosedLoopPartitioner):
             input_range[:, 0] = np.min(np.stack(input_polytope_verts), axis=0)
             input_range[:, 1] = np.max(np.stack(input_polytope_verts), axis=0)
 
-        elif isinstance(input_constraint, constraints.LpInputConstraint):
+        elif isinstance(input_constraint, constraints.LpConstraint):
             input_range = input_constraint.range
         else:
             raise NotImplementedError
@@ -92,7 +92,7 @@ class ClosedLoopUniformPartitioner(ClosedLoopPartitioner):
             )
 
             if isinstance(
-                input_constraint, constraints.PolytopeInputConstraint
+                input_constraint, constraints.PolytopeConstraint
             ):
                 # This is a disaster hack to partition polytopes
                 A_rect, b_rect = range_to_polytope(input_range_)
@@ -114,7 +114,7 @@ class ClosedLoopUniformPartitioner(ClosedLoopPartitioner):
                 input_constraint_ = input_constraint.__class__(
                     A_inputs_, b_inputs_
                 )
-            elif isinstance(input_constraint, constraints.LpInputConstraint):
+            elif isinstance(input_constraint, constraints.LpConstraint):
                 input_constraint_ = input_constraint.__class__(
                     range=input_range_, p=input_constraint.p
                 )
@@ -127,7 +127,7 @@ class ClosedLoopUniformPartitioner(ClosedLoopPartitioner):
             num_propagator_calls += t_max
 
             if isinstance(
-                output_constraint, constraints.PolytopeOutputConstraint
+                output_constraint, constraints.PolytopeConstraint
             ):
                 reachable_set_ = [o.b for o in output_constraint_]
                 if output_constraint.b is None:
@@ -139,7 +139,7 @@ class ClosedLoopUniformPartitioner(ClosedLoopPartitioner):
                 output_constraint.b = np.max(tmp, axis=-1)
 
                 ranges.append((input_range_, reachable_set_))
-            elif isinstance(output_constraint, constraints.LpOutputConstraint):
+            elif isinstance(output_constraint, constraints.LpConstraint):
                 reachable_set_ = [o.range for o in output_constraint_]
                 if output_constraint.range is None:
                     output_constraint.range = np.stack(reachable_set_)

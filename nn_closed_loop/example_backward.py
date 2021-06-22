@@ -96,15 +96,15 @@ def main(args):
     # Set up initial state set (and placeholder for reachable sets)
     if args.boundaries == "polytope":
         A_out, b_out = range_to_polytope(final_state_range)
-        output_constraint = constraints.PolytopeOutputConstraint(
+        output_constraint = constraints.PolytopeConstraint(
             A=A_out, b=[b_out]
         )
-        input_constraint = constraints.PolytopeInputConstraint(None, None)
+        input_constraint = constraints.PolytopeConstraint(None, None)
     elif args.boundaries == "lp":
-        output_constraint = constraints.LpOutputConstraint(
+        output_constraint = constraints.LpConstraint(
             range=final_state_range, p=np.inf
         )
-        input_constraint = constraints.LpInputConstraint(p=np.inf, range=None)
+        input_constraint = constraints.LpConstraint(p=np.inf, range=None)
     else:
         raise NotImplementedError
 
