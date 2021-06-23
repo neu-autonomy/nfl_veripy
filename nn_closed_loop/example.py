@@ -127,8 +127,8 @@ def main(args):
     output_constraint, analyzer_info = analyzer.get_reachable_set(
         input_constraint, output_constraint, t_max=args.t_max
     )
-    # error, avg_error = analyzer.get_error(input_constraint,output_constraint, t_max=args.t_max)
-    # print('Final step approximation error:{:.2f}\nAverage approximation error: {:.2f}'.format(error, avg_error))
+    error, avg_error = analyzer.get_error(input_constraint, output_constraint, t_max=args.t_max)
+    print('Final step approximation error:{:.2f}\nAverage approximation error: {:.2f}'.format(error, avg_error))
 
     if args.save_plot:
         save_dir = "{}/results/examples/".format(
@@ -196,7 +196,7 @@ def main(args):
             **analyzer_info
         )
 
-    return stats
+    return stats, analyzer_info
 
 
 def setup_parser():
@@ -236,7 +236,7 @@ def setup_parser():
     parser.add_argument(
         "--partitioner",
         default="Uniform",
-        choices=["None", "Uniform", "SimGuided", "GreedySimGuided"],
+        choices=["None", "Uniform", "SimGuided", "GreedySimGuided", "UnGuided"],
         help="which partitioner to use (default: Uniform)",
     )
     parser.add_argument(

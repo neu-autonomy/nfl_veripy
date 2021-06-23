@@ -100,6 +100,12 @@ class ClosedLoopPartitioner(partitioners.Partitioner):
             input_constraint, t_max, num_samples, controller=propagator.network
         )
 
+    def get_sampled_out_range_guidance(
+        self, input_constraint, propagator, t_max=5, num_samples=1000
+    ):
+        # Duplicate of get_sampled_out_range, but called during partitioning
+        return self.get_sampled_out_range(input_constraint, propagator, t_max=t_max, num_samples=num_samples)
+
     def setup_visualization(
         self,
         input_constraint,
