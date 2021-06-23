@@ -238,7 +238,7 @@ class ClosedLoopSimGuidedPartitioner(ClosedLoopPartitioner):
         #     iteration,
         # )
         if self.make_animation:
-            self.compile_animation(iteration, delete_files=True)
+            self.compile_animation(iteration, delete_files=True, start_iteration=-1)
 
         return u_e, info
 

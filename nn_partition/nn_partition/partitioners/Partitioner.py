@@ -501,7 +501,7 @@ class Partitioner:
         if title is not None:
             plt.suptitle(title)
 
-        if iteration == 0:
+        if iteration == 0 or iteration == -1:
             plt.tight_layout()
 
         if self.show_animation:
@@ -679,6 +679,9 @@ class Partitioner:
         propagator_computation_time,
         t_start_overall,
     ):
+        if self.make_animation:
+            self.call_visualizer(output_range_sim, M, num_propagator_calls, interior_M, iteration=-1)
+
         # Used by UnGuided, SimGuided, GreedySimGuided, etc.
         iteration = 0
         terminate = False
@@ -730,22 +733,7 @@ class Partitioner:
                     M.append((input_range_, output_range_))
 
                 if self.make_animation:
-                    u_e = self.squash_down_to_one_range(output_range_sim, M)
-                    # title = "# Partitions: {}, Error: {}".format(str(len(M)+len(interior_M)), str(round(error, 3)))
-                    title = "# Propagator Calls: {}".format(
-                        str(num_propagator_calls)
-                    )
-                    # title = None
-
-                    self.visualize(
-                        M,
-                        interior_M,
-                        u_e,
-                        iteration,
-                        show_input=self.show_input,
-                        show_output=self.show_output,
-                        title=title,
-                    )
+                    self.call_visualizer(output_range_sim, M, num_propagator_calls, interior_M, iteration=iteration)
             iteration += 1
 
         # Line 24
@@ -767,6 +755,23 @@ class Partitioner:
             self.compile_animation(iteration)
 
         return u_e, info
+
+    def call_visualizer(self, output_range_sim, M, num_propagator_calls, interior_M, iteration):
+        u_e = self.squash_down_to_one_range(output_range_sim, M)
+        title = "# Propagator Calls: {}".format(
+            str(num_propagator_calls)
+        )
+        # title = None
+
+        self.visualize(
+            M,
+            interior_M,
+            u_e,
+            iteration=iteration,
+            show_input=self.show_input,
+            show_output=self.show_output,
+            title=title,
+        )
 
     def sample(self, input_range, propagator, N=None):
         # This is only used for error estimation (evaluation!)
@@ -793,9 +798,9 @@ class Partitioner:
 
         return output_range_sim, sampled_outputs, sampled_inputs
 
-    def compile_animation(self, iteration):
+    def compile_animation(self, iteration, delete_files=False, start_iteration=0):
         filenames = [
-            self.get_tmp_animation_filename(i) for i in range(iteration)
+            self.get_tmp_animation_filename(i) for i in range(start_iteration, iteration)
         ]
         images = []
         for filename in filenames:
@@ -808,7 +813,8 @@ class Partitioner:
             if filename == filenames[-1]:
                 for i in range(10):
                     images.append(imageio.imread(filename))
-            os.remove(filename)
+            if delete_files:
+                os.remove(filename)
 
         # Save the gif in a new animations sub-folder
         os.makedirs(self.animation_save_dir, exist_ok=True)
