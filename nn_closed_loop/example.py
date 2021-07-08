@@ -110,6 +110,9 @@ def main(args):
 
         num_calls = 5
         times = np.empty(num_calls)
+        errors = np.empty(num_calls)
+        avg_errors = np.empty(num_calls, dtype=np.ndarray)
+        output_constraints = np.empty(num_calls, dtype=object)
         for num in range(num_calls):
             t_start = time.time()
             output_constraint, analyzer_info = analyzer.get_reachable_set(
@@ -119,7 +122,16 @@ def main(args):
             t = t_end - t_start
             times[num] = t
 
+            error, avg_error = analyzer.get_error(input_constraint, output_constraint, t_max=args.t_max)
+            errors[num] = error
+            avg_errors[num] = avg_errors
+            output_constraints[num] = output_constraint
+
         stats['runtimes'] = times
+        stats['final_step_errors'] = errors
+        stats['avg_errors'] = avg_errors
+        stats['output_constraints'] = output_constraints
+
         print("All times: {}".format(times))
         print("Avg time: {}".format(times.mean()))
 
