@@ -3,10 +3,7 @@ import nn_closed_loop.dynamics as dynamics
 import nn_closed_loop.analyzers as analyzers
 import nn_closed_loop.constraints as constraints
 from nn_closed_loop.utils.nn import load_controller
-from nn_closed_loop.utils.utils import (
-    range_to_polytope,
-    get_polytope_A,
-)
+from nn_closed_loop.utils.utils import range_to_polytope
 import os
 import argparse
 
@@ -28,12 +25,10 @@ def main(args):
         if args.final_state_range is None:
             final_state_range = np.array(
                 [  # (num_inputs, 2)
-                    [-0.25, 0.25],  # x0min, x0max
-                    [-0.1, 0.1],  # x1min, x1max
-                    # [2.49, 2.5],  # x0min, x0max
+                    [2.5, 3.0],  # x0min, x0max
+                    [-0.25, 0.25],  # x1min, x1max
+                    # [-0.25, 0.25],  # x0min, x0max
                     # [-0.1, 0.1],  # x1min, x1max
-                    # [2.59, 2.6],  # x0min, x0max
-                    # [-0.01, 0.01],  # x1min, x1max
                 ]
             )
         else:
@@ -66,7 +61,7 @@ def main(args):
         raise NotImplementedError
 
     if args.num_partitions is None:
-        num_partitions = np.array([4, 4])
+        num_partitions = np.array([2, 2])
     else:
         import ast
 
@@ -84,11 +79,8 @@ def main(args):
         "type": args.propagator,
         "input_shape": final_state_range.shape[:-1],
     }
-    if args.propagator == "SDP":
-        raise NotImplementedError
-        propagator_hyperparams["cvxpy_solver"] = args.cvxpy_solver
 
-    # Set up analyzer (+ parititoner + propagator)
+    # Set up analyzer (+ partitioner + propagator)
     analyzer = analyzers.ClosedLoopBackwardAnalyzer(controller, dyn)
     analyzer.partitioner = partitioner_hyperparams
     analyzer.propagator = propagator_hyperparams
@@ -111,33 +103,17 @@ def main(args):
     # Run the analyzer N times to compute an estimated runtime
     if args.estimate_runtime:
         raise NotImplementedError
-        import time
-
-        num_calls = 5
-        times = np.empty(num_calls)
-        for num in range(num_calls):
-            t_start = time.time()
-            output_constraint, analyzer_info = analyzer.get_reachable_set(
-                input_constraint, output_constraint, t_max=args.t_max
-            )
-            t_end = time.time()
-            t = t_end - t_start
-            times[num] = t
-
-        stats['runtimes'] = times
-        print("All times: {}".format(times))
-        print("Avg time: {}".format(times.mean()))
 
     # Run analysis & generate a plot
     input_constraint, analyzer_info = analyzer.get_backprojection_set(
-        output_constraint, input_constraint, t_max=args.t_max
+        output_constraint, input_constraint, t_max=None, num_partitions=num_partitions
     )
     # print(input_constraint.A, input_constraint.b)
     # error, avg_error = analyzer.get_error(input_constraint,output_constraint, t_max=args.t_max)
     # print('Final step approximation error:{:.2f}\nAverage approximation error: {:.2f}'.format(error, avg_error))
 
     if args.save_plot:
-        save_dir = "{}/results/examples/".format(
+        save_dir = "{}/results/examples_backward/".format(
             os.path.dirname(os.path.abspath(__file__))
         )
         os.makedirs(save_dir, exist_ok=True)
@@ -176,13 +152,17 @@ def main(args):
             + "_"
             + propagator_hyperparams["type"]
             + "_"
-            + "tmax"
-            + "_"
-            + str(round(args.t_max, 1))
-            + "_"
+            # + "tmax"
+            # + "_"
+            # + str(round(args.t_max, 1))
+            # + "_"
             + args.boundaries
             + "_"
             + str(args.num_polytope_facets)
+            + "_"
+            + "partitions"
+            + "_"
+            + np.array2string(num_partitions, separator='_')[1:-1]
         )
         if len(pars2) > 0:
             analyzer_info["save_name"] = (
@@ -233,16 +213,10 @@ def setup_parser():
     parser.set_defaults(state_feedback=True)
 
     parser.add_argument(
-        "--cvxpy_solver",
-        default="default",
-        choices=["MOSEK", "default"],
-        help="which solver to use with cvxpy (default: default)",
-    )
-    parser.add_argument(
         "--partitioner",
-        default="Uniform",
-        choices=["None", "Uniform"],
-        help="which partitioner to use (default: Uniform)",
+        default="None",
+        choices=["None"],
+        help="which partitioner to use (work in progress for backward...)",
     )
     parser.add_argument(
         "--propagator",
@@ -268,12 +242,12 @@ def setup_parser():
         type=int,
         help="how many facets on constraint polytopes (default: 8)",
     )
-    parser.add_argument(
-        "--t_max",
-        default=2.0,
-        type=float,
-        help="seconds into future to compute reachable sets (default: 2.)",
-    )
+    # parser.add_argument(
+    #     "--t_max",
+    #     default=2.0,
+    #     type=float,
+    #     help="seconds into future to compute reachable sets (default: 2.)",
+    # )
 
     parser.add_argument(
         "--estimate_runtime", dest="estimate_runtime", action="store_true"

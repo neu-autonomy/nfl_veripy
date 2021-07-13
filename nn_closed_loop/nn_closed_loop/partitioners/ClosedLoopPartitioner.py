@@ -115,6 +115,8 @@ class ClosedLoopPartitioner(partitioners.Partitioner):
         outputs_to_highlight=None,
         inputs_to_highlight=None,
         aspect="auto",
+        initial_set_color=None,
+        initial_set_zorder=None
     ):
 
         self.default_patches = []
@@ -148,13 +150,15 @@ class ClosedLoopPartitioner(partitioners.Partitioner):
             )
 
         # Plot the initial state set's boundaries
-        rect = input_constraint.plot(self.animate_axes, input_dims, "tab:gray")
-        self.default_patches.append(rect)
+        if initial_set_color is None:
+            initial_set_color = "tab:grey"
+        rect = input_constraint.plot(self.animate_axes, input_dims, initial_set_color, zorder=initial_set_zorder)
+        self.default_patches += rect
 
         # # Reachable sets
         # self.plot_reachable_sets(output_constraint, input_dims)
 
-    def visualize(self, M, interior_M, output_constraint, iteration=0, title=None):
+    def visualize(self, M, interior_M, output_constraint, iteration=0, title=None, reachable_set_color=None, reachable_set_zorder=None):
 
         # Bring forward whatever default items should be in the plot
         # (e.g., MC samples, initial state set boundaries)
@@ -162,7 +166,7 @@ class ClosedLoopPartitioner(partitioners.Partitioner):
         self.animate_axes.lines = self.default_lines.copy()
 
         # Actually draw the reachable sets and partitions
-        self.plot_reachable_sets(output_constraint, self.input_dims)
+        self.plot_reachable_sets(output_constraint, self.input_dims, reachable_set_color=reachable_set_color, reachable_set_zorder=reachable_set_zorder)
         self.plot_partitions(M, output_constraint, self.input_dims)
 
         # Do auxiliary stuff to make sure animations look nice
@@ -180,10 +184,11 @@ class ClosedLoopPartitioner(partitioners.Partitioner):
             filename = self.get_tmp_animation_filename(iteration)
             plt.savefig(filename)
 
-    def plot_reachable_sets(self, constraint, dims):
-        color = "tab:blue"
+    def plot_reachable_sets(self, constraint, dims, reachable_set_color=None, reachable_set_zorder=None):
+        if reachable_set_color is None:
+            reachable_set_color = "tab:blue"
         fc_color = "None"
-        constraint.plot(self.animate_axes, dims, color, fc_color=fc_color)
+        constraint.plot(self.animate_axes, dims, reachable_set_color, fc_color=fc_color, zorder=reachable_set_zorder)
 
     # def plot_partition(self, constraint, bounds, dims, color):
     def plot_partition(self, constraint, dims, color):
@@ -214,18 +219,18 @@ class ClosedLoopPartitioner(partitioners.Partitioner):
             self.plot_partition(input_constraint, dims, "tab:red")
 
     def get_one_step_backprojection_set(
-        self, output_constraint, input_constraint, propagator
+        self, output_constraint, input_constraint, propagator, num_partitions=None
     ):
         input_constraint, info = propagator.get_one_step_backprojection_set(
-            output_constraint, deepcopy(input_constraint)
+            output_constraint, deepcopy(input_constraint), num_partitions=num_partitions
         )
         return input_constraint, info
 
     def get_backprojection_set(
-        self, output_constraint, input_constraint, propagator, t_max
+        self, output_constraint, input_constraint, propagator, t_max, num_partitions=None
     ):
         input_constraint_, info = propagator.get_backprojection_set(
-            output_constraint, deepcopy(input_constraint), t_max
+            output_constraint, deepcopy(input_constraint), t_max, num_partitions=num_partitions
         )
         input_constraint = input_constraint_.copy()
 

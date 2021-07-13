@@ -33,8 +33,10 @@ class PolytopeConstraint(Constraint):
             )[0]
         return ranges
 
-    def plot(self, ax, dims, color, fc_color="None", linewidth=3, label=None):
+    def plot(self, ax, dims, color, fc_color="None", linewidth=3, label=None, zorder=2):
         # TODO: this doesn't use the computed input_dims...
+
+        lines = []
 
         if isinstance(self.A, list):
             # Backward reachability
@@ -43,12 +45,16 @@ class PolytopeConstraint(Constraint):
             # backprojection set
 
             for i in range(len(self.A)):
-                make_polytope_from_arrs(ax, self.A[i], self.b[i], color, label)
+                line = make_polytope_from_arrs(ax, self.A[i], self.b[i], color, label, zorder)
+                lines += line
 
         else:
             # Forward reachability
             for i in range(len(self.b)):
-                make_polytope_from_arrs(ax, self.A, self.b[i], color, label)
+                line = make_polytope_from_arrs(ax, self.A, self.b[i], color, label, zorder)
+                lines += line
+
+        return lines
 
     def get_t_max(self):
         return len(self.b)
@@ -88,15 +94,17 @@ def make_rect_from_arr(arr, dims, color, linewidth, fc_color):
     return rect
 
 
-def make_polytope_from_arrs(ax, A, b, color, label):
+def make_polytope_from_arrs(ax, A, b, color, label, zorder):
     vertices = np.stack(
         pypoman.polygon.compute_polygon_hull(
             A, b + 1e-10
         )
     )
-    ax.plot(
+    lines = ax.plot(
         [v[0] for v in vertices] + [vertices[0][0]],
         [v[1] for v in vertices] + [vertices[0][1]],
         color=color,
         label=label,
+        zorder=zorder,
     )
+    return lines

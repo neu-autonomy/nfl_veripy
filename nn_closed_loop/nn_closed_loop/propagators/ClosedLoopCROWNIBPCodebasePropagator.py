@@ -136,7 +136,7 @@ class ClosedLoopCROWNIBPCodebasePropagator(ClosedLoopPropagator):
             raise NotImplementedError
         return output_constraint, {}
 
-    def get_one_step_backprojection_set(self, output_constraint, input_constraint):
+    def get_one_step_backprojection_set(self, output_constraint, input_constraint, num_partitions=None):
         # Given an output_constraint, compute the input_constraint
         # that ensures that starting from within the input_constraint
         # will lead to a state within the output_constraint
@@ -226,8 +226,8 @@ class ClosedLoopCROWNIBPCodebasePropagator(ClosedLoopPropagator):
         '''
 
         # Setup the partitions
-        # TODO: Make num_partitions a parameter
-        num_partitions = np.array([10, 10])
+        if num_partitions is None:
+            num_partitions = np.array([10, 10])
         input_range = ranges
         input_shape = input_range.shape[:-1]
         slope = np.divide(

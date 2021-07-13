@@ -14,6 +14,11 @@ class ClosedLoopBackwardAnalyzer(analyzers.Analyzer):
         self.dynamics = dynamics
         analyzers.Analyzer.__init__(self, torch_model=torch_model)
 
+        self.reachable_set_color = 'tab:green'
+        self.reachable_set_zorder = 4
+        self.initial_set_color = 'tab:red'
+        self.initial_set_zorder = 4
+
     def instantiate_partitioner(self, partitioner, hyperparams):
         return partitioners.partitioner_dict[partitioner](
             **{**hyperparams, "dynamics": self.dynamics}
@@ -24,15 +29,15 @@ class ClosedLoopBackwardAnalyzer(analyzers.Analyzer):
             **{**hyperparams, "dynamics": self.dynamics}
         )
 
-    def get_one_step_backprojection_set(self, output_constraint, input_constraint):
+    def get_one_step_backprojection_set(self, output_constraint, input_constraint, num_partitions=None):
         backprojection_set, info = self.partitioner.get_one_step_backprojection_set(
-            output_constraint, input_constraint, self.propagator
+            output_constraint, input_constraint, self.propagator, num_partitions=num_partitions
         )
         return backprojection_set, info
 
-    def get_backprojection_set(self, output_constraint, input_constraint, t_max):
+    def get_backprojection_set(self, output_constraint, input_constraint, t_max, num_partitions=None):
         backprojection_set, info = self.partitioner.get_backprojection_set(
-            output_constraint, input_constraint, self.propagator, t_max
+            output_constraint, input_constraint, self.propagator, t_max, num_partitions=num_partitions
         )
         return backprojection_set, info
 
@@ -63,6 +68,8 @@ class ClosedLoopBackwardAnalyzer(analyzers.Analyzer):
                 {"dim": [1], "name": "pz"},
             ],
             aspect=aspect,
+            initial_set_color=self.initial_set_color,
+            initial_set_zorder=self.initial_set_zorder,
         )
         self.partitioner.visualize(
             kwargs.get(
@@ -70,6 +77,8 @@ class ClosedLoopBackwardAnalyzer(analyzers.Analyzer):
             ),
             kwargs.get("interior_partitions", []),
             output_constraint,
+            reachable_set_color=self.reachable_set_color,
+            reachable_set_zorder=self.reachable_set_zorder
         )
 
         # self.partitioner.animate_axes.legend(

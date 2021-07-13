@@ -30,19 +30,22 @@ class ClosedLoopPropagator(propagators.Propagator):
     def get_one_step_backprojection_set(self, output_constraint, intput_constraint):
         raise NotImplementedError
 
-    def get_backprojection_set(self, output_constraint, input_constraint, t_max):
+    def get_backprojection_set(self, output_constraint, input_constraint, t_max, num_partitions=None):
         input_constraints = []
         input_constraint, _ = self.get_one_step_backprojection_set(
-            output_constraint, input_constraint
+            output_constraint, input_constraint, num_partitions=num_partitions
         )
         input_constraints.append(deepcopy(input_constraint))
-        for i in np.arange(0 + self.dynamics.dt, t_max, self.dynamics.dt):
-            next_output_constraint = input_constraint.to_output_constraint()
-            next_input_constraint = deepcopy(input_constraint)
-            input_constraint, _ = self.get_one_step_backprojection_set(
-                next_output_constraint, next_input_constraint
-            )
-            input_constraints.append(deepcopy(input_constraint))
+
+        # TODO: Support N-step backprojection
+        # for i in np.arange(0 + self.dynamics.dt, t_max, self.dynamics.dt):
+        #     next_output_constraint = input_constraint.to_output_constraint()
+        #     next_input_constraint = deepcopy(input_constraint)
+        #     input_constraint, _ = self.get_one_step_backprojection_set(
+        #         next_output_constraint, next_input_constraint, num_partitions=num_partitions
+        #     )
+        #     input_constraints.append(deepcopy(input_constraint))
+
         return input_constraints, {}
 
     def output_to_constraint(self, bs, output_constraint):
