@@ -34,7 +34,11 @@ class PolytopeConstraint(Constraint):
             )[0]
         return ranges
 
-    def plot(self, ax, dims, color, fc_color="None", linewidth=3, label=None, zorder=2):
+    def plot(self, ax, dims, color, fc_color="None", linewidth=3, label=None, zorder=2, plot_2d=True):
+        if not plot_2d:
+            raise NotImplementedError
+            return self.plot3d(ax, dims, color, fc_color=fc_color, linewidth=linewidth, zorder=zorder)
+
         # TODO: this doesn't use the computed input_dims...
 
         lines = []

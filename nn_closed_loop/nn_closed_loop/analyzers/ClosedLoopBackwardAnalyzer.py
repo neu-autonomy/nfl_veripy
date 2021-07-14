@@ -59,10 +59,6 @@ class ClosedLoopBackwardAnalyzer(analyzers.Analyzer):
             output_constraint,
             self.propagator,
             show_samples=show_samples,
-            outputs_to_highlight=[
-                {"dim": [0], "name": "py"},
-                {"dim": [1], "name": "pz"},
-            ],
             inputs_to_highlight=[
                 {"dim": [0], "name": "py"},
                 {"dim": [1], "name": "pz"},

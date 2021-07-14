@@ -3,6 +3,5 @@ python -m nn_closed_loop.example_backward \
 	--propagator CROWN \
 	--system double_integrator \
 	--state_feedback \
-	--t_max 0.9 \
 	--boundaries polytope \
 	--skip_show_plot
