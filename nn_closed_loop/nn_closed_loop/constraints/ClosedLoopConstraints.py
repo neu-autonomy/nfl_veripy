@@ -1,6 +1,7 @@
 import numpy as np
 import pypoman
 from matplotlib.patches import Rectangle
+from nn_closed_loop.utils.plot_rect_prism import rect_prism
 
 class Constraint:
     def __init__(self):
@@ -66,21 +67,31 @@ class LpConstraint(Constraint):
         self.range = range
         self.p = p
 
-    def plot(self, ax, dims, color, fc_color="None", linewidth=3):
+    def plot(self, ax, dims, color, fc_color="None", linewidth=3, zorder=2, plot_2d=True):
+        if not plot_2d:
+            return self.plot3d(ax, dims, color, fc_color=fc_color, linewidth=linewidth, zorder=zorder)
         if isinstance(self.range, list) or (isinstance(self.range, np.ndarray) and self.range.ndim == 3):
             for i in range(len(self.range)):
-                rect = make_rect_from_arr(self.range[i], dims, color, linewidth, fc_color)
+                rect = make_rect_from_arr(self.range[i], dims, color, linewidth, fc_color, zorder=zorder)
                 ax.add_patch(rect)
         else:
-            rect = make_rect_from_arr(self.range, dims, color, linewidth, fc_color)
+            rect = make_rect_from_arr(self.range, dims, color, linewidth, fc_color, zorder=zorder)
             ax.add_patch(rect)
+        return rect
+    
+    def plot3d(self, ax, dims, color, fc_color="None", linewidth=1, zorder=2, plot_2d=True):
+        if isinstance(self.range, list) or (isinstance(self.range, np.ndarray) and self.range.ndim == 3):
+            for i in range(len(self.range)):
+                rect = rect_prism(*self.range[i][dims, :], ax, color, linewidth, fc_color, zorder=zorder)
+        else:
+            rect = rect_prism(*self.range[dims, :], ax, color, linewidth, fc_color, zorder=zorder)
         return rect
 
     def get_t_max(self):
         return len(self.range)
 
 
-def make_rect_from_arr(arr, dims, color, linewidth, fc_color):
+def make_rect_from_arr(arr, dims, color, linewidth, fc_color, zorder=None):
     rect = Rectangle(
         arr[dims, 0],
         arr[dims[0], 1]
@@ -90,6 +101,7 @@ def make_rect_from_arr(arr, dims, color, linewidth, fc_color):
         fc=fc_color,
         linewidth=linewidth,
         edgecolor=color,
+        zorder=zorder,
     )
     return rect
 

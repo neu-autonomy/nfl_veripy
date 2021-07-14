@@ -798,7 +798,7 @@ class Partitioner:
 
         return output_range_sim, sampled_outputs, sampled_inputs
 
-    def compile_animation(self, iteration, delete_files=False, start_iteration=0):
+    def compile_animation(self, iteration, delete_files=False, start_iteration=0, duration=0.1):
         filenames = [
             self.get_tmp_animation_filename(i) for i in range(start_iteration, iteration)
         ]
@@ -821,7 +821,7 @@ class Partitioner:
         animation_filename = (
             self.animation_save_dir + self.get_animation_filename()
         )
-        imageio.mimsave(animation_filename, images)
+        imageio.mimsave(animation_filename, images, duration=duration)
         optimize(animation_filename)  # compress gif file size
 
     def get_animation_filename(self):

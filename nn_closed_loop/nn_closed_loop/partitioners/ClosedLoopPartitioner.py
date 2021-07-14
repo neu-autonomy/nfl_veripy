@@ -112,7 +112,6 @@ class ClosedLoopPartitioner(partitioners.Partitioner):
         output_constraint,
         propagator,
         show_samples=True,
-        outputs_to_highlight=None,
         inputs_to_highlight=None,
         aspect="auto",
         initial_set_color=None,
@@ -121,8 +120,6 @@ class ClosedLoopPartitioner(partitioners.Partitioner):
 
         self.default_patches = []
         self.default_lines = []
-
-        self.animate_fig, self.animate_axes = plt.subplots(1, 1)
 
         if inputs_to_highlight is None:
             input_dims = [[0], [1]]
@@ -135,10 +132,24 @@ class ClosedLoopPartitioner(partitioners.Partitioner):
             input_names = [x["name"] for x in inputs_to_highlight]
         self.input_dims = input_dims
 
+        if len(input_dims) == 2:
+            projection = None
+            self.plot_2d = True
+            self.linewidth = 3
+        elif len(input_dims) == 3:
+            projection = '3d'
+            self.plot_2d = False
+            self.linewidth = 1
+
+        self.animate_fig, self.animate_axes = plt.subplots(1, 1, subplot_kw=dict(projection=projection))
+
         self.animate_axes.set_xlabel(input_names[0])
         self.animate_axes.set_ylabel(input_names[1])
+        if not self.plot_2d:
+            self.animate_axes.set_zlabel(input_names[2])
 
-        self.animate_axes.set_aspect(aspect)
+        if self.plot_2d:
+            self.animate_axes.set_aspect(aspect)
 
         if show_samples:
             self.dynamics.show_samples(
@@ -152,7 +163,7 @@ class ClosedLoopPartitioner(partitioners.Partitioner):
         # Plot the initial state set's boundaries
         if initial_set_color is None:
             initial_set_color = "tab:grey"
-        rect = input_constraint.plot(self.animate_axes, input_dims, initial_set_color, zorder=initial_set_zorder)
+        rect = input_constraint.plot(self.animate_axes, input_dims, initial_set_color, zorder=initial_set_zorder, linewidth=self.linewidth, plot_2d=self.plot_2d)
         self.default_patches += rect
 
         # # Reachable sets
@@ -184,11 +195,20 @@ class ClosedLoopPartitioner(partitioners.Partitioner):
             filename = self.get_tmp_animation_filename(iteration)
             plt.savefig(filename)
 
+        if self.make_animation and not self.plot_2d:
+            # Make an animated 3d view
+            os.makedirs(self.tmp_animation_save_dir, exist_ok=True)
+            for i, angle in enumerate(range(-100, 0, 2)):
+                self.animate_axes.view_init(30,angle)
+                filename = self.get_tmp_animation_filename(i)
+                plt.savefig(filename)
+            self.compile_animation(i, delete_files=True, duration=0.2)
+
     def plot_reachable_sets(self, constraint, dims, reachable_set_color=None, reachable_set_zorder=None):
         if reachable_set_color is None:
             reachable_set_color = "tab:blue"
         fc_color = "None"
-        constraint.plot(self.animate_axes, dims, reachable_set_color, fc_color=fc_color, zorder=reachable_set_zorder)
+        constraint.plot(self.animate_axes, dims, reachable_set_color, fc_color=fc_color, zorder=reachable_set_zorder, plot_2d=self.plot_2d, linewidth=self.linewidth)
 
     # def plot_partition(self, constraint, bounds, dims, color):
     def plot_partition(self, constraint, dims, color):
@@ -197,7 +217,7 @@ class ClosedLoopPartitioner(partitioners.Partitioner):
         if isinstance(constraint, np.ndarray):
             constraint = constraints.LpConstraint(range=constraint)
 
-        constraint.plot(self.animate_axes, dims, color, linewidth=1)
+        constraint.plot(self.animate_axes, dims, color, linewidth=1, plot_2d=self.plot_2d)
 
     def plot_partitions(self, M, output_constraint, dims):
 

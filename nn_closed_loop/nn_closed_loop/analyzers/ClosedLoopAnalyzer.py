@@ -44,24 +44,24 @@ class ClosedLoopAnalyzer(analyzers.Analyzer):
         show_samples=False,
         aspect="auto",
         labels={},
+        inputs_to_highlight=None,
         **kwargs
     ):
         # sampled_outputs = self.get_sampled_outputs(input_range)
         # output_range_exact = self.samples_to_range(sampled_outputs)
+
+        if inputs_to_highlight is None:
+            inputs_to_highlight = [
+                {"dim": [0], "name": "x"},
+                {"dim": [1], "name": "y"},
+            ]
 
         self.partitioner.setup_visualization(
             input_constraint,
             output_constraint,
             self.propagator,
             show_samples=show_samples,
-            outputs_to_highlight=[
-                {"dim": [0], "name": "py"},
-                {"dim": [1], "name": "pz"},
-            ],
-            inputs_to_highlight=[
-                {"dim": [0], "name": "py"},
-                {"dim": [1], "name": "pz"},
-            ],
+            inputs_to_highlight=inputs_to_highlight,
             aspect=aspect,
         )
         self.partitioner.visualize(

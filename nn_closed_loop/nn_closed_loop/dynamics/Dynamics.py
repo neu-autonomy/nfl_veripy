@@ -105,7 +105,11 @@ class Dynamics:
         input_dims=[[0], [1]],
     ):
         if ax is None:
-            ax = plt.subplot()
+            if len(input_dims) == 2:
+                projection = None
+            elif len(input_dims) == 3:
+                projection = '3d'
+            ax = plt.subplot(projection=projection)
 
         xs, us = self.collect_data(
             t_max,
@@ -120,28 +124,16 @@ class Dynamics:
 
         for t in range(num_timesteps):
             ax.scatter(
-                xs[:, t, input_dims[0]],
-                xs[:, t, input_dims[1]],
+                *[xs[:, t, i] for i in input_dims],
                 color=colors[t],
                 s=4,
                 zorder=3,
             )
 
-        # if isinstance(input_constraint, PolytopeConstraint):
-
-        # elif isinstance(input_constraint, LpConstraint):
-        #     if input_constraint.p == np.inf:
-        #         # Input state rectangle
-        #         rect = ptch.Rectangle(init_state_range[:,0],
-        #             init_state_range[0,1]-init_state_range[0,0],
-        #             init_state_range[1,1]-init_state_range[1,0],
-        #             fill=False, ec='k')
-        #         ax.add_patch(rect)
-        #     else:
-        #         raise NotImplementedError
-
         ax.set_xlabel("$x_" + str(input_dims[0][0]) + "$")
         ax.set_ylabel("$x_" + str(input_dims[1][0]) + "$")
+        if len(input_dims) == 3:
+            ax.set_zlabel("$x_" + str(input_dims[2][0]) + "$")
 
         if save_plot:
             ax.savefig(plot_name)

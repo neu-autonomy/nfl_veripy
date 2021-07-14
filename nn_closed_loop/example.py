@@ -20,6 +20,10 @@ def main(args):
 
     # Dynamics
     if args.system == "double_integrator":
+        inputs_to_highlight = [
+            {"dim": [0], "name": "$x_0$"},
+            {"dim": [1], "name": "$x_1$"},
+        ]
         if args.state_feedback:
             dyn = dynamics.DoubleIntegrator()
         else:
@@ -38,6 +42,11 @@ def main(args):
                 ast.literal_eval(args.init_state_range)
             )
     elif args.system == "quadrotor":
+        inputs_to_highlight = [
+            {"dim": [0], "name": "px"},
+            {"dim": [1], "name": "py"},
+            {"dim": [2], "name": "pz"},
+        ]
         if args.state_feedback:
             dyn = dynamics.Quadrotor()
         else:
@@ -205,6 +214,7 @@ def main(args):
             labels=args.plot_labels,
             aspect=args.plot_aspect,
             iteration=None,
+            inputs_to_highlight=inputs_to_highlight,
             **analyzer_info
         )
 
