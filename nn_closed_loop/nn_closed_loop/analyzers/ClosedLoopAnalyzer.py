@@ -14,6 +14,12 @@ class ClosedLoopAnalyzer(analyzers.Analyzer):
         self.dynamics = dynamics
         analyzers.Analyzer.__init__(self, torch_model=torch_model)
 
+        self.reachable_set_color = 'tab:blue'
+        self.reachable_set_zorder = 2
+        self.initial_set_color = 'tab:red'
+        self.initial_set_zorder = 2
+        self.sample_zorder = 1
+
     def instantiate_partitioner(self, partitioner, hyperparams):
         return partitioners.partitioner_dict[partitioner](
             **{**hyperparams, "dynamics": self.dynamics}
@@ -52,8 +58,8 @@ class ClosedLoopAnalyzer(analyzers.Analyzer):
 
         if inputs_to_highlight is None:
             inputs_to_highlight = [
-                {"dim": [0], "name": "x"},
-                {"dim": [1], "name": "y"},
+                {"dim": [0], "name": "$x_0$"},
+                {"dim": [1], "name": "$x_1$"},
             ]
 
         self.partitioner.setup_visualization(
@@ -63,6 +69,9 @@ class ClosedLoopAnalyzer(analyzers.Analyzer):
             show_samples=show_samples,
             inputs_to_highlight=inputs_to_highlight,
             aspect=aspect,
+            initial_set_color=self.initial_set_color,
+            initial_set_zorder=self.initial_set_zorder,
+            sample_zorder=self.sample_zorder
         )
         self.partitioner.visualize(
             kwargs.get(
@@ -71,6 +80,8 @@ class ClosedLoopAnalyzer(analyzers.Analyzer):
             kwargs.get("interior_partitions", []),
             output_constraint,
             kwargs.get("iteration", None),
+            reachable_set_color=self.reachable_set_color,
+            reachable_set_zorder=self.reachable_set_zorder
         )
 
         # self.partitioner.animate_axes.legend(

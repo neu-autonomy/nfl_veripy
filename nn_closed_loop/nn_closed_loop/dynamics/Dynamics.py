@@ -103,6 +103,7 @@ class Dynamics:
         show=False,
         controller="mpc",
         input_dims=[[0], [1]],
+        zorder=1,
     ):
         if ax is None:
             if len(input_dims) == 2:
@@ -127,7 +128,7 @@ class Dynamics:
                 *[xs[:, t, i] for i in input_dims],
                 color=colors[t],
                 s=4,
-                zorder=3,
+                zorder=zorder,
             )
 
         ax.set_xlabel("$x_" + str(input_dims[0][0]) + "$")

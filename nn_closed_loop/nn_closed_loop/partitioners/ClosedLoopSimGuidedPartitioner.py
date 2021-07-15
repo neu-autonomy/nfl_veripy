@@ -15,6 +15,12 @@ class ClosedLoopSimGuidedPartitioner(ClosedLoopPartitioner):
         self.termination_condition_type = "num_propagator_calls"
         self.termination_condition_value = 200
 
+        self.reachable_set_color = 'tab:blue'
+        self.reachable_set_zorder = 2
+        self.initial_set_color = 'tab:red'
+        self.initial_set_zorder = 2
+        self.sample_zorder = 1
+
     def check_termination(
         self,
         input_constraint,
@@ -115,15 +121,14 @@ class ClosedLoopSimGuidedPartitioner(ClosedLoopPartitioner):
                 output_constraint_,
                 propagator,
                 show_samples=True,
-                outputs_to_highlight=[
-                    {"dim": [0], "name": "py"},
-                    {"dim": [1], "name": "pz"},
-                ],
                 inputs_to_highlight=[
-                    {"dim": [0], "name": "py"},
-                    {"dim": [1], "name": "pz"},
+                    {"dim": [0], "name": "$x_0$"},
+                    {"dim": [1], "name": "$x_1$"},
                 ],
                 aspect="auto",
+                initial_set_color=self.initial_set_color,
+                initial_set_zorder=self.initial_set_zorder,
+                sample_zorder=self.sample_zorder
             )
 
         u_e, info = self.partition_loop(
@@ -213,7 +218,7 @@ class ClosedLoopSimGuidedPartitioner(ClosedLoopPartitioner):
                     M.append((input_constraint_, reachable_set_))
 
                 if self.make_animation:
-                    self.call_visualizer(output_range_sim, M+interior_M, num_propagator_calls, interior_M, iteration=iteration)
+                    self.call_visualizer(output_range_sim, M+interior_M, num_propagator_calls, interior_M, iteration=iteration, dont_tighten_layout=False)
             iteration += 1
 
         # Line 24
@@ -238,11 +243,11 @@ class ClosedLoopSimGuidedPartitioner(ClosedLoopPartitioner):
         #     iteration,
         # )
         if self.make_animation:
-            self.compile_animation(iteration, delete_files=True, start_iteration=-1)
+            self.compile_animation(iteration, delete_files=False, start_iteration=-1)
 
         return u_e, info
 
-    def call_visualizer(self, output_range_sim, M, num_propagator_calls, interior_M, iteration):
+    def call_visualizer(self, output_range_sim, M, num_propagator_calls, interior_M, iteration, dont_tighten_layout=False):
         u_e = self.squash_down_to_one_range(output_range_sim, M)
         # title = "# Partitions: {}, Error: {}".format(str(len(M)+len(interior_M)), str(round(error, 3)))
         title = "# Propagator Calls: {}".format(
@@ -251,7 +256,7 @@ class ClosedLoopSimGuidedPartitioner(ClosedLoopPartitioner):
         # title = None
 
         output_constraint = constraints.LpConstraint(range=u_e)
-        self.visualize(M, interior_M, output_constraint, iteration=iteration, title=title)
+        self.visualize(M, interior_M, output_constraint, iteration=iteration, title=title, reachable_set_color=self.reachable_set_color, reachable_set_zorder=self.reachable_set_zorder, dont_tighten_layout=dont_tighten_layout)
 
     def squash_down_to_one_range(self, output_range_sim, M):
 

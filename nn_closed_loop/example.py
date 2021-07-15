@@ -43,9 +43,9 @@ def main(args):
             )
     elif args.system == "quadrotor":
         inputs_to_highlight = [
-            {"dim": [0], "name": "px"},
-            {"dim": [1], "name": "py"},
-            {"dim": [2], "name": "pz"},
+            {"dim": [0], "name": "$x$"},
+            {"dim": [1], "name": "$y$"},
+            {"dim": [2], "name": "$z$"},
         ]
         if args.state_feedback:
             dyn = dynamics.Quadrotor()
@@ -119,8 +119,9 @@ def main(args):
 
         num_calls = 5
         times = np.empty(num_calls)
-        errors = np.empty(num_calls)
+        final_errors = np.empty(num_calls)
         avg_errors = np.empty(num_calls, dtype=np.ndarray)
+        all_errors = np.empty(num_calls, dtype=np.ndarray)
         output_constraints = np.empty(num_calls, dtype=object)
         for num in range(num_calls):
             t_start = time.time()
@@ -131,25 +132,27 @@ def main(args):
             t = t_end - t_start
             times[num] = t
 
-            error, avg_error = analyzer.get_error(input_constraint, output_constraint, t_max=args.t_max)
-            errors[num] = error
-            avg_errors[num] = avg_errors
+            final_error, avg_error, all_error = analyzer.get_error(input_constraint, output_constraint, t_max=args.t_max)
+            final_errors[num] = final_error
+            avg_errors[num] = avg_error
+            all_errors[num] = all_error
             output_constraints[num] = output_constraint
 
         stats['runtimes'] = times
-        stats['final_step_errors'] = errors
+        stats['final_step_errors'] = final_errors
         stats['avg_errors'] = avg_errors
+        stats['all_errors'] = all_errors
         stats['output_constraints'] = output_constraints
 
         print("All times: {}".format(times))
-        print("Avg time: {}".format(times.mean()))
+        print("Avg time: {} +/- {}".format(times.mean(), times.std()))
 
     # Run analysis & generate a plot
     output_constraint, analyzer_info = analyzer.get_reachable_set(
         input_constraint, output_constraint, t_max=args.t_max
     )
-    error, avg_error = analyzer.get_error(input_constraint, output_constraint, t_max=args.t_max)
-    print('Final step approximation error:{:.2f}\nAverage approximation error: {:.2f}'.format(error, avg_error))
+    final_error, avg_error, errors = analyzer.get_error(input_constraint, output_constraint, t_max=args.t_max)
+    print('Final step approximation error:{:.2f}\nAverage approximation error: {:.2f}\nAll errors: {}'.format(final_error, avg_error, errors))
 
     if args.save_plot:
         save_dir = "{}/results/examples/".format(

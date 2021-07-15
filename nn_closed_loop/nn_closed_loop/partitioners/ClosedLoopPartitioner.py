@@ -76,7 +76,7 @@ class ClosedLoopPartitioner(partitioners.Partitioner):
             output_range_exact = self.get_sampled_out_range(
                 input_constraint, propagator, t_max, num_samples=1000
             )
-            error = 0
+            errors = []
             for t in range(int(t_max / self.dynamics.dt)):
                 true_area = np.product(
                     output_range_exact[t][..., 1]
@@ -86,12 +86,12 @@ class ClosedLoopPartitioner(partitioners.Partitioner):
                     output_estimated_range[t][..., 1]
                     - output_estimated_range[t][..., 0]
                 )
-                error += (estimated_area - true_area) / true_area
+                errors.append((estimated_area - true_area) / true_area)
         else:
             raise NotImplementedError
-        final_error = (estimated_area - true_area) / true_area
-        avg_error = error / t_max
-        return final_error, avg_error
+        final_error = errors[-1]
+        avg_error = np.mean(errors)
+        return final_error, avg_error, np.array(errors)
 
     def get_sampled_out_range(
         self, input_constraint, propagator, t_max=5, num_samples=1000
@@ -115,7 +115,8 @@ class ClosedLoopPartitioner(partitioners.Partitioner):
         inputs_to_highlight=None,
         aspect="auto",
         initial_set_color=None,
-        initial_set_zorder=None
+        initial_set_zorder=None,
+        sample_zorder=None,
     ):
 
         self.default_patches = []
@@ -140,16 +141,11 @@ class ClosedLoopPartitioner(partitioners.Partitioner):
             projection = '3d'
             self.plot_2d = False
             self.linewidth = 1
+            aspect = "auto"
 
         self.animate_fig, self.animate_axes = plt.subplots(1, 1, subplot_kw=dict(projection=projection))
 
-        self.animate_axes.set_xlabel(input_names[0])
-        self.animate_axes.set_ylabel(input_names[1])
-        if not self.plot_2d:
-            self.animate_axes.set_zlabel(input_names[2])
-
-        if self.plot_2d:
-            self.animate_axes.set_aspect(aspect)
+        self.animate_axes.set_aspect(aspect)
 
         if show_samples:
             self.dynamics.show_samples(
@@ -158,7 +154,13 @@ class ClosedLoopPartitioner(partitioners.Partitioner):
                 ax=self.animate_axes,
                 controller=propagator.network,
                 input_dims=input_dims,
+                zorder=sample_zorder,
             )
+
+        self.animate_axes.set_xlabel(input_names[0])
+        self.animate_axes.set_ylabel(input_names[1])
+        if not self.plot_2d:
+            self.animate_axes.set_zlabel(input_names[2])
 
         # Plot the initial state set's boundaries
         if initial_set_color is None:
@@ -169,7 +171,7 @@ class ClosedLoopPartitioner(partitioners.Partitioner):
         # # Reachable sets
         # self.plot_reachable_sets(output_constraint, input_dims)
 
-    def visualize(self, M, interior_M, output_constraint, iteration=0, title=None, reachable_set_color=None, reachable_set_zorder=None):
+    def visualize(self, M, interior_M, output_constraint, iteration=0, title=None, reachable_set_color=None, reachable_set_zorder=None, dont_tighten_layout=False):
 
         # Bring forward whatever default items should be in the plot
         # (e.g., MC samples, initial state set boundaries)
@@ -184,7 +186,7 @@ class ClosedLoopPartitioner(partitioners.Partitioner):
         if title is not None:
             plt.suptitle(title)
 
-        if iteration == 0 or iteration == -1:
+        if (iteration == 0 or iteration == -1) and not dont_tighten_layout:
             plt.tight_layout()
 
         if self.show_animation:

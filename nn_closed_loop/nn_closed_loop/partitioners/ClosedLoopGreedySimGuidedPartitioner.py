@@ -12,8 +12,12 @@ class ClosedLoopGreedySimGuidedPartitioner(ClosedLoopSimGuidedPartitioner):
         else:
             if self.interior_condition == "linf":
 
-                # TEMP: choose solely based on last timestep!
+                # TEMP:
+                # choose solely based on first timestep!
+                # timestep_of_interest = 0
+                # choose solely based on last timestep!
                 timestep_of_interest = -1
+
                 M_last_timestep = [(inp, out[timestep_of_interest]) for (inp, out) in M]
                 output_range_sim_last_timestep = output_range_sim[timestep_of_interest]
 

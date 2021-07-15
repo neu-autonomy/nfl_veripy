@@ -36,6 +36,33 @@ python -m nn_closed_loop.example \
 ```
 Note that this doesn't affect the reachable set calculations (all dimensions' rechability is computed), just the visualization.
 
+You can change `--num_partitions` to get the various fidelities.
+
+State Feedback | Output Feedback
+------------ | -------------
+![2x2](docs/_static/journal/3d_quadrotor/quadrotor_None_CROWN_tmax_1.2_lp_8_state_feedback.png) | ![4x4](docs/_static/journal/3d_quadrotor/quadrotor_None_CROWN_tmax_1.2_lp_8_output_feedback.png)
+
 If you want to get an animated 3D plot, add the `--make_animation` flag:
 
 ![animation](docs/_static/journal/3d_quadrotor/ClosedLoopNoPartitioner.gif)
+
+### Partitioner Comparison
+
+You can change the `--partitioner` flag to get various reachable set estimates:
+```bash
+python -m nn_closed_loop.example \
+	--partitioner GreedySimGuided \
+	--propagator CROWN \
+	--system double_integrator \
+	--state_feedback \
+	--t_max 5 \
+	--skip_show_plot \
+	--make_animation
+```
+
+You can change which timestep GSG optimizes for by going into `ClosedLoopGreedySimGuidedPartitioner.py` method `grab_from_M` and changing the commented value (sorry for the major hack).
+
+UnGuided | SimGuided | GreedySimGuided-0 | GreedySimGuided-4
+------------ | ------------- | ------------ | -------------
+![UnGuided](docs/_static/journal/partitioners/ClosedLoopUnGuidedPartitioner.gif) | ![SimGuided](docs/_static/journal/partitioners/ClosedLoopSimGuidedPartitioner.gif) | ![GreedySimGuided-0](docs/_static/journal/partitioners/ClosedLoopGreedySimGuidedPartitioner0.gif) | ![GreedySimGuided-4](docs/_static/journal/partitioners/ClosedLoopGreedySimGuidedPartitioner4.gif)
+

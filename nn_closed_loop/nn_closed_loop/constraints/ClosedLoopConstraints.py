@@ -81,7 +81,7 @@ class LpConstraint(Constraint):
         else:
             rect = make_rect_from_arr(self.range, dims, color, linewidth, fc_color, zorder=zorder)
             ax.add_patch(rect)
-        return rect
+        return [rect]
     
     def plot3d(self, ax, dims, color, fc_color="None", linewidth=1, zorder=2, plot_2d=True):
         if isinstance(self.range, list) or (isinstance(self.range, np.ndarray) and self.range.ndim == 3):
