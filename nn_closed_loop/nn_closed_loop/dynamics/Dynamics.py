@@ -69,7 +69,8 @@ class Dynamics:
         return [cm.get_cmap(self.cmap_name)(i) for i in range(t_max + 1)]
 
     def get_sampled_output_range(
-        self, input_constraint, t_max=5, num_samples=1000, controller="mpc"
+        self, input_constraint, t_max=5, num_samples=1000, controller="mpc",
+        output_constraint=None
     ):
 
         xs, us = self.collect_data(
@@ -83,7 +84,13 @@ class Dynamics:
         num_runs, num_timesteps, num_states = xs.shape
 
         if isinstance(input_constraint, constraints.PolytopeConstraint):
-            raise NotImplementedError
+            # hack: just return all the sampled pts for error calculator
+            sampled_range = xs
+            # num_facets = output_constraint.A.shape[0]
+            # all_pts = np.dot(output_constraint.A, xs.T.reshape(num_states, -1))
+            # all_pts = all_pts.reshape(num_facets, num_runs, num_timesteps)
+            # all_pts = all_pts[..., 1:]  # drop zeroth timestep
+            # sampled_range = np.max(all_pts, axis=1).T
         elif isinstance(input_constraint, constraints.LpConstraint):
             sampled_range = np.zeros((num_timesteps - 1, num_states, 2))
             for t in range(1, num_timesteps):

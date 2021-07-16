@@ -69,14 +69,13 @@ class ClosedLoopPartitioner(partitioners.Partitioner):
     def get_error(
         self, input_constraint, output_constraint, propagator, t_max
     ):
+        errors = []
 
         if isinstance(input_constraint, constraints.LpConstraint):
             output_estimated_range = output_constraint.range
-            # t_max = len(output_estimated_range)
             output_range_exact = self.get_sampled_out_range(
                 input_constraint, propagator, t_max, num_samples=1000
             )
-            errors = []
             for t in range(int(t_max / self.dynamics.dt)):
                 true_area = np.product(
                     output_range_exact[t][..., 1]
@@ -88,16 +87,37 @@ class ClosedLoopPartitioner(partitioners.Partitioner):
                 )
                 errors.append((estimated_area - true_area) / true_area)
         else:
-            raise NotImplementedError
+            # Note: This compares the estimated polytope
+            # with the "best" polytope with those facets.
+            # There could be a much better polytope with lots of facets.
+            true_verts = self.get_sampled_out_range(
+                input_constraint, propagator, t_max, num_samples=1000,
+                output_constraint=output_constraint
+            )
+            # output_bs_exact = self.get_sampled_out_range(
+            #     input_constraint, propagator, t_max, num_samples=1000,
+            #     output_constraint=output_constraint
+            # )
+            from scipy.spatial import ConvexHull
+            for t in range(int(t_max / self.dynamics.dt)):
+                # true_verts = pypoman.polygon.compute_polygon_hull(output_constraint.A, output_bs_exact[t])
+                true_hull = ConvexHull(true_verts[:, t+1, :])
+                true_area = true_hull.area
+                estimated_verts = pypoman.polygon.compute_polygon_hull(output_constraint.A, output_constraint.b[t])
+                estimated_hull = ConvexHull(estimated_verts)
+                estimated_area = estimated_hull.area
+                errors.append((estimated_area - true_area) / true_area)
         final_error = errors[-1]
         avg_error = np.mean(errors)
         return final_error, avg_error, np.array(errors)
 
     def get_sampled_out_range(
-        self, input_constraint, propagator, t_max=5, num_samples=1000
+        self, input_constraint, propagator, t_max=5, num_samples=1000,
+        output_constraint=None
     ):
         return self.dynamics.get_sampled_output_range(
-            input_constraint, t_max, num_samples, controller=propagator.network
+            input_constraint, t_max, num_samples, controller=propagator.network,
+            output_constraint=output_constraint
         )
 
     def get_sampled_out_range_guidance(

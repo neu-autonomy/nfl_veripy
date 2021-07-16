@@ -151,8 +151,10 @@ def main(args):
     output_constraint, analyzer_info = analyzer.get_reachable_set(
         input_constraint, output_constraint, t_max=args.t_max
     )
-    final_error, avg_error, errors = analyzer.get_error(input_constraint, output_constraint, t_max=args.t_max)
-    print('Final step approximation error:{:.2f}\nAverage approximation error: {:.2f}\nAll errors: {}'.format(final_error, avg_error, errors))
+
+    if args.estimate_error:
+        final_error, avg_error, errors = analyzer.get_error(input_constraint, output_constraint, t_max=args.t_max)
+        print('Final step approximation error:{:.2f}\nAverage approximation error: {:.2f}\nAll errors: {}'.format(final_error, avg_error, errors))
 
     if args.save_plot:
         save_dir = "{}/results/examples/".format(
@@ -299,6 +301,11 @@ def setup_parser():
         "--estimate_runtime", dest="estimate_runtime", action="store_true"
     )
     parser.set_defaults(estimate_runtime=False)
+
+    parser.add_argument(
+        "--estimate_error", dest="estimate_error", action="store_true"
+    )
+    parser.set_defaults(estimate_error=True)
 
     parser.add_argument(
         "--save_plot",
