@@ -55,9 +55,13 @@ class PolytopeConstraint(Constraint):
 
         else:
             # Forward reachability
-            for i in range(len(self.b)):
-                line = make_polytope_from_arrs(ax, self.A, self.b[i], color, label, zorder)
+            if isinstance(self.b, np.ndarray) and self.b.ndim == 1:
+                line = make_polytope_from_arrs(ax, self.A, self.b, color, label, zorder)
                 lines += line
+            else:
+                for i in range(len(self.b)):
+                    line = make_polytope_from_arrs(ax, self.A, self.b[i], color, label, zorder)
+                    lines += line
 
         return lines
 
