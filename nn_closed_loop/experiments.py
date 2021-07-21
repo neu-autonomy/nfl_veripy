@@ -142,12 +142,12 @@ class CompareRuntimeVsErrorTable(Experiment):
                 'propagator': 'SDP',
                 'cvxpy_solver': 'MOSEK',
             },
-            # {
-            #     'partitioner': 'Uniform',
-            #     'num_partitions': "[4, 4]",
-            #     'propagator': 'SDP',
-            #     'cvxpy_solver': 'MOSEK',
-            # },
+            {
+                'partitioner': 'Uniform',
+                'num_partitions': "[4, 4]",
+                'propagator': 'SDP',
+                'cvxpy_solver': 'MOSEK',
+            },
         ]
 
         df = pd.DataFrame()
@@ -233,12 +233,17 @@ class CompareRuntimeVsErrorTable(Experiment):
 
                 all_errors = group['all_errors'].iloc[0]
                 t_max = all_errors.shape[0]
+                label = self.info[prop_part_tuple]['name']
+
+                # replace citation with the ref number in this plot
+                label = label.replace('~\\cite{hu2020reach}', ' [22]')
+                
                 plt.plot(
                     np.arange(1, t_max+1),
                     all_errors, 
                     color=self.info[prop_part_tuple]['color'],
                     ls=self.info[prop_part_tuple]['ls'],
-                    label=self.info[prop_part_tuple]['name'],
+                    label=label,
                 )
         plt.legend()
 
@@ -331,7 +336,7 @@ class CompareRuntimeVsErrorTable(Experiment):
 
         # Add shaded regions for verification
         goal_arr = np.array([
-            [-0.25, 0.25],
+            [-0.5, 0.5],
             [-0.25, 0.25],
         ])
         dims = analyzer.partitioner.input_dims
@@ -372,7 +377,7 @@ class CompareLPvsCF(Experiment):
         rows.append(["", "1", "4", "16"])
 
         propagator_names = {"CROWNLP": "L.P.", "CROWN": "C.F."}
-        t_max = {"quadrotor": "2", "double_integrator": "2"}
+        t_max = {"quadrotor": 2, "double_integrator": 5}
         partitions = {
             'quadrotor': ["[1,1,1,1,1,1]", "[2,2,1,1,1,1]", "[2,2,2,2,1,1]"],
             'double_integrator': ["[1,1]", "[2,2]", "[4,4]"]
@@ -418,15 +423,15 @@ class CompareLPvsCF(Experiment):
 if __name__ == '__main__':
 
     # Like Fig 3 in ICRA21 paper
-    c = CompareRuntimeVsErrorTable()
-    # c.run()
-    c.plot()  # 3A: table
-    c.plot_reachable_sets()  # 3B: overlay reachable sets
-    c.plot_error_vs_timestep()  # 3C: error vs timestep
+    # c = CompareRuntimeVsErrorTable()
+    # # c.run()
+    # c.plot()  # 3A: table
+    # c.plot_reachable_sets()  # 3B: overlay reachable sets
+    # c.plot_error_vs_timestep()  # 3C: error vs timestep
 
-    # c = CompareLPvsCF(system="double_integrator")
-    # c.run()
-    # c.plot()
+    c = CompareLPvsCF(system="double_integrator")
+    c.run()
+    c.plot()
 
     # c = CompareLPvsCF(system="quadrotor")
     # c.run()
