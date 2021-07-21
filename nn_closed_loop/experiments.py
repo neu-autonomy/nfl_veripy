@@ -5,6 +5,14 @@ import pandas as pd
 import datetime
 import os
 import glob
+import matplotlib.pyplot as plt
+import argparse
+
+import nn_closed_loop.dynamics as dynamics
+import nn_closed_loop.analyzers as analyzers
+import nn_closed_loop.constraints as constraints
+from nn_closed_loop.utils.nn import load_controller
+
 
 results_dir = "{}/results/logs/".format(
     os.path.dirname(os.path.abspath(__file__))
@@ -19,7 +27,7 @@ class Experiment:
 
 class CompareMultipleCombos(Experiment):
     def __init__(self):
-        self.filename = results_dir + 'alg_error_table_{dt}.pkl'
+        self.filename = results_dir + 'alg_error_{dt}_table.pkl'
 
     def run(self):
         dt = datetime.datetime.now().strftime('%Y_%m_%d__%H_%M_%S')
@@ -72,67 +80,35 @@ class CompareMultipleCombos(Experiment):
         df.to_pickle(self.filename.format(dt=dt))
 
     def plot(self):
-        # Grab latest file as pandas dataframe
-        list_of_files = glob.glob(self.filename.format(dt='*'))
-        latest_filename = max(list_of_files, key=os.path.getctime)
-        df = pd.read_pickle(latest_filename)
-
-        # df will have every trial, so group by which prop/part was used
-        groupby = ['propagator', 'partitioner']
-        grouped = df.groupby(groupby)
-
-        import pdb; pdb.set_trace()
-
-        # human-readable names for each algorithm
-        def to_name(prop_part_tuple):
-            names = {
-                ('CROWN', 'Uniform'): 'Reach-LP-Partition',
-                ('CROWN', 'None'): 'Reach-LP',
-                ('SDP', 'None'): 'Reach-SDP~\cite{hu2020reach}',
-                ('SDP', 'Uniform'): 'Reach-SDP-Partition',
-            }
-            return names[prop_part_tuple]
-
-        # Setup table columns
-        rows = []
-        rows.append(["Algorithm", "Runtime [s]", "Error"])
-
-        # Go through each combination of prop/part we want in the table
-        for propagator in ['SDP', 'CROWN']:
-            for partitioner in ['None', 'Uniform']:
-                prop_part_tuple = (propagator, partitioner)
-                try:
-                    group = grouped.get_group(prop_part_tuple)
-                except KeyError:
-                    continue
-
-                name = to_name(prop_part_tuple)
-
-                mean_runtime = group['runtime'].mean()
-                std_runtime = group['runtime'].std()
-                runtime_str = "${:.3f} \pm {:.3f}$".format(mean_runtime, std_runtime)
-
-                final_step_error = group['final_step_error'].mean()
-
-                # Add the entries to the table for that prop/part
-                row = []
-                row.append(name)
-                row.append(runtime_str)
-                row.append(final_step_error)
-
-                rows.append(row)
-
-        # print as a human-readable table and as a latex table
-        print(tabulate(rows, headers='firstrow'))
-        print()
-        print(tabulate(rows, headers='firstrow', tablefmt='latex_raw'))
-
-
+        raise NotImplementedError
 
 
 class CompareRuntimeVsErrorTable(Experiment):
     def __init__(self):
-        self.filename = results_dir + 'runtime_vs_error_table_{dt}.pkl'
+        self.filename = results_dir + 'runtime_vs_error_{dt}_table.pkl'
+
+        self.info = {
+            ('CROWN', 'Uniform'): {
+                'name': 'Reach-LP-Partition',
+                'color': 'tab:green',
+                'ls': '-',
+            },
+            ('CROWN', 'None'): {
+                'name': 'Reach-LP',
+                'color': 'tab:green',
+                'ls': '--',
+            },
+            ('SDP', 'Uniform'): {
+                'name': 'Reach-SDP-Partition',
+                'color': 'tab:red',
+                'ls': '-',
+            },
+            ('SDP', 'None'): {
+                'name': 'Reach-SDP~\cite{hu2020reach}',
+                'color': 'tab:red',
+                'ls': '--',
+            },
+        }
 
     def run(self):
         dt = datetime.datetime.now().strftime('%Y_%m_%d__%H_%M_%S')
@@ -166,12 +142,12 @@ class CompareRuntimeVsErrorTable(Experiment):
                 'propagator': 'SDP',
                 'cvxpy_solver': 'MOSEK',
             },
-            {
-                'partitioner': 'Uniform',
-                'num_partitions': "[4, 4]",
-                'propagator': 'SDP',
-                'cvxpy_solver': 'MOSEK',
-            },
+            # {
+            #     'partitioner': 'Uniform',
+            #     'num_partitions': "[4, 4]",
+            #     'propagator': 'SDP',
+            #     'cvxpy_solver': 'MOSEK',
+            # },
         ]
 
         df = pd.DataFrame()
@@ -189,10 +165,11 @@ class CompareRuntimeVsErrorTable(Experiment):
                     'final_step_error': stats['final_step_errors'][i],
                     'avg_error': stats['avg_errors'][i],
                     'output_constraint': stats['output_constraints'][i],
+                    'all_errors': stats['all_errors'][i],
                     }, ignore_index=True)
         df.to_pickle(self.filename.format(dt=dt))
 
-    def plot(self):
+    def grab_latest_groups(self):
         # Grab latest file as pandas dataframe
         list_of_files = glob.glob(self.filename.format(dt='*'))
         latest_filename = max(list_of_files, key=os.path.getctime)
@@ -201,16 +178,10 @@ class CompareRuntimeVsErrorTable(Experiment):
         # df will have every trial, so group by which prop/part was used
         groupby = ['propagator', 'partitioner']
         grouped = df.groupby(groupby)
+        return grouped, latest_filename
 
-        # human-readable names for each algorithm
-        def to_name(prop_part_tuple):
-            names = {
-                ('CROWN', 'Uniform'): 'Reach-LP-Partition',
-                ('CROWN', 'None'): 'Reach-LP',
-                ('SDP', 'None'): 'Reach-SDP~\cite{hu2020reach}',
-                ('SDP', 'Uniform'): 'Reach-SDP-Partition',
-            }
-            return names[prop_part_tuple]
+    def plot(self):
+        grouped, filename = self.grab_latest_groups()
 
         # Setup table columns
         rows = []
@@ -225,7 +196,7 @@ class CompareRuntimeVsErrorTable(Experiment):
                 except KeyError:
                     continue
 
-                name = to_name(prop_part_tuple)
+                name = self.info[prop_part_tuple]['name']
 
                 mean_runtime = group['runtime'].mean()
                 std_runtime = group['runtime'].std()
@@ -237,7 +208,7 @@ class CompareRuntimeVsErrorTable(Experiment):
                 row = []
                 row.append(name)
                 row.append(runtime_str)
-                row.append(final_step_error)
+                row.append(round(final_step_error))
 
                 rows.append(row)
 
@@ -245,6 +216,151 @@ class CompareRuntimeVsErrorTable(Experiment):
         print(tabulate(rows, headers='firstrow'))
         print()
         print(tabulate(rows, headers='firstrow', tablefmt='latex_raw'))
+
+    def plot_error_vs_timestep(self):
+        grouped, filename = self.grab_latest_groups()
+
+        fig, ax = plt.subplots(1, 1)
+
+        # Go through each combination of prop/part we want in the table
+        for propagator in ['SDP', 'CROWN']:
+            for partitioner in ['None', 'Uniform']:
+                prop_part_tuple = (propagator, partitioner)
+                try:
+                    group = grouped.get_group(prop_part_tuple)
+                except KeyError:
+                    continue
+
+                all_errors = group['all_errors'].iloc[0]
+                t_max = all_errors.shape[0]
+                plt.plot(
+                    np.arange(1, t_max+1),
+                    all_errors, 
+                    color=self.info[prop_part_tuple]['color'],
+                    ls=self.info[prop_part_tuple]['ls'],
+                    label=self.info[prop_part_tuple]['name'],
+                )
+        plt.legend()
+
+        ax.set_yscale('log')
+        plt.xlabel('Time Steps')
+        plt.ylabel('Approximation Error')
+        plt.tight_layout()
+
+        # Save plot with similar name to pkl file that contains data
+        fig_filename = filename.replace('table', 'timestep').replace('pkl', 'png')
+        plt.savefig(fig_filename)
+
+        # plt.show()
+
+    def plot_reachable_sets(self):
+
+        grouped, filename = self.grab_latest_groups()
+
+        dyn = dynamics.DoubleIntegrator()
+        controller = load_controller(name="double_integrator")
+
+        init_state_range = np.array(
+            [  # (num_inputs, 2)
+                [2.5, 3.0],  # x0min, x0max
+                [-0.25, 0.25],  # x1min, x1max
+            ]
+        )
+
+        partitioner_hyperparams = {
+            "type": "None",
+        }
+        propagator_hyperparams = {
+            "type": "CROWN",
+            "input_shape": init_state_range.shape[:-1],
+        }
+
+        # Set up analyzer (+ parititoner + propagator)
+        analyzer = analyzers.ClosedLoopAnalyzer(controller, dyn)
+        analyzer.partitioner = partitioner_hyperparams
+        analyzer.propagator = propagator_hyperparams
+
+        input_constraint = constraints.LpConstraint(
+            range=init_state_range, p=np.inf
+        )
+
+        inputs_to_highlight = [
+            {"dim": [0], "name": "$\mathbf{x}_0$"},
+            {"dim": [1], "name": "$\mathbf{x}_1$"},
+        ]
+
+        t_max = 5
+
+        analyzer.partitioner.setup_visualization(
+            input_constraint,
+            t_max,
+            analyzer.propagator,
+            show_samples=True,
+            inputs_to_highlight=inputs_to_highlight,
+            aspect="auto",
+            initial_set_color=analyzer.initial_set_color,
+            initial_set_zorder=analyzer.initial_set_zorder,
+            sample_zorder=analyzer.sample_zorder
+        )
+
+        analyzer.partitioner.linewidth = 1
+
+        # Go through each combination of prop/part we want in the table
+        for propagator in ['SDP', 'CROWN']:
+            for partitioner in ['None', 'Uniform']:
+                prop_part_tuple = (propagator, partitioner)
+                try:
+                    group = grouped.get_group(prop_part_tuple)
+                except KeyError:
+                    continue
+
+                output_constraint = group['output_constraint'].iloc[0]
+
+                analyzer.partitioner.visualize(
+                    [],
+                    [],
+                    output_constraint,
+                    None,
+                    reachable_set_color=self.info[prop_part_tuple]['color'],
+                    reachable_set_ls=self.info[prop_part_tuple]['ls'],
+                    reachable_set_zorder=analyzer.reachable_set_zorder
+                )
+
+                analyzer.partitioner.default_patches = analyzer.partitioner.animate_axes.patches.copy()
+                analyzer.partitioner.default_lines = analyzer.partitioner.animate_axes.lines.copy()
+
+        # Add shaded regions for verification
+        goal_arr = np.array([
+            [-0.25, 0.25],
+            [-0.25, 0.25],
+        ])
+        dims = analyzer.partitioner.input_dims
+        color = "None"
+        fc_color = "lightblue"
+        linewidth = 1
+        ls = '-'
+        rect = constraints.make_rect_from_arr(goal_arr, dims, color, linewidth, fc_color, ls, zorder=0)
+        analyzer.partitioner.animate_axes.add_patch(rect)
+
+        avoid_arr = np.array([
+            analyzer.partitioner.animate_axes.get_xlim(),
+            [0.35, analyzer.partitioner.animate_axes.get_ylim()[1]],
+        ])
+        dims = analyzer.partitioner.input_dims
+        color = "None"
+        fc_color = "wheat"
+        linewidth = 1
+        ls = '-'
+        rect = constraints.make_rect_from_arr(avoid_arr, dims, color, linewidth, fc_color, ls, zorder=0)
+        analyzer.partitioner.animate_axes.add_patch(rect)
+
+        plt.tight_layout()
+
+        # Save plot with similar name to pkl file that contains data
+        fig_filename = filename.replace('table', 'reachable').replace('pkl', 'png')
+        plt.savefig(fig_filename)
+
+        # plt.show()
 
 
 class CompareLPvsCF(Experiment):
@@ -300,11 +416,13 @@ class CompareLPvsCF(Experiment):
 
 
 if __name__ == '__main__':
-    
-    # Like Fig 3A (table) in ICRA21 paper
-    # c = CompareRuntimeVsErrorTable()
+
+    # Like Fig 3 in ICRA21 paper
+    c = CompareRuntimeVsErrorTable()
     # c.run()
-    # c.plot()
+    c.plot()  # 3A: table
+    c.plot_reachable_sets()  # 3B: overlay reachable sets
+    c.plot_error_vs_timestep()  # 3C: error vs timestep
 
     # c = CompareLPvsCF(system="double_integrator")
     # c.run()
@@ -314,6 +432,6 @@ if __name__ == '__main__':
     # c.run()
     # c.plot()
 
-    c = CompareMultipleCombos()
-    c.run()
-    c.plot()
+    # c = CompareMultipleCombos()
+    # c.run()
+    # c.plot()

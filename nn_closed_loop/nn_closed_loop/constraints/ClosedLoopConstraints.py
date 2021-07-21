@@ -34,7 +34,7 @@ class PolytopeConstraint(Constraint):
             )[0]
         return ranges
 
-    def plot(self, ax, dims, color, fc_color="None", linewidth=3, label=None, zorder=2, plot_2d=True):
+    def plot(self, ax, dims, color, fc_color="None", linewidth=3, label=None, zorder=2, plot_2d=True, ls='-'):
         if not plot_2d:
             raise NotImplementedError
             return self.plot3d(ax, dims, color, fc_color=fc_color, linewidth=linewidth, zorder=zorder)
@@ -50,17 +50,17 @@ class PolytopeConstraint(Constraint):
             # backprojection set
 
             for i in range(len(self.A)):
-                line = make_polytope_from_arrs(ax, self.A[i], self.b[i], color, label, zorder)
+                line = make_polytope_from_arrs(ax, self.A[i], self.b[i], color, label, zorder, ls)
                 lines += line
 
         else:
             # Forward reachability
             if isinstance(self.b, np.ndarray) and self.b.ndim == 1:
-                line = make_polytope_from_arrs(ax, self.A, self.b, color, label, zorder)
+                line = make_polytope_from_arrs(ax, self.A, self.b, color, label, zorder, ls)
                 lines += line
             else:
                 for i in range(len(self.b)):
-                    line = make_polytope_from_arrs(ax, self.A, self.b[i], color, label, zorder)
+                    line = make_polytope_from_arrs(ax, self.A, self.b[i], color, label, zorder, ls)
                     lines += line
 
         return lines
@@ -75,15 +75,15 @@ class LpConstraint(Constraint):
         self.range = range
         self.p = p
 
-    def plot(self, ax, dims, color, fc_color="None", linewidth=3, zorder=2, plot_2d=True):
+    def plot(self, ax, dims, color, fc_color="None", linewidth=3, zorder=2, plot_2d=True, ls='-'):
         if not plot_2d:
             return self.plot3d(ax, dims, color, fc_color=fc_color, linewidth=linewidth, zorder=zorder)
         if isinstance(self.range, list) or (isinstance(self.range, np.ndarray) and self.range.ndim == 3):
             for i in range(len(self.range)):
-                rect = make_rect_from_arr(self.range[i], dims, color, linewidth, fc_color, zorder=zorder)
+                rect = make_rect_from_arr(self.range[i], dims, color, linewidth, fc_color, ls, zorder=zorder)
                 ax.add_patch(rect)
         else:
-            rect = make_rect_from_arr(self.range, dims, color, linewidth, fc_color, zorder=zorder)
+            rect = make_rect_from_arr(self.range, dims, color, linewidth, fc_color, ls, zorder=zorder)
             ax.add_patch(rect)
         return [rect]
     
@@ -99,7 +99,7 @@ class LpConstraint(Constraint):
         return len(self.range)
 
 
-def make_rect_from_arr(arr, dims, color, linewidth, fc_color, zorder=None):
+def make_rect_from_arr(arr, dims, color, linewidth, fc_color, ls, zorder=None):
     rect = Rectangle(
         arr[dims, 0],
         arr[dims[0], 1]
@@ -110,11 +110,12 @@ def make_rect_from_arr(arr, dims, color, linewidth, fc_color, zorder=None):
         linewidth=linewidth,
         edgecolor=color,
         zorder=zorder,
+        linestyle=ls,
     )
     return rect
 
 
-def make_polytope_from_arrs(ax, A, b, color, label, zorder):
+def make_polytope_from_arrs(ax, A, b, color, label, zorder, ls):
     vertices = np.stack(
         pypoman.polygon.compute_polygon_hull(
             A, b + 1e-10
@@ -126,5 +127,6 @@ def make_polytope_from_arrs(ax, A, b, color, label, zorder):
         color=color,
         label=label,
         zorder=zorder,
+        ls=ls,
     )
     return lines
