@@ -64,7 +64,7 @@ You can change which timestep GSG optimizes for by going into `ClosedLoopGreedyS
 
 UnGuided | SimGuided | GreedySimGuided-0 | GreedySimGuided-4
 ------------ | ------------- | ------------ | -------------
-![UnGuided](docs/_static/journal/partitioners/ClosedLoopUnGuidedPartitioner.gif) | ![SimGuided](docs/_static/journal/partitioners/ClosedLoopSimGuidedPartitioner.gif) | ![GreedySimGuided-0](docs/_static/journal/partitioners/ClosedLoopGreedySimGuidedPartitioner0.gif) | ![GreedySimGuided-4](docs/_static/journal/partitioners/ClosedLoopGreedySimGuidedPartitioner4.gif)
+![UnGuided](docs/_static/journal/partitions/ClosedLoopUnGuidedPartitioner.gif) | ![SimGuided](docs/_static/journal/partitions/ClosedLoopSimGuidedPartitioner.gif) | ![GreedySimGuided-0](docs/_static/journal/partitions/ClosedLoopGreedySimGuidedPartitioner0.gif) | ![GreedySimGuided-4](docs/_static/journal/partitions/ClosedLoopGreedySimGuidedPartitioner4.gif)
 
 ### Compare Reach-LP and Reach-SDP
 
