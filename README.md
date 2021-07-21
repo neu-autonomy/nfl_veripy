@@ -96,7 +96,6 @@ python -m nn_closed_loop.example_backward \
 	--propagator CROWN \
 	--system double_integrator \
 	--state_feedback \
-	--t_max 0.9 \
 	--show_plot --boundaries polytope
 ```
 
@@ -104,6 +103,7 @@ python -m nn_closed_loop.example_backward \
 
 * LCSS/ACC '21: [README](docs/_static/lcss21/lcss21.md)
 * ICRA '21: [README](docs/_static/icra21/icra21.md)
+* Journal: [README](docs/_static/icra21/journal.md)
 
 ### If you find this code useful, please consider citing:
 For the partitioning-only code (LCSS/ACC '21):
@@ -131,38 +131,17 @@ For the closed-loop system analysis code (ICRA '21):
 
 ### TODOS:
 
-- [x] Choices in analyzer argparse
-- [x] move partitioners, propagators to separate dirs
-- [x] move cartpole, pend, quadrotor files elsewhere
-- [x] move MNIST data to right place
-- [x] merge in closed_loop branch
-- [x] Fig 3b individual images
-- [x] Fig 3a individual table
-- [x] Replicate LCSS Fig 4
-- [x] Replicate LCSS Fig 5
-- [x] Replicate LCSS Fig 6
-- [x] Replicate ICRA Fig 3b individuals + table
-- [x] Replicate ICRA Fig 4b individuals
-- [x] Replicate ICRA Fig 5
-- [x] publish crown_ibp, auto-Lirpa forks
-- [x] setup ci and simple tests to run the various expts
-- [x] add citation to papers, add description of repo to top of readme
-- [x] add license & copyright?
-- [x] get animation working for LCSS
-- [x] setup sync with github
+- [x] ICRA Fig 3 as single script
+- [x] ICRA Fig 3b make pkl
+- [x] ICRA Fig 3c from pkl
+- [x] get animation working for ICRA
 
 Someday soon...
 - [ ] add rtdocs (auto-fill code snippets from test files)
-- [ ] track down trained model for Fig 4b
 - [ ] LCSS Fig 8
 - [ ] Replicate LCSS Table 6b
 - [ ] Replicate LCSS Table I
-- [ ] ICRA Fig 3 as single script
-- [ ] ICRA Fig 3c make pkl
-- [ ] ICRA Fig 3c from pkl
 - [ ] ICRA Fig 4a make pkl
 - [ ] ICRA Fig 4a from pkl
 - [ ] ICRA Fig 4b as single script
 - [ ] ICRA Fig 4b load correct model
-- [ ] ICRA Fig 5 axes names & spacings
-- [ ] get animation working for ICRA
