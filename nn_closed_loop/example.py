@@ -113,8 +113,8 @@ def main(args):
     else:
         raise NotImplementedError
 
-    # Run the analyzer N times to compute an estimated runtime
     if args.estimate_runtime:
+        # Run the analyzer N times to compute an estimated runtime
         import time
 
         num_calls = 5
@@ -124,6 +124,7 @@ def main(args):
         all_errors = np.empty(num_calls, dtype=np.ndarray)
         output_constraints = np.empty(num_calls, dtype=object)
         for num in range(num_calls):
+            print('call: {}'.format(num))
             t_start = time.time()
             output_constraint, analyzer_info = analyzer.get_reachable_set(
                 input_constraint, output_constraint, t_max=args.t_max
@@ -146,11 +147,11 @@ def main(args):
 
         print("All times: {}".format(times))
         print("Avg time: {} +/- {}".format(times.mean(), times.std()))
-
-    # Run analysis & generate a plot
-    output_constraint, analyzer_info = analyzer.get_reachable_set(
-        input_constraint, output_constraint, t_max=args.t_max
-    )
+    else:
+        # Run analysis once
+        output_constraint, analyzer_info = analyzer.get_reachable_set(
+            input_constraint, output_constraint, t_max=args.t_max
+        )
 
     if args.estimate_error:
         final_error, avg_error, errors = analyzer.get_error(input_constraint, output_constraint, t_max=args.t_max)

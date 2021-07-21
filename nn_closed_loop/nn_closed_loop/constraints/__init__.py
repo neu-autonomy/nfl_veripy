@@ -1,8 +1,5 @@
 from .ClosedLoopConstraints import (
     LpConstraint,
     PolytopeConstraint,
-    # LpInputConstraint,
-    # PolytopeInputConstraint,
-    # LpOutputConstraint,
-    # PolytopeOutputConstraint,
+    make_rect_from_arr,
 )

@@ -51,6 +51,7 @@ class ClosedLoopAnalyzer(analyzers.Analyzer):
         aspect="auto",
         labels={},
         inputs_to_highlight=None,
+        dont_close=True,
         **kwargs
     ):
         # sampled_outputs = self.get_sampled_outputs(input_range)
@@ -64,7 +65,7 @@ class ClosedLoopAnalyzer(analyzers.Analyzer):
 
         self.partitioner.setup_visualization(
             input_constraint,
-            output_constraint,
+            output_constraint.get_t_max(),
             self.propagator,
             show_samples=show_samples,
             inputs_to_highlight=inputs_to_highlight,
@@ -99,7 +100,7 @@ class ClosedLoopAnalyzer(analyzers.Analyzer):
 
         if show:
             plt.show()
-        else:
+        elif not dont_close:
             plt.close()
 
     def get_sampled_outputs(self, input_range, N=1000):

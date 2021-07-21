@@ -129,7 +129,7 @@ class ClosedLoopPartitioner(partitioners.Partitioner):
     def setup_visualization(
         self,
         input_constraint,
-        output_constraint,
+        t_max,
         propagator,
         show_samples=True,
         inputs_to_highlight=None,
@@ -169,7 +169,7 @@ class ClosedLoopPartitioner(partitioners.Partitioner):
 
         if show_samples:
             self.dynamics.show_samples(
-                output_constraint.get_t_max() * self.dynamics.dt,
+                t_max * self.dynamics.dt,
                 input_constraint,
                 ax=self.animate_axes,
                 controller=propagator.network,
@@ -191,7 +191,7 @@ class ClosedLoopPartitioner(partitioners.Partitioner):
         # # Reachable sets
         # self.plot_reachable_sets(output_constraint, input_dims)
 
-    def visualize(self, M, interior_M, output_constraint, iteration=0, title=None, reachable_set_color=None, reachable_set_zorder=None, dont_tighten_layout=False):
+    def visualize(self, M, interior_M, output_constraint, iteration=0, title=None, reachable_set_color=None, reachable_set_zorder=None, reachable_set_ls=None, dont_tighten_layout=False):
 
         # Bring forward whatever default items should be in the plot
         # (e.g., MC samples, initial state set boundaries)
@@ -199,7 +199,7 @@ class ClosedLoopPartitioner(partitioners.Partitioner):
         self.animate_axes.lines = self.default_lines.copy()
 
         # Actually draw the reachable sets and partitions
-        self.plot_reachable_sets(output_constraint, self.input_dims, reachable_set_color=reachable_set_color, reachable_set_zorder=reachable_set_zorder)
+        self.plot_reachable_sets(output_constraint, self.input_dims, reachable_set_color=reachable_set_color, reachable_set_zorder=reachable_set_zorder, reachable_set_ls=reachable_set_ls)
         self.plot_partitions(M, output_constraint, self.input_dims)
 
         # Do auxiliary stuff to make sure animations look nice
@@ -221,16 +221,18 @@ class ClosedLoopPartitioner(partitioners.Partitioner):
             # Make an animated 3d view
             os.makedirs(self.tmp_animation_save_dir, exist_ok=True)
             for i, angle in enumerate(range(-100, 0, 2)):
-                self.animate_axes.view_init(30,angle)
+                self.animate_axes.view_init(30, angle)
                 filename = self.get_tmp_animation_filename(i)
                 plt.savefig(filename)
             self.compile_animation(i, delete_files=True, duration=0.2)
 
-    def plot_reachable_sets(self, constraint, dims, reachable_set_color=None, reachable_set_zorder=None):
+    def plot_reachable_sets(self, constraint, dims, reachable_set_color=None, reachable_set_zorder=None, reachable_set_ls=None):
         if reachable_set_color is None:
             reachable_set_color = "tab:blue"
+        if reachable_set_ls is None:
+            reachable_set_ls = "-"
         fc_color = "None"
-        constraint.plot(self.animate_axes, dims, reachable_set_color, fc_color=fc_color, zorder=reachable_set_zorder, plot_2d=self.plot_2d, linewidth=self.linewidth)
+        constraint.plot(self.animate_axes, dims, reachable_set_color, fc_color=fc_color, zorder=reachable_set_zorder, plot_2d=self.plot_2d, linewidth=self.linewidth, ls=reachable_set_ls)
 
     # def plot_partition(self, constraint, bounds, dims, color):
     def plot_partition(self, constraint, dims, color):

@@ -56,7 +56,7 @@ class ClosedLoopBackwardAnalyzer(analyzers.Analyzer):
 
         self.partitioner.setup_visualization(
             input_constraint,
-            output_constraint,
+            output_constraint.get_t_max(),
             self.propagator,
             show_samples=show_samples,
             inputs_to_highlight=[
