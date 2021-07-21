@@ -8,6 +8,7 @@ setup(
         "matplotlib",
         "pandas",
         "nn_partition",
+        "tabulate",
     ],
     packages=find_packages(),
 )
