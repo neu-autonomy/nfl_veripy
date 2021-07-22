@@ -2,7 +2,7 @@ import numpy as np
 import nn_closed_loop.dynamics as dynamics
 import nn_closed_loop.analyzers as analyzers
 import nn_closed_loop.constraints as constraints
-from nn_closed_loop.utils.nn import load_controller
+from nn_closed_loop.utils.nn import load_controller, load_controller_unity
 from nn_closed_loop.utils.utils import (
     range_to_polytope,
     get_polytope_A,
@@ -64,6 +64,21 @@ def main(args):
             init_state_range = np.array(
                 ast.literal_eval(args.init_state_range)
             )
+    elif args.system == "unity":
+        inputs_to_highlight = [
+            {"dim": [0], "name": "$x$"},
+            {"dim": [1], "name": "$y$"},
+        ]
+        dyn = dynamics.Unity(args.nx, args.nu)
+        if args.init_state_range is None:
+            init_state_range = np.vstack([-np.ones(args.nx), np.ones(args.nx)]).T
+        else:
+            import ast
+
+            init_state_range = np.array(
+                ast.literal_eval(args.init_state_range)
+            )
+        controller = load_controller_unity(args.nx, args.nu)
     else:
         raise NotImplementedError
 
@@ -365,6 +380,16 @@ def setup_parser():
         "--skip_show_animation", dest="show_animation", action="store_false"
     )
     parser.set_defaults(show_animation=False)
+    parser.add_argument(
+        "--nx",
+        default=2,
+        help="number of states - only used for scalability expt (default: 2)",
+    )
+    parser.add_argument(
+        "--nu",
+        default=2,
+        help="number of control inputs - only used for scalability expt (default: 2)",
+    )
 
     return parser
 

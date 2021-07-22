@@ -22,12 +22,34 @@ os.makedirs(results_dir, exist_ok=True)
 
 class Experiment:
     def __init__(self):
-        return
+        self.info = {
+            ('CROWN', 'Uniform'): {
+                'name': 'Reach-LP-Partition',
+                'color': 'tab:green',
+                'ls': '-',
+            },
+            ('CROWN', 'None'): {
+                'name': 'Reach-LP',
+                'color': 'tab:green',
+                'ls': '--',
+            },
+            ('SDP', 'Uniform'): {
+                'name': 'Reach-SDP-Partition',
+                'color': 'tab:red',
+                'ls': '-',
+            },
+            ('SDP', 'None'): {
+                'name': 'Reach-SDP~\cite{hu2020reach}',
+                'color': 'tab:red',
+                'ls': '--',
+            },
+        }
 
 
 class CompareMultipleCombos(Experiment):
     def __init__(self):
         self.filename = results_dir + 'alg_error_{dt}_table.pkl'
+        Experiment.__init__(self)
 
     def run(self):
         dt = datetime.datetime.now().strftime('%Y_%m_%d__%H_%M_%S')
@@ -86,29 +108,7 @@ class CompareMultipleCombos(Experiment):
 class CompareRuntimeVsErrorTable(Experiment):
     def __init__(self):
         self.filename = results_dir + 'runtime_vs_error_{dt}_table.pkl'
-
-        self.info = {
-            ('CROWN', 'Uniform'): {
-                'name': 'Reach-LP-Partition',
-                'color': 'tab:green',
-                'ls': '-',
-            },
-            ('CROWN', 'None'): {
-                'name': 'Reach-LP',
-                'color': 'tab:green',
-                'ls': '--',
-            },
-            ('SDP', 'Uniform'): {
-                'name': 'Reach-SDP-Partition',
-                'color': 'tab:red',
-                'ls': '-',
-            },
-            ('SDP', 'None'): {
-                'name': 'Reach-SDP~\cite{hu2020reach}',
-                'color': 'tab:red',
-                'ls': '--',
-            },
-        }
+        Experiment.__init__(self)
 
     def run(self):
         dt = datetime.datetime.now().strftime('%Y_%m_%d__%H_%M_%S')
@@ -371,6 +371,7 @@ class CompareRuntimeVsErrorTable(Experiment):
 class CompareLPvsCF(Experiment):
     def __init__(self, system):
         self.system = system
+        Experiment.__init__(self)
 
     def run(self):
         rows = []
@@ -420,23 +421,128 @@ class CompareLPvsCF(Experiment):
         print(tabulate(rows, headers='firstrow', tablefmt='latex_raw'))
 
 
+class NxScalability(Experiment):
+    def __init__(self, state_or_control="state"):
+        self.filename = results_dir + 'runtime_vs_num_{x_or_u}_{dt}_table.pkl'
+        self.state_or_control = state_or_control
+        Experiment.__init__(self)
+
+    def run(self):
+        dt = datetime.datetime.now().strftime('%Y_%m_%d__%H_%M_%S')
+
+        parser = ex.setup_parser()
+        args = parser.parse_args()
+
+        args.save_plot = False
+        args.show_plot = False
+        args.make_animation = False
+        args.show_animation = False
+        # args.init_state_range = "[[2.5, 3.0], [-0.25, 0.25]]"
+        args.state_feedback = True
+        args.boundaries = "lp"
+        args.system = "unity"
+        args.t_max = 5
+        args.estimate_runtime = True
+
+        expts = [
+            {
+                'partitioner': 'None',
+                'propagator': 'CROWN',
+            },
+            # {
+            #     'partitioner': 'None',
+            #     'propagator': 'SDP',
+            #     'cvxpy_solver': 'MOSEK',
+            # },
+        ]
+
+        nxs = [2, 3, 4, 10, 20, 30, 50, 100]
+
+        df = pd.DataFrame()
+
+        for nx in nxs:
+            for expt in expts:
+                for key, value in expt.items():
+                    setattr(args, key, value)
+
+                if self.state_or_control == "state":
+                    args.nx = nx
+                elif self.state_or_control == "control":
+                    args.nu = nx
+                stats, info = ex.main(args)
+
+                for i, runtime in enumerate(stats['runtimes']):
+                    df = df.append({
+                        **expt,
+                        'run': i,
+                        'runtime': runtime,
+                        'final_step_error': stats['final_step_errors'][i],
+                        'avg_error': stats['avg_errors'][i],
+                        'output_constraint': stats['output_constraints'][i],
+                        'all_errors': stats['all_errors'][i],
+                        'nx': nx,
+                        }, ignore_index=True)
+        df.to_pickle(self.filename.format(x_or_u=self.state_or_control, dt=dt))
+
+    def plot(self):
+
+        # Grab latest file as pandas dataframe
+        list_of_files = glob.glob(self.filename.format(x_or_u=self.state_or_control, dt='*'))
+        latest_filename = max(list_of_files, key=os.path.getctime)
+        df = pd.read_pickle(latest_filename)
+
+        runtime_mean_series = df.groupby(['propagator', 'nx']).runtime.mean().unstack()
+        runtime_std_series = df.groupby(['propagator', 'nx']).runtime.std().unstack()
+        
+        plt.clf()
+
+        color = 'tab:green'
+        plt.plot(runtime_mean_series.columns.to_numpy(), runtime_mean_series.iloc[0].to_numpy(), color=color)
+        plt.gca().fill_between(runtime_mean_series.columns.to_numpy(), runtime_mean_series.iloc[0].to_numpy()-runtime_std_series.iloc[0].to_numpy(), runtime_mean_series.iloc[0].to_numpy(), alpha=0.2, color=color)
+        plt.gca().fill_between(runtime_mean_series.columns.to_numpy(), runtime_mean_series.iloc[0].to_numpy(), runtime_mean_series.iloc[0].to_numpy()+runtime_std_series.iloc[0].to_numpy(), alpha=0.2, color=color)
+
+        if self.state_or_control == "state":
+            plt.xlabel('Number of States, $n_x$')
+        elif self.state_or_control == "control":
+            plt.xlabel('Number of Control Inputs, $n_u$')
+        plt.ylabel('Computation Time [s]')
+        plt.tight_layout()
+
+        # Save plot with similar name to pkl file that contains data
+        filename = latest_filename
+        fig_filename = filename.replace('table', 'runtime_'+self.state_or_control).replace('pkl', 'png')
+        plt.savefig(fig_filename)
+
+
 if __name__ == '__main__':
 
     # Like Fig 3 in ICRA21 paper
-    # c = CompareRuntimeVsErrorTable()
+    c = CompareRuntimeVsErrorTable()
     # # c.run()
-    # c.plot()  # 3A: table
-    # c.plot_reachable_sets()  # 3B: overlay reachable sets
-    # c.plot_error_vs_timestep()  # 3C: error vs timestep
+    c.plot()  # 3A: table
+    c.plot_reachable_sets()  # 3B: overlay reachable sets
+    c.plot_error_vs_timestep()  # 3C: error vs timestep
 
-    c = CompareLPvsCF(system="double_integrator")
-    c.run()
-    c.plot()
+    # c = CompareLPvsCF(system="double_integrator")
+    # c.run()
+    # c.plot()
 
     # c = CompareLPvsCF(system="quadrotor")
     # c.run()
     # c.plot()
 
+    # See how runtime scales with number of states
+    # c = NxScalability("state")
+    # c.run()
+    # c.plot()
+
+    # See how runtime scales with number of control inputs
+    # c = NxScalability("control")
+    # c.run()
+    # c.plot()
+
+    # WIP...
     # c = CompareMultipleCombos()
     # c.run()
     # c.plot()
+
