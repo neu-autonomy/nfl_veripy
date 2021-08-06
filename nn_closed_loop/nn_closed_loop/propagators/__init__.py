@@ -7,6 +7,11 @@ from .ClosedLoopCROWNIBPCodebasePropagator import (
     ClosedLoopCROWNPropagator,
     ClosedLoopFastLinPropagator,
 )
+from .ClosedLoopSeparablePropagator import (
+    ClosedLoopSeparableCROWNPropagator,
+    ClosedLoopSeparableIBPPropagator,
+    ClosedLoopSeparableSGIBPPropagator,
+)
 
 propagator_dict = {
     "CROWN": ClosedLoopCROWNPropagator,
@@ -14,4 +19,7 @@ propagator_dict = {
     "IBP": ClosedLoopIBPPropagator,
     "FastLin": ClosedLoopFastLinPropagator,
     "SDP": ClosedLoopSDPPropagator,
+    "SeparableCROWN": ClosedLoopSeparableCROWNPropagator,
+    "SeparableIBP": ClosedLoopSeparableIBPPropagator,
+    "SeparableSGIBP": ClosedLoopSeparableSGIBPPropagator,
 }
