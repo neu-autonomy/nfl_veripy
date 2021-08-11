@@ -1,16 +1,3 @@
-## Newer stuff
-
-```bash
-python -m nn_closed_loop.example_backward \
-	--partitioner None \
-	--propagator CROWN \
-	--system double_integrator \
-	--state_feedback \
-	--t_max 0.9 \
-	--show_plot --boundaries polytope
-```
-
-
 ## Older stuff
 
 ### getting julia code to work
