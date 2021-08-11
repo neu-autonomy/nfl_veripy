@@ -26,6 +26,9 @@ Reach-LP-Partition | Reach-LP w/ Polytopes
 ----- | -----
 ![nn_partition_polytope](docs/_static/icra21/other/double_integrator_Uniform_CROWN_tmax_5.0_lp_8.png) | ![nn_partition_polytope](docs/_static/icra21/other/double_integrator_None_CROWN_tmax_4.0_polytope_35.png)
 
+
+![nn_closed_loop](docs/_static/journal/partitions/ClosedLoopGreedySimGuidedPartitioner4.gif)
+
 ---
 
 We build on excellent open-source repositories from the neural network analysis community. These repositories are imported as Git submodules or re-implemented in Python here, with some changes to reflect the slightly different problem statements:
