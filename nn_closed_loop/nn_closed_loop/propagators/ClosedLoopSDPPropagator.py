@@ -13,7 +13,7 @@ from nn_closed_loop.utils.reach_sdp import (
     getInputConstraintsEllipsoid,
     getOutputConstraintsEllipsoid,
 )
-from nn_closed_loop.utils.utils import init_state_range_to_polytope
+from nn_closed_loop.utils.utils import range_to_polytope
 import torch
 
 
@@ -30,9 +30,9 @@ class ClosedLoopSDPPropagator(ClosedLoopPropagator):
         return torch_model
 
     def get_one_step_reachable_set(self, input_constraint, output_constraint):
-        if isinstance(output_constraint, constraints.PolytopeOutputConstraint):
+        if isinstance(output_constraint, constraints.PolytopeConstraint):
             A_out = output_constraint.A
-        elif isinstance(output_constraint, constraints.LpOutputConstraint):
+        elif isinstance(output_constraint, constraints.LpConstraint):
             A_out = np.vstack(
                 [
                     np.eye(self.dynamics.num_states),
@@ -46,14 +46,14 @@ class ClosedLoopSDPPropagator(ClosedLoopPropagator):
         else:
             raise NotImplementedError
 
-        if isinstance(input_constraint, constraints.PolytopeInputConstraint):
+        if isinstance(input_constraint, constraints.PolytopeConstraint):
             A_inputs = input_constraint.A
             b_inputs = input_constraint.b
-        elif isinstance(input_constraint, constraints.LpInputConstraint):
+        elif isinstance(input_constraint, constraints.LpConstraint):
             if input_constraint.p != np.inf:
                 raise NotImplementedError
             else:
-                A_inputs, b_inputs = init_state_range_to_polytope(
+                A_inputs, b_inputs = range_to_polytope(
                     input_constraint.range
                 )
         elif isinstance(
@@ -100,8 +100,8 @@ class ClosedLoopSDPPropagator(ClosedLoopPropagator):
 
         # Get P,Q,S and constraint lists
         if isinstance(
-            input_constraint, constraints.PolytopeInputConstraint
-        ) or isinstance(input_constraint, constraints.LpInputConstraint):
+            input_constraint, constraints.PolytopeConstraint
+        ) or isinstance(input_constraint, constraints.LpConstraint):
             P, input_set_constrs = getInputConstraints(
                 num_states, A_inputs.shape[0], A_inputs, b_inputs
             )
@@ -123,8 +123,8 @@ class ClosedLoopSDPPropagator(ClosedLoopPropagator):
         for i in tqdm(range(num_facets)):
 
             if isinstance(
-                input_constraint, constraints.PolytopeInputConstraint
-            ) or isinstance(input_constraint, constraints.LpInputConstraint):
+                input_constraint, constraints.PolytopeConstraint
+            ) or isinstance(input_constraint, constraints.LpConstraint):
                 S_i, reachable_set_constrs, b_i = getOutputConstraints(
                     num_states, A_out[i, :]
                 )
@@ -145,8 +145,8 @@ class ClosedLoopSDPPropagator(ClosedLoopPropagator):
             constrs.append(M_in + M_mid + M_out << 0)
 
             if isinstance(
-                input_constraint, constraints.PolytopeInputConstraint
-            ) or isinstance(input_constraint, constraints.LpInputConstraint):
+                input_constraint, constraints.PolytopeConstraint
+            ) or isinstance(input_constraint, constraints.LpConstraint):
                 objective = cp.Minimize(b_i)
             elif isinstance(
                 input_constraint, constraints.EllipsoidInputConstraint
@@ -164,9 +164,11 @@ class ClosedLoopSDPPropagator(ClosedLoopPropagator):
             # print("status:", prob.status)
             bs[i] = b_i.value
 
-        if isinstance(output_constraint, constraints.PolytopeOutputConstraint):
+        # output_constraint = self.to_output_constraint(bs, output_constraint)
+
+        if isinstance(output_constraint, constraints.PolytopeConstraint):
             output_constraint.b = bs
-        elif isinstance(output_constraint, constraints.LpOutputConstraint):
+        elif isinstance(output_constraint, constraints.LpConstraint):
             output_constraint.range = np.empty((num_states, 2))
             output_constraint.range[:, 0] = -bs[(num_facets // 2):]
             output_constraint.range[:, 1] = bs[:(num_facets // 2)]

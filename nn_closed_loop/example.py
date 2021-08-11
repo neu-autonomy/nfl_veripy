@@ -2,9 +2,9 @@ import numpy as np
 import nn_closed_loop.dynamics as dynamics
 import nn_closed_loop.analyzers as analyzers
 import nn_closed_loop.constraints as constraints
-from nn_closed_loop.utils.nn import load_controller
+from nn_closed_loop.utils.nn import load_controller, load_controller_unity
 from nn_closed_loop.utils.utils import (
-    init_state_range_to_polytope,
+    range_to_polytope,
     get_polytope_A,
 )
 import os
@@ -20,6 +20,10 @@ def main(args):
 
     # Dynamics
     if args.system == "double_integrator":
+        inputs_to_highlight = [
+            {"dim": [0], "name": "$x_0$"},
+            {"dim": [1], "name": "$x_1$"},
+        ]
         if args.state_feedback:
             dyn = dynamics.DoubleIntegrator()
         else:
@@ -38,6 +42,11 @@ def main(args):
                 ast.literal_eval(args.init_state_range)
             )
     elif args.system == "quadrotor":
+        inputs_to_highlight = [
+            {"dim": [0], "name": "$x$"},
+            {"dim": [1], "name": "$y$"},
+            {"dim": [2], "name": "$z$"},
+        ]
         if args.state_feedback:
             dyn = dynamics.Quadrotor()
         else:
@@ -55,6 +64,21 @@ def main(args):
             init_state_range = np.array(
                 ast.literal_eval(args.init_state_range)
             )
+    elif args.system == "unity":
+        inputs_to_highlight = [
+            {"dim": [0], "name": "$x$"},
+            {"dim": [1], "name": "$y$"},
+        ]
+        dyn = dynamics.Unity(args.nx, args.nu)
+        if args.init_state_range is None:
+            init_state_range = np.vstack([-np.ones(args.nx), np.ones(args.nx)]).T
+        else:
+            import ast
+
+            init_state_range = np.array(
+                ast.literal_eval(args.init_state_range)
+            )
+        controller = load_controller_unity(args.nx, args.nu)
     else:
         raise NotImplementedError
 
@@ -70,8 +94,8 @@ def main(args):
     partitioner_hyperparams = {
         "type": args.partitioner,
         "num_partitions": num_partitions,
-        # "make_animation": False,
-        # "show_animation": False,
+        "make_animation": args.make_animation,
+        "show_animation": args.show_animation,
     }
     propagator_hyperparams = {
         "type": args.propagator,
@@ -87,30 +111,35 @@ def main(args):
 
     # Set up initial state set (and placeholder for reachable sets)
     if args.boundaries == "polytope":
-        A_inputs, b_inputs = init_state_range_to_polytope(init_state_range)
+        A_inputs, b_inputs = range_to_polytope(init_state_range)
         if args.system == "quadrotor":
             A_out = A_inputs
         else:
             A_out = get_polytope_A(args.num_polytope_facets)
-        input_constraint = constraints.PolytopeInputConstraint(
+        input_constraint = constraints.PolytopeConstraint(
             A_inputs, b_inputs
         )
-        output_constraint = constraints.PolytopeOutputConstraint(A_out)
+        output_constraint = constraints.PolytopeConstraint(A_out)
     elif args.boundaries == "lp":
-        input_constraint = constraints.LpInputConstraint(
+        input_constraint = constraints.LpConstraint(
             range=init_state_range, p=np.inf
         )
-        output_constraint = constraints.LpOutputConstraint(p=np.inf)
+        output_constraint = constraints.LpConstraint(p=np.inf)
     else:
         raise NotImplementedError
 
-    # Run the analyzer N times to compute an estimated runtime
     if args.estimate_runtime:
+        # Run the analyzer N times to compute an estimated runtime
         import time
 
         num_calls = 5
         times = np.empty(num_calls)
+        final_errors = np.empty(num_calls)
+        avg_errors = np.empty(num_calls, dtype=np.ndarray)
+        all_errors = np.empty(num_calls, dtype=np.ndarray)
+        output_constraints = np.empty(num_calls, dtype=object)
         for num in range(num_calls):
+            print('call: {}'.format(num))
             t_start = time.time()
             output_constraint, analyzer_info = analyzer.get_reachable_set(
                 input_constraint, output_constraint, t_max=args.t_max
@@ -119,16 +148,29 @@ def main(args):
             t = t_end - t_start
             times[num] = t
 
-        stats['runtimes'] = times
-        print("All times: {}".format(times))
-        print("Avg time: {}".format(times.mean()))
+            final_error, avg_error, all_error = analyzer.get_error(input_constraint, output_constraint, t_max=args.t_max)
+            final_errors[num] = final_error
+            avg_errors[num] = avg_error
+            all_errors[num] = all_error
+            output_constraints[num] = output_constraint
 
-    # Run analysis & generate a plot
-    output_constraint, analyzer_info = analyzer.get_reachable_set(
-        input_constraint, output_constraint, t_max=args.t_max
-    )
-    # error, avg_error = analyzer.get_error(input_constraint,output_constraint, t_max=args.t_max)
-    # print('Final step approximation error:{:.2f}\nAverage approximation error: {:.2f}'.format(error, avg_error))
+        stats['runtimes'] = times
+        stats['final_step_errors'] = final_errors
+        stats['avg_errors'] = avg_errors
+        stats['all_errors'] = all_errors
+        stats['output_constraints'] = output_constraints
+
+        print("All times: {}".format(times))
+        print("Avg time: {} +/- {}".format(times.mean(), times.std()))
+    else:
+        # Run analysis once
+        output_constraint, analyzer_info = analyzer.get_reachable_set(
+            input_constraint, output_constraint, t_max=args.t_max
+        )
+
+    if args.estimate_error:
+        final_error, avg_error, errors = analyzer.get_error(input_constraint, output_constraint, t_max=args.t_max)
+        print('Final step approximation error:{:.2f}\nAverage approximation error: {:.2f}\nAll errors: {}'.format(final_error, avg_error, errors))
 
     if args.save_plot:
         save_dir = "{}/results/examples/".format(
@@ -192,10 +234,12 @@ def main(args):
             show=args.show_plot,
             labels=args.plot_labels,
             aspect=args.plot_aspect,
+            iteration=None,
+            inputs_to_highlight=inputs_to_highlight,
             **analyzer_info
         )
 
-    return stats
+    return stats, analyzer_info
 
 
 def setup_parser():
@@ -235,13 +279,13 @@ def setup_parser():
     parser.add_argument(
         "--partitioner",
         default="Uniform",
-        choices=["None", "Uniform"],
+        choices=["None", "Uniform", "SimGuided", "GreedySimGuided", "UnGuided"],
         help="which partitioner to use (default: Uniform)",
     )
     parser.add_argument(
         "--propagator",
         default="IBP",
-        choices=["IBP", "CROWN", "FastLin", "SDP", "CROWNLP"],
+        choices=["IBP", "CROWN", "FastLin", "SDP", "CROWNLP", "SeparableCROWN", "SeparableIBP", "SeparableSGIBP"],
         help="which propagator to use (default: IBP)",
     )
 
@@ -273,6 +317,11 @@ def setup_parser():
         "--estimate_runtime", dest="estimate_runtime", action="store_true"
     )
     parser.set_defaults(estimate_runtime=False)
+
+    parser.add_argument(
+        "--estimate_error", dest="estimate_error", action="store_true"
+    )
+    parser.set_defaults(estimate_error=True)
 
     parser.add_argument(
         "--save_plot",
@@ -309,6 +358,37 @@ def setup_parser():
         default="auto",
         choices=["auto", "equal"],
         help="aspect ratio on input partition plot (default: auto)",
+    )
+
+    parser.add_argument(
+        "--make_animation",
+        dest="make_animation",
+        action="store_true",
+        help="whether to animate the partitioning process",
+    )
+    parser.add_argument(
+        "--skip_make_animation", dest="make_animation", action="store_false"
+    )
+    parser.set_defaults(make_animation=False)
+    parser.add_argument(
+        "--show_animation",
+        dest="show_animation",
+        action="store_true",
+        help="whether to show animation of the partitioning process",
+    )
+    parser.add_argument(
+        "--skip_show_animation", dest="show_animation", action="store_false"
+    )
+    parser.set_defaults(show_animation=False)
+    parser.add_argument(
+        "--nx",
+        default=2,
+        help="number of states - only used for scalability expt (default: 2)",
+    )
+    parser.add_argument(
+        "--nu",
+        default=2,
+        help="number of control inputs - only used for scalability expt (default: 2)",
     )
 
     return parser

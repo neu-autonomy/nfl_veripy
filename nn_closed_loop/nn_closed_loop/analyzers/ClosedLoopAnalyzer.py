@@ -14,6 +14,12 @@ class ClosedLoopAnalyzer(analyzers.Analyzer):
         self.dynamics = dynamics
         analyzers.Analyzer.__init__(self, torch_model=torch_model)
 
+        self.reachable_set_color = 'tab:blue'
+        self.reachable_set_zorder = 2
+        self.initial_set_color = 'tab:red'
+        self.initial_set_zorder = 2
+        self.sample_zorder = 1
+
     def instantiate_partitioner(self, partitioner, hyperparams):
         return partitioners.partitioner_dict[partitioner](
             **{**hyperparams, "dynamics": self.dynamics}
@@ -44,25 +50,29 @@ class ClosedLoopAnalyzer(analyzers.Analyzer):
         show_samples=False,
         aspect="auto",
         labels={},
+        inputs_to_highlight=None,
+        dont_close=True,
         **kwargs
     ):
         # sampled_outputs = self.get_sampled_outputs(input_range)
         # output_range_exact = self.samples_to_range(sampled_outputs)
 
+        if inputs_to_highlight is None:
+            inputs_to_highlight = [
+                {"dim": [0], "name": "$x_0$"},
+                {"dim": [1], "name": "$x_1$"},
+            ]
+
         self.partitioner.setup_visualization(
             input_constraint,
-            output_constraint,
+            output_constraint.get_t_max(),
             self.propagator,
             show_samples=show_samples,
-            outputs_to_highlight=[
-                {"dim": [0], "name": "py"},
-                {"dim": [1], "name": "pz"},
-            ],
-            inputs_to_highlight=[
-                {"dim": [0], "name": "py"},
-                {"dim": [1], "name": "pz"},
-            ],
+            inputs_to_highlight=inputs_to_highlight,
             aspect=aspect,
+            initial_set_color=self.initial_set_color,
+            initial_set_zorder=self.initial_set_zorder,
+            sample_zorder=self.sample_zorder
         )
         self.partitioner.visualize(
             kwargs.get(
@@ -70,6 +80,9 @@ class ClosedLoopAnalyzer(analyzers.Analyzer):
             ),
             kwargs.get("interior_partitions", []),
             output_constraint,
+            kwargs.get("iteration", None),
+            reachable_set_color=self.reachable_set_color,
+            reachable_set_zorder=self.reachable_set_zorder
         )
 
         # self.partitioner.animate_axes.legend(
@@ -87,7 +100,7 @@ class ClosedLoopAnalyzer(analyzers.Analyzer):
 
         if show:
             plt.show()
-        else:
+        elif not dont_close:
             plt.close()
 
     def get_sampled_outputs(self, input_range, N=1000):

@@ -2,9 +2,9 @@ import numpy as np
 import os
 
 os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
-from keras.models import Sequential
-from keras.layers import Dense
-from keras.models import model_from_json
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.layers import Dense
+from tensorflow.keras.models import model_from_json
 from crown_ibp.conversions.keras2torch import keras2torch
 
 dir_path = os.path.dirname(os.path.realpath(__file__))
@@ -56,6 +56,24 @@ def load_controller(name="double_integrator_mpc"):
     model = model_from_json(loaded_model_json)
     model.load_weights(path + "/model.h5")
     torch_model = keras2torch(model, "torch_model")
+    return torch_model
+
+
+def load_controller_unity(nx, nu):
+    name = "unity"
+    path = "{}/../../models/{}".format(dir_path, name)
+    model_name = "/model_nx_{}_nu_{}".format(nx, nu)
+    filename = path + model_name + ".json"
+    try:
+        with open(filename, "r") as f:
+            loaded_model_json = f.read()
+        model = model_from_json(loaded_model_json)
+        model.load_weights(path + model_name + ".h5")
+    except FileNotFoundError:
+        model = create_model([5, 5], (nx,), (nu,))
+        save_model(model, name=model_name, dir=path)
+    torch_model = keras2torch(model, "torch_model")
+
     return torch_model
 
 

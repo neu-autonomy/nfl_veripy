@@ -10,11 +10,12 @@ We introduce the concepts of `Analyzer`, `Propagator`, and `Partitioner` in our 
 This modular view on NN robustness analysis essentially defines an API that decouples each component.
 This decoupling enables improvements in either `Propagator` or `Partitioner` algorithms to have a wide impact across many analysis/verification problems.
 
-![nn_partition](docs/_static/lcss21/animations/GreedySimGuidedPartitioner.gif)
+![nn_partition](/docs/_static/lcss21/animations/GreedySimGuidedPartitioner.gif)
 
 #### `nn_closed_loop`
 
-* Michael Everett, Golnaz Habibi, Jonathan P. How, ["Efficient Reachability Analysis for Closed-Loop Systems with Neural Network Controllers"](https://arxiv.org/pdf/2101.01815.pdf), ICRA 2021 (in review).
+* Michael Everett, Golnaz Habibi, Chuangchuang Sun, Jonathan P. How, ["Reachability Analysis of Neural Feedback Loops"](https://arxiv.org/pdf/2108.04140.pdf), in review.
+* Michael Everett, Golnaz Habibi, Jonathan P. How, ["Efficient Reachability Analysis for Closed-Loop Systems with Neural Network Controllers"](https://arxiv.org/pdf/2101.01815.pdf), ICRA 2021.
 
 Since NNs are rarely deployed in isolation, we developed a framework for analyzing closed-loop systems that employ NN control policies.
 The `nn_closed_loop` codebase follows a similar API as the `nn_partition` package, leveraging analogous `ClosedLoopAnalyzer`, `ClosedLoopPropagator` and `ClosedLoopPartitioner` concepts.
@@ -23,7 +24,10 @@ These bounds provide a safety guarantee for autonomous systems employing NN cont
 
 Reach-LP-Partition | Reach-LP w/ Polytopes
 ----- | -----
-![nn_partition_polytope](docs/_static/icra21/other/double_integrator_Uniform_CROWN_tmax_5.0_lp_8.png) | ![nn_partition_polytope](docs/_static/icra21/other/double_integrator_None_CROWN_tmax_4.0_polytope_35.png)
+![nn_partition_polytope](/docs/_static/icra21/other/double_integrator_Uniform_CROWN_tmax_5.0_lp_8.png) | ![nn_partition_polytope](/docs/_static/icra21/other/double_integrator_None_CROWN_tmax_4.0_polytope_35.png)
+
+
+![nn_closed_loop](/docs/_static/journal/partitions/ClosedLoopGreedySimGuidedPartitioner4.gif)
 
 ---
 
@@ -89,10 +93,21 @@ python -m nn_closed_loop.example \
 	--show_plot
 ```
 
+Or, compute backward reachable sets for a closed-loop system with a pre-trained NN control policy:
+```bash
+python -m nn_closed_loop.example_backward \
+	--partitioner None \
+	--propagator CROWN \
+	--system double_integrator \
+	--state_feedback \
+	--show_plot --boundaries polytope
+```
+
 ### Replicate plots from the papers:
 
-* LCSS/ACC '21: [README](docs/_static/lcss21/lcss21.md)
-* ICRA '21: [README](docs/_static/icra21/icra21.md)
+* LCSS/ACC '21: [README](/docs/_static/lcss21/lcss21.md)
+* ICRA '21: [README](/docs/_static/icra21/icra21.md)
+* Journal: [README](/docs/_static/journal/journal.md)
 
 ### If you find this code useful, please consider citing:
 For the partitioning-only code (LCSS/ACC '21):
@@ -114,45 +129,32 @@ For the closed-loop system analysis code (ICRA '21):
     Booktitle = {IEEE International Conference on Robotics and Automation (ICRA)},
     Title = {Efficient Reachability Analysis for Closed-Loop Systems with Neural Network Controllers},
     Year = {2021},
-    Pages = {(to appear)},
+    Url = {https://arxiv.org/pdf/2101.01815.pdf},
+    }
+```
+and/or:
+```
+@article{Everett21_journal,
+    Author = {Michael Everett and Golnaz Habibi and Chuangchuang Sun and Jonathan P. How},
+    Title = {Reachability Analysis of Neural Feedback Loops},
+    Year = {2021},
     Url = {https://arxiv.org/pdf/2101.01815.pdf},
     }
 ```
 
 ### TODOS:
 
-- [x] Choices in analyzer argparse
-- [x] move partitioners, propagators to separate dirs
-- [x] move cartpole, pend, quadrotor files elsewhere
-- [x] move MNIST data to right place
-- [x] merge in closed_loop branch
-- [x] Fig 3b individual images
-- [x] Fig 3a individual table
-- [x] Replicate LCSS Fig 4
-- [x] Replicate LCSS Fig 5
-- [x] Replicate LCSS Fig 6
-- [x] Replicate ICRA Fig 3b individuals + table
-- [x] Replicate ICRA Fig 4b individuals
-- [x] Replicate ICRA Fig 5
-- [x] publish crown_ibp, auto-Lirpa forks
-- [x] setup ci and simple tests to run the various expts
-- [x] add citation to papers, add description of repo to top of readme
-- [x] add license & copyright?
-- [x] get animation working for LCSS
-- [x] setup sync with github
+- [x] ICRA Fig 3 as single script
+- [x] ICRA Fig 3b make pkl
+- [x] ICRA Fig 3c from pkl
+- [x] get animation working for ICRA
 
 Someday soon...
 - [ ] add rtdocs (auto-fill code snippets from test files)
-- [ ] track down trained model for Fig 4b
 - [ ] LCSS Fig 8
 - [ ] Replicate LCSS Table 6b
 - [ ] Replicate LCSS Table I
-- [ ] ICRA Fig 3 as single script
-- [ ] ICRA Fig 3c make pkl
-- [ ] ICRA Fig 3c from pkl
 - [ ] ICRA Fig 4a make pkl
 - [ ] ICRA Fig 4a from pkl
 - [ ] ICRA Fig 4b as single script
 - [ ] ICRA Fig 4b load correct model
-- [ ] ICRA Fig 5 axes names & spacings
-- [ ] get animation working for ICRA

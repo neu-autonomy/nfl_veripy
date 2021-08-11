@@ -23,6 +23,9 @@ results/
 
 /venv
 
-closed_loop/models/double_integrator_mpc
-closed_loop/models/quadrotor
-closed_loop/models/quadrotor_small
+nn_closed_loop/models/double_integrator_mpc
+nn_closed_loop/models/quadrotor
+nn_closed_loop/models/quadrotor_small
+nn_closed_loop/datasets/double_integrator.zip
+nn_closed_loop/nn_closed_loop/utils/leftover_ipynb.py
+nn_closed_loop/models/unity/model_*
