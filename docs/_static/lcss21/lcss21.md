@@ -45,7 +45,7 @@ python -m nn_partition.example \
 Fig 4a | Fig 4b | Fig 4c
 ------------ | ------------- | -------------
 Lower Bounds | Linf Ball | Convex Hull
-![Fig. 4a](docs/_static/lcss21/fig_4/random_weights_relu_GreedySimGuided_CROWN_LIRPA_interior_condition_lower_bnds_num_simulations_10000.0_termination_condition_type_time_budget_termination_condition_value_2.0.png) | ![Fig. 4b](docs/_static/lcss21/fig_4/random_weights_relu_GreedySimGuided_CROWN_LIRPA_interior_condition_linf_num_simulations_10000.0_termination_condition_type_time_budget_termination_condition_value_2.0.png) | ![Fig. 4c](docs/_static/lcss21/fig_4/random_weights_relu_GreedySimGuided_CROWN_LIRPA_interior_condition_convex_hull_num_simulations_10000.0_termination_condition_type_time_budget_termination_condition_value_2.0.png)
+![Fig. 4a](/docs/_static/lcss21/fig_4/random_weights_relu_GreedySimGuided_CROWN_LIRPA_interior_condition_lower_bnds_num_simulations_10000.0_termination_condition_type_time_budget_termination_condition_value_2.0.png) | ![Fig. 4b](/docs/_static/lcss21/fig_4/random_weights_relu_GreedySimGuided_CROWN_LIRPA_interior_condition_linf_num_simulations_10000.0_termination_condition_type_time_budget_termination_condition_value_2.0.png) | ![Fig. 4c](/docs/_static/lcss21/fig_4/random_weights_relu_GreedySimGuided_CROWN_LIRPA_interior_condition_convex_hull_num_simulations_10000.0_termination_condition_type_time_budget_termination_condition_value_2.0.png)
 
 ### Figure 5
 
@@ -112,7 +112,7 @@ python -m nn_partition.example \
 Fig 5a | Fig 5b | Fig 5c | Fig 5d
 ------------ | ------------- | ------------- |  -------------
 SG+IBP | SG+CROWN | GSG+IBP | GSG+CROWN
-![Fig. 5a](docs/_static/lcss21/fig_5/random_weights_relu_SimGuided_IBP_LIRPA_interior_condition_convex_hull_num_simulations_10000.0_termination_condition_type_time_budget_termination_condition_value_2.0.png) | ![Fig. 5b](docs/_static/lcss21/fig_5/random_weights_relu_SimGuided_CROWN_LIRPA_interior_condition_convex_hull_num_simulations_10000.0_termination_condition_type_time_budget_termination_condition_value_2.0.png) | ![Fig. 5c](docs/_static/lcss21/fig_5/random_weights_relu_GreedySimGuided_CROWN_LIRPA_interior_condition_convex_hull_num_simulations_10000.0_termination_condition_type_time_budget_termination_condition_value_2.0.png) | ![Fig. 5d](docs/_static/lcss21/fig_5/random_weights_relu_AdaptiveGreedySimGuided_CROWN_LIRPA_interior_condition_convex_hull_num_simulations_10000.0_termination_condition_type_time_budget_termination_condition_value_2.0.png)
+![Fig. 5a](/docs/_static/lcss21/fig_5/random_weights_relu_SimGuided_IBP_LIRPA_interior_condition_convex_hull_num_simulations_10000.0_termination_condition_type_time_budget_termination_condition_value_2.0.png) | ![Fig. 5b](/docs/_static/lcss21/fig_5/random_weights_relu_SimGuided_CROWN_LIRPA_interior_condition_convex_hull_num_simulations_10000.0_termination_condition_type_time_budget_termination_condition_value_2.0.png) | ![Fig. 5c](/docs/_static/lcss21/fig_5/random_weights_relu_GreedySimGuided_CROWN_LIRPA_interior_condition_convex_hull_num_simulations_10000.0_termination_condition_type_time_budget_termination_condition_value_2.0.png) | ![Fig. 5d](/docs/_static/lcss21/fig_5/random_weights_relu_AdaptiveGreedySimGuided_CROWN_LIRPA_interior_condition_convex_hull_num_simulations_10000.0_termination_condition_type_time_budget_termination_condition_value_2.0.png)
 
 
 ### Figure 6
@@ -150,7 +150,7 @@ python -m nn_partition.example \
 Fig 6a | Fig 6b |
 ------------ | -------------
 SG+IBP | AGSG+CROWN
-![Fig. 6a](docs/_static/lcss21/fig_6/robot_arm_tanh_SimGuided_IBP_LIRPA_interior_condition_convex_hull_num_simulations_10000.0_termination_condition_type_time_budget_termination_condition_value_2.0.png) | ![Fig. 6b](docs/_static/lcss21/fig_6/robot_arm_tanh_AdaptiveGreedySimGuided_CROWN_LIRPA_interior_condition_convex_hull_num_simulations_10000.0_termination_condition_type_time_budget_termination_condition_value_2.0.png)
+![Fig. 6a](/docs/_static/lcss21/fig_6/robot_arm_tanh_SimGuided_IBP_LIRPA_interior_condition_convex_hull_num_simulations_10000.0_termination_condition_type_time_budget_termination_condition_value_2.0.png) | ![Fig. 6b](/docs/_static/lcss21/fig_6/robot_arm_tanh_AdaptiveGreedySimGuided_CROWN_LIRPA_interior_condition_convex_hull_num_simulations_10000.0_termination_condition_type_time_budget_termination_condition_value_2.0.png)
 
 ### Figure 7
 
@@ -177,5 +177,5 @@ python -m nn_partition.example \
 ```
 
 will produce something like this:
-![animation](docs/_static/lcss21/animations/GSG_CROWN_random_relu_lowerbnds.gif)
+![animation](/docs/_static/lcss21/animations/GSG_CROWN_random_relu_lowerbnds.gif)
 

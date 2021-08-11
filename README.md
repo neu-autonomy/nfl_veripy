@@ -10,7 +10,7 @@ We introduce the concepts of `Analyzer`, `Propagator`, and `Partitioner` in our 
 This modular view on NN robustness analysis essentially defines an API that decouples each component.
 This decoupling enables improvements in either `Propagator` or `Partitioner` algorithms to have a wide impact across many analysis/verification problems.
 
-![nn_partition](docs/_static/lcss21/animations/GreedySimGuidedPartitioner.gif)
+![nn_partition](/docs/_static/lcss21/animations/GreedySimGuidedPartitioner.gif)
 
 #### `nn_closed_loop`
 
@@ -24,10 +24,10 @@ These bounds provide a safety guarantee for autonomous systems employing NN cont
 
 Reach-LP-Partition | Reach-LP w/ Polytopes
 ----- | -----
-![nn_partition_polytope](docs/_static/icra21/other/double_integrator_Uniform_CROWN_tmax_5.0_lp_8.png) | ![nn_partition_polytope](docs/_static/icra21/other/double_integrator_None_CROWN_tmax_4.0_polytope_35.png)
+![nn_partition_polytope](/docs/_static/icra21/other/double_integrator_Uniform_CROWN_tmax_5.0_lp_8.png) | ![nn_partition_polytope](/docs/_static/icra21/other/double_integrator_None_CROWN_tmax_4.0_polytope_35.png)
 
 
-![nn_closed_loop](docs/_static/journal/partitions/ClosedLoopGreedySimGuidedPartitioner4.gif)
+![nn_closed_loop](/docs/_static/journal/partitions/ClosedLoopGreedySimGuidedPartitioner4.gif)
 
 ---
 
@@ -105,9 +105,9 @@ python -m nn_closed_loop.example_backward \
 
 ### Replicate plots from the papers:
 
-* LCSS/ACC '21: [README](docs/_static/lcss21/lcss21.md)
-* ICRA '21: [README](docs/_static/icra21/icra21.md)
-* Journal: [README](docs/_static/icra21/journal.md)
+* LCSS/ACC '21: [README](/docs/_static/lcss21/lcss21.md)
+* ICRA '21: [README](/docs/_static/icra21/icra21.md)
+* Journal: [README](/docs/_static/journal/journal.md)
 
 ### If you find this code useful, please consider citing:
 For the partitioning-only code (LCSS/ACC '21):

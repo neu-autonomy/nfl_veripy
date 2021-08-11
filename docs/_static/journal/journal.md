@@ -17,7 +17,7 @@ You can change `--num_partitions` to get the various fidelities.
 
 2x2 | 4x4 | 8x8
 ------------ | ------------- | -------------
-![2x2](docs/_static/journal/backreach/double_integrator_None_CROWN_polytope_8_partitions_2_2.png) | ![4x4](docs/_static/journal/backreach/double_integrator_None_CROWN_polytope_8_partitions_4_4.png) | ![8x8](docs/_static/journal/backreach/double_integrator_None_CROWN_polytope_8_partitions_8_8.png)
+![2x2](/docs/_static/journal/backreach/double_integrator_None_CROWN_polytope_8_partitions_2_2.png) | ![4x4](/docs/_static/journal/backreach/double_integrator_None_CROWN_polytope_8_partitions_4_4.png) | ![8x8](/docs/_static/journal/backreach/double_integrator_None_CROWN_polytope_8_partitions_8_8.png)
 
 
 ### 3D Quadrotor Plot
@@ -40,11 +40,11 @@ You can change `--num_partitions` to get the various fidelities.
 
 State Feedback | Output Feedback
 ------------ | -------------
-![2x2](docs/_static/journal/3d_quadrotor/quadrotor_None_CROWN_tmax_1.2_lp_8_state_feedback.png) | ![4x4](docs/_static/journal/3d_quadrotor/quadrotor_None_CROWN_tmax_1.2_lp_8_output_feedback.png)
+![2x2](/docs/_static/journal/3d_quadrotor/quadrotor_None_CROWN_tmax_1.2_lp_8_state_feedback.png) | ![4x4](/docs/_static/journal/3d_quadrotor/quadrotor_None_CROWN_tmax_1.2_lp_8_output_feedback.png)
 
 If you want to get an animated 3D plot, add the `--make_animation` flag:
 
-![animation](docs/_static/journal/3d_quadrotor/ClosedLoopNoPartitioner.gif)
+![animation](/docs/_static/journal/3d_quadrotor/ClosedLoopNoPartitioner.gif)
 
 ### Partitioner Comparison
 
@@ -64,7 +64,7 @@ You can change which timestep GSG optimizes for by going into `ClosedLoopGreedyS
 
 UnGuided | SimGuided | GreedySimGuided-0 | GreedySimGuided-4
 ------------ | ------------- | ------------ | -------------
-![UnGuided](docs/_static/journal/partitions/ClosedLoopUnGuidedPartitioner.gif) | ![SimGuided](docs/_static/journal/partitions/ClosedLoopSimGuidedPartitioner.gif) | ![GreedySimGuided-0](docs/_static/journal/partitions/ClosedLoopGreedySimGuidedPartitioner0.gif) | ![GreedySimGuided-4](docs/_static/journal/partitions/ClosedLoopGreedySimGuidedPartitioner4.gif)
+![UnGuided](/docs/_static/journal/partitions/ClosedLoopUnGuidedPartitioner.gif) | ![SimGuided](/docs/_static/journal/partitions/ClosedLoopSimGuidedPartitioner.gif) | ![GreedySimGuided-0](/docs/_static/journal/partitions/ClosedLoopGreedySimGuidedPartitioner0.gif) | ![GreedySimGuided-4](/docs/_static/journal/partitions/ClosedLoopGreedySimGuidedPartitioner4.gif)
 
 ### Compare Reach-LP and Reach-SDP
 
@@ -94,7 +94,7 @@ Reach-LP-Partition            $0.263 \pm 0.001$         34
 
 Reachable Sets | Error per Timestep
 ------------ | -------------
-![reachable](docs/_static/journal/reachlp_vs_reachsdp/runtime_vs_error_2021_07_21__12_33_20_reachable.png) | ![SimGuided](docs/_static/journal/reachlp_vs_reachsdp/runtime_vs_error_2021_07_21__12_33_20_timestep.png)
+![reachable](/docs/_static/journal/reachlp_vs_reachsdp/runtime_vs_error_2021_07_21__12_33_20_reachable.png) | ![SimGuided](/docs/_static/journal/reachlp_vs_reachsdp/runtime_vs_error_2021_07_21__12_33_20_timestep.png)
 
 
 ### Compare Linear Program and Closed-Form solution timings
