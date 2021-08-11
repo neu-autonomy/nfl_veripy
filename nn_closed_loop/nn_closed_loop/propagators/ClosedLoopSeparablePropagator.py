@@ -270,6 +270,9 @@ class ClosedLoopSeparableSGIBPPropagator(ClosedLoopSeparablePropagator):
             self, input_shape=input_shape, dynamics=dynamics
         )
         self.partitioner_hyperparams["type"] = "SimGuided"
-        self.partitioner_hyperparams["termination_condition_type"] = "time_budget"
-        self.partitioner_hyperparams["termination_condition_value"] = 2.0
+        self.partitioner_hyperparams["num_simulations"] = 1e5
+        self.partitioner_hyperparams["termination_condition_type"] = "input_cell_size"
+        self.partitioner_hyperparams["termination_condition_value"] = 0.1
+        # self.partitioner_hyperparams["termination_condition_type"] = "time_budget"
+        # self.partitioner_hyperparams["termination_condition_value"] = 2.0
         self.propagator_hyperparams["type"] = "IBP_LIRPA"

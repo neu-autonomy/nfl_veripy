@@ -43,6 +43,12 @@ class Experiment:
                 'color': 'tab:red',
                 'ls': '--',
             },
+            ('SeparableCROWN', 'None'): {
+                'name': 'CL-CROWN',
+            },
+            ('SeparableSGIBP', 'None'): {
+                'name': 'CL-SG-IBP~\cite{xiang2020reachable}',
+            },
         }
 
 
@@ -130,6 +136,14 @@ class CompareRuntimeVsErrorTable(Experiment):
         expts = [
             {
                 'partitioner': 'None',
+                'propagator': 'SeparableCROWN',
+            },
+            {
+                'partitioner': 'None',
+                'propagator': 'SeparableSGIBP',
+            },
+            {
+                'partitioner': 'None',
                 'propagator': 'CROWN',
             },
             {
@@ -187,30 +201,32 @@ class CompareRuntimeVsErrorTable(Experiment):
         rows = []
         rows.append(["Algorithm", "Runtime [s]", "Error"])
 
+        tuples = []
+        tuples += [('SeparableCROWN', 'None'), ('SeparableSGIBP', 'None')]
+        tuples += [(prop, part) for part in ['None', 'Uniform'] for prop in ['SDP', 'CROWN']]
+
         # Go through each combination of prop/part we want in the table
-        for propagator in ['SDP', 'CROWN']:
-            for partitioner in ['None', 'Uniform']:
-                prop_part_tuple = (propagator, partitioner)
-                try:
-                    group = grouped.get_group(prop_part_tuple)
-                except KeyError:
-                    continue
+        for prop_part_tuple in tuples:
+            try:
+                group = grouped.get_group(prop_part_tuple)
+            except KeyError:
+                continue
 
-                name = self.info[prop_part_tuple]['name']
+            name = self.info[prop_part_tuple]['name']
 
-                mean_runtime = group['runtime'].mean()
-                std_runtime = group['runtime'].std()
-                runtime_str = "${:.3f} \pm {:.3f}$".format(mean_runtime, std_runtime)
+            mean_runtime = group['runtime'].mean()
+            std_runtime = group['runtime'].std()
+            runtime_str = "${:.3f} \pm {:.3f}$".format(mean_runtime, std_runtime)
 
-                final_step_error = group['final_step_error'].mean()
+            final_step_error = group['final_step_error'].mean()
 
-                # Add the entries to the table for that prop/part
-                row = []
-                row.append(name)
-                row.append(runtime_str)
-                row.append(round(final_step_error))
+            # Add the entries to the table for that prop/part
+            row = []
+            row.append(name)
+            row.append(runtime_str)
+            row.append(round(final_step_error))
 
-                rows.append(row)
+            rows.append(row)
 
         # print as a human-readable table and as a latex table
         print(tabulate(rows, headers='firstrow'))
@@ -518,7 +534,7 @@ if __name__ == '__main__':
 
     # Like Fig 3 in ICRA21 paper
     c = CompareRuntimeVsErrorTable()
-    # # c.run()
+    c.run()
     c.plot()  # 3A: table
     c.plot_reachable_sets()  # 3B: overlay reachable sets
     c.plot_error_vs_timestep()  # 3C: error vs timestep
