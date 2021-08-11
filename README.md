@@ -14,7 +14,8 @@ This decoupling enables improvements in either `Propagator` or `Partitioner` alg
 
 #### `nn_closed_loop`
 
-* Michael Everett, Golnaz Habibi, Jonathan P. How, ["Efficient Reachability Analysis for Closed-Loop Systems with Neural Network Controllers"](https://arxiv.org/pdf/2101.01815.pdf), ICRA 2021 (in review).
+* Michael Everett, Golnaz Habibi, Chuangchuang Sun, Jonathan P. How, ["Reachability Analysis of Neural Feedback Loops"](https://arxiv.org/pdf/2108.04140.pdf), in review.
+* Michael Everett, Golnaz Habibi, Jonathan P. How, ["Efficient Reachability Analysis for Closed-Loop Systems with Neural Network Controllers"](https://arxiv.org/pdf/2101.01815.pdf), ICRA 2021.
 
 Since NNs are rarely deployed in isolation, we developed a framework for analyzing closed-loop systems that employ NN control policies.
 The `nn_closed_loop` codebase follows a similar API as the `nn_partition` package, leveraging analogous `ClosedLoopAnalyzer`, `ClosedLoopPropagator` and `ClosedLoopPartitioner` concepts.
@@ -124,6 +125,15 @@ For the closed-loop system analysis code (ICRA '21):
     Author = {Michael Everett and Golnaz Habibi and Jonathan P. How},
     Booktitle = {IEEE International Conference on Robotics and Automation (ICRA)},
     Title = {Efficient Reachability Analysis for Closed-Loop Systems with Neural Network Controllers},
+    Year = {2021},
+    Url = {https://arxiv.org/pdf/2101.01815.pdf},
+    }
+```
+and/or:
+```
+@article{Everett21_journal,
+    Author = {Michael Everett and Golnaz Habibi and Chuangchuang Sun and Jonathan P. How},
+    Title = {Reachability Analysis of Neural Feedback Loops},
     Year = {2021},
     Url = {https://arxiv.org/pdf/2101.01815.pdf},
     }
