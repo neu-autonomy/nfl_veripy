@@ -126,10 +126,12 @@ You can change `system="quadrotor"` to see the corresponding table for the 6D qu
 ```bash
 python -m nn_closed_loop.example --partitioner None --propagator CROWN --system duffing --state_feedback --t_max 0.3
 ```
-will output this plot: ![duffing](/docs/_static/journal/systems/duffing_None_CROWN_tmax_0.3_lp_8.png)
+will output this plot:
+![duffing](/docs/_static/journal/systems/duffing_None_CROWN_tmax_0.3_lp_8.png)
 
 #### ISS
 ```bash
 python -m nn_closed_loop.example --partitioner None --propagator CROWN --system iss --state_feedback --t_max 0.21
 ```
-will output this plot: ![iss](/docs/_static/journal/systems/iss_None_CROWN_tmax_0.2_lp_8.png)
+will output this plot:
+![iss](/docs/_static/journal/systems/iss_None_CROWN_tmax_0.2_lp_8.png)
