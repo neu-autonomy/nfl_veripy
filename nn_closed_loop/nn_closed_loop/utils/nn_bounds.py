@@ -268,6 +268,58 @@ class BoundClosedLoopController(BoundSequential):
             )
             return ub, lb
 
+    def nonlinear_compute_bound_from_matrices(
+        self,
+        lower_A_with_dyn,
+        lower_sum_b_with_dyn,
+        upper_A_with_dyn,
+        upper_sum_b_with_dyn,
+        x_U,
+        x_L,
+        norm,
+        A_out,
+        dt,
+    ):
+        if A_out[0][1] == 0.: #first dimension does not have non-linear terms
+            lb = self._get_concrete_bound_lpball(
+                lower_A_with_dyn,
+                lower_sum_b_with_dyn,
+                sign=-1,
+                x_U=x_U,
+                x_L=x_L,
+                norm=norm,
+            )[0][0]
+            ub = self._get_concrete_bound_lpball(
+                upper_A_with_dyn,
+                upper_sum_b_with_dyn,
+                sign=+1,
+                x_U=x_U,
+                x_L=x_L,
+                norm=norm,
+            )[0][0]
+        else:
+            c_Y = -dt
+            lb = self._get_concrete_bound_cvx_rlx(
+                lower_A_with_dyn,
+                lower_sum_b_with_dyn,
+                sign=-1.,
+                x_U=x_U,
+                x_L=x_L,
+                norm=norm,
+                c_Y=c_Y
+            )
+            # lb = -5.
+            ub = self._get_concrete_bound_cvx_rlx(
+                upper_A_with_dyn,
+                upper_sum_b_with_dyn,
+                sign=+1.,
+                x_U=x_U,
+                x_L=x_L,
+                norm=norm,
+                c_Y=c_Y
+            )
+        return ub, lb
+
     def compute_bound_from_matrices(
         self,
         lower_A,
@@ -293,6 +345,20 @@ class BoundClosedLoopController(BoundSequential):
         ) = self._add_dynamics(
             lower_A, upper_A, lower_sum_b, upper_sum_b, A_out, dynamics
         )
+
+        if dynamics.__class__.__name__ == "Duffing":
+            ub, lb = self.nonlinear_compute_bound_from_matrices(
+                lower_A_with_dyn,
+                lower_sum_b_with_dyn,
+                upper_A_with_dyn,
+                upper_sum_b_with_dyn,
+                x_U,
+                x_L,
+                norm,
+                A_out,
+                dynamics.dt,
+            )
+            return ub, lb
 
         if (A_in is None or b_in is None) and self.try_to_use_closed_form:
             # Can solve in closed-form using lq-norm
@@ -410,6 +476,51 @@ class BoundClosedLoopController(BoundSequential):
         bound = bound.squeeze(-1) + sum_b
 
         return bound.data.numpy()
+
+    def _get_concrete_bound_cvx_rlx(self, A, sum_b, x_U=None, x_L=None, norm=np.inf, sign=-1, c_Y=-0.05):
+        # self, A, sum_b, x_U = None, x_L = None, norm = np.inf, sign = -1
+        if A is None:
+            return None
+        A = A.view(A.size(0), A.size(1), -1)
+        # A has shape (batch, specification_size, flattened_input_size)
+        logger.debug("Final A: %s", A.size())
+
+        c = A.data.numpy().squeeze()
+        n = c.shape[0]
+
+        x = cp.Variable(n)
+        Y = cp.Variable((n+2, n+2), symmetric=True)
+        # The operator >> denotes matrix inequality.
+
+        cost = sign * (c.T @ x + c_Y * Y[2][0])
+        # constraints = [A_in @ x <= b_in]
+        x_1_bound = np.array([x_L.data.numpy().squeeze(0)[0], x_U.data.numpy().squeeze(0)[0]])
+        constraints = []
+        constraints += [
+            x <= x_U.data.numpy().squeeze(0),
+            x >= x_L.data.numpy().squeeze(0),
+        ]
+
+        constraints += [Y[0][0] == 1]
+        constraints += [Y[2][0] == Y[1][3]]
+        constraints += [Y[3][0] == Y[1][1]]
+        constraints += [Y >> 0]
+
+        constraints += [x[0] == Y[1][0]]
+
+        constraints += [Y[2][0] >= np.power(x_1_bound[0], 3)]
+        constraints += [Y[2][0] <= np.power(x_1_bound[1], 3)]
+        constraints += [Y[3][0] >= 0]
+        constraints += [Y[3][0] <= np.square(np.max(np.abs(x_1_bound)))]
+
+        objective = cp.Maximize(cost)
+
+        prob = cp.Problem(objective, constraints)
+        prob.solve(solver=cp.SCS, verbose=False)
+        bound = sign * prob.value
+
+        bound = bound + sum_b
+        return bound
 
 
 if __name__ == "__main__":

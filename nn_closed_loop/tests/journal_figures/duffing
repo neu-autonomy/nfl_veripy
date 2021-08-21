@@ -1,0 +1,7 @@
+python -m nn_closed_loop.example \
+	--partitioner None \
+	--propagator CROWN \
+	--system duffing \
+	--state_feedback \
+	--t_max 0.3 \
+	--skip_show_plot
