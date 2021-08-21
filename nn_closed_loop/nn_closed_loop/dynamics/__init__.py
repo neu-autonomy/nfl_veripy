@@ -1,4 +1,4 @@
-from .Dynamics import Dynamics
+from .Dynamics import Dynamics, ContinuousTimeDynamics, DiscreteTimeDynamics
 from .DoubleIntegrator import DoubleIntegrator
 from .Quadrotor import Quadrotor
 from .DoubleIntegratorOutputFeedback import DoubleIntegratorOutputFeedback

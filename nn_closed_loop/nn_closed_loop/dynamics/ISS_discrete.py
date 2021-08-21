@@ -1,22 +1,18 @@
-# from Dynamics import Dynamics
-from .Dynamics import Dynamics
+from .Dynamics import DiscreteTimeDynamics
 import numpy as np
-from scipy.linalg import solve_discrete_are
 from nn_closed_loop.utils.mpc import control_mpc
 
-from os.path import dirname, join as pjoin
 import scipy.io as sio
-import scipy, os
+import scipy
+import os
 
-class ISS(Dynamics):
+
+class ISS(DiscreteTimeDynamics):
     def __init__(self):
 
-        self.continuous_time = False
-
-        # mat_fname = 'iss.mat'
-        # data_dir = pjoin(dirname(sio.__file__), 'dynamics')
-        mat_fname = pjoin(os.getcwd(), 'iss.mat')
-
+        mat_fname = "{}/../../datasets/iss/iss.mat".format(
+            os.path.dirname(os.path.abspath(__file__))
+        )
         mat_contents = sio.loadmat(mat_fname)
 
         At = scipy.sparse.csr_matrix.toarray(mat_contents['A'])
@@ -67,15 +63,3 @@ class ISS(Dynamics):
             n_mpc=3,
             debug=False,
         )
-
-    def dynamics_step(self, xs, us):
-        # Dynamics are already discretized:
-        xs_t1 = (np.dot(self.At, xs.T) + np.dot(self.bt, us.T)).T + self.ct
-        if self.process_noise is not None:
-            noise = np.random.uniform(
-                low=self.process_noise[:, 0],
-                high=self.process_noise[:, 1],
-                size=xs.shape,
-            )
-            xs_t1 += noise
-        return xs_t1

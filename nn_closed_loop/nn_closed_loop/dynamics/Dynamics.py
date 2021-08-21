@@ -298,6 +298,63 @@ class Dynamics:
             return xs, us
 
 
+class ContinuousTimeDynamics(Dynamics):
+    def __init__(
+        self,
+        At,
+        bt,
+        ct,
+        u_limits=None,
+        dt=1.0,
+        c=None,
+        sensor_noise=None,
+        process_noise=None,
+    ):
+        super().__init__(At, bt, ct, u_limits, dt, c, sensor_noise, process_noise)
+        self.continuous_time = True
+
+    def dynamics(self, xs, us):
+        xdot = (np.dot(self.At, xs.T) + np.dot(self.bt, us.T)).T + self.ct
+        if self.process_noise is not None:
+            noise = np.random.uniform(
+                low=self.process_noise[:, 0],
+                high=self.process_noise[:, 1],
+                size=xs.shape,
+            )
+            xdot += noise
+        return xdot
+
+    def dynamics_step(self, xs, us):
+        return xs + self.dt * self.dynamics(xs, us)
+
+
+class DiscreteTimeDynamics(Dynamics):
+    def __init__(
+        self,
+        At,
+        bt,
+        ct,
+        u_limits=None,
+        dt=1.0,
+        c=None,
+        sensor_noise=None,
+        process_noise=None,
+    ):
+        super().__init__(At, bt, ct, u_limits, dt, c, sensor_noise, process_noise)
+        self.continuous_time = False
+
+    def dynamics_step(self, xs, us):
+        xs_t1 = (np.dot(self.At, xs.T) + np.dot(self.bt, us.T)).T + self.ct
+        if self.process_noise is not None:
+            noise = np.random.uniform(
+                low=self.process_noise[:, 0],
+                high=self.process_noise[:, 1],
+                size=xs.shape,
+            )
+            xs_t1 += noise
+        return xs_t1
+
+
 if __name__ == "__main__":
 
     dynamics = DoubleIntegrator()

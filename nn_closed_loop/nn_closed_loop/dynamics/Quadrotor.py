@@ -42,17 +42,3 @@ class Quadrotor(Dynamics):
         # self.Q = np.eye(2)
         # self.R = 1
         # self.Pinf = solve_discrete_are(self.At, self.bt, self.Q, self.R)
-
-    def dynamics_step(self, xs, us):
-        return xs + self.dt * self.dynamics(xs, us)
-
-    def dynamics(self, xs, us):
-        xdot = (np.dot(self.At, xs.T) + np.dot(self.bt, us.T)).T + self.ct
-        if self.process_noise is not None:
-            noise = np.random.uniform(
-                low=self.process_noise[:, 0],
-                high=self.process_noise[:, 1],
-                size=xs.shape,
-            )
-            xdot += noise
-        return xdot

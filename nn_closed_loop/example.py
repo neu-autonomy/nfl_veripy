@@ -65,14 +65,22 @@ def main(args):
                 ast.literal_eval(args.init_state_range)
             )
     elif args.system == "duffing":
+        inputs_to_highlight = [
+            {"dim": [0], "name": "$x_0$"},
+            {"dim": [1], "name": "$x_1$"},
+        ]
         dyn = dynamics.Duffing()
         init_state_range = np.array(
             [  # (num_inputs, 2)
-                [2.45, 2.55],  # x0min, x0max [2.49, 2.51] [2.45, 2.55] [1.95, 2.05]
-                [1.45, 1.55],  # x1min, x1max [1.49, 1.51] [1.45, 1.55] [-4.05, -3.95]
+                [2.45, 2.55],  # x0min, x0max 
+                [1.45, 1.55],  # x1min, x1max
             ]
         )
     elif args.system == "iss":
+        inputs_to_highlight = [
+            {"dim": [0], "name": "$x_0$"},
+            {"dim": [1], "name": "$x_1$"},
+        ]
         dyn = dynamics.ISS()
         init_state_range = 100 * np.ones((dyn.n, 2))
         init_state_range[:, 0] = init_state_range[:, 0] - 0.5

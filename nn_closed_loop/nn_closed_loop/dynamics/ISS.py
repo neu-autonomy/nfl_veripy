@@ -1,4 +1,4 @@
-from .Dynamics import Dynamics
+from .Dynamics import ContinuousTimeDynamics
 import numpy as np
 from nn_closed_loop.utils.mpc import control_mpc
 
@@ -7,10 +7,8 @@ import scipy
 import os
 
 
-class ISS(Dynamics):
+class ISS(ContinuousTimeDynamics):
     def __init__(self):
-
-        self.continuous_time = True
 
         mat_fname = "{}/../../datasets/iss/iss.mat".format(
             os.path.dirname(os.path.abspath(__file__))
@@ -23,12 +21,7 @@ class ISS(Dynamics):
         m = 3
         ct = np.zeros(n).T
 
-        # At = np.array([[1, 1], [0, 1]])
-        # bt = np.array([[0.5], [1]])
-        # ct = np.array([0.0, 0.0]).T
-
         u_limits = None
-        # u_limits = 5*np.array([[-1.0, 1.0], [-1.0, 1.0], [-1.0, 1.0]])  # (u0_min, u0_max)
 
         super().__init__(At=At, bt=bt, ct=ct, u_limits=u_limits)
 
@@ -66,18 +59,3 @@ class ISS(Dynamics):
             n_mpc=3,
             debug=False,
         )
-
-    def dynamics_step(self, xs, us):
-        return xs + self.dt * self.dynamics(xs, us)
-
-    def dynamics(self, xs, us):
-        xdot = (np.dot(self.At, xs.T) + np.dot(self.bt, us.T)).T + self.ct
-        # xdot[:, -1] = xdot[:, -1] - np.power(xs[:, 0], 3)
-        if self.process_noise is not None:
-            noise = np.random.uniform(
-                low=self.process_noise[:, 0],
-                high=self.process_noise[:, 1],
-                size=xs.shape,
-            )
-            xdot += noise
-        return xdot

@@ -1,10 +1,10 @@
-from .Dynamics import Dynamics
+from .Dynamics import DiscreteTimeDynamics
 import numpy as np
 from scipy.linalg import solve_discrete_are
 from nn_closed_loop.utils.mpc import control_mpc
 
 
-class DoubleIntegrator(Dynamics):
+class DoubleIntegrator(DiscreteTimeDynamics):
     def __init__(self):
 
         self.continuous_time = False
@@ -42,15 +42,3 @@ class DoubleIntegrator(Dynamics):
             n_mpc=10,
             debug=False,
         )
-
-    def dynamics_step(self, xs, us):
-        # Dynamics are already discretized:
-        xs_t1 = (np.dot(self.At, xs.T) + np.dot(self.bt, us.T)).T + self.ct
-        if self.process_noise is not None:
-            noise = np.random.uniform(
-                low=self.process_noise[:, 0],
-                high=self.process_noise[:, 1],
-                size=xs.shape,
-            )
-            xs_t1 += noise
-        return xs_t1

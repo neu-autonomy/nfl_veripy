@@ -44,6 +44,12 @@ class TestSum(unittest.TestCase):
     def test_backreach(self):
         self.check_if_cmd_runs("../journal_figures/backreach")
 
+    def test_duffing(self):
+        self.check_if_cmd_runs("../journal_figures/duffing")
+
+    def test_iss(self):
+        self.check_if_cmd_runs("../journal_figures/iss")
+
         # # Check that plot was generated
         # plot_filename = os.path.dirname(os.path.realpath(__file__)) + '/../results/analyzer/'
         # self.assertTrue(os.path.isfile(plot_filename))
