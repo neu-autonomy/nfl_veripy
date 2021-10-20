@@ -100,14 +100,37 @@ def main(args):
     else:
         raise NotImplementedError
 
-    # Run the analyzer N times to compute an estimated runtime
     if args.estimate_runtime:
-        raise NotImplementedError
+        # Run the analyzer N times to compute an estimated runtime
+        import time
 
-    # Run analysis & generate a plot
-    input_constraint, analyzer_info = analyzer.get_backprojection_set(
-        output_constraint, input_constraint, t_max=None, num_partitions=num_partitions
-    )
+        num_calls = 5
+        times = np.empty(num_calls)
+        final_errors = np.empty(num_calls)
+        avg_errors = np.empty(num_calls, dtype=np.ndarray)
+        all_errors = np.empty(num_calls, dtype=np.ndarray)
+        output_constraints = np.empty(num_calls, dtype=object)
+        for num in range(num_calls):
+            print('call: {}'.format(num))
+            t_start = time.time()
+            input_constraint, analyzer_info = analyzer.get_backprojection_set(
+                output_constraint, input_constraint, t_max=None, num_partitions=num_partitions
+            )
+            t_end = time.time()
+            t = t_end - t_start
+            times[num] = t
+
+        stats['runtimes'] = times
+
+        print("All times: {}".format(times))
+        print("Avg time: {} +/- {}".format(times.mean(), times.std()))
+    else:
+        # Run analysis once
+        # Run analysis & generate a plot
+        input_constraint, analyzer_info = analyzer.get_backprojection_set(
+            output_constraint, input_constraint, t_max=None, num_partitions=num_partitions
+        )
+
     # print(input_constraint.A, input_constraint.b)
     # error, avg_error = analyzer.get_error(input_constraint,output_constraint, t_max=args.t_max)
     # print('Final step approximation error:{:.2f}\nAverage approximation error: {:.2f}'.format(error, avg_error))
