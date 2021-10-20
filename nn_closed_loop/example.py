@@ -64,6 +64,27 @@ def main(args):
             init_state_range = np.array(
                 ast.literal_eval(args.init_state_range)
             )
+    elif args.system == "duffing":
+        inputs_to_highlight = [
+            {"dim": [0], "name": "$x_0$"},
+            {"dim": [1], "name": "$x_1$"},
+        ]
+        dyn = dynamics.Duffing()
+        init_state_range = np.array(
+            [  # (num_inputs, 2)
+                [2.45, 2.55],  # x0min, x0max 
+                [1.45, 1.55],  # x1min, x1max
+            ]
+        )
+    elif args.system == "iss":
+        inputs_to_highlight = [
+            {"dim": [0], "name": "$x_0$"},
+            {"dim": [1], "name": "$x_1$"},
+        ]
+        dyn = dynamics.ISS()
+        init_state_range = 100 * np.ones((dyn.n, 2))
+        init_state_range[:, 0] = init_state_range[:, 0] - 0.5
+        init_state_range[:, 1] = init_state_range[:, 1] + 0.5
     elif args.system == "unity":
         inputs_to_highlight = [
             {"dim": [0], "name": "$x$"},
@@ -250,8 +271,8 @@ def setup_parser():
     parser.add_argument(
         "--system",
         default="double_integrator",
-        choices=["double_integrator", "quadrotor"],
-        help="which system to analyze (default: double_integrator_mpc)",
+        choices=["double_integrator", "quadrotor", "duffing", "iss"],
+        help="which system to analyze (default: double_integrator)",
     )
     parser.add_argument(
         "--init_state_range",
@@ -321,6 +342,9 @@ def setup_parser():
     parser.add_argument(
         "--estimate_error", dest="estimate_error", action="store_true"
     )
+    parser.add_argument(
+        "--skip_estimate_error", dest="estimate_error", action="store_false"
+    )
     parser.set_defaults(estimate_error=True)
 
     parser.add_argument(
@@ -330,7 +354,7 @@ def setup_parser():
         help="whether to save the visualization",
     )
     parser.add_argument(
-        "--skip_save_plot", dest="feature", action="store_false"
+        "--skip_save_plot", dest="save_plot", action="store_false"
     )
     parser.set_defaults(save_plot=True)
 
