@@ -54,7 +54,7 @@ class UnGuidedPartitioner(Partitioner):
 
         u_e = output_range.copy()
 
-        output_range_sim_for_evaluation, sampled_outputs = self.sample(
+        output_range_sim_for_evaluation, sampled_outputs, _ = self.sample(
             input_range, propagator
         )
 
@@ -72,10 +72,10 @@ class UnGuidedPartitioner(Partitioner):
                 show_output=self.show_output,
             )
 
-        print(
-            "Need to pass output_range_sim_for_evaluation to partition_loop somehow..."
-        )
-        raise NotImplementedError
+        # print(
+        #     "Need to pass output_range_sim_for_evaluation to partition_loop somehow..."
+        # )
+        # raise NotImplementedError
         u_e, info = self.partition_loop(
             M,
             interior_M,

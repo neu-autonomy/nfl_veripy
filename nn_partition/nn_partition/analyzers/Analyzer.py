@@ -2,6 +2,7 @@ import matplotlib.pyplot as plt
 from nn_partition.utils.utils import get_sampled_outputs, samples_to_range
 import nn_partition.partitioners as partitioners
 import nn_partition.propagators as propagators
+import inspect
 
 plt.rcParams["mathtext.fontset"] = "stix"
 plt.rcParams["font.family"] = "STIXGeneral"
@@ -23,8 +24,17 @@ class Analyzer:
     def partitioner(self, hyperparams):
         if hyperparams is None:
             return
+
         hyperparams_ = hyperparams.copy()
         partitioner = hyperparams_.pop("type", None)
+
+        # Make sure we don't send any args to a partitioner that can't handle
+        # them. e.g, don't give NoPartitioner a time budget
+        args = inspect.getfullargspec(partitioners.partitioner_dict[partitioner]).args
+        for hyperparam in hyperparams:
+            if hyperparam not in args:
+                hyperparams_.pop(hyperparam, None)
+
         self._partitioner = self.instantiate_partitioner(
             partitioner, hyperparams_
         )
@@ -42,6 +52,14 @@ class Analyzer:
             return
         hyperparams_ = hyperparams.copy()
         propagator = hyperparams_.pop("type", None)
+
+        # Make sure we don't send any args to a propagator that can't handle
+        # them.
+        args = inspect.getfullargspec(propagators.propagator_dict[propagator]).args
+        for hyperparam in hyperparams:
+            if hyperparam not in args:
+                hyperparams_.pop(hyperparam, None)
+
         self._propagator = self.instantiate_propagator(
             propagator, hyperparams_
         )
@@ -143,3 +161,19 @@ class Analyzer:
 
         sampled_outputs = self.get_sampled_outputs(input_range, N=N)
         return ConvexHull(sampled_outputs)
+
+    def get_error(self, input_range, output_range, **analyzer_info):
+        if self.partitioner.interior_condition == "convex_hull":
+            exact_hull = self.get_exact_hull(input_range)
+
+            error = self.partitioner.get_error(
+                exact_hull, analyzer_info['estimated_hull']
+            )
+        elif self.partitioner.interior_condition in ["lower_bnds", "linf"]:
+            output_range_exact = self.get_exact_output_range(input_range)
+
+            error = self.partitioner.get_error(
+                output_range_exact, output_range
+            )
+
+        return error

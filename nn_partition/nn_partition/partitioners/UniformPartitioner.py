@@ -29,22 +29,9 @@ class UniformPartitioner(Partitioner):
     def get_output_range(self, input_range, propagator, num_partitions=None):
         input_shape = input_range.shape[:-1]
 
-        sampled_inputs = np.random.uniform(
-            input_range[..., 0],
-            input_range[..., 1],
-            (self.num_simulations,) + input_shape,
+        output_range_sim, sampled_outputs, sampled_inputs = self.sample(
+            input_range, propagator
         )
-        sampled_outputs = propagator.forward_pass(sampled_inputs)
-
-        if self.interior_condition == "convex_hull":
-            from scipy.spatial import ConvexHull
-
-            self.sim_convex_hull = ConvexHull(sampled_outputs)
-
-        # Compute [u_sim], aka bounds on the sampled outputs (Line 6)
-        output_range_sim = np.empty(sampled_outputs.shape[1:] + (2,))
-        output_range_sim[:, 1] = np.max(sampled_outputs, axis=0)
-        output_range_sim[:, 0] = np.min(sampled_outputs, axis=0)
 
         propagator_computation_time = 0
 
@@ -106,6 +93,7 @@ class UniformPartitioner(Partitioner):
             t_end,
             t_start,
             propagator_computation_time,
+            0,
         )
 
         return output_range, info
