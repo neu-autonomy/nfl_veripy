@@ -357,13 +357,13 @@ class DiscreteTimeDynamics(Dynamics):
 
 if __name__ == "__main__":
 
+    from nn_closed_loop.dynamics.DoubleIntegrator import DoubleIntegrator
     dynamics = DoubleIntegrator()
-    init_state_range = np.array(
-        [  # (num_inputs, 2)
-            [-2.0, -0.5],  # x0min, x0max
-            [0.2, 0.8],  # x1min, x1max
-        ]
-    )
+    init_state_range = np.array([
+        # (num_inputs, 2)
+        [2.5, 3.0],  # x0min, x0max
+        [-0.25, 0.25],  # x1min, x1max
+    ])
     xs, us = dynamics.collect_data(
         t_max=10,
         input_constraint=constraints.LpConstraint(
@@ -372,9 +372,10 @@ if __name__ == "__main__":
         num_samples=2420,
     )
     print(xs.shape, us.shape)
-    with open(dir_path + "/datasets/double_integrator/xs.pkl", "wb") as f:
+    system = "double_integrator"
+    with open(dir_path + "/../../datasets/{}/xs.pkl".format(system), "wb") as f:
         pickle.dump(xs, f)
-    with open(dir_path + "/datasets/double_integrator/us.pkl", "wb") as f:
+    with open(dir_path + "/../../datasets/{}/us.pkl".format(system), "wb") as f:
         pickle.dump(us, f)
 
     # from nn_closed_loop.utils.nn import load_model
