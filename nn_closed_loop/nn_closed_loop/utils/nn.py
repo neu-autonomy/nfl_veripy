@@ -38,7 +38,7 @@ def create_and_train_model(
     return model
 
 
-def save_model(model, name="model", dir=dir_path + "/system/"):
+def save_model(model, name="model", dir=dir_path+"/../../models/double_integrator_debug/"):
     os.makedirs(dir, exist_ok=True)
     # serialize model to JSON
     model_json = model.to_json()
@@ -77,40 +77,51 @@ def load_controller_unity(nx, nu):
     return torch_model
 
 
-def load_data():
-
-    # import pickle
-    # with open('/Users/mfe/Downloads/dataset.pkl','rb') as f:
-    #     data = pickle.load(f)
-
-    # xs, us = data
-    # us = np.expand_dims(us, axis=-1)
-
-    import pandas as pd
-
-    xs = (
-        pd.read_csv("~/Downloads/quadrotor_nlmpc_x.csv", sep=",", header=None)
-        .to_numpy()
-        .T
-    )
-    us = (
-        pd.read_csv("~/Downloads/quadrotor_nlmpc_u.csv", sep=",", header=None)
-        .to_numpy()
-        .T
-    )
-
-    print(xs.shape)
-    print(us.shape)
-
-    # For plotting
-    xs = np.reshape(xs, (-1, 11, 6))
-    us = np.reshape(us, (-1, 11, 3))
+def plot_data(xs, us, system):
 
     import matplotlib.pyplot as plt
 
+    if system == "double_integrator":
+        xs = np.reshape(xs, (-1, 11, 2))
+        us = np.reshape(us, (-1, 11, 1))
+    elif system == "quadrotor":
+        xs = np.reshape(xs, (-1, 11, 6))
+        us = np.reshape(us, (-1, 11, 3))
+
     for i in range(100):
-        plt.plot(xs[i, 1:, 0], xs[i, 1:, 1])
+        plt.plot(xs[i, 0:, 0], xs[i, 0:, 1])
     plt.show()
+
+
+def load_data(system="double_integrator"):
+
+    if system == "double_integrator":
+        import pickle
+
+        path = dir_path+"/../../datasets/double_integrator/"
+
+        with open(path+"xs.pkl", 'rb') as f:
+            xs = pickle.load(f)            
+        with open(path+"us.pkl", 'rb') as f:
+            us = pickle.load(f)
+
+    elif system == "quadrotor":
+
+        import pandas as pd
+
+        xs = (
+            pd.read_csv("~/Downloads/quadrotor_nlmpc_x.csv", sep=",", header=None)
+            .to_numpy()
+            .T
+        )
+        us = (
+            pd.read_csv("~/Downloads/quadrotor_nlmpc_u.csv", sep=",", header=None)
+            .to_numpy()
+            .T
+        )
+
+    else:
+        raise NotImplementedError
 
     return xs, us
 
@@ -140,14 +151,24 @@ def create_and_save_deep_models():
 
 
 if __name__ == "__main__":
-    print("uncomment something")
 
-    # neurons_per_layer = [10,5]
-    # model = create_model(neurons_per_layer)
-    # model = create_and_train_model(neurons_per_layer, xs, us)
+    system = "double_integrator"
 
     # View some of the trajectory data
-    # xs, us = load_data()
+    xs, us = load_data(system)
+
+    plot_data(xs, us, system)
+
+    neurons_per_layer = [10, 5]
+    # model = create_model(neurons_per_layer)
+    model = create_and_train_model(
+        neurons_per_layer,
+        xs,
+        us,
+        verbose=True
+        )
+
+    save_model(model, dir=dir_path+"/../../models/double_integrator_debug/")
 
     # Generate the NNs of various numbers of layers...
     # create_and_save_deep_models()

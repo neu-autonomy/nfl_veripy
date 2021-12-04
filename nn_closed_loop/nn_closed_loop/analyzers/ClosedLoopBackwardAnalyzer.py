@@ -49,6 +49,7 @@ class ClosedLoopBackwardAnalyzer(analyzers.Analyzer):
         show_samples=False,
         aspect="auto",
         labels={},
+        plot_lims=None,
         **kwargs
     ):
         # sampled_outputs = self.get_sampled_outputs(input_range)
@@ -60,8 +61,8 @@ class ClosedLoopBackwardAnalyzer(analyzers.Analyzer):
             self.propagator,
             show_samples=show_samples,
             inputs_to_highlight=[
-                {"dim": [0], "name": "py"},
-                {"dim": [1], "name": "pz"},
+                {"dim": [0], "name": "$x$"},
+                {"dim": [1], "name": "$\dot{x}$"},
             ],
             aspect=aspect,
             initial_set_color=self.initial_set_color,
@@ -74,7 +75,8 @@ class ClosedLoopBackwardAnalyzer(analyzers.Analyzer):
             kwargs.get("interior_partitions", []),
             output_constraint,
             reachable_set_color=self.reachable_set_color,
-            reachable_set_zorder=self.reachable_set_zorder
+            reachable_set_zorder=self.reachable_set_zorder,
+            plot_lims=plot_lims,
         )
 
         # self.partitioner.animate_axes.legend(

@@ -9,24 +9,41 @@ import os
 
 
 def main(args):
+    np.random.seed(seed=0)
+    stats = {}
+
     # Setup NN
     if args.model == "robot_arm":
         torch_model, model_info = model_xiang_2020_robot_arm(
             activation=args.activation
         )
-        input_range = np.array(
-            [  # (num_inputs, 2)
-                [np.pi / 3, 2 * np.pi / 3],  # x0min, x0max
-                [np.pi / 3, 2 * np.pi / 3],  # x1min, x1max
-            ]
-        )
+        if args.input_range is None:
+            input_range = np.array(
+                [  # (num_inputs, 2)
+                    [np.pi / 3, 2 * np.pi / 3],  # x0min, x0max
+                    [np.pi / 3, 2 * np.pi / 3],  # x1min, x1max
+                ]
+            )
+        else:
+            import ast
+
+            input_range = np.array(
+                ast.literal_eval(args.input_range)
+            )
     elif args.model == "random_weights":
         neurons = [2, 50, 2]
         torch_model, model_info = random_model(
             activation=args.activation, neurons=neurons, seed=0
         )
-        input_range = np.zeros((model_info["model_neurons"][0], 2))
-        input_range[:, 1] = 1.0
+        if args.input_range is None:
+            input_range = np.zeros((model_info["model_neurons"][0], 2))
+            input_range[:, 1] = 1.0
+        else:
+            import ast
+
+            input_range = np.array(
+                ast.literal_eval(args.input_range)
+            )
     else:
         raise NotImplementedError
 
@@ -40,6 +57,7 @@ def main(args):
         "show_animation": args.show_animation,
         "show_input": args.show_input,
         "show_output": args.show_output,
+        "num_partitions": args.num_partitions,
     }
     propagator_hyperparams = {
         "type": args.propagator,
@@ -50,42 +68,18 @@ def main(args):
     analyzer = analyzers.Analyzer(torch_model)
     analyzer.partitioner = partitioner_hyperparams
     analyzer.propagator = propagator_hyperparams
-    output_range, analyzer_info = analyzer.get_output_range(input_range)
-    np.random.seed(seed=0)
-    # output_range_exact = analyzer.get_exact_output_range(input_range)
-    # if analyzer.partitioner["interior_condition"] == "convex_hull":
-    # else:
-    # if partitioner_hyperparams["interior_condition"] == "convex_hull":
-    #     exact_hull = analyzer.get_exact_hull(input_range)
 
-    #     error = analyzer.partitioner.get_error(
-    #         exact_hull, analyzer_info["estimated_hull"]
-    #     )
-    # if partitioner_hyperparams["interior_condition"] in ["lower_bnds", "linf"]:
-    #     output_range_exact = analyzer.get_exact_output_range(input_range)
+    if args.estimate_runtime:
+        raise NotImplementedError
+    else:
+        output_range, analyzer_info = analyzer.get_output_range(input_range)
 
-    #     error = analyzer.partitioner.get_error(
-    #         output_range_exact, output_range
-    #     )
+    if args.estimate_error:
 
-    # output_range_exact = analyzer.get_exact_output_range(input_range)
+        error = analyzer.get_error(input_range, output_range, **analyzer_info)
+        stats['error'] = error
 
-    # error = analyzer.partitioner.get_error(output_range_exact, output_range)
-    # print("\n")
-    # print(
-    #     "{}+{}".format(
-    #         partitioner_hyperparams["type"], propagator_hyperparams["type"]
-    #     )
-    # )
-    # print("Estimated output_range:\n", output_range)
-    # print("True output_range:\n", output_range_exact)
-    # print("Number of propagator calls:", analyzer_info["num_propagator_calls"])
-    # print("Error: ", error)
-    # print("Number of partitions:", analyzer_info["num_partitions"])
-    # print("Computation time:", analyzer_info["computation_time"])
-    # print("Number of iteration :", analyzer_info["num_iteration"])
-    # print("Error (inloop) :", analyzer_info["estimation_error"])
-    #  print(output_range , analyzer_info["estimated_hull"] )
+    stats['output_range'] = output_range
 
     # Generate a visualization of the input/output mapping
     if args.save_plot:
@@ -162,10 +156,10 @@ def main(args):
         )
 
     print("done.")
+    return stats, analyzer_info
 
 
-if __name__ == "__main__":
-    np.random.seed(seed=0)
+def setup_parser():
 
     parser = argparse.ArgumentParser(description="Analyze a NN.")
     parser.add_argument(
@@ -209,6 +203,11 @@ if __name__ == "__main__":
         help="which propagator to use (default: CROWN_LIRPA)",
     )
     parser.add_argument(
+        "--input_range",
+        default=None,
+        help="2*num_inputs values (default: None)",
+    )
+    parser.add_argument(
         "--term_type",
         default="time_budget",
         choices=[
@@ -237,6 +236,12 @@ if __name__ == "__main__":
         "--num_simulations",
         default=1e4,
         help="how many MC samples to begin with (default: 1e4)",
+    )
+    parser.add_argument(
+        "--num_partitions",
+        default=16,
+        type=int,
+        help="if uniform, how many cells to split into (default: 16)",
     )
 
     parser.add_argument(
@@ -331,6 +336,28 @@ if __name__ == "__main__":
         "--skip_show_animation", dest="show_animation", action="store_false"
     )
     parser.set_defaults(show_animation=False)
+
+    parser.add_argument(
+        "--estimate_error", dest="estimate_error", action="store_true"
+    )
+    parser.add_argument(
+        "--skip_estimate_error", dest="estimate_error", action="store_false"
+    )
+    parser.set_defaults(estimate_error=True)
+
+    parser.add_argument(
+        "--estimate_runtime", dest="estimate_runtime", action="store_true"
+    )
+    parser.set_defaults(estimate_runtime=False)
+
+
+    return parser
+
+
+if __name__ == "__main__":
+    np.random.seed(seed=0)
+
+    parser = setup_parser()
 
     args = parser.parse_args()
 

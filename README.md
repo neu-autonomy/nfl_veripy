@@ -103,6 +103,10 @@ python -m nn_closed_loop.example_backward \
 	--show_plot --boundaries polytope
 ```
 
+### Jupyter Notebooks
+
+Please see the `jupyter_notebooks` folder for an interactive version of the above examples.
+
 ### Replicate plots from the papers:
 
 * LCSS/ACC '21: [README](/docs/_static/lcss21/lcss21.md)
@@ -137,7 +141,8 @@ and/or:
 @article{Everett21_journal,
     Author = {Michael Everett and Golnaz Habibi and Chuangchuang Sun and Jonathan P. How},
     Title = {Reachability Analysis of Neural Feedback Loops},
-    Year = {2021},
+    journal={IEEE Access},
+    Year = {2021 (accepted)},
     Url = {https://arxiv.org/pdf/2101.01815.pdf},
     }
 ```

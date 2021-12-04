@@ -27,31 +27,10 @@ def main(args):
                 [  # (num_inputs, 2)
                     [2.5, 3.0],  # x0min, x0max
                     [-0.25, 0.25],  # x1min, x1max
-                    # [-0.25, 0.25],  # x0min, x0max
-                    # [-0.1, 0.1],  # x1min, x1max
                 ]
             )
         else:
             raise NotImplementedError
-            import ast
-
-            init_state_range = np.array(
-                ast.literal_eval(args.init_state_range)
-            )
-    elif args.system == "quadrotor":
-        raise NotImplementedError
-        if args.state_feedback:
-            dyn = dynamics.Quadrotor()
-        else:
-            dyn = dynamics.QuadrotorOutputFeedback()
-        if args.init_state_range is None:
-            init_state_range = np.array(
-                [  # (num_inputs, 2)
-                    [4.65, 4.65, 2.95, 0.94, -0.01, -0.01],
-                    [4.75, 4.75, 3.05, 0.96, 0.01, 0.01],
-                ]
-            ).T
-        else:
             import ast
 
             init_state_range = np.array(
@@ -72,8 +51,6 @@ def main(args):
     partitioner_hyperparams = {
         "type": args.partitioner,
         "num_partitions": num_partitions,
-        # "make_animation": False,
-        # "show_animation": False,
     }
     propagator_hyperparams = {
         "type": args.propagator,
@@ -100,14 +77,37 @@ def main(args):
     else:
         raise NotImplementedError
 
-    # Run the analyzer N times to compute an estimated runtime
     if args.estimate_runtime:
-        raise NotImplementedError
+        # Run the analyzer N times to compute an estimated runtime
+        import time
 
-    # Run analysis & generate a plot
-    input_constraint, analyzer_info = analyzer.get_backprojection_set(
-        output_constraint, input_constraint, t_max=None, num_partitions=num_partitions
-    )
+        num_calls = 5
+        times = np.empty(num_calls)
+        final_errors = np.empty(num_calls)
+        avg_errors = np.empty(num_calls, dtype=np.ndarray)
+        all_errors = np.empty(num_calls, dtype=np.ndarray)
+        output_constraints = np.empty(num_calls, dtype=object)
+        for num in range(num_calls):
+            print('call: {}'.format(num))
+            t_start = time.time()
+            input_constraint, analyzer_info = analyzer.get_backprojection_set(
+                output_constraint, input_constraint, t_max=None, num_partitions=num_partitions
+            )
+            t_end = time.time()
+            t = t_end - t_start
+            times[num] = t
+
+        stats['runtimes'] = times
+
+        print("All times: {}".format(times))
+        print("Avg time: {} +/- {}".format(times.mean(), times.std()))
+    else:
+        # Run analysis once
+        # Run analysis & generate a plot
+        input_constraint, analyzer_info = analyzer.get_backprojection_set(
+            output_constraint, input_constraint, t_max=None, num_partitions=num_partitions
+        )
+
     # print(input_constraint.A, input_constraint.b)
     # error, avg_error = analyzer.get_error(input_constraint,output_constraint, t_max=args.t_max)
     # print('Final step approximation error:{:.2f}\nAverage approximation error: {:.2f}'.format(error, avg_error))
@@ -178,6 +178,7 @@ def main(args):
             show=args.show_plot,
             labels=args.plot_labels,
             aspect=args.plot_aspect,
+            plot_lims=args.plot_lims,
             **analyzer_info
         )
 
@@ -289,6 +290,11 @@ def setup_parser():
         default="auto",
         choices=["auto", "equal"],
         help="aspect ratio on input partition plot (default: auto)",
+    )
+    parser.add_argument(
+        "--plot_lims",
+        default=None,
+        help='x and y lims on plot (default: None)',
     )
 
     return parser

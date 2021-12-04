@@ -191,7 +191,18 @@ class ClosedLoopPartitioner(partitioners.Partitioner):
         # # Reachable sets
         # self.plot_reachable_sets(output_constraint, input_dims)
 
-    def visualize(self, M, interior_M, output_constraint, iteration=0, title=None, reachable_set_color=None, reachable_set_zorder=None, reachable_set_ls=None, dont_tighten_layout=False):
+    def visualize(self,
+        M,
+        interior_M,
+        output_constraint,
+        iteration=0,
+        title=None,
+        reachable_set_color=None,
+        reachable_set_zorder=None,
+        reachable_set_ls=None,
+        dont_tighten_layout=False,
+        plot_lims=None,
+        ):
 
         # Bring forward whatever default items should be in the plot
         # (e.g., MC samples, initial state set boundaries)
@@ -201,6 +212,14 @@ class ClosedLoopPartitioner(partitioners.Partitioner):
         # Actually draw the reachable sets and partitions
         self.plot_reachable_sets(output_constraint, self.input_dims, reachable_set_color=reachable_set_color, reachable_set_zorder=reachable_set_zorder, reachable_set_ls=reachable_set_ls)
         self.plot_partitions(M, output_constraint, self.input_dims)
+
+        if plot_lims is not None:
+            import ast
+            plot_lims_arr = np.array(
+                ast.literal_eval(plot_lims)
+            )
+            plt.xlim(plot_lims_arr[0])
+            plt.ylim(plot_lims_arr[1])
 
         # Do auxiliary stuff to make sure animations look nice
         if title is not None:
