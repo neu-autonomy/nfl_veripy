@@ -103,6 +103,10 @@ python -m nn_closed_loop.example_backward \
 	--show_plot --boundaries polytope
 ```
 
+### Jupyter Notebooks
+
+Please see the `jupyter_notebooks` folder for an interactive version of the above examples.
+
 ### Replicate plots from the papers:
 
 * LCSS/ACC '21: [README](/docs/_static/lcss21/lcss21.md)
