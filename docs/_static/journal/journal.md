@@ -10,14 +10,15 @@ python -m nn_closed_loop.example_backward \
 	--state_feedback \
 	--show_plot \
 	--boundaries polytope \
-	--num_partitions "[10, 10]"
+	--num_partitions "[10, 10]" \
+	--plot_lims "[[1.75,3.25],[-0.3,1.25]]"
 ```
 
 You can change `--num_partitions` to get the various fidelities.
 
-2x2 | 4x4 | 8x8
------------- | ------------- | -------------
-![2x2](/docs/_static/journal/backreach/double_integrator_None_CROWN_polytope_8_partitions_2_2.png) | ![4x4](/docs/_static/journal/backreach/double_integrator_None_CROWN_polytope_8_partitions_4_4.png) | ![8x8](/docs/_static/journal/backreach/double_integrator_None_CROWN_polytope_8_partitions_8_8.png)
+2x2 | 4x4 | 8x8 | 16x16
+------------ | ------------- | ------------- | -------------
+![2x2](/docs/_static/journal/backreach/double_integrator_None_CROWN_polytope_8_partitions_2_2.png) | ![4x4](/docs/_static/journal/backreach/double_integrator_None_CROWN_polytope_8_partitions_4_4.png) | ![8x8](/docs/_static/journal/backreach/double_integrator_None_CROWN_polytope_8_partitions_8_8.png) | ![16x16](/docs/_static/journal/backreach/double_integrator_None_CROWN_polytope_8_partitions_16_16.png)
 
 
 ### 3D Quadrotor Plot
