@@ -20,13 +20,21 @@ class ClosedLoopAnalyzer(analyzers.Analyzer):
         self.initial_set_zorder = 2
         self.sample_zorder = 1
 
+    @property
+    def partitioner_dict(self):
+        return partitioners.partitioner_dict
+
+    @property
+    def propagator_dict(self):
+        return propagators.propagator_dict
+
     def instantiate_partitioner(self, partitioner, hyperparams):
-        return partitioners.partitioner_dict[partitioner](
+        return self.partitioner_dict[partitioner](
             **{**hyperparams, "dynamics": self.dynamics}
         )
 
     def instantiate_propagator(self, propagator, hyperparams):
-        return propagators.propagator_dict[propagator](
+        return self.propagator_dict[propagator](
             **{**hyperparams, "dynamics": self.dynamics}
         )
 
