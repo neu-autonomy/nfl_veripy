@@ -14,17 +14,46 @@ class ClosedLoopPropagator(propagators.Propagator):
 
     def get_reachable_set(self, input_constraint, output_constraint, t_max):
         output_constraints = []
-        output_constraint, _ = self.get_one_step_reachable_set(
+        infos = []
+        output_constraint, info = self.get_one_step_reachable_set(
             input_constraint, output_constraint
         )
         output_constraints.append(deepcopy(output_constraint))
+        infos.append(info)
         for i in np.arange(0 + self.dynamics.dt, t_max, self.dynamics.dt):
             next_input_constraint = deepcopy(output_constraint)
             next_output_constraint = deepcopy(output_constraint)
-            output_constraint, _ = self.get_one_step_reachable_set(
+            output_constraint, info = self.get_one_step_reachable_set(
                 next_input_constraint, next_output_constraint
             )
             output_constraints.append(deepcopy(output_constraint))
+            infos.append(info)
+
+        # Symbolically refine all N steps
+        tightened_output_constraints = []
+        N = len(output_constraints)
+        for t in range(2, N + 1):
+
+            # N-step analysis accepts as input:
+            # [1st output constraint, {2,...,t} tightened output constraints,
+            #  dummy output constraint]
+            output_constraints_better = deepcopy(output_constraints[:1])
+            output_constraints_better += deepcopy(tightened_output_constraints)
+            output_constraints_better += deepcopy(output_constraints[:1]) # just a dummy
+
+            output_constraint, _ = self.get_N_step_reachable_set(
+                input_constraint, output_constraints_better, infos[:t]
+            )
+            tightened_output_constraints.append(output_constraint)
+
+        # # Do N-step "symbolic" refinement
+        # output_constraint, infos = self.get_N_step_reachable_set(
+        #     input_constraint, output_constraints, infos
+        # )
+        # output_constraints.append(output_constraint)
+
+        # output_constraints = output_constraints + tightened_output_constraints
+        output_constraints = tightened_output_constraints
         return output_constraints, {}
 
     def get_one_step_backprojection_set(self, output_constraint, intput_constraint):

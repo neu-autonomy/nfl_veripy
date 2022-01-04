@@ -27,6 +27,107 @@ class ClosedLoopCROWNIBPCodebasePropagator(ClosedLoopPropagator):
             torch.Tensor(input_data), method_opt=None
         ).data.numpy()
 
+    def get_N_step_reachable_set(
+        self,
+        input_constraint,
+        output_constraints,
+        infos,
+    ):
+
+        # TODO: Get this to work for Polytopes too
+        # TODO: Confirm this works with partitioners
+        # TODO: pull the cvxpy out of this function
+        # TODO: add back in noise, c, observation
+
+        A_out = np.eye(self.dynamics.At.shape[0])
+        num_facets = A_out.shape[0]
+        ranges = np.zeros((num_facets, 2))
+        num_steps = len(output_constraints)
+
+        # Because there might sensor noise, the NN could see a different set of
+        # states than the system is actually in
+        x_min = output_constraints[-2].range[..., 0]
+        x_max = output_constraints[-2].range[..., 1]
+        norm = output_constraints[-2].p
+        prev_state_max = torch.Tensor([x_max])
+        prev_state_min = torch.Tensor([x_min])
+        nn_input_max = prev_state_max
+        nn_input_min = prev_state_min
+        if self.dynamics.sensor_noise is not None:
+            nn_input_max += torch.Tensor([self.dynamics.sensor_noise[:, 1]])
+            nn_input_min += torch.Tensor([self.dynamics.sensor_noise[:, 0]])
+
+        # Compute the NN output matrices (for the input constraints)
+        num_control_inputs = self.dynamics.bt.shape[1]
+        C = torch.eye(num_control_inputs).unsqueeze(0)
+        lower_A, upper_A, lower_sum_b, upper_sum_b = self.network(
+            method_opt=self.method_opt,
+            norm=norm,
+            x_U=nn_input_max,
+            x_L=nn_input_min,
+            upper=True,
+            lower=True,
+            C=C,
+            return_matrices=True,
+        )
+        infos[-1]['nn_matrices'] = {
+            'lower_A': lower_A.data.numpy()[0],
+            'upper_A': upper_A.data.numpy()[0],
+            'lower_sum_b': lower_sum_b.data.numpy()[0],
+            'upper_sum_b': upper_sum_b.data.numpy()[0],
+        }
+
+        import cvxpy as cp
+
+        for i in range(num_facets):
+
+            num_states = self.dynamics.bt.shape[0]
+            xs = [cp.Variable(num_states)]
+            for t in range(num_steps):
+                xs.append(cp.Variable(num_states))
+
+            constraints = []
+
+            # TODO: undo assumption that self.dynamics.bt >= 0 !!
+
+            # xt \in Xt
+            constraints += [
+                xs[0] <= input_constraint.range[..., 1],
+                xs[0] >= input_constraint.range[..., 0]
+            ]
+
+            for t in range(num_steps):
+                # xt1 connected to xt via dynamics
+                constraints += [
+                    xs[t+1] <= self.dynamics.At@xs[t]+self.dynamics.bt@(infos[t]['nn_matrices']['upper_A']@xs[t]+infos[t]['nn_matrices']['upper_sum_b']),
+                    xs[t+1] >= self.dynamics.At@xs[t]+self.dynamics.bt@(infos[t]['nn_matrices']['lower_A']@xs[t]+infos[t]['nn_matrices']['lower_sum_b']),
+                ]
+
+            for t in range(num_steps - 1):
+                # xt+1 \in our one-step overbound on Xt+1
+                constraints += [
+                    xs[t+1] <= output_constraints[t].range[..., 1],
+                    xs[t+1] >= output_constraints[t].range[..., 0]
+                ]
+
+            obj = cp.Maximize(A_out[i, :]@xs[-1])
+            prob = cp.Problem(obj, constraints)
+            prob.solve()
+            A_out_xtN_max = prob.value
+            
+            obj = cp.Minimize(A_out[i, :]@xs[-1])
+            prob = cp.Problem(obj, constraints)
+            prob.solve()
+            A_out_xtN_min = prob.value
+
+            ranges[i, 0] = A_out_xtN_min
+            ranges[i, 1] = A_out_xtN_max
+
+        from copy import deepcopy
+        output_constraint = deepcopy(output_constraints[-1])
+        output_constraint.range = ranges
+        return output_constraint, infos
+
     def get_one_step_reachable_set(self, input_constraint, output_constraint):
 
         if isinstance(input_constraint, constraints.PolytopeConstraint):
@@ -134,7 +235,16 @@ class ClosedLoopCROWNIBPCodebasePropagator(ClosedLoopPropagator):
             output_constraint.range = ranges
         else:
             raise NotImplementedError
-        return output_constraint, {}
+
+        # Auxiliary info
+        nn_matrices = {
+            'lower_A': lower_A.data.numpy()[0],
+            'upper_A': upper_A.data.numpy()[0],
+            'lower_sum_b': lower_sum_b.data.numpy()[0],
+            'upper_sum_b': upper_sum_b.data.numpy()[0],
+        }
+
+        return output_constraint, {'nn_matrices': nn_matrices}
 
     def get_one_step_backprojection_set(self, output_constraint, input_constraint, num_partitions=None):
         # Given an output_constraint, compute the input_constraint
