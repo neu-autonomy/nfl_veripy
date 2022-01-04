@@ -306,7 +306,7 @@ def setup_parser():
     parser.add_argument(
         "--propagator",
         default="IBP",
-        choices=["IBP", "CROWN", "FastLin", "SDP", "CROWNLP", "SeparableCROWN", "SeparableIBP", "SeparableSGIBP"],
+        choices=["IBP", "CROWN", "CROWNNStep", "FastLin", "SDP", "CROWNLP", "SeparableCROWN", "SeparableIBP", "SeparableSGIBP"],
         help="which propagator to use (default: IBP)",
     )
 
