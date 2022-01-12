@@ -15,9 +15,6 @@ def main(args):
     np.random.seed(seed=0)
     stats = {}
 
-    # Load NN control policy
-    controller = load_controller(name=args.system)
-
     # Dynamics
     if args.system == "double_integrator":
         inputs_to_highlight = [
@@ -124,6 +121,9 @@ def main(args):
     }
     if args.propagator == "SDP":
         propagator_hyperparams["cvxpy_solver"] = args.cvxpy_solver
+
+    # Load NN control policy
+    controller = load_controller(system=dyn.__class__.__name__)
 
     # Set up analyzer (+ parititoner + propagator)
     analyzer = analyzers.ClosedLoopAnalyzer(controller, dyn)
