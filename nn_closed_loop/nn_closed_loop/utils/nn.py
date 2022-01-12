@@ -49,15 +49,15 @@ def save_model(model, name="model", dir=dir_path+"/../../models/double_integrato
     print("Saved model to disk")
 
 
-def load_controller(name="double_integrator_mpc"):
-    path = "{}/../../models/{}".format(dir_path, name)
+def load_controller(system="DoubleIntegrator", model_name="default"):
+    system = system.replace('OutputFeedback', '')  # remove OutputFeedback suffix if applicable
+    path = "{}/../../models/{}/{}".format(dir_path, system, model_name)
     with open(path + "/model.json", "r") as f:
         loaded_model_json = f.read()
     model = model_from_json(loaded_model_json)
     model.load_weights(path + "/model.h5")
     torch_model = keras2torch(model, "torch_model")
     return torch_model
-
 
 def load_controller_unity(nx, nu):
     name = "unity"

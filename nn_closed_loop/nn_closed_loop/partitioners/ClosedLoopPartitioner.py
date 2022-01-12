@@ -76,7 +76,8 @@ class ClosedLoopPartitioner(partitioners.Partitioner):
             output_range_exact = self.get_sampled_out_range(
                 input_constraint, propagator, t_max, num_samples=1000
             )
-            for t in range(int(t_max / self.dynamics.dt)):
+            num_steps = len(output_constraint.range)
+            for t in range(num_steps):
                 true_area = np.product(
                     output_range_exact[t][..., 1]
                     - output_range_exact[t][..., 0]
@@ -98,8 +99,9 @@ class ClosedLoopPartitioner(partitioners.Partitioner):
             #     input_constraint, propagator, t_max, num_samples=1000,
             #     output_constraint=output_constraint
             # )
+            num_steps = len(output_constraint.b)
             from scipy.spatial import ConvexHull
-            for t in range(int(t_max / self.dynamics.dt)):
+            for t in range(num_steps):
                 # true_verts = pypoman.polygon.compute_polygon_hull(output_constraint.A, output_bs_exact[t])
                 true_hull = ConvexHull(true_verts[:, t+1, :])
                 true_area = true_hull.area
