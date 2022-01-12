@@ -377,6 +377,7 @@ class ClosedLoopCROWNNStepPropagator(ClosedLoopCROWNPropagator):
 
         # Symbolically refine all N steps
         tightened_output_constraints = []
+        tightened_infos = deepcopy(infos)
         N = len(output_constraints)
         for t in range(2, N + 1):
 
@@ -387,10 +388,11 @@ class ClosedLoopCROWNNStepPropagator(ClosedLoopCROWNPropagator):
             output_constraints_better += deepcopy(tightened_output_constraints)
             output_constraints_better += deepcopy(output_constraints[:1]) # just a dummy
 
-            output_constraint, _ = self.get_N_step_reachable_set(
-                input_constraint, output_constraints_better, infos[:t]
+            output_constraint, info = self.get_N_step_reachable_set(
+                input_constraint, output_constraints_better, infos['per_timestep'][:t]
             )
             tightened_output_constraints.append(output_constraint)
+            tightened_infos['per_timestep'][t-1] = info
 
         # # Do N-step "symbolic" refinement
         # output_constraint, infos = self.get_N_step_reachable_set(
@@ -400,7 +402,7 @@ class ClosedLoopCROWNNStepPropagator(ClosedLoopCROWNPropagator):
 
         output_constraints = output_constraints[:1] + tightened_output_constraints
 
-        return output_constraints, {}
+        return output_constraints, tightened_infos
 
     def get_N_step_reachable_set(
         self,
@@ -412,7 +414,7 @@ class ClosedLoopCROWNNStepPropagator(ClosedLoopCROWNPropagator):
         # TODO: Get this to work for Polytopes too
         # TODO: Confirm this works with partitioners
         # TODO: pull the cvxpy out of this function
-        # TODO: add back in noise, c, observation
+        # TODO: add back in noise, observation model
 
         A_out = np.eye(self.dynamics.At.shape[0])
         num_facets = A_out.shape[0]
@@ -454,46 +456,85 @@ class ClosedLoopCROWNNStepPropagator(ClosedLoopCROWNPropagator):
 
         import cvxpy as cp
 
-        for i in range(num_facets):
+        num_states = self.dynamics.bt.shape[0]
+        xs = []
+        for t in range(num_steps+1):
+            xs.append(cp.Variable(num_states))
 
-            num_states = self.dynamics.bt.shape[0]
-            xs = [cp.Variable(num_states)]
-            for t in range(num_steps):
-                xs.append(cp.Variable(num_states))
+        constraints = []
 
-            constraints = []
+        # xt \in Xt
+        constraints += [
+            xs[0] <= input_constraint.range[..., 1],
+            xs[0] >= input_constraint.range[..., 0]
+        ]
 
-            # TODO: undo assumption that self.dynamics.bt >= 0 !!
-
-            # xt \in Xt
+        # xt+1 \in our one-step overbound on Xt+1
+        for t in range(num_steps - 1):
             constraints += [
-                xs[0] <= input_constraint.range[..., 1],
-                xs[0] >= input_constraint.range[..., 0]
+                xs[t+1] <= output_constraints[t].range[..., 1],
+                xs[t+1] >= output_constraints[t].range[..., 0]
             ]
 
-            for t in range(num_steps):
-                # xt1 connected to xt via dynamics
-                constraints += [
-                    xs[t+1] <= self.dynamics.At@xs[t]+self.dynamics.bt@(infos[t]['nn_matrices']['upper_A']@xs[t]+infos[t]['nn_matrices']['upper_sum_b']),
-                    xs[t+1] >= self.dynamics.At@xs[t]+self.dynamics.bt@(infos[t]['nn_matrices']['lower_A']@xs[t]+infos[t]['nn_matrices']['lower_sum_b']),
-                ]
+        # xt1 connected to xt via dynamics
+        for t in range(num_steps):
 
-            for t in range(num_steps - 1):
-                # xt+1 \in our one-step overbound on Xt+1
-                constraints += [
-                    xs[t+1] <= output_constraints[t].range[..., 1],
-                    xs[t+1] >= output_constraints[t].range[..., 0]
-                ]
+            # Don't need to consider each state individually if we have Bt >= 0
 
-            obj = cp.Maximize(A_out[i, :]@xs[-1])
-            prob = cp.Problem(obj, constraints)
-            prob.solve()
-            A_out_xtN_max = prob.value
-            
-            obj = cp.Minimize(A_out[i, :]@xs[-1])
-            prob = cp.Problem(obj, constraints)
-            prob.solve()
-            A_out_xtN_min = prob.value
+            # upper_A = infos[t]['nn_matrices']['upper_A']
+            # lower_A = infos[t]['nn_matrices']['lower_A']
+            # upper_sum_b = infos[t]['nn_matrices']['upper_sum_b']
+            # lower_sum_b = infos[t]['nn_matrices']['lower_sum_b']
+
+            # if self.dynamics.continuous_time:
+            #     constraints += [
+            #         xs[t+1] <= xs[t] + self.dynamics.dt * (self.dynamics.At@xs[t]+self.dynamics.bt@(upper_A@xs[t]+upper_sum_b)+self.dynamics.ct),
+            #         xs[t+1] >= xs[t] + self.dynamics.dt * (self.dynamics.At@xs[t]+self.dynamics.bt@(lower_A@xs[t]+lower_sum_b)+self.dynamics.ct),
+            #     ]
+            # else:
+            #     constraints += [
+            #         xs[t+1] <= self.dynamics.At@xs[t]+self.dynamics.bt@(upper_A@xs[t]+upper_sum_b)+self.dynamics.ct,
+            #         xs[t+1] >= self.dynamics.At@xs[t]+self.dynamics.bt@(lower_A@xs[t]+lower_sum_b)+self.dynamics.ct,
+            #     ]
+
+            # Handle case of Bt ! >= 0 by adding a constraint per state
+            for j in range(num_states):
+
+                upper_A = np.where(self.dynamics.bt.T >= 0, infos[t]['nn_matrices']['upper_A'], infos[t]['nn_matrices']['lower_A'])
+                lower_A = np.where(self.dynamics.bt.T < 0, infos[t]['nn_matrices']['upper_A'], infos[t]['nn_matrices']['lower_A'])
+                upper_sum_b = np.where(self.dynamics.bt[j, :] >= 0, infos[t]['nn_matrices']['upper_sum_b'], infos[t]['nn_matrices']['lower_sum_b'])
+                lower_sum_b = np.where(self.dynamics.bt[j, :] < 0, infos[t]['nn_matrices']['upper_sum_b'], infos[t]['nn_matrices']['lower_sum_b'])
+
+                if self.dynamics.continuous_time:
+                    constraints += [
+                        xs[t+1][j] <= xs[t][j] + self.dynamics.dt * (self.dynamics.At[j, :]@xs[t]+self.dynamics.bt[j, :]@(upper_A@xs[t]+upper_sum_b)+self.dynamics.ct[j]),
+                        xs[t+1][j] >= xs[t][j] + self.dynamics.dt * (self.dynamics.At[j, :]@xs[t]+self.dynamics.bt[j, :]@(lower_A@xs[t]+lower_sum_b)+self.dynamics.ct[j]),
+                    ]
+                else:
+                    constraints += [
+                        xs[t+1][j] <= self.dynamics.At[j, :]@xs[t]+self.dynamics.bt[j, :]@(upper_A@xs[t]+upper_sum_b)+self.dynamics.ct[j],
+                        xs[t+1][j] >= self.dynamics.At[j, :]@xs[t]+self.dynamics.bt[j, :]@(lower_A@xs[t]+lower_sum_b)+self.dynamics.ct[j],
+                    ]
+
+        A_out_facet = cp.Parameter(num_states)
+
+        obj = cp.Maximize(A_out_facet@xs[-1])
+        prob_max = cp.Problem(obj, constraints)
+
+        obj = cp.Minimize(A_out_facet@xs[-1])
+        prob_min = cp.Problem(obj, constraints)
+
+        for i in range(num_facets):
+
+            A_out_facet.value = A_out[i, :]
+
+            prob_max.solve()
+            # prob_max.solve(solver=cp.SCS)
+            A_out_xtN_max = prob_max.value
+
+            prob_min.solve()
+            # prob_min.solve(solver=cp.SCS)
+            A_out_xtN_min = prob_min.value
 
             ranges[i, 0] = A_out_xtN_min
             ranges[i, 1] = A_out_xtN_max
