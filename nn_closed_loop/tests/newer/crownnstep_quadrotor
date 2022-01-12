@@ -1,7 +1,7 @@
 python -m nn_closed_loop.example \
 	--partitioner None \
 	--propagator CROWNNStep \
-	--system double_integrator \
+	--system quadrotor \
 	--state_feedback \
-	--t_max 1.2 \
+	--t_max 0.5 \
 	--save_plot --skip_show_plot

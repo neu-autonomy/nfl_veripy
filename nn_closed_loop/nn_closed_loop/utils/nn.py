@@ -50,6 +50,7 @@ def save_model(model, name="model", dir=dir_path+"/../../models/double_integrato
 
 
 def load_controller(system="DoubleIntegrator", model_name="default"):
+    system = system.replace('OutputFeedback', '')  # remove OutputFeedback suffix if applicable
     path = "{}/../../models/{}/{}".format(dir_path, system, model_name)
     with open(path + "/model.json", "r") as f:
         loaded_model_json = f.read()

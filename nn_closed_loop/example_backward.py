@@ -12,9 +12,6 @@ def main(args):
     np.random.seed(seed=0)
     stats = {}
 
-    # Load NN control policy
-    controller = load_controller(name=args.system)
-
     # Dynamics
     if args.system == "double_integrator":
         if args.state_feedback:
@@ -56,6 +53,12 @@ def main(args):
         "type": args.propagator,
         "input_shape": final_state_range.shape[:-1],
     }
+
+    # Load NN control policy
+    controller = load_controller(
+        system=dyn.__class__.__name__,
+        model_name=args.controller,
+    )
 
     # Set up analyzer (+ partitioner + propagator)
     analyzer = analyzers.ClosedLoopBackwardAnalyzer(controller, dyn)
@@ -195,6 +198,11 @@ def setup_parser():
         default="double_integrator",
         choices=["double_integrator", "quadrotor"],
         help="which system to analyze (default: double_integrator_mpc)",
+    )
+    parser.add_argument(
+        "--controller",
+        default="default",
+        help="which NN controller to load (e.g., sine_wave_controller for ground_robot) (default: default)",
     )
     parser.add_argument(
         "--final_state_range",
