@@ -38,17 +38,20 @@ end
 
 using OVERT
 using OVERT: add_overapproximate
-using Base.Math: clamp
 
 function double_integrator_dynamics(x::Array{T, 1} where {T <: Real},
                               u::Array{T, 1} where {T <: Real})
-    dx1 = x[2] + 0.5*clamp(u[1], -1, 1)
-    dx2 = clamp(u[1], -1, 1)
+    dx1 = x[2] + 0.5*u[1]
+    dx2 = u[1]
+    # dx1 = x[2] + 0.5*clamp(u[1], -1, 1)
+    # dx2 = clamp(u[1], -1, 1)
     return [dx1, dx2]
 end
 
-tmp_tbd = :(x2 + 0.5*clamp(u1, -1, 1))
-tmp_tbd2 = :(clamp(u1, -1, 1))
+tmp_tbd = :(x2 + 0.5*u1)
+tmp_tbd2 = :(u1)
+# tmp_tbd = :(x2 + 0.5*clamp(u1, -1, 1))
+# tmp_tbd2 = :(clamp(u1, -1, 1))
 
 function double_integrator_dynamics_overt(range_dict::Dict{Symbol, Array{T, 1}} where {T <: Real},
                                     N_OVERT::Int,
@@ -57,9 +60,11 @@ function double_integrator_dynamics_overt(range_dict::Dict{Symbol, Array{T, 1}} 
         v1 = tmp_tbd
         v2 = tmp_tbd2
     else
-        v1 = "x2_$t_idx + 0.5*clamp(u1_$t_idx, -1, 1)"
+        v1 = "x2_$t_idx + 0.5*u1_$t_idx"
+        v2 = "u1_$t_idx"
+        # v1 = "x2_$t_idx + 0.5*clamp(u1_$t_idx, -1, 1)"
+        # v2 = "clamp(u1_$t_idx, -1, 1)"
         v1 = Meta.parse(v1)
-        v2 = "clamp(u1_$t_idx, -1, 1)"
         v2 = Meta.parse(v2)
     end
     v1_oA = overapprox(v1, range_dict; N=N_OVERT)
@@ -97,7 +102,9 @@ DoubleIntegrator = OvertProblem(
 
 # input_set = Dict("low" => [0.5, 0.6], "high" => [0.7, 0.8])
 # num_timesteps = 2
-# controller = "/home/mfe/code/OVERTVerify.jl/nnet_files/jmlr/single_pendulum_small_controller.nnet"
+# controller = "/home/mfe/code/nn_robustness_analysis/nn_closed_loop/models/nnet/tmp_model.nnet"
+# # controller = "/home/mfe/code/OVERTVerify.jl/nnet_files/jmlr/single_pendulum_small_controller.nnet"
+# # controller = "/home/mfe/code/OVERTVerify.jl/nnet_files/jmlr/acc_controller.nnet"
 # concrete_sets = setup_overt(input_set, num_timesteps, controller)
 # print(concrete_sets)
 
@@ -114,9 +121,9 @@ function overtabc(req::HTTP.Request)
     catch err
         return error_responder(req, "I was expecting a json request body!")
     end
-    has_all_required_keys(["input_set", "num_timesteps"], j) || return error_responder(req, "You need to specify other values!")
+    has_all_required_keys(["input_set", "num_timesteps", "controller"], j) || return error_responder(req, "You need to specify other values!")
 
-    ranges = setup_overt(j["input_set"], j["num_timesteps"])
+    ranges = setup_overt(j["input_set"], j["num_timesteps"], j["controller"])
 
     json_responder(req, ranges)
 end

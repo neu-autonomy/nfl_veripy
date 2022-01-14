@@ -65,9 +65,9 @@ class ClosedLoopOVERTPropagator(ClosedLoopPropagator):
                         assert 0
                 elif isinstance(m, torch.nn.Linear):
                     w = m.weight.data.numpy()
-                    np.savetxt(f, w, fmt="%s")
+                    np.savetxt(f, w, fmt="%s",delimiter=', ')
                     b = m.bias.data.numpy()
-                    np.savetxt(f, b, fmt="%s")
+                    np.savetxt(f, b, fmt="%s",delimiter=', ')
                 else:
                     print("That layer isn't supported.")
                     assert 0
