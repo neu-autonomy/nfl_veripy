@@ -94,6 +94,8 @@ class ClosedLoopOVERTPropagator(ClosedLoopPropagator):
                 },
                 'num_timesteps': num_timesteps,
                 'controller': self.model_filename,
+                'dt': self.dynamics.dt,
+                'system': self.dynamics.__class__.__name__,
             }
             response = requests.post(self.url, data = json.dumps(data))
             ranges_list = json.loads(response.text)["result"]
