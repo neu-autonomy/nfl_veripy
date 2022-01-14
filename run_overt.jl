@@ -192,11 +192,13 @@ systems_map = Dict(
 ##################################
 
 # input_set = Dict("low" => [0.5, 0.6], "high" => [0.7, 0.8])
-# num_timesteps = 2
-# controller = "/home/mfe/code/nn_robustness_analysis/nn_closed_loop/models/nnet/tmp_model.nnet"
-# # controller = "/home/mfe/code/OVERTVerify.jl/nnet_files/jmlr/single_pendulum_small_controller.nnet"
+# system = "DoubleIntegrator"
+# dt = 1.0
+# num_timesteps = 5
+# # controller = "/home/mfe/code/nn_robustness_analysis/nn_closed_loop/models/nnet/tmp_model.nnet"
+# controller = "/home/mfe/code/OVERTVerify.jl/nnet_files/jmlr/single_pendulum_small_controller.nnet"
 # # controller = "/home/mfe/code/OVERTVerify.jl/nnet_files/jmlr/acc_controller.nnet"
-# concrete_sets = setup_overt(input_set, num_timesteps, controller)
+# concrete_sets = setup_overt(input_set, system, num_timesteps, controller, dt)
 # print(concrete_sets)
 
 ##################################
