@@ -33,6 +33,16 @@ class Experiment:
                 'color': 'tab:green',
                 'ls': '--',
             },
+            ('CROWNNStep', 'None'): {
+                'name': 'Reach-LP-N-Step',
+                'color': 'black',
+                'ls': '--',
+            },
+            ('CROWNNStep', 'Uniform'): {
+                'name': 'Reach-LP-N-Step-Partition',
+                'color': 'black',
+                'ls': '-',
+            },
             ('SDP', 'Uniform'): {
                 'name': 'Reach-SDP-Partition',
                 'color': 'tab:red',
@@ -126,42 +136,61 @@ class CompareRuntimeVsErrorTable(Experiment):
         args.show_plot = False
         args.make_animation = False
         args.show_animation = False
-        args.init_state_range = "[[2.5, 3.0], [-0.25, 0.25]]"
         args.state_feedback = True
         args.boundaries = "lp"
-        args.system = "double_integrator"
-        args.t_max = 5
         args.estimate_runtime = True
 
+        args.system = "double_integrator"
+        args.init_state_range = "[[2.5, 3.0], [-0.25, 0.25]]"
+        args.t_max = 5
+
+        # args.system = "quadrotor"
+        # args.init_state_range = "[[4.65, 4.75], [4.65, 4.75], [2.95, 3.05], [0.94, 0.96], [-0.01, 0.01], [-0.01, 0.01]]"
+        # args.t_max = 2.0
+
         expts = [
-            {
-                'partitioner': 'None',
-                'propagator': 'SeparableCROWN',
-            },
-            {
-                'partitioner': 'None',
-                'propagator': 'SeparableSGIBP',
-            },
+            # {
+            #     'partitioner': 'None',
+            #     'propagator': 'SeparableCROWN',
+            # },
+            # {
+            #     'partitioner': 'None',
+            #     'propagator': 'SeparableSGIBP',
+            # },
             {
                 'partitioner': 'None',
                 'propagator': 'CROWN',
             },
             {
-                'partitioner': 'Uniform',
-                'num_partitions': "[4, 4]",
-                'propagator': 'CROWN',
-            },
-            {
                 'partitioner': 'None',
-                'propagator': 'SDP',
-                'cvxpy_solver': 'MOSEK',
+                'propagator': 'CROWNNStep',
             },
-            {
-                'partitioner': 'Uniform',
-                'num_partitions': "[4, 4]",
-                'propagator': 'SDP',
-                'cvxpy_solver': 'MOSEK',
-            },
+            # {
+            #     'partitioner': 'Uniform',
+            #     'num_partitions': "[4, 4]",
+            #     'propagator': 'CROWNNStep',
+            # },
+            # {
+            #     'partitioner': 'Uniform',
+            #     'num_partitions': "[4, 4]",
+            #     'propagator': 'CROWN',
+            # },
+            # {
+            #     'partitioner': 'Uniform',
+            #     'num_partitions': "[4, 4]",
+            #     'propagator': 'CROWN',
+            # },
+            # {
+            #     'partitioner': 'None',
+            #     'propagator': 'SDP',
+            #     'cvxpy_solver': 'MOSEK',
+            # },
+            # {
+            #     'partitioner': 'Uniform',
+            #     'num_partitions': "[4, 4]",
+            #     'propagator': 'SDP',
+            #     'cvxpy_solver': 'MOSEK',
+            # },
         ]
 
         df = pd.DataFrame()
@@ -203,7 +232,7 @@ class CompareRuntimeVsErrorTable(Experiment):
 
         tuples = []
         tuples += [('SeparableCROWN', 'None'), ('SeparableSGIBP', 'None')]
-        tuples += [(prop, part) for part in ['None', 'Uniform'] for prop in ['SDP', 'CROWN']]
+        tuples += [(prop, part) for part in ['None', 'Uniform'] for prop in ['SDP', 'CROWN', 'CROWNNStep']]
 
         # Go through each combination of prop/part we want in the table
         for prop_part_tuple in tuples:
@@ -239,7 +268,7 @@ class CompareRuntimeVsErrorTable(Experiment):
         fig, ax = plt.subplots(1, 1)
 
         # Go through each combination of prop/part we want in the table
-        for propagator in ['SDP', 'CROWN']:
+        for propagator in ['SDP', 'CROWN', 'CROWNNStep']:
             for partitioner in ['None', 'Uniform']:
                 prop_part_tuple = (propagator, partitioner)
                 try:
@@ -279,7 +308,7 @@ class CompareRuntimeVsErrorTable(Experiment):
         grouped, filename = self.grab_latest_groups()
 
         dyn = dynamics.DoubleIntegrator()
-        controller = load_controller(name="double_integrator")
+        controller = load_controller(system=dyn.__class__.__name__)
 
         init_state_range = np.array(
             [  # (num_inputs, 2)
@@ -327,7 +356,7 @@ class CompareRuntimeVsErrorTable(Experiment):
         analyzer.partitioner.linewidth = 1
 
         # Go through each combination of prop/part we want in the table
-        for propagator in ['SDP', 'CROWN']:
+        for propagator in ['SDP', 'CROWN', 'CROWNNStep']:
             for partitioner in ['None', 'Uniform']:
                 prop_part_tuple = (propagator, partitioner)
                 try:
@@ -382,6 +411,87 @@ class CompareRuntimeVsErrorTable(Experiment):
         plt.savefig(fig_filename)
 
         # plt.show()
+
+    def plot_reachable_sets_3d(self):
+
+        grouped, filename = self.grab_latest_groups()
+
+        dyn = dynamics.Quadrotor()
+        controller = load_controller(system=dyn.__class__.__name__)
+
+        init_state_range = np.array(
+            [  # (num_inputs, 2)
+                [4.65, 4.65, 2.95, 0.94, -0.01, -0.01],
+                [4.75, 4.75, 3.05, 0.96, 0.01, 0.01],
+            ]
+        ).T
+
+        partitioner_hyperparams = {
+            "type": "None",
+        }
+        propagator_hyperparams = {
+            "type": "CROWN",
+            "input_shape": init_state_range.shape[:-1],
+        }
+
+        # Set up analyzer (+ parititoner + propagator)
+        analyzer = analyzers.ClosedLoopAnalyzer(controller, dyn)
+        analyzer.partitioner = partitioner_hyperparams
+        analyzer.propagator = propagator_hyperparams
+
+        input_constraint = constraints.LpConstraint(
+            range=init_state_range, p=np.inf
+        )
+
+        inputs_to_highlight = [
+            {"dim": [0], "name": "$\mathbf{x}_0$"},
+            {"dim": [1], "name": "$\mathbf{x}_1$"},
+            {"dim": [2], "name": "$\mathbf{x}_2$"},
+        ]
+
+        t_max = 20
+
+        analyzer.partitioner.setup_visualization(
+            input_constraint,
+            t_max,
+            analyzer.propagator,
+            show_samples=True,
+            inputs_to_highlight=inputs_to_highlight,
+            aspect="auto",
+            initial_set_color=analyzer.initial_set_color,
+            initial_set_zorder=analyzer.initial_set_zorder,
+            sample_zorder=analyzer.sample_zorder
+        )
+
+        analyzer.partitioner.linewidth = 1
+
+        # Go through each combination of prop/part we want in the table
+        for propagator in ['SDP', 'CROWN', 'CROWNNStep']:
+            for partitioner in ['None', 'Uniform']:
+                prop_part_tuple = (propagator, partitioner)
+                try:
+                    group = grouped.get_group(prop_part_tuple)
+                except KeyError:
+                    continue
+
+                output_constraint = group['output_constraint'].iloc[0]
+
+                analyzer.partitioner.visualize(
+                    [],
+                    [],
+                    output_constraint,
+                    None,
+                    reachable_set_color=self.info[prop_part_tuple]['color'],
+                    reachable_set_ls=self.info[prop_part_tuple]['ls'],
+                    reachable_set_zorder=analyzer.reachable_set_zorder
+                )
+
+                analyzer.partitioner.default_patches = analyzer.partitioner.animate_axes.patches.copy()
+                analyzer.partitioner.default_lines = analyzer.partitioner.animate_axes.lines.copy()
+
+        # Save plot with similar name to pkl file that contains data
+        fig_filename = filename.replace('table', 'reachable').replace('pkl', 'png')
+        plt.savefig(fig_filename)
 
 
 class CompareLPvsCF(Experiment):
@@ -534,10 +644,11 @@ if __name__ == '__main__':
 
     # Like Fig 3 in ICRA21 paper
     c = CompareRuntimeVsErrorTable()
-    c.run()
+    # c.run()
     c.plot()  # 3A: table
-    c.plot_reachable_sets()  # 3B: overlay reachable sets
-    c.plot_error_vs_timestep()  # 3C: error vs timestep
+    # c.plot_reachable_sets_3d()  # 3B: overlay reachable sets
+    # c.plot_reachable_sets()  # 3B: overlay reachable sets
+    # c.plot_error_vs_timestep()  # 3C: error vs timestep
 
     # c = CompareLPvsCF(system="double_integrator")
     # c.run()
