@@ -394,13 +394,14 @@ class ClosedLoopCROWNNStepPropagator(ClosedLoopCROWNPropagator):
             tightened_output_constraints.append(output_constraint)
             tightened_infos['per_timestep'][t-1] = info
 
-        # # Do N-step "symbolic" refinement
-        # output_constraint, infos = self.get_N_step_reachable_set(
-        #     input_constraint, output_constraints, infos
-        # )
-        # output_constraints.append(output_constraint)
-
         output_constraints = output_constraints[:1] + tightened_output_constraints
+
+        # Do N-step "symbolic" refinement
+        # output_constraint, new_infos = self.get_N_step_reachable_set(
+        #     input_constraint, output_constraints, infos['per_timestep']
+        # )
+        # output_constraints[-1] = output_constraint
+        # tightened_infos = infos  # TODO: fix this...
 
         return output_constraints, tightened_infos
 
@@ -500,10 +501,10 @@ class ClosedLoopCROWNNStepPropagator(ClosedLoopCROWNPropagator):
             # Handle case of Bt ! >= 0 by adding a constraint per state
             for j in range(num_states):
 
-                upper_A = np.where(self.dynamics.bt.T >= 0, infos[t]['nn_matrices']['upper_A'], infos[t]['nn_matrices']['lower_A'])
-                lower_A = np.where(self.dynamics.bt.T < 0, infos[t]['nn_matrices']['upper_A'], infos[t]['nn_matrices']['lower_A'])
+                upper_A = np.where(np.tile(self.dynamics.bt[j, :], (num_states, 1)).T >= 0, infos[t]['nn_matrices']['upper_A'], infos[t]['nn_matrices']['lower_A'])
+                lower_A = np.where(np.tile(self.dynamics.bt[j, :], (num_states, 1)).T >= 0, infos[t]['nn_matrices']['lower_A'], infos[t]['nn_matrices']['upper_A'])
                 upper_sum_b = np.where(self.dynamics.bt[j, :] >= 0, infos[t]['nn_matrices']['upper_sum_b'], infos[t]['nn_matrices']['lower_sum_b'])
-                lower_sum_b = np.where(self.dynamics.bt[j, :] < 0, infos[t]['nn_matrices']['upper_sum_b'], infos[t]['nn_matrices']['lower_sum_b'])
+                lower_sum_b = np.where(self.dynamics.bt[j, :] >= 0, infos[t]['nn_matrices']['lower_sum_b'], infos[t]['nn_matrices']['upper_sum_b'])
 
                 if self.dynamics.continuous_time:
                     constraints += [
@@ -529,11 +530,9 @@ class ClosedLoopCROWNNStepPropagator(ClosedLoopCROWNPropagator):
             A_out_facet.value = A_out[i, :]
 
             prob_max.solve()
-            # prob_max.solve(solver=cp.SCS)
             A_out_xtN_max = prob_max.value
 
             prob_min.solve()
-            # prob_min.solve(solver=cp.SCS)
             A_out_xtN_min = prob_min.value
 
             ranges[i, 0] = A_out_xtN_min
