@@ -15,9 +15,6 @@ def main(args):
     np.random.seed(seed=0)
     stats = {}
 
-    # Load NN control policy
-    controller = load_controller(name=args.system)
-
     # Dynamics
     if args.system == "double_integrator":
         inputs_to_highlight = [
@@ -28,6 +25,28 @@ def main(args):
             dyn = dynamics.DoubleIntegrator()
         else:
             dyn = dynamics.DoubleIntegratorOutputFeedback()
+        if args.init_state_range is None:
+            init_state_range = np.array(
+                [  # (num_inputs, 2)
+                    [2.5, 3.0],  # x0min, x0max
+                    [-0.25, 0.25],  # x1min, x1max
+                ]
+            )
+        else:
+            import ast
+
+            init_state_range = np.array(
+                ast.literal_eval(args.init_state_range)
+            )
+    elif args.system == "ground_robot":
+        inputs_to_highlight = [
+            {"dim": [0], "name": "$x_0$"},
+            {"dim": [1], "name": "$x_1$"},
+        ]
+        if args.state_feedback:
+            dyn = dynamics.GroundRobotSI()
+        else:
+            raise NotImplementedError
         if args.init_state_range is None:
             init_state_range = np.array(
                 [  # (num_inputs, 2)
@@ -124,6 +143,12 @@ def main(args):
     }
     if args.propagator == "SDP":
         propagator_hyperparams["cvxpy_solver"] = args.cvxpy_solver
+
+    # Load NN control policy
+    controller = load_controller(
+        system=dyn.__class__.__name__,
+        model_name=args.controller,
+    )
 
     # Set up analyzer (+ parititoner + propagator)
     analyzer = analyzers.ClosedLoopAnalyzer(controller, dyn)
@@ -271,8 +296,13 @@ def setup_parser():
     parser.add_argument(
         "--system",
         default="double_integrator",
-        choices=["double_integrator", "quadrotor", "duffing", "iss"],
+        choices=["double_integrator", "quadrotor", "duffing", "iss", "ground_robot"],
         help="which system to analyze (default: double_integrator)",
+    )
+    parser.add_argument(
+        "--controller",
+        default="default",
+        help="which NN controller to load (e.g., sine_wave_controller for ground_robot) (default: default)",
     )
     parser.add_argument(
         "--init_state_range",
