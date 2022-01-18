@@ -1,4 +1,8 @@
 import numpy as np
+import platform
+if platform.system() == "Darwin":
+    import matplotlib
+    matplotlib.use('MACOSX')
 import matplotlib.pyplot as plt
 from matplotlib import cm
 
