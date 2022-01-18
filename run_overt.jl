@@ -181,9 +181,130 @@ Quadrotor = OvertProblem(
     quadrotor_control_vars
 )
 
+##################################
+# unicycle dynamics
+##################################
+
+function unicycle_dynamics(x::Array{T, 1} where {T <: Real},
+                              u::Array{T, 1} where {T <: Real})
+    dx1 = u[1]*cos(x[3])
+    dx2 = u[1]*sin(x[3])
+    dx3 = u[2]
+    return [dx1, dx2, dx3]
+end
+
+tmp1_unicycle = :(u1*cos(x3))
+tmp2_unicycle = :(u1*sin(x3))
+tmp3_unicycle = :(u2)
+
+function unicycle_dynamics_overt(range_dict::Dict{Symbol, Array{T, 1}} where {T <: Real},
+                                    N_OVERT::Int,
+                                    t_idx::Union{Int, Nothing}=nothing)
+    if isnothing(t_idx)
+        v1 = tmp1_unicycle
+        v2 = tmp2_unicycle
+        v3 = tmp3_unicycle
+    else
+        v1 = "u1_$t_idx*cos(x3_$t_idx)"
+        v2 = "u1_$t_idx*sin(x3_$t_idx)"
+        v3 = "u2_$t_idx"
+
+        v1 = Meta.parse(v1)
+        v2 = Meta.parse(v2)
+        v3 = Meta.parse(v3)
+    end
+    v1_oA = overapprox(v1, range_dict; N=N_OVERT)
+    v2_oA = overapprox(v2, range_dict; N=N_OVERT)
+    v3_oA = overapprox(v3, range_dict; N=N_OVERT)
+    oA_out = add_overapproximate([v1_oA, v2_oA, v3_oA])
+
+    return oA_out, [v1_oA.output, v2_oA.output, v3_oA.output]
+end
+
+function unicycle_update_rule(input_vars::Array{Symbol, 1},
+                                 control_vars::Array{Symbol, 1},
+                                 overt_output_vars::Array{Symbol, 1})
+    integration_map = Dict(
+        input_vars[1] => overt_output_vars[1],
+        input_vars[2] => overt_output_vars[2],
+        input_vars[3] => overt_output_vars[3]
+    )
+    return integration_map
+end
+
+unicycle_input_vars = [:x1, :x2, :x3]
+unicycle_control_vars = [:u1, :u2]
+
+Unicycle = OvertProblem(
+    unicycle_dynamics,
+    unicycle_dynamics_overt,
+    unicycle_update_rule,
+    unicycle_input_vars,
+    unicycle_control_vars
+)
+
+
+##################################
+# linearized unicycle dynamics
+##################################
+
+function linearized_unicycle_dynamics(x::Array{T, 1} where {T <: Real},
+    u::Array{T, 1} where {T <: Real})
+dx1 = u[1]
+dx2 = u[2]
+return [dx1, dx2]
+end
+
+tmp1_linearized_unicycle = :(u1)
+tmp2_linearized_unicycle = :(u2)
+
+function linearized_unicycle_dynamics_overt(range_dict::Dict{Symbol, Array{T, 1}} where {T <: Real},
+          N_OVERT::Int,
+          t_idx::Union{Int, Nothing}=nothing)
+    if isnothing(t_idx)
+        v1 = tmp1_linearized_unicycle
+        v2 = tmp2_linearized_unicycle
+    else
+        v1 = "u1_$t_idx"
+        v2 = "u2_$t_idx"
+
+
+    v1 = Meta.parse(v1)
+    v2 = Meta.parse(v2)
+    end
+    v1_oA = overapprox(v1, range_dict; N=N_OVERT)
+    v2_oA = overapprox(v2, range_dict; N=N_OVERT)
+    oA_out = add_overapproximate([v1_oA, v2_oA])
+
+    return oA_out, [v1_oA.output, v2_oA.output]
+end
+
+function linearized_unicycle_update_rule(input_vars::Array{Symbol, 1},
+       control_vars::Array{Symbol, 1},
+       overt_output_vars::Array{Symbol, 1})
+    integration_map = Dict(
+    input_vars[1] => overt_output_vars[1],
+    input_vars[2] => overt_output_vars[2]
+    )
+    return integration_map
+end
+
+linearized_unicycle_input_vars = [:x1, :x2]
+linearized_unicycle_control_vars = [:u1, :u2]
+
+LinearizedUnicycle = OvertProblem(
+linearized_unicycle_dynamics,
+linearized_unicycle_dynamics_overt,
+linearized_unicycle_update_rule,
+linearized_unicycle_input_vars,
+linearized_unicycle_control_vars
+)
+
 systems_map = Dict(
     "DoubleIntegrator" => DoubleIntegrator,
     "Quadrotor" => Quadrotor,
+    "Unicycle" => Unicycle,
+    "GroundRobotSI" => LinearizedUnicycle
 )
 
 
