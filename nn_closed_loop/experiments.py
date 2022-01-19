@@ -444,9 +444,9 @@ class CompareRuntimeVsErrorTable(Experiment):
         )
 
         inputs_to_highlight = [
-            {"dim": [0], "name": "$\mathbf{x}_0$"},
-            {"dim": [1], "name": "$\mathbf{x}_1$"},
-            {"dim": [2], "name": "$\mathbf{x}_2$"},
+            {"dim": [0], "name": "$x$"},
+            {"dim": [1], "name": "$y$"},
+            {"dim": [2], "name": "$z$"},
         ]
 
         t_max = 20
@@ -646,9 +646,9 @@ if __name__ == '__main__':
     c = CompareRuntimeVsErrorTable()
     # c.run()
     c.plot()  # 3A: table
-    # c.plot_reachable_sets_3d()  # 3B: overlay reachable sets
+    c.plot_reachable_sets_3d()  # 3B: overlay reachable sets
     # c.plot_reachable_sets()  # 3B: overlay reachable sets
-    # c.plot_error_vs_timestep()  # 3C: error vs timestep
+    c.plot_error_vs_timestep()  # 3C: error vs timestep
 
     # c = CompareLPvsCF(system="double_integrator")
     # c.run()
