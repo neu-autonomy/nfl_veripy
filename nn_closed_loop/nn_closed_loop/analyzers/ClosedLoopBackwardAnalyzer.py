@@ -3,6 +3,7 @@ import nn_closed_loop.partitioners as partitioners
 import nn_closed_loop.propagators as propagators
 from nn_partition.utils.utils import samples_to_range, get_sampled_outputs
 import matplotlib.pyplot as plt
+import numpy as np
 
 # plt.rcParams['mathtext.fontset'] = 'stix'
 # plt.rcParams['font.family'] = 'STIXGeneral'
@@ -59,7 +60,8 @@ class ClosedLoopBackwardAnalyzer(analyzers.Analyzer):
             input_constraint,
             output_constraint.get_t_max(),
             self.propagator,
-            show_samples=show_samples,
+            show_samples=False,
+            # show_samples=show_samples,
             inputs_to_highlight=[
                 {"dim": [0], "name": "$x$"},
                 {"dim": [1], "name": "$\dot{x}$"},
@@ -78,6 +80,106 @@ class ClosedLoopBackwardAnalyzer(analyzers.Analyzer):
             reachable_set_zorder=self.reachable_set_zorder,
             plot_lims=plot_lims,
         )
+
+        # Show the backreachable set (tightest rectangular outer-bounds via our LP)
+        backreachable_set = kwargs['backreachable_set']
+        backreachable_set_color = 'cyan'
+        backreachable_set_zorder = 1
+        backreachable_set_ls = '-.'
+        self.partitioner.plot_reachable_sets(
+            backreachable_set,
+            self.partitioner.input_dims,
+            reachable_set_color=backreachable_set_color,
+            reachable_set_zorder=backreachable_set_zorder,
+            reachable_set_ls=backreachable_set_ls
+        )
+
+        # Show the backprojection set (in reality, is an under-approx because we're sampling, but should be close)
+        xt_samples_from_backreachable_set, xt1_from_those_samples = self.partitioner.dynamics.get_state_and_next_state_samples(
+            backreachable_set,
+            num_samples=1e5,
+            controller=self.propagator.network,
+        )
+        within_constraint_inds = np.where(
+            np.all(
+                (
+                    np.dot(output_constraint.A, xt1_from_those_samples.T)
+                    - np.expand_dims(output_constraint.b[0], axis=-1)
+                )
+                <= 0,
+                axis=0,
+            )
+        )
+        xt_samples_inside_backprojection_set = xt_samples_from_backreachable_set[(within_constraint_inds)]
+        xt1_from_those_samples_ = xt1_from_those_samples[(within_constraint_inds)]
+        self.partitioner.dynamics.show_samples(
+            None,
+            None,
+            ax=self.partitioner.animate_axes,
+            controller=None,
+            input_dims=self.partitioner.input_dims,
+            zorder=1,
+            xs=np.dstack([xt_samples_inside_backprojection_set, xt1_from_those_samples_]).transpose(0, 2, 1),
+            colors=None
+        )
+        self.partitioner.dynamics.show_samples(
+            None,
+            None,
+            ax=self.partitioner.animate_axes,
+            controller=None,
+            input_dims=self.partitioner.input_dims,
+            zorder=0,
+            xs=np.dstack([xt_samples_from_backreachable_set, xt1_from_those_samples]).transpose(0, 2, 1),
+            colors=['g', 'r']
+        )
+
+        from scipy.spatial import ConvexHull
+
+        def plot_convex_hull(samples, dims, color, linewidth, linestyle, zorder, label, axes):
+            from scipy.spatial import ConvexHull
+            hull = ConvexHull(
+                samples[..., dims].squeeze()
+            )
+            line = self.ax_output.plot(
+                np.append(
+                    samples[hull.vertices][
+                        ..., dims[0]
+                    ],
+                    samples[hull.vertices[0]][
+                        ..., dims[0]
+                    ],
+                ),
+                np.append(
+                    samples[hull.vertices][
+                        ..., dims[1]
+                    ],
+                    samples[hull.vertices[0]][
+                        ..., dims[1]
+                    ],
+                ),
+                color=color,
+                linewidth=linewidth,
+                linestyle=linestyle,
+                zorder=zorder,
+                label="True Bounds ({})".format(
+                    label_dict[self.interior_condition]
+                ),
+            )
+            self.default_lines[self.output_axis].append(line[0])
+
+
+
+        # backprojection_set convex_hull(xt_samples_inside_backprojection_set)
+        # backprojection_set_color = 'cyan'
+        # backprojection_set_zorder = 1
+        # backprojection_set_ls = '-.'
+        # self.partitioner.plot_reachable_sets(
+        #     backprojection_set,
+        #     self.partitioner.input_dims,
+        #     reachable_set_color=backprojection_set_color,
+        #     reachable_set_zorder=backprojection_set_zorder,
+        #     reachable_set_ls=backprojection_set_ls
+        # )
 
         # self.partitioner.animate_axes.legend(
         #     bbox_to_anchor=(0, 1.02, 1, 0.2),

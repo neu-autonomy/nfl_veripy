@@ -1,4 +1,6 @@
 import numpy as np
+import matplotlib
+matplotlib.use('MacOSX')
 import matplotlib.pyplot as plt
 from matplotlib import cm
 
@@ -101,6 +103,21 @@ class Dynamics:
 
         return sampled_range
 
+    def get_state_and_next_state_samples(
+        self, input_constraint, t_max=1, num_samples=1000, controller="mpc",
+        output_constraint=None,
+    ):
+
+        xs, us = self.collect_data(
+            t_max,
+            input_constraint,
+            num_samples,
+            controller=controller,
+            merge_cols=False,
+        )
+
+        return xs[:, 0, :], xs[:, 1, :]
+
     def show_samples(
         self,
         t_max,
@@ -111,6 +128,8 @@ class Dynamics:
         controller="mpc",
         input_dims=[[0], [1]],
         zorder=1,
+        xs=None,
+        colors=None,
     ):
         if ax is None:
             if len(input_dims) == 2:
@@ -119,16 +138,19 @@ class Dynamics:
                 projection = '3d'
             ax = plt.subplot(projection=projection)
 
-        xs, us = self.collect_data(
-            t_max,
-            input_constraint,
-            num_samples=10000,
-            controller=controller,
-            merge_cols=False,
-        )
+        if xs is None:
+            xs, us = self.collect_data(
+                t_max,
+                input_constraint,
+                num_samples=10000,
+                controller=controller,
+                merge_cols=False,
+            )
 
         num_runs, num_timesteps, num_states = xs.shape
-        colors = self.colors(num_timesteps)
+
+        if colors is None:
+            colors = self.colors(num_timesteps)
 
         for t in range(num_timesteps):
             ax.scatter(

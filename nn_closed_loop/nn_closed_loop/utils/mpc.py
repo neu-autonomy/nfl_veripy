@@ -7,7 +7,7 @@ def control_mpc(x0s, A, b, c, Q, R, P, u_min, u_max, n_mpc=10, debug=False):
 
     us = np.empty((x0s.shape[0], b.shape[1]))
     for i, x0 in enumerate(x0s):
-        print(x0)
+        # print(x0)
         u = cp.Variable((n_mpc, b.shape[1]))
         x = cp.Variable((n_mpc + 1, x0.shape[0]))
 

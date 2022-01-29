@@ -36,7 +36,7 @@ class ClosedLoopPropagator(propagators.Propagator):
 
     def get_backprojection_set(self, output_constraint, input_constraint, t_max, num_partitions=None):
         input_constraints = []
-        input_constraint, _ = self.get_one_step_backprojection_set(
+        input_constraint, info = self.get_one_step_backprojection_set(
             output_constraint, input_constraint, num_partitions=num_partitions
         )
         input_constraints.append(deepcopy(input_constraint))
@@ -50,7 +50,7 @@ class ClosedLoopPropagator(propagators.Propagator):
         #     )
         #     input_constraints.append(deepcopy(input_constraint))
 
-        return input_constraints, {}
+        return input_constraints, info
 
     def output_to_constraint(self, bs, output_constraint):
         raise NotImplementedError

@@ -139,6 +139,7 @@ class ClosedLoopPartitioner(partitioners.Partitioner):
         initial_set_color=None,
         initial_set_zorder=None,
         sample_zorder=None,
+        sample_colors=None,
     ):
 
         self.default_patches = []
@@ -177,6 +178,7 @@ class ClosedLoopPartitioner(partitioners.Partitioner):
                 controller=propagator.network,
                 input_dims=input_dims,
                 zorder=sample_zorder,
+                colors=sample_colors,
             )
 
         self.animate_axes.set_xlabel(input_names[0])

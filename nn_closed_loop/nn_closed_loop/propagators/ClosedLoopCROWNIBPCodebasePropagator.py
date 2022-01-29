@@ -150,6 +150,8 @@ class ClosedLoopCROWNIBPCodebasePropagator(ClosedLoopPropagator):
         # that ensures that starting from within the input_constraint
         # will lead to a state within the output_constraint
 
+        info = {}
+
         # Extract elementwise bounds on xt1 from the lp-ball or polytope constraint
         if isinstance(output_constraint, constraints.PolytopeConstraint):
             A_t1 = output_constraint.A
@@ -203,26 +205,29 @@ class ClosedLoopCROWNIBPCodebasePropagator(ClosedLoopPropagator):
 
         # For each dimension of the output constraint (facet/lp-dimension):
         # compute a bound of the NN output using the pre-computed matrices
+        xt = cp.Variable(xt1_min.shape)
+        ut = cp.Variable(num_control_inputs)
+        constrs = []
+        constrs += [u_min <= ut]
+        constrs += [ut <= u_max]
+        constrs += [self.dynamics.At@xt + self.dynamics.bt@ut <= xt1_max]
+        constrs += [self.dynamics.At@xt + self.dynamics.bt@ut >= xt1_min]
+        A_t_i = cp.Parameter(num_states)
+        obj = A_t_i@xt
+        min_prob = cp.Problem(cp.Minimize(obj), constrs)
+        max_prob = cp.Problem(cp.Maximize(obj), constrs)
         for i in range(num_facets):
-            xt = cp.Variable(xt1_min.shape)
-            ut = cp.Variable(num_control_inputs)
-
-            constrs = []
-            constrs += [u_min <= ut]
-            constrs += [ut <= u_max]
-            constrs += [self.dynamics.At@xt + self.dynamics.bt@ut <= xt1_max]
-            constrs += [self.dynamics.At@xt + self.dynamics.bt@ut >= xt1_min]
-
-            obj = A_t[i, :]@xt
-            prob = cp.Problem(cp.Minimize(obj), constrs)
-            prob.solve()
+            A_t_i.value = A_t[i, :]
+            min_prob.solve()
             coords[2*i, :] = xt.value
-            prob = cp.Problem(cp.Maximize(obj), constrs)
-            prob.solve()
+            max_prob.solve()
             coords[2*i+1, :] = xt.value
 
         # min/max of each element of xt in the backreachable set
         ranges = np.vstack([coords.min(axis=0), coords.max(axis=0)]).T
+
+        backreachable_set = constraints.LpConstraint(range=ranges)
+        info['backreachable_set'] = backreachable_set
 
         '''
         Step 2: 
@@ -294,33 +299,301 @@ class ClosedLoopCROWNIBPCodebasePropagator(ClosedLoopPropagator):
             upper_sum_b = upper_sum_b.detach().numpy()[0]
             lower_sum_b = lower_sum_b.detach().numpy()[0]
 
-            # The NN matrices define three types of constraints:
-            # - NN's resulting lower bnds on xt1 >= lower bnds on xt1
-            # - NN's resulting upper bnds on xt1 <= upper bnds on xt1
-            # - NN matrices are only valid within the partition
-            A_NN, b_NN = range_to_polytope(ranges)
-            A_ = np.vstack([
-                    (self.dynamics.At+self.dynamics.bt@upper_A),
-                    -(self.dynamics.At+self.dynamics.bt@lower_A),
-                    A_NN
-                ])
-            b_ = np.hstack([
-                    xt1_max - self.dynamics.bt@upper_sum_b,
-                    -xt1_min + self.dynamics.bt@lower_sum_b,
-                    b_NN
-                    ])
+            overapprox = True
+            # overapprox = False
+            if overapprox:
+                xt = cp.Variable(xt1_min.shape)
+                ut = cp.Variable(num_control_inputs)
+                constrs = []
+                constrs += [lower_A@xt + lower_sum_b <= ut]
+                constrs += [ut <= upper_A@xt + upper_sum_b]
+                constrs += [self.dynamics.At@xt + self.dynamics.bt@ut <= xt1_max]
+                constrs += [self.dynamics.At@xt + self.dynamics.bt@ut >= xt1_min]
+                A_t_ = np.vstack([A_t, -A_t])
+                num_facets = 2*num_states
+                A_t_i = cp.Parameter(num_states)
+                obj = A_t_i@xt
+                prob = cp.Problem(cp.Maximize(obj), constrs)
+                A_ = A_t_
+                b_ = np.empty(2*num_states)
+                for i in range(num_facets):
+                    A_t_i.value = A_t_[i, :]
+                    prob.solve()
+                    b_[i] = prob.value
 
-            # If those constraints to a non-empty set, then add it to
-            # the list of input_constraints. Otherwise, skip it.
-            try:
-                pypoman.polygon.compute_polygon_hull(A_, b_+1e-10)
-                input_constraint.A.append(A_)
-                input_constraint.b.append(b_)
-            except:
-                continue
+                A_NN, b_NN = range_to_polytope(ranges)
+                # print(A_)
+                # print(b_)
+                A_ = np.vstack([A_, A_NN])
+                b_ = np.hstack([b_, b_NN])
+                # print(A_)
+                # print(b_)
+                # assert(0)
+
+                try:
+                    pypoman.polygon.compute_polygon_hull(A_, b_+1e-10)
+                    input_constraint.A.append(A_)
+                    input_constraint.b.append(b_)
+                except:
+                    continue
+
+            else:
+                # The NN matrices define three types of constraints:
+                # - NN's resulting lower bnds on xt1 >= lower bnds on xt1
+                # - NN's resulting upper bnds on xt1 <= upper bnds on xt1
+                # - NN matrices are only valid within the partition
+                A_NN, b_NN = range_to_polytope(ranges)
+                A_ = np.vstack([
+                        (self.dynamics.At+self.dynamics.bt@upper_A),
+                        -(self.dynamics.At+self.dynamics.bt@lower_A),
+                        A_NN
+                    ])
+                b_ = np.hstack([
+                        xt1_max - self.dynamics.bt@upper_sum_b,
+                        -xt1_min + self.dynamics.bt@lower_sum_b,
+                        b_NN
+                        ])
+
+                # If those constraints to a non-empty set, then add it to
+                # the list of input_constraints. Otherwise, skip it.
+                try:
+                    pypoman.polygon.compute_polygon_hull(A_, b_+1e-10)
+                    input_constraint.A.append(A_)
+                    input_constraint.b.append(b_)
+                except:
+                    continue
+
+        # print(input_constraint.A)
+        # print(input_constraint.b)
+        # assert(0)
 
         # input_constraint contains lists for A, b
-        return input_constraint, {}
+        return input_constraint, info
+
+    def get_one_step_backprojection_set_old(self, output_constraint, input_constraint, num_partitions=None):
+        # Given an output_constraint, compute the input_constraint
+        # that ensures that starting from within the input_constraint
+        # will lead to a state within the output_constraint
+
+        info = {}
+
+        # Extract elementwise bounds on xt1 from the lp-ball or polytope constraint
+        if isinstance(output_constraint, constraints.PolytopeConstraint):
+            A_t1 = output_constraint.A
+            b_t1 = output_constraint.b[0]
+
+            # Get bounds on each state from A_t1, b_t1
+            try:
+                vertices = np.stack(
+                    pypoman.compute_polytope_vertices(A_t1, b_t1)
+                )
+            except:
+                # Sometimes get arithmetic error... this may fix it
+                vertices = np.stack(
+                    pypoman.compute_polytope_vertices(
+                        A_t1, b_t1 + 1e-6
+                    )
+                )
+            xt1_max = np.max(vertices, 0)
+            xt1_min = np.min(vertices, 0)
+            norm = np.inf
+        elif isinstance(output_constraint, constraints.LpConstraint):
+            xt1_min = output_constraint.range[..., 0]
+            xt1_max = output_constraint.range[..., 1]
+            norm = output_constraint.p
+            A_t1 = None
+            b_t1 = None
+        else:
+            raise NotImplementedError
+
+        '''
+        Step 1: 
+        Find backreachable set: all the xt for which there is
+        some u in U that leads to a state xt1 in output_constraint
+        '''
+
+        if self.dynamics.u_limits is None:
+            u_min = -np.inf
+            u_max = np.inf
+        else:
+            u_min = self.dynamics.u_limits[:, 0]
+            u_max = self.dynamics.u_limits[:, 1]
+
+        num_states = xt1_min.shape[0]
+        num_control_inputs = 1
+        xt = cp.Variable(xt1_min.shape+(2,))
+        ut = cp.Variable(num_control_inputs)
+
+        A_t = np.eye(xt1_min.shape[0])
+        num_facets = A_t.shape[0]
+        coords = np.empty((2*num_states, num_states))
+
+        # For each dimension of the output constraint (facet/lp-dimension):
+        # compute a bound of the NN output using the pre-computed matrices
+        xt = cp.Variable(xt1_min.shape)
+        ut = cp.Variable(num_control_inputs)
+        constrs = []
+        constrs += [u_min <= ut]
+        constrs += [ut <= u_max]
+        constrs += [self.dynamics.At@xt + self.dynamics.bt@ut <= xt1_max]
+        constrs += [self.dynamics.At@xt + self.dynamics.bt@ut >= xt1_min]
+        A_t_i = cp.Parameter(num_states)
+        obj = A_t_i@xt
+        min_prob = cp.Problem(cp.Minimize(obj), constrs)
+        max_prob = cp.Problem(cp.Maximize(obj), constrs)
+        for i in range(num_facets):
+            A_t_i.value = A_t[i, :]
+            min_prob.solve()
+            coords[2*i, :] = xt.value
+            max_prob.solve()
+            coords[2*i+1, :] = xt.value
+
+        # min/max of each element of xt in the backreachable set
+        ranges = np.vstack([coords.min(axis=0), coords.max(axis=0)]).T
+
+        backreachable_set = constraints.LpConstraint(range=ranges)
+        info['backreachable_set'] = backreachable_set
+
+        '''
+        Step 2: 
+        Partition the backreachable set (xt).
+        For each cell in the partition:
+        - relax the NN (use CROWN to compute matrices for affine bounds)
+        - use the relaxed NN to compute bounds on xt1
+        - use those bounds to define constraints on xt, and if valid, add
+            to input_constraint
+        '''
+
+        # Setup the partitions
+        if num_partitions is None:
+            num_partitions = np.array([10, 10])
+        input_range = ranges
+        input_shape = input_range.shape[:-1]
+        slope = np.divide(
+            (input_range[..., 1] - input_range[..., 0]), num_partitions
+        )
+
+        # Set an empty Constraint that will get filled in
+        input_constraint = constraints.PolytopeConstraint(A=[], b=[])
+
+        # Iterate through each partition
+        for element in product(
+            *[range(num) for num in num_partitions.flatten()]
+        ):
+            # Compute this partition's min/max xt values
+            element_ = np.array(element).reshape(input_shape)
+            input_range_ = np.empty_like(input_range)
+            input_range_[..., 0] = input_range[..., 0] + np.multiply(
+                element_, slope
+            )
+            input_range_[..., 1] = input_range[..., 0] + np.multiply(
+                element_ + 1, slope
+            )
+            ranges = input_range_
+
+            # Because there might sensor noise, the NN could see a different
+            # set of states than the system is actually in
+            xt_min = ranges[..., 0]
+            xt_max = ranges[..., 1]
+            prev_state_max = torch.Tensor([xt_max])
+            prev_state_min = torch.Tensor([xt_min])
+            nn_input_max = prev_state_max
+            nn_input_min = prev_state_min
+            if self.dynamics.sensor_noise is not None:
+                raise NotImplementedError
+                # nn_input_max += torch.Tensor([self.dynamics.sensor_noise[:, 1]])
+                # nn_input_min += torch.Tensor([self.dynamics.sensor_noise[:, 0]])
+
+            # Compute the NN output matrices (for this xt partition)
+            num_control_inputs = self.dynamics.bt.shape[1]
+            C = torch.eye(num_control_inputs).unsqueeze(0)
+            lower_A, upper_A, lower_sum_b, upper_sum_b = self.network(
+                method_opt=self.method_opt,
+                norm=norm,
+                x_U=nn_input_max,
+                x_L=nn_input_min,
+                upper=True,
+                lower=True,
+                C=C,
+                return_matrices=True,
+            )
+
+            # Extract numpy array from pytorch tensors
+            upper_A = upper_A.detach().numpy()[0]
+            lower_A = lower_A.detach().numpy()[0]
+            upper_sum_b = upper_sum_b.detach().numpy()[0]
+            lower_sum_b = lower_sum_b.detach().numpy()[0]
+
+            overapprox = True
+            # overapprox = False
+            if overapprox:
+                xt = cp.Variable(xt1_min.shape)
+                ut = cp.Variable(num_control_inputs)
+                constrs = []
+                constrs += [lower_A@xt + lower_sum_b <= ut]
+                constrs += [ut <= upper_A@xt + upper_sum_b]
+                constrs += [self.dynamics.At@xt + self.dynamics.bt@ut <= xt1_max]
+                constrs += [self.dynamics.At@xt + self.dynamics.bt@ut >= xt1_min]
+                A_t_ = np.vstack([A_t, -A_t])
+                num_facets = 2*num_states
+                A_t_i = cp.Parameter(num_states)
+                obj = A_t_i@xt
+                prob = cp.Problem(cp.Maximize(obj), constrs)
+                A_ = A_t_
+                b_ = np.empty(2*num_states)
+                for i in range(num_facets):
+                    A_t_i.value = A_t_[i, :]
+                    prob.solve()
+                    b_[i] = prob.value
+
+                A_NN, b_NN = range_to_polytope(ranges)
+                # print(A_)
+                # print(b_)
+                A_ = np.vstack([A_, A_NN])
+                b_ = np.hstack([b_, b_NN])
+                # print(A_)
+                # print(b_)
+                # assert(0)
+
+                try:
+                    pypoman.polygon.compute_polygon_hull(A_, b_+1e-10)
+                    input_constraint.A.append(A_)
+                    input_constraint.b.append(b_)
+                except:
+                    continue
+
+            else:
+                # The NN matrices define three types of constraints:
+                # - NN's resulting lower bnds on xt1 >= lower bnds on xt1
+                # - NN's resulting upper bnds on xt1 <= upper bnds on xt1
+                # - NN matrices are only valid within the partition
+                A_NN, b_NN = range_to_polytope(ranges)
+                A_ = np.vstack([
+                        (self.dynamics.At+self.dynamics.bt@upper_A),
+                        -(self.dynamics.At+self.dynamics.bt@lower_A),
+                        A_NN
+                    ])
+                b_ = np.hstack([
+                        xt1_max - self.dynamics.bt@upper_sum_b,
+                        -xt1_min + self.dynamics.bt@lower_sum_b,
+                        b_NN
+                        ])
+
+                # If those constraints to a non-empty set, then add it to
+                # the list of input_constraints. Otherwise, skip it.
+                try:
+                    pypoman.polygon.compute_polygon_hull(A_, b_+1e-10)
+                    input_constraint.A.append(A_)
+                    input_constraint.b.append(b_)
+                except:
+                    continue
+
+        # print(input_constraint.A)
+        # print(input_constraint.b)
+        # assert(0)
+
+        # input_constraint contains lists for A, b
+        return input_constraint, info
 
 
 class ClosedLoopIBPPropagator(ClosedLoopCROWNIBPCodebasePropagator):
