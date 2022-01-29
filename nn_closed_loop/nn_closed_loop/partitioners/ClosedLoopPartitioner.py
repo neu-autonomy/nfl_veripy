@@ -286,18 +286,18 @@ class ClosedLoopPartitioner(partitioners.Partitioner):
             self.plot_partition(input_constraint, dims, "tab:red")
 
     def get_one_step_backprojection_set(
-        self, output_constraint, input_constraint, propagator, num_partitions=None
+        self, output_constraint, input_constraint, propagator, num_partitions=None, overapprox=False
     ):
         input_constraint, info = propagator.get_one_step_backprojection_set(
-            output_constraint, deepcopy(input_constraint), num_partitions=num_partitions
+            output_constraint, deepcopy(input_constraint), num_partitions=num_partitions, overapprox=overapprox
         )
         return input_constraint, info
 
     def get_backprojection_set(
-        self, output_constraint, input_constraint, propagator, t_max, num_partitions=None
+        self, output_constraint, input_constraint, propagator, t_max, num_partitions=None, overapprox=False
     ):
         input_constraint_, info = propagator.get_backprojection_set(
-            output_constraint, deepcopy(input_constraint), t_max, num_partitions=num_partitions
+            output_constraint, deepcopy(input_constraint), t_max, num_partitions=num_partitions, overapprox=overapprox
         )
         input_constraint = input_constraint_.copy()
 

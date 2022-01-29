@@ -94,7 +94,7 @@ def main(args):
             print('call: {}'.format(num))
             t_start = time.time()
             input_constraint, analyzer_info = analyzer.get_backprojection_set(
-                output_constraint, input_constraint, t_max=None, num_partitions=num_partitions
+                output_constraint, input_constraint, t_max=None, num_partitions=num_partitions, overapprox=args.overapprox
             )
             t_end = time.time()
             t = t_end - t_start
@@ -108,7 +108,7 @@ def main(args):
         # Run analysis once
         # Run analysis & generate a plot
         input_constraint, analyzer_info = analyzer.get_backprojection_set(
-            output_constraint, input_constraint, t_max=None, num_partitions=num_partitions
+            output_constraint, input_constraint, t_max=None, num_partitions=num_partitions, overapprox=args.overapprox
         )
 
     # print(input_constraint.A, input_constraint.b)
@@ -304,6 +304,17 @@ def setup_parser():
         default=None,
         help='x and y lims on plot (default: None)',
     )
+
+    parser.add_argument(
+        "--overapprox",
+        dest="overapprox",
+        action="store_true",
+        help="whether compute an overapproximation or underapproximation",
+    )
+    parser.add_argument(
+        "--underapprox", dest="overapprox", action="store_false"
+    )
+    parser.set_defaults(overapprox=False)
 
     return parser
 

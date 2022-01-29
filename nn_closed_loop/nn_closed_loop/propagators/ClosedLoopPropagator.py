@@ -31,13 +31,13 @@ class ClosedLoopPropagator(propagators.Propagator):
 
         return output_constraints, info
 
-    def get_one_step_backprojection_set(self, output_constraint, intput_constraint):
+    def get_one_step_backprojection_set(self, output_constraint, intput_constraint, overapprox=False):
         raise NotImplementedError
 
-    def get_backprojection_set(self, output_constraint, input_constraint, t_max, num_partitions=None):
+    def get_backprojection_set(self, output_constraint, input_constraint, t_max, num_partitions=None, overapprox=False):
         input_constraints = []
         input_constraint, info = self.get_one_step_backprojection_set(
-            output_constraint, input_constraint, num_partitions=num_partitions
+            output_constraint, input_constraint, num_partitions=num_partitions, overapprox=overapprox
         )
         input_constraints.append(deepcopy(input_constraint))
 
