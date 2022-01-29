@@ -133,39 +133,35 @@ class ClosedLoopBackwardAnalyzer(analyzers.Analyzer):
             colors=['g', 'r']
         )
 
-        from scipy.spatial import ConvexHull
-
-        def plot_convex_hull(samples, dims, color, linewidth, linestyle, zorder, label, axes):
-            from scipy.spatial import ConvexHull
-            hull = ConvexHull(
-                samples[..., dims].squeeze()
-            )
-            line = self.ax_output.plot(
-                np.append(
-                    samples[hull.vertices][
-                        ..., dims[0]
-                    ],
-                    samples[hull.vertices[0]][
-                        ..., dims[0]
-                    ],
-                ),
-                np.append(
-                    samples[hull.vertices][
-                        ..., dims[1]
-                    ],
-                    samples[hull.vertices[0]][
-                        ..., dims[1]
-                    ],
-                ),
-                color=color,
-                linewidth=linewidth,
-                linestyle=linestyle,
-                zorder=zorder,
-                label="True Bounds ({})".format(
-                    label_dict[self.interior_condition]
-                ),
-            )
-            self.default_lines[self.output_axis].append(line[0])
+        # def plot_convex_hull(samples, dims, color, linewidth, linestyle, zorder, label, axes):
+        #     from scipy.spatial import ConvexHull
+        #     hull = ConvexHull(
+        #         samples[..., dims].squeeze()
+        #     )
+        #     line = self.ax_output.plot(
+        #         np.append(
+        #             samples[hull.vertices][
+        #                 ..., dims[0]
+        #             ],
+        #             samples[hull.vertices[0]][
+        #                 ..., dims[0]
+        #             ],
+        #         ),
+        #         np.append(
+        #             samples[hull.vertices][
+        #                 ..., dims[1]
+        #             ],
+        #             samples[hull.vertices[0]][
+        #                 ..., dims[1]
+        #             ],
+        #         ),
+        #         color=color,
+        #         linewidth=linewidth,
+        #         linestyle=linestyle,
+        #         zorder=zorder,
+        #         label=label
+        #     )
+        #     self.default_lines[self.output_axis].append(line[0])
 
 
 
