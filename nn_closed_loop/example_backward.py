@@ -94,7 +94,7 @@ def main(args):
             print('call: {}'.format(num))
             t_start = time.time()
             input_constraint, analyzer_info = analyzer.get_backprojection_set(
-                output_constraint, input_constraint, t_max=None, num_partitions=num_partitions, overapprox=args.overapprox
+                output_constraint, input_constraint, t_max=args.t_max, num_partitions=num_partitions, overapprox=args.overapprox
             )
             t_end = time.time()
             t = t_end - t_start
@@ -108,7 +108,7 @@ def main(args):
         # Run analysis once
         # Run analysis & generate a plot
         input_constraint, analyzer_info = analyzer.get_backprojection_set(
-            output_constraint, input_constraint, t_max=None, num_partitions=num_partitions, overapprox=args.overapprox
+            output_constraint, input_constraint, t_max=args.t_max, num_partitions=num_partitions, overapprox=args.overapprox
         )
 
     # print(input_constraint.A, input_constraint.b)
@@ -175,7 +175,7 @@ def main(args):
 
     if args.show_plot or args.save_plot:
         analyzer.visualize(
-            input_constraint[0],
+            input_constraint,
             output_constraint,
             show_samples=True,
             show=args.show_plot,
@@ -251,12 +251,12 @@ def setup_parser():
         type=int,
         help="how many facets on constraint polytopes (default: 8)",
     )
-    # parser.add_argument(
-    #     "--t_max",
-    #     default=2.0,
-    #     type=float,
-    #     help="seconds into future to compute reachable sets (default: 2.)",
-    # )
+    parser.add_argument(
+        "--t_max",
+        default=1.,
+        type=float,
+        help="seconds into future to compute reachable sets (default: 2.)",
+    )
 
     parser.add_argument(
         "--estimate_runtime", dest="estimate_runtime", action="store_true"

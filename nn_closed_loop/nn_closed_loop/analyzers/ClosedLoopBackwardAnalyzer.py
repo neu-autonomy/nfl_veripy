@@ -57,7 +57,7 @@ class ClosedLoopBackwardAnalyzer(analyzers.Analyzer):
         # output_range_exact = self.samples_to_range(sampled_outputs)
 
         self.partitioner.setup_visualization(
-            input_constraint,
+            input_constraint[0],
             output_constraint.get_t_max(),
             self.propagator,
             show_samples=False,
@@ -82,21 +82,28 @@ class ClosedLoopBackwardAnalyzer(analyzers.Analyzer):
         )
 
         # Show the backreachable set (tightest rectangular outer-bounds via our LP)
-        backreachable_set = kwargs['backreachable_set']
-
-        self.plot_backreachable_set(
-            backreachable_set,
-            color='tab:purple',
-            zorder=1,
-            linestyle='-',
-        )
-        self.plot_backprojection_set(
-            backreachable_set,
-            output_constraint,
-            color='tab:pink',
-            zorder=1,
-            linestyle='-',
-        )
+        for t in range(len(input_constraint)):
+            backreachable_set = kwargs['per_timestep'][t]['backreachable_set']
+            target_set = kwargs['per_timestep'][t]['target_set']
+            self.plot_backreachable_set(
+                backreachable_set,
+                color='tab:purple',
+                zorder=1,
+                linestyle='--',
+            )
+            self.plot_backprojection_set(
+                backreachable_set,
+                target_set,
+                color='tab:pink',
+                zorder=1,
+                linestyle='--',
+            )
+            self.plot_target_set(
+                target_set,
+                color='black',
+                zorder=1,
+                linestyle='--',
+            )
 
         # self.partitioner.animate_axes.legend(
         #     bbox_to_anchor=(0, 1.02, 1, 0.2),
@@ -147,6 +154,15 @@ class ClosedLoopBackwardAnalyzer(analyzers.Analyzer):
     def plot_backreachable_set(self, backreachable_set, color='cyan', zorder=None, linestyle='-'):
         self.partitioner.plot_reachable_sets(
             backreachable_set,
+            self.partitioner.input_dims,
+            reachable_set_color=color,
+            reachable_set_zorder=zorder,
+            reachable_set_ls=linestyle
+        )
+
+    def plot_target_set(self, target_set, color='cyan', zorder=None, linestyle='-'):
+        self.partitioner.plot_reachable_sets(
+            target_set,
             self.partitioner.input_dims,
             reachable_set_color=color,
             reachable_set_zorder=zorder,

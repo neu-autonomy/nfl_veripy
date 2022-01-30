@@ -36,19 +36,27 @@ class ClosedLoopPropagator(propagators.Propagator):
 
     def get_backprojection_set(self, output_constraint, input_constraint, t_max, num_partitions=None, overapprox=False):
         input_constraints = []
-        input_constraint, info = self.get_one_step_backprojection_set(
+
+        input_constraint, this_info = self.get_one_step_backprojection_set(
             output_constraint, input_constraint, num_partitions=num_partitions, overapprox=overapprox
         )
         input_constraints.append(deepcopy(input_constraint))
-
-        # TODO: Support N-step backprojection
-        # for i in np.arange(0 + self.dynamics.dt, t_max, self.dynamics.dt):
-        #     next_output_constraint = input_constraint.to_output_constraint()
-        #     next_input_constraint = deepcopy(input_constraint)
-        #     input_constraint, _ = self.get_one_step_backprojection_set(
-        #         next_output_constraint, next_input_constraint, num_partitions=num_partitions
-        #     )
-        #     input_constraints.append(deepcopy(input_constraint))
+        info = {'per_timestep': []}
+        info['per_timestep'].append(this_info)
+        
+        if overapprox:
+            for i in np.arange(0 + self.dynamics.dt + 1e-10, t_max, self.dynamics.dt):
+                next_output_constraint = over_approximate_constraint(deepcopy(input_constraint))
+                next_input_constraint = deepcopy(next_output_constraint)
+                input_constraint, this_info = self.get_one_step_backprojection_set(
+                    next_output_constraint, next_input_constraint, num_partitions=num_partitions, overapprox=overapprox
+                )
+                input_constraints.append(deepcopy(input_constraint))
+                info['per_timestep'].append(this_info)
+        else:
+            for i in np.arange(0 + self.dynamics.dt + 1e-10, t_max, self.dynamics.dt):
+                # TODO: Support N-step backprojection in the under-approximation case
+                raise NotImplementedError
 
         return input_constraints, info
 
@@ -68,3 +76,16 @@ class ClosedLoopPropagator(propagators.Propagator):
         else:
             raise NotImplementedError
         return output_constraint
+
+
+def over_approximate_constraint(constraint):
+    # Note: this is a super sketchy implementation that only works under certain cases
+    # specifically when all the contraints have the same A matrix
+
+    # TODO: Add an assert
+    # TODO: implement a more general version
+
+    constraint.A = constraint.A[0]
+    constraint.b = [np.max(np.array(constraint.b), axis=0)]
+
+    return constraint

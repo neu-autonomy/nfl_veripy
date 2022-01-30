@@ -234,6 +234,8 @@ class ClosedLoopCROWNIBPCodebasePropagator(ClosedLoopPropagator):
 
         backreachable_set = constraints.LpConstraint(range=ranges)
         info['backreachable_set'] = backreachable_set
+        from copy import deepcopy
+        info['target_set'] = deepcopy(output_constraint)
 
         '''
         Step 2: 
