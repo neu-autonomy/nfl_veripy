@@ -70,6 +70,12 @@ class ClosedLoopBackwardAnalyzer(analyzers.Analyzer):
             initial_set_color=self.initial_set_color,
             initial_set_zorder=self.initial_set_zorder,
         )
+
+        # plot all our input constraints
+        for ic in input_constraint[1:]:
+            rect = ic.plot(self.partitioner.animate_axes, self.partitioner.input_dims, self.initial_set_color, zorder=self.initial_set_zorder, linewidth=self.partitioner.linewidth, plot_2d=self.partitioner.plot_2d)
+            self.partitioner.default_patches += rect
+
         self.partitioner.visualize(
             kwargs.get(
                 "exterior_partitions", kwargs.get("all_partitions", [])
