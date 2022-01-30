@@ -59,21 +59,24 @@ class Unicycle(ContinuousTimeDynamics):
             debug=False,
         )
     
-    ## Control function for if model gives [v, w] command inputs 
-    # def control_nn(self, x, model):
-    #     if x.ndim == 1:
-    #         batch_x = np.expand_dims(x, axis=0)
-    #     else:
-    #         batch_x = x
-    #     us = model.forward(torch.Tensor(batch_x)).data.numpy()
-    #     if not hasattr(self, 'theta') or len(self.theta) != len(us):
-    #         self.theta = np.zeros(len(us))
+    # Control function for if model gives [v, w] command inputs 
+    def control_nn(self, x, model):
+        if x.ndim == 1:
+            batch_x = np.expand_dims(x, axis=0)
+        else:
+            batch_x = x
+        us = model.forward(torch.Tensor(batch_x)).data.numpy()
+        if not hasattr(self, 'theta') or len(self.theta) != len(us):
+            self.theta = np.zeros(len(us))
         
-    #     R = np.array([ [[np.cos(theta), -self.r*np.sin(theta)], [np.sin(theta), self.r*np.cos(theta)]] for theta in self.theta])
-    #     us_transformed = np.array([R[i]@us[i] for i in range(len(us))])
-
-    #     # print("theta: {}".format(self.theta[0]))
-    #     # print("transformed u: {}".format(us_transformed[0]))
-    #     # print("x-direction: {}".format(R[0][:,0]))
-    #     self.theta = self.theta + us[:,1]
-    #     return us_transformed
+      
+        
+        R = np.array([ [[np.cos(theta), -self.r*np.sin(theta)], [np.sin(theta), self.r*np.cos(theta)]] for theta in self.theta])
+        # import pdb; pdb.set_trace()
+        us_transformed = np.array([R[i][:,0]*us[i][0] for i in range(len(us))])
+        
+        # print("theta: {}".format(self.theta[0]))
+        # print("transformed u: {}".format(us_transformed[0]))
+        # print("x-direction: {}".format(R[0][:,0]))
+        self.theta = self.theta + self.dt*us[:,1]
+        return us_transformed
