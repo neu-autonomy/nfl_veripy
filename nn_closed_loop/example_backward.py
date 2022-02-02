@@ -33,8 +33,21 @@ def main(args):
             init_state_range = np.array(
                 ast.literal_eval(args.init_state_range)
             )
+    elif args.system == "ground_robot":
+        if args.state_feedback:
+            dyn = dynamics.GroundRobotSI()
+        else:
+            raise NotImplementedError
+        if args.final_state_range is None:
+            final_state_range = np.array(
+                [  # (num_inputs, 2)
+                    [2.5, 3.0],  # x0min, x0max
+                    [-0.25, 0.25],  # x1min, x1max
+                ]
+            )
     else:
-        raise NotImplementedError
+            raise NotImplementedError
+            import ast
 
     if args.num_partitions is None:
         num_partitions = np.array([2, 2])
@@ -110,6 +123,7 @@ def main(args):
         input_constraint, analyzer_info = analyzer.get_backprojection_set(
             output_constraint, input_constraint, t_max=args.t_max, num_partitions=num_partitions, overapprox=args.overapprox
         )
+        # import pdb; pdb.set_trace()
 
     # print(input_constraint.A, input_constraint.b)
     # error, avg_error = analyzer.get_error(input_constraint,output_constraint, t_max=args.t_max)
@@ -196,7 +210,7 @@ def setup_parser():
     parser.add_argument(
         "--system",
         default="double_integrator",
-        choices=["double_integrator", "quadrotor"],
+        choices=["double_integrator", "quadrotor", "ground_robot"],
         help="which system to analyze (default: double_integrator_mpc)",
     )
     parser.add_argument(
