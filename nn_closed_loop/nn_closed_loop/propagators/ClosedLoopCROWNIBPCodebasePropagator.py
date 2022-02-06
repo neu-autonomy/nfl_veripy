@@ -201,7 +201,8 @@ class ClosedLoopCROWNIBPCodebasePropagator(ClosedLoopPropagator):
             u_max = self.dynamics.u_limits[:, 1]
 
         num_states = xt1_min.shape[0]
-        num_control_inputs = self.dynamics.bt.shape[0]
+        num_control_inputs = self.dynamics.bt.shape[1]
+        print(num_control_inputs)
         xt = cp.Variable(xt1_min.shape+(2,))
         ut = cp.Variable(num_control_inputs)
 
