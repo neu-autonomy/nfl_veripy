@@ -111,6 +111,19 @@ class ClosedLoopBackwardAnalyzer(analyzers.Analyzer):
                 linestyle='--',
             )
 
+        # Show the "true" N-Step backprojection set as a convex hull
+        backreachable_set = kwargs['per_timestep'][-1]['backreachable_set']
+        target_set = kwargs['per_timestep'][0]['target_set']
+        t_max = len(kwargs['per_timestep'])
+        self.plot_true_backprojection_sets(
+            backreachable_set,
+            target_set,
+            t_max=t_max,
+            color='yellow',
+            zorder=2,
+            linestyle='-',
+        )
+
         # self.partitioner.animate_axes.legend(
         #     bbox_to_anchor=(0, 1.02, 1, 0.2),
         #     loc="lower left",
@@ -229,7 +242,8 @@ class ClosedLoopBackwardAnalyzer(analyzers.Analyzer):
         # Compute and draw a convex hull around all the backprojection set samples
         # This is our "true" backprojection set -- but...
         # it is sampling-based so that is an under-approximation,
-        # and it is a convex hull, so that is an over-approximation.
+        # and it is a convex hull, so that is an over-approximation,
+        # and it is computed only for one step, so that's an over-approximation
         conv_hull_line = plot_convex_hull(
             xt_samples_inside_backprojection_set,
             dims=self.partitioner.input_dims,
@@ -240,6 +254,77 @@ class ClosedLoopBackwardAnalyzer(analyzers.Analyzer):
             label='Backprojection Set (True)',
             axes=self.partitioner.animate_axes,
         )
+        # self.default_lines[self.output_axis].append(conv_hull_line[0])
+
+    def plot_true_backprojection_sets(self, backreachable_set, target_set, t_max, show_samples=False, color='g', zorder=None, linestyle='-'):
+
+        # Sample a bunch of pts from our "true" backreachable set
+        # (it's actually the tightest axis-aligned rectangle around the backreachable set)
+        # and run them forward 1 step in time under the NN policy
+        xs, _ = self.partitioner.dynamics.collect_data(
+            t_max,
+            backreachable_set,
+            num_samples=1e5,
+            controller=self.propagator.network,
+            merge_cols=False,
+        )
+
+        # Find which of the xt+t_max points actually end up in the target set
+        within_constraint_inds = np.where(
+            np.all(
+                (
+                    np.dot(target_set.A, xs[:, -1, :].T)
+                    - np.expand_dims(target_set.b[0], axis=-1)
+                )
+                <= 0,
+                axis=0,
+            )
+        )
+        x_samples_inside_backprojection_set = xs[within_constraint_inds]
+
+        if show_samples:
+            raise NotImplementedError
+            # xt1_from_those_samples_ = xt1_from_those_samples[(within_constraint_inds)]
+
+            # # Show samples from inside the backprojection set and their futures under the NN (should end in target set)
+            # self.partitioner.dynamics.show_samples(
+            #     None,
+            #     None,
+            #     ax=self.partitioner.animate_axes,
+            #     controller=None,
+            #     input_dims=self.partitioner.input_dims,
+            #     zorder=1,
+            #     xs=np.dstack([xt_samples_inside_backprojection_set, xt1_from_those_samples_]).transpose(0, 2, 1),
+            #     colors=None
+            # )
+
+            # # Show samples from inside the backreachable set and their futures under the NN (don't necessarily end in target set)
+            # self.partitioner.dynamics.show_samples(
+            #     None,
+            #     None,
+            #     ax=self.partitioner.animate_axes,
+            #     controller=None,
+            #     input_dims=self.partitioner.input_dims,
+            #     zorder=0,
+            #     xs=np.dstack([xt_samples_from_backreachable_set, xt1_from_those_samples]).transpose(0, 2, 1),
+            #     colors=['g', 'r']
+            # )
+
+        # Compute and draw a convex hull around all the backprojection set samples
+        # This is our "true" backprojection set -- but...
+        # it is sampling-based so that is an under-approximation,
+        # and it is a convex hull, so that is an over-approximation.
+        for t in range(t_max):
+            conv_hull_line = plot_convex_hull(
+                x_samples_inside_backprojection_set[:, t, :],
+                dims=self.partitioner.input_dims,
+                color=color,
+                linewidth=2,
+                linestyle=linestyle,
+                zorder=zorder,
+                label='Backprojection Set (True)',
+                axes=self.partitioner.animate_axes,
+            )
         # self.default_lines[self.output_axis].append(conv_hull_line[0])
 
 
