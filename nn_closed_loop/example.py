@@ -48,12 +48,24 @@ def main(args):
         else:
             raise NotImplementedError
         if args.init_state_range is None:
+            # init_state_range = np.array(
+            #     [  # (num_inputs, 2)
+            #         [-12.5, -12.0],  # x0min, x0max
+            #         [-0.25, 0.25],  # x1min, x1max
+            #     ]
+            # )
             init_state_range = np.array(
                 [  # (num_inputs, 2)
-                    [2.5, 3.0],  # x0min, x0max
-                    [-0.25, 0.25],  # x1min, x1max
+                    [-6.75, -5.5],  # x0min, x0max
+                    [0, 1.5],  # x1min, x1max
                 ]
             )
+            # init_state_range = np.array(
+            #     [  # (num_inputs, 2)
+            #         [-6.28125, -6.125],  # x0min, x0max
+            #         [0, 0.1875],  # x1min, x1max
+            #     ]
+            # )
         else:
             import ast
 
@@ -285,6 +297,60 @@ def main(args):
             **analyzer_info
         )
 
+    if args.check_backward:
+        # import pdb; pdb.set_trace()
+        # final_state_range = output_constraint.range[-1]
+        # final_state_range = np.array(
+        #     [
+        #         [-7, -6.5],
+        #         [-0.5, 0.5]
+        #     ]
+        # )
+        # final_state_range = np.array(
+        #     [
+        #         [-7, -6.5],
+        #         [2.5, 3.0]
+        #     ]
+        # )
+        final_state_range = np.array(
+                [  # (num_inputs, 2)
+                    [2.5, 3.0],  # x0min, x0max
+                    [-0.25, 0.25],  # x1min, x1max
+                ]
+            )
+        num_partitions = np.array([32, 32])
+        
+        back_analyzer = analyzers.ClosedLoopBackwardAnalyzer(controller, dyn)
+        back_analyzer.partitioner = partitioner_hyperparams
+        back_analyzer.propagator = propagator_hyperparams
+        
+        A_out, b_out = range_to_polytope(final_state_range)
+        back_output_constraint = constraints.PolytopeConstraint(
+            A=A_out, b=[b_out]
+        )
+        back_input_constraint = constraints.PolytopeConstraint(None, None)
+
+        back_input_constraint, back_analyzer_info = back_analyzer.get_backprojection_set(
+            back_output_constraint, back_input_constraint, t_max=args.t_max, num_partitions=num_partitions, overapprox=True
+        )
+        import pdb; pdb.set_trace()
+
+        back_analyzer.visualize(
+            back_input_constraint,
+            back_output_constraint,
+            show_samples=True,
+            show=args.show_plot,
+            labels=args.plot_labels,
+            aspect=args.plot_aspect,
+            # plot_lims=args.plot_lims,
+            **back_analyzer_info
+        )
+
+
+        # back_stats, back_analyzer_info = os.system(
+        #     "python -m example_backward --partitioner None --propagator CROWN --system ground_robot --controller linear_controller30x2 --state_feedback --show_plot --boundaries polytope --overapprox --t_max {} --final_state_range{}".format(args.t_max, final_state_tuple)
+        # )
+
     return stats, analyzer_info
 
 
@@ -443,6 +509,12 @@ def setup_parser():
         "--nu",
         default=2,
         help="number of control inputs - only used for scalability expt (default: 2)",
+    )
+    parser.add_argument(
+        "--check_backward",
+        dest="check_backward",
+        action="store_true",
+        help="Check final reachable set to see what parts backproject to initial state"
     )
 
     return parser

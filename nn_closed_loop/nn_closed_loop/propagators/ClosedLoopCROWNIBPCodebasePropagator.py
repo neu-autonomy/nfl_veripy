@@ -81,6 +81,7 @@ class ClosedLoopCROWNIBPCodebasePropagator(ClosedLoopPropagator):
         # Compute the NN output matrices (for the input constraints)
         num_control_inputs = self.dynamics.bt.shape[1]
         C = torch.eye(num_control_inputs).unsqueeze(0)
+        # import pdb; pdb.set_trace()
         lower_A, upper_A, lower_sum_b, upper_sum_b = self.network(
             method_opt=self.method_opt,
             norm=norm,
@@ -91,6 +92,18 @@ class ClosedLoopCROWNIBPCodebasePropagator(ClosedLoopPropagator):
             C=C,
             return_matrices=True,
         )
+
+        print("x_max: {}".format(x_max))
+        print("x_min: {}".format(x_min))
+        upper_A_numpy = upper_A.detach().numpy()
+        upper_sum_b_numpy = upper_sum_b.detach().numpy()
+        lower_A_numpy = lower_A.detach().numpy()
+        lower_sum_b_numpy = lower_sum_b.detach().numpy()
+        umax = np.maximum(upper_A_numpy@x_max+upper_sum_b_numpy, upper_A_numpy@x_min+upper_sum_b_numpy)
+        umin = np.minimum(lower_A_numpy@x_max+lower_sum_b_numpy, lower_A_numpy@x_min+lower_sum_b_numpy)
+        print("upper: {}".format(umax))
+        print("lower: {}".format(umin))
+        # import pdb; pdb.set_trace()
 
         for i in range(num_facets):
             # For each dimension of the output constraint (facet/lp-dimension):
@@ -201,13 +214,14 @@ class ClosedLoopCROWNIBPCodebasePropagator(ClosedLoopPropagator):
             u_max = self.dynamics.u_limits[:, 1]
 
         num_states = xt1_min.shape[0]
-        num_control_inputs = self.dynamics.bt.shape[0]
+        num_control_inputs = self.dynamics.bt.shape[1]
         xt = cp.Variable(xt1_min.shape+(2,))
         ut = cp.Variable(num_control_inputs)
 
         A_t = np.eye(xt1_min.shape[0])
         num_facets = A_t.shape[0]
         coords = np.empty((2*num_states, num_states))
+        # import pdb; pdb.set_trace()
 
         # For each dimension of the output constraint (facet/lp-dimension):
         # compute a bound of the NN output using the pre-computed matrices
@@ -313,9 +327,23 @@ class ClosedLoopCROWNIBPCodebasePropagator(ClosedLoopPropagator):
                 # all xt s.t. there exists some u \in [pi^L(x_t), pi^U(x_t)]
                 #              that leads to the target set
 
+
+
+                # print("xt_max: {}".format(xt_max))
+                # print("xt_min: {}".format(xt_min))
+                # umax = np.maximum(upper_A@xt_max+upper_sum_b, upper_A@xt_min+upper_sum_b)
+                # umin = np.minimum(lower_A@xt_max+lower_sum_b, lower_A@xt_min+lower_sum_b)
+                # print("upper: {}".format(umax))
+                # print("lower: {}".format(umin))
+
+
                 xt = cp.Variable(xt1_min.shape)
                 ut = cp.Variable(num_control_inputs)
                 constrs = []
+                constrs += [xt_min <= xt]
+                constrs += [xt <= xt_max]
+                # constrs += [u_min <= ut]
+                # constrs += [ut <= u_max]
                 constrs += [lower_A@xt + lower_sum_b <= ut]
                 constrs += [ut <= upper_A@xt + upper_sum_b]
                 constrs += [self.dynamics.At@xt + self.dynamics.bt@ut <= xt1_max]
@@ -337,12 +365,26 @@ class ClosedLoopCROWNIBPCodebasePropagator(ClosedLoopPropagator):
                 # ==> the polytope is the intersection (i.e., concatenation)
                 # of the polytope used for relaxing the NN and the soln to the LP
                 A_NN, b_NN = range_to_polytope(ranges)
-                A_ = np.vstack([A_, A_NN])
-                b_ = np.hstack([b_, b_NN])
+                A_stack = np.vstack([A_, A_NN])
+                b_stack = np.hstack([b_, b_NN])
 
                 # Only add that polytope to the list if it's non-empty
                 try:
-                    pypoman.polygon.compute_polygon_hull(A_, b_+1e-10)
+                    pypoman.polygon.compute_polygon_hull(A_stack, b_stack+1e-10)
+                    # print(ranges)
+                    # print(A_)
+                    # print(A_NN)
+                    # print(A_stack)
+                    # print(b_)
+                    # print(b_NN)
+                    # print(b_stack)
+                    print("xt_max: {}".format(xt_max))
+                    print("xt_min: {}".format(xt_min))
+                    umax = np.maximum(upper_A@xt_max+upper_sum_b, upper_A@xt_min+upper_sum_b)
+                    umin = np.minimum(lower_A@xt_max+lower_sum_b, lower_A@xt_min+lower_sum_b)
+                    print("upper: {}".format(umax))
+                    print("lower: {}".format(umin))
+
                     input_constraint.A.append(A_)
                     input_constraint.b.append(b_)
                 except:
@@ -378,6 +420,27 @@ class ClosedLoopCROWNIBPCodebasePropagator(ClosedLoopPropagator):
 
         # input_constraint contains lists for A, b
         return input_constraint, info
+
+    def get_N_step_backprojection_set(self,
+        output_constraint,
+        input_constraint,
+        tmax=1,
+        num_partitions=None,
+        overapprox=True,
+    ):
+        if overapprox:
+            for i in range(tmax):
+                input_constraint, info = self.get_one_step_backprojection_set(
+                    output_constraint,
+                    input_constraint,
+                    num_partitions=num_partitions,
+                    overapprox=overapprox
+                )
+            
+        else:
+            raise NotImplementedError
+
+
 
 
 class ClosedLoopIBPPropagator(ClosedLoopCROWNIBPCodebasePropagator):
