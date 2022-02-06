@@ -6,7 +6,7 @@
 using OVERTVerify
 using LazySets
 
-function setup_overt(input_set, system, num_timesteps, controller, dt)
+function setup_overt(input_set, system, num_timesteps, controller, dt, nn_encoding)
 
     problem = systems_map[system]
 
@@ -21,7 +21,8 @@ function setup_overt(input_set, system, num_timesteps, controller, dt)
         )
     input_set_ = Hyperrectangle(low=input_set["low"], high=input_set["high"])
     concretization_intervals = [num_timesteps]
-    concrete_state_sets, symbolic_state_sets, concrete_meas_sets, symbolic_meas_sets = symbolic_reachability_with_concretization(query, input_set_, concretization_intervals)
+
+    concrete_state_sets, symbolic_state_sets, concrete_meas_sets, symbolic_meas_sets = symbolic_reachability_with_concretization(query, input_set_, concretization_intervals, nn_encoding=nn_encoding)
 
     # Convert into array form for python    
     num_states = length(input_set["low"])
@@ -312,15 +313,21 @@ systems_map = Dict(
 # call w/o http server
 ##################################
 
-# input_set = Dict("low" => [0.5, 0.6], "high" => [0.7, 0.8])
-# system = "DoubleIntegrator"
-# dt = 1.0
-# num_timesteps = 5
-# # controller = "/home/mfe/code/nn_robustness_analysis/nn_closed_loop/models/nnet/tmp_model.nnet"
-# controller = "/home/mfe/code/OVERTVerify.jl/nnet_files/jmlr/single_pendulum_small_controller.nnet"
-# # controller = "/home/mfe/code/OVERTVerify.jl/nnet_files/jmlr/acc_controller.nnet"
-# concrete_sets = setup_overt(input_set, system, num_timesteps, controller, dt)
-# print(concrete_sets)
+function simple_testcase()
+    input_set = Dict("low" => [0.5, 0.6], "high" => [0.7, 0.8])
+    system = "DoubleIntegrator"
+    dt = 1.0
+    num_timesteps = 2
+    # controller = "/home/mfe/code/nn_robustness_analysis/nn_closed_loop/models/nnet/tmp_model.nnet"
+    controller = "/Users/mfe/code/OVERTVerify.jl/nnet_files/jmlr/single_pendulum_small_controller.nnet"
+    # controller = "/home/mfe/code/OVERTVerify.jl/nnet_files/jmlr/acc_controller.nnet"
+
+    # nn_encoding = "LP"
+    nn_encoding = "MIP"
+
+    concrete_sets = setup_overt(input_set, system, num_timesteps, controller, dt, nn_encoding)
+    print(concrete_sets)
+end
 
 ##################################
 # enable calling julia over http server
@@ -337,16 +344,27 @@ function overtabc(req::HTTP.Request)
     end
     has_all_required_keys(["input_set", "num_timesteps", "controller", "system", "dt"], j) || return error_responder(req, "You need to specify other values!")
 
-    ranges = setup_overt(j["input_set"], j["system"], j["num_timesteps"], j["controller"], j["dt"])
+    # nn_encoding = "LP"
+    nn_encoding = "MIP"
+
+    ranges = setup_overt(j["input_set"], j["system"], j["num_timesteps"], j["controller"], j["dt"], nn_encoding)
 
     json_responder(req, ranges)
 end
 
-# Make a router and add routes for our endpoints.
-endpoints = [
-    (overtabc, "POST", "/overt")
-]
-r = Joseki.router(endpoints)
+function start_server()
+    # Make a router and add routes for our endpoints.
+    endpoints = [
+        (overtabc, "POST", "/overt")
+    ]
+    r = Joseki.router(endpoints)
 
-# Fire up the server
-HTTP.serve(r, "127.0.0.1", 8000; verbose=false)
+    # Fire up the server
+    HTTP.serve(r, "127.0.0.1", 8000; verbose=false)
+end
+
+simple_testcase()
+
+# start_server()
+
+
