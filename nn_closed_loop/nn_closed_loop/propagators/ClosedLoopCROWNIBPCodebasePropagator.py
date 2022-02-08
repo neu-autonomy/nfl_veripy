@@ -202,7 +202,6 @@ class ClosedLoopCROWNIBPCodebasePropagator(ClosedLoopPropagator):
 
         num_states = xt1_min.shape[0]
         num_control_inputs = self.dynamics.bt.shape[1]
-        print(num_control_inputs)
         xt = cp.Variable(xt1_min.shape+(2,))
         ut = cp.Variable(num_control_inputs)
 
@@ -261,6 +260,7 @@ class ClosedLoopCROWNIBPCodebasePropagator(ClosedLoopPropagator):
         input_constraint = constraints.PolytopeConstraint(A=[], b=[])
 
         # Iterate through each partition
+        cell_index = 0
         for element in product(
             *[range(num) for num in num_partitions.flatten()]
         ):
@@ -340,6 +340,14 @@ class ClosedLoopCROWNIBPCodebasePropagator(ClosedLoopPropagator):
                 A_NN, b_NN = range_to_polytope(ranges)
                 A_ = np.vstack([A_, A_NN])
                 b_ = np.hstack([b_, b_NN])
+
+                # # cell_index_to_pause = 27
+                # cell_index_to_pause = 13
+                # if cell_index == cell_index_to_pause:
+                #     print(xt_min, xt_max)
+                #     import pdb; pdb.set_trace()
+
+                cell_index += 1
 
                 # Only add that polytope to the list if it's non-empty
                 try:
