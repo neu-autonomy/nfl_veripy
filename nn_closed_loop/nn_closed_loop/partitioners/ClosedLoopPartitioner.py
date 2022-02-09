@@ -303,6 +303,17 @@ class ClosedLoopPartitioner(partitioners.Partitioner):
 
         return input_constraint, info
 
+    def get_N_step_backprojection_set(
+        self, output_constraint, input_constraint, propagator, t_max, num_partitions=None, overapprox=False
+    ):
+        # import pdb; pdb.set_trace()
+        input_constraint_, info = propagator.get_N_step_backprojection_set(
+            output_constraint, deepcopy(input_constraint), t_max, num_partitions=num_partitions, overapprox=overapprox
+        )
+        input_constraint = input_constraint_.copy()
+
+        return input_constraint, info
+
     # def setup_visualization_multiple(
     #     self,
     #     input_constraint,

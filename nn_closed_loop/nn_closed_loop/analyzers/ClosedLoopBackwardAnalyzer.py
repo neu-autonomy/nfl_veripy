@@ -20,6 +20,14 @@ class ClosedLoopBackwardAnalyzer(analyzers.Analyzer):
         self.initial_set_color = 'tab:red'
         self.initial_set_zorder = 4
 
+    @property
+    def partitioner_dict(self):
+        return partitioners.partitioner_dict
+
+    @property
+    def propagator_dict(self):
+        return propagators.propagator_dict
+
     def instantiate_partitioner(self, partitioner, hyperparams):
         return partitioners.partitioner_dict[partitioner](
             **{**hyperparams, "dynamics": self.dynamics}
@@ -38,6 +46,12 @@ class ClosedLoopBackwardAnalyzer(analyzers.Analyzer):
 
     def get_backprojection_set(self, output_constraint, input_constraint, t_max, num_partitions=None, overapprox=False):
         backprojection_set, info = self.partitioner.get_backprojection_set(
+            output_constraint, input_constraint, self.propagator, t_max, num_partitions=num_partitions, overapprox=overapprox
+        )
+        return backprojection_set, info
+    
+    def get_N_step_backprojection_set(self, output_constraint, input_constraint, t_max, num_partitions=None, overapprox=False):
+        backprojection_set, info = self.partitioner.get_N_step_backprojection_set(
             output_constraint, input_constraint, self.propagator, t_max, num_partitions=num_partitions, overapprox=overapprox
         )
         return backprojection_set, info
@@ -119,10 +133,19 @@ class ClosedLoopBackwardAnalyzer(analyzers.Analyzer):
             backreachable_set,
             target_set,
             t_max=t_max,
-            color='yellow',
+            color='darkblue',
             zorder=2,
             linestyle='-',
         )
+
+        if 'tightened_constraint' in kwargs:
+                self.plot_tightened_backprojection_set(
+                kwargs['tightened_constraint'],
+                color='orange',
+                zorder=3,
+                linestyle='-',
+            )
+
 
         # self.partitioner.animate_axes.legend(
         #     bbox_to_anchor=(0, 1.02, 1, 0.2),
@@ -188,6 +211,15 @@ class ClosedLoopBackwardAnalyzer(analyzers.Analyzer):
             reachable_set_ls=linestyle
         )
 
+    def plot_tightened_backprojection_set(self, tightened_set, color='darkred', zorder=None, linestyle='-'):
+        self.partitioner.plot_reachable_sets(
+            tightened_set,
+            self.partitioner.input_dims,
+            reachable_set_color=color,
+            reachable_set_zorder=zorder,
+            reachable_set_ls=linestyle
+        )
+
     def plot_backprojection_set(self, backreachable_set, target_set, show_samples=False, color='g', zorder=None, linestyle='-'):
 
         # Sample a bunch of pts from our "true" backreachable set
@@ -228,16 +260,16 @@ class ClosedLoopBackwardAnalyzer(analyzers.Analyzer):
             )
 
             # Show samples from inside the backreachable set and their futures under the NN (don't necessarily end in target set)
-            self.partitioner.dynamics.show_samples(
-                None,
-                None,
-                ax=self.partitioner.animate_axes,
-                controller=None,
-                input_dims=self.partitioner.input_dims,
-                zorder=0,
-                xs=np.dstack([xt_samples_from_backreachable_set, xt1_from_those_samples]).transpose(0, 2, 1),
-                colors=['g', 'r']
-            )
+            # self.partitioner.dynamics.show_samples(
+            #     None,
+            #     None,
+            #     ax=self.partitioner.animate_axes,
+            #     controller=None,
+            #     input_dims=self.partitioner.input_dims,
+            #     zorder=0,
+            #     xs=np.dstack([xt_samples_from_backreachable_set, xt1_from_those_samples]).transpose(0, 2, 1),
+            #     colors=['g', 'r']
+            # )
 
         # Compute and draw a convex hull around all the backprojection set samples
         # This is our "true" backprojection set -- but...
@@ -256,7 +288,7 @@ class ClosedLoopBackwardAnalyzer(analyzers.Analyzer):
         )
         # self.default_lines[self.output_axis].append(conv_hull_line[0])
 
-    def plot_true_backprojection_sets(self, backreachable_set, target_set, t_max, show_samples=False, color='g', zorder=None, linestyle='-'):
+    def plot_true_backprojection_sets(self, backreachable_set, target_set, t_max, show_samples=True, color='g', zorder=None, linestyle='-'):
 
         # Sample a bunch of pts from our "true" backreachable set
         # (it's actually the tightest axis-aligned rectangle around the backreachable set)
@@ -283,22 +315,22 @@ class ClosedLoopBackwardAnalyzer(analyzers.Analyzer):
         x_samples_inside_backprojection_set = xs[within_constraint_inds]
 
         if show_samples:
-            raise NotImplementedError
+            # raise NotImplementedError
             # xt1_from_those_samples_ = xt1_from_those_samples[(within_constraint_inds)]
 
-            # # Show samples from inside the backprojection set and their futures under the NN (should end in target set)
-            # self.partitioner.dynamics.show_samples(
-            #     None,
-            #     None,
-            #     ax=self.partitioner.animate_axes,
-            #     controller=None,
-            #     input_dims=self.partitioner.input_dims,
-            #     zorder=1,
-            #     xs=np.dstack([xt_samples_inside_backprojection_set, xt1_from_those_samples_]).transpose(0, 2, 1),
-            #     colors=None
-            # )
+            # Show samples from inside the backprojection set and their futures under the NN (should end in target set)
+            self.partitioner.dynamics.show_samples(
+                None,
+                None,
+                ax=self.partitioner.animate_axes,
+                controller=None,
+                input_dims=self.partitioner.input_dims,
+                zorder=1,
+                xs=x_samples_inside_backprojection_set, # np.dstack([x_samples_inside_backprojection_set, xt1_from_those_samples_]).transpose(0, 2, 1),
+                colors=None
+            )
 
-            # # Show samples from inside the backreachable set and their futures under the NN (don't necessarily end in target set)
+            # Show samples from inside the backreachable set and their futures under the NN (don't necessarily end in target set)
             # self.partitioner.dynamics.show_samples(
             #     None,
             #     None,
