@@ -93,16 +93,16 @@ class ClosedLoopCROWNIBPCodebasePropagator(ClosedLoopPropagator):
             return_matrices=True,
         )
 
-        print("x_max: {}".format(x_max))
-        print("x_min: {}".format(x_min))
-        upper_A_numpy = upper_A.detach().numpy()
-        upper_sum_b_numpy = upper_sum_b.detach().numpy()
-        lower_A_numpy = lower_A.detach().numpy()
-        lower_sum_b_numpy = lower_sum_b.detach().numpy()
-        umax = np.maximum(upper_A_numpy@x_max+upper_sum_b_numpy, upper_A_numpy@x_min+upper_sum_b_numpy)
-        umin = np.minimum(lower_A_numpy@x_max+lower_sum_b_numpy, lower_A_numpy@x_min+lower_sum_b_numpy)
-        print("upper: {}".format(umax))
-        print("lower: {}".format(umin))
+        # print("x_max: {}".format(x_max))
+        # print("x_min: {}".format(x_min))
+        # upper_A_numpy = upper_A.detach().numpy()
+        # upper_sum_b_numpy = upper_sum_b.detach().numpy()
+        # lower_A_numpy = lower_A.detach().numpy()
+        # lower_sum_b_numpy = lower_sum_b.detach().numpy()
+        # umax = np.maximum(upper_A_numpy@x_max+upper_sum_b_numpy, upper_A_numpy@x_min+upper_sum_b_numpy)
+        # umin = np.minimum(lower_A_numpy@x_max+lower_sum_b_numpy, lower_A_numpy@x_min+lower_sum_b_numpy)
+        # print("upper: {}".format(umax))
+        # print("lower: {}".format(umin))
         # import pdb; pdb.set_trace()
 
         for i in range(num_facets):
@@ -327,10 +327,7 @@ class ClosedLoopCROWNIBPCodebasePropagator(ClosedLoopPropagator):
             lower_A = lower_A.detach().numpy()[0]
             upper_sum_b = upper_sum_b.detach().numpy()[0]
             lower_sum_b = lower_sum_b.detach().numpy()[0]
-            # print("current upper: {}".format(upper_A))
-            # print("current lower: {}".format(lower_A))
-            # print("xt_max: {}".format(xt_max))
-            # print("xt_min: {}".format(xt_min))
+
 
             if overapprox:
 
@@ -340,30 +337,15 @@ class ClosedLoopCROWNIBPCodebasePropagator(ClosedLoopPropagator):
 
 
 
-                # print("xt_max: {}".format(xt_max))
-                # print("xt_min: {}".format(xt_min))
-                # umax = np.maximum(upper_A@xt_max+upper_sum_b, upper_A@xt_min+upper_sum_b)
-                # umin = np.minimum(lower_A@xt_max+lower_sum_b, lower_A@xt_min+lower_sum_b)
-                # print("upper: {}".format(umax))
-                # print("lower: {}".format(umin))
-
-
                 xt = cp.Variable(xt1_min.shape)
                 ut = cp.Variable(num_control_inputs)
                 constrs = []
                 constrs += [xt_min <= xt]
                 constrs += [xt <= xt_max]
-                # constrs += [u_min <= ut]
-                # constrs += [ut <= u_max]
+
                 
                 constrs += [lower_A@xt+lower_sum_b <= ut]
                 constrs += [ut <= upper_A@xt+upper_sum_b]
-
-                # if upper_A.all() == lower_A.all() and upper_sum_b.all() == lower_sum_b.all():
-                #     constrs += [upper_A@xt+upper_sum_b == ut]
-                # else:
-                #     constrs += [lower_A@xt + lower_sum_b <= ut]
-                #     constrs += [ut <= upper_A@xt + upper_sum_b]
 
 
                 constrs += [self.dynamics.At@xt + self.dynamics.bt@ut <= xt1_max]
@@ -379,16 +361,7 @@ class ClosedLoopCROWNIBPCodebasePropagator(ClosedLoopPropagator):
                     A_t_i.value = A_t_[i, :]
                     prob.solve()
                     b_[i] = prob.value
-                    # if prob.status == 'infeasible' and upper_A.all() == lower_A.all() and upper_sum_b.all() == lower_sum_b.all():
-                    #     print('upper and lower equal + infeasible')
-                    # elif upper_A.all() == lower_A.all() and upper_sum_b.all() == lower_sum_b.all():
-                    #     print('just upper and lower equal')
-                    #     # print("xt_max: {}".format(xt_max))
-                    #     # print("xt_min: {}".format(xt_min))
-                    # elif prob.status == 'infeasible':
-                    #     print('just infeasible')
-                    # else:
-                    #     print('feasible')
+
 
                 # This cell of the backprojection set is upper-bounded by the
                 # cell of the backreachable set that we used in the NN relaxation
@@ -408,32 +381,11 @@ class ClosedLoopCROWNIBPCodebasePropagator(ClosedLoopPropagator):
                     xt_range_max = np.maximum(xt_range_max, xt_max_candidate)
                     xt_range_min = np.minimum(xt_range_min, xt_min_candidate)
 
-                    # print(ranges)
-                    # print(A_)
-                    # print(A_NN)
-                    # print(A_stack)
-                    # print(b_)
-                    # print(b_NN)
-                    # print(b_stack)
-
-                    # print("xt_max: {}".format(xt_max))
-                    # print("xt_min: {}".format(xt_min))
                     ut_max_candidate = np.maximum(upper_A@xt_max+upper_sum_b, upper_A@xt_min+upper_sum_b)
                     ut_min_candidate = np.minimum(lower_A@xt_max+lower_sum_b, lower_A@xt_min+lower_sum_b)
-                    # print("upper_i: {}".format(ut_max))
-                    # print("lower_i: {}".format(ut_min))
-                    # print("upper: {}".format(ut_max_candidate))
-                    # print("lower: {}".format(ut_min_candidate))
+
                     ut_min = np.minimum(ut_min, ut_min_candidate)
                     ut_max = np.maximum(ut_max, ut_max_candidate)
-                    # import pdb; pdb.set_trace()
-                    upper_A_max = np.maximum(upper_A_max, upper_A)
-                    lower_A_min = np.minimum(lower_A_min, lower_A)
-                    upper_sum_b_max = np.maximum(upper_sum_b_max, upper_sum_b)
-                    lower_sum_b_min = np.minimum(lower_sum_b_min, lower_sum_b)
-                    # print("new max: {}".format(upper_A_max))
-                    # print("new min: {}".format(lower_A_min))
-                    # import pdb; pdb.set_trace()
                     
 
                     input_constraint.A.append(A_)
@@ -474,11 +426,22 @@ class ClosedLoopCROWNIBPCodebasePropagator(ClosedLoopPropagator):
         A_overapprox, b_overapprox = range_to_polytope(x_overapprox)
         info['backproj_overapprox'] = constraints.PolytopeConstraint(A_overapprox, b_overapprox)
 
+        lower_A_range, upper_A_range, lower_sum_b_range, upper_sum_b_range = self.network(
+                method_opt=self.method_opt,
+                norm=norm,
+                x_U=torch.Tensor([xt_range_max]),
+                x_L=torch.Tensor([xt_range_min]),
+                upper=True,
+                lower=True,
+                C=C,
+                return_matrices=True,
+            )
+
         info['u_range'] = np.vstack((ut_min, ut_max)).T
-        info['upper_A'] = upper_A_max
-        info['lower_A'] = lower_A_min
-        info['upper_sum_b'] = upper_sum_b_max
-        info['lower_sum_b'] = lower_sum_b_min
+        info['upper_A'] = upper_A_range.detach().numpy()[0]
+        info['lower_A'] = lower_A_range.detach().numpy()[0]
+        info['upper_sum_b'] = upper_sum_b_range.detach().numpy()[0]
+        info['lower_sum_b'] = lower_sum_b_range.detach().numpy()[0]
         
         return input_constraint, info
 
@@ -490,6 +453,7 @@ class ClosedLoopCROWNIBPCodebasePropagator(ClosedLoopPropagator):
             overapprox=True,
         ):
             if overapprox:
+                # Initialize backprojections and u bounds (in infos)
                 input_constraint, infos = super().get_backprojection_set(
                     output_constraint, 
                     input_constraint, 
@@ -500,6 +464,8 @@ class ClosedLoopCROWNIBPCodebasePropagator(ClosedLoopPropagator):
 
                 if num_partitions is None:
                     num_partitions = np.array([10, 10])
+
+                # Get range of final backprojection overapprox
                 vertices = np.array(
                     pypoman.duality.compute_polytope_vertices(
                         infos['per_timestep'][-1]['backproj_overapprox'].A, infos['per_timestep'][-1]['backproj_overapprox'].b
@@ -509,21 +475,21 @@ class ClosedLoopCROWNIBPCodebasePropagator(ClosedLoopPropagator):
                 ranges = np.vstack([vertices.min(axis=0), vertices.max(axis=0)]).T
                 input_range = ranges
                 input_shape = input_range.shape[:-1]
+                
+                # Partition final backproj overapprox
                 slope = np.divide(
                     (input_range[..., 1] - input_range[..., 0]), num_partitions
                 )
 
                 num_states = self.dynamics.At.shape[1]
                 num_control_inputs = self.dynamics.bt.shape[1]
-                ut_max = -np.inf*np.ones(num_control_inputs)
-                ut_min = np.inf*np.ones(num_control_inputs)
                 xt_range_max = -np.inf*np.ones(num_states)
                 xt_range_min = np.inf*np.ones(num_states)
                 A_t = np.eye(num_states)
                 from copy import deepcopy
                 constr_timesteps = deepcopy(infos['per_timestep'])
                 constr_timesteps.reverse()
-                # import pdb; pdb.set_trace()
+                
 
                 # Iterate through each partition
                 for element in product(
@@ -547,7 +513,6 @@ class ClosedLoopCROWNIBPCodebasePropagator(ClosedLoopPropagator):
 
                     nn_input_max = torch.Tensor([xt_max])
                     nn_input_min = torch.Tensor([xt_min])
-                    # norm = output_constraint.p
 
                     # Compute the NN output matrices (for this xt partition)
                     C = torch.eye(num_control_inputs).unsqueeze(0)
@@ -567,30 +532,22 @@ class ClosedLoopCROWNIBPCodebasePropagator(ClosedLoopPropagator):
                     lower_sum_b = lower_sum_b.detach().numpy()[0]
 
 
-
-
-
-                    
-                    
-
                     xt = cp.Variable((num_states, int(t_max+1)))
                     ut = cp.Variable((num_control_inputs, int(t_max+1)))
                     constrs = []
-                    # import pdb; pdb.set_trace()
+                    
                     constrs += [xt_min <= xt[:,0]]
                     constrs += [xt[:,0] <= xt_max]
-                    # # constrs += [u_min <= ut]
-                    # # constrs += [ut <= u_max]
-                    # constrs += [lower_A@xt + lower_sum_b <= ut]
-                    # constrs += [ut <= upper_A@xt + upper_sum_b]
+
+                    # Add constraints for each backprojection set leading to the target set
                     for i in range(int(t_max)):
-                        u_range = constr_timesteps[i]['u_range']
                         # Gather CROWN bounds for full backprojection overapprox
-                        if i > 0:
+                        if i > 0: # If looking at final set, use bounds from current partition
                             upper_A = constr_timesteps[i]['upper_A']
                             lower_A = constr_timesteps[i]['lower_A']
                             upper_sum_b = constr_timesteps[i]['upper_sum_b']
                             lower_sum_b = constr_timesteps[i]['lower_sum_b']
+                        
                         # x_{t+1} must be in the next backprojection overapprox or target set
                         if i < t_max-1:
                             A_i, b_i = constr_timesteps[i+1]['backproj_overapprox'].A, constr_timesteps[i+1]['backproj_overapprox'].b
@@ -599,13 +556,6 @@ class ClosedLoopCROWNIBPCodebasePropagator(ClosedLoopPropagator):
                         constrs += [A_i@xt[:,i+1] <= b_i]
 
                         # u_t bounded by CROWN bounds
-                        # constrs += [u_range[:,0] <= ut[:,i]]
-                        # constrs += [ut[:,i] <= u_range[:,1]]
-                        # if upper_A.all() == lower_A.all() and upper_sum_b.all() == lower_sum_b.all():
-                        #     constrs += [lower_A@xt[:,i]+lower_sum_b == ut[:,i]]
-                        # else:
-                        #     constrs += [lower_A@xt[:,i]+lower_sum_b <= ut[:,i]]
-                        #     constrs += [ut[:,i] <= upper_A@xt[:,i]+upper_sum_b]
                         constrs += [lower_A@xt[:,i]+lower_sum_b <= ut[:,i]]
                         constrs += [ut[:,i] <= upper_A@xt[:,i]+upper_sum_b]
 
@@ -614,17 +564,7 @@ class ClosedLoopCROWNIBPCodebasePropagator(ClosedLoopPropagator):
 
                         # x_t and x_{t+1} connected through system dynamics
                         constrs += [self.dynamics.At@xt[:,i] + self.dynamics.bt@ut[:,i] == xt[:,i+1]]
-                        # import pdb; pdb.set_trace()
 
-                    # upper_A = constr_timesteps[-1]['upper_A']
-                    # lower_A = constr_timesteps[-1]['lower_A']
-                    # upper_sum_b = constr_timesteps[-1]['upper_sum_b']
-                    # lower_sum_b = constr_timesteps[-1]['lower_sum_b']
-                    # constrs += [lower_A@xt[:,t_max-1]+lower_sum_b <= ut[:,t_max-1]]
-                    # constrs += [ut[:,t_max-1] <= upper_A@xt[:,t_max-1]+upper_sum_b]
-                    # constrs += [self.dynamics.At@xt[:,t_max-1] + self.dynamics.bt@ut[:,t_max-1] == xt[:,t_max]]
-                    # constrs += [output_constraint.A@xt[:,t_max] <= output_constraint.b[0]]
-                    # import pdb; pdb.set_trace()
                     A_t_ = np.vstack([A_t, -A_t])
                     num_facets = 2*num_states
                     A_t_i = cp.Parameter(num_states)
@@ -635,22 +575,6 @@ class ClosedLoopCROWNIBPCodebasePropagator(ClosedLoopPropagator):
                     for i in range(num_facets):
                         A_t_i.value = A_t_[i, :]
                         prob.solve(solver=cp.SCIPY, scipy_options={"method": "highs"})
-                        # if prob.status == 'infeasible' and upper_A.all() == lower_A.all() and upper_sum_b.all() == lower_sum_b.all():
-                        #     print('upper and lower equal + infeasible')
-                        # elif upper_A.all() == lower_A.all() and upper_sum_b.all() == lower_sum_b.all():
-                        #     print('just upper and lower equal')
-                        #     # print("xt_max: {}".format(xt_max))
-                        #     # print("xt_min: {}".format(xt_min))
-                        # elif prob.status == 'infeasible':
-                        #     print('just infeasible')
-                        # else:
-                        #     print('feasible')
-                        # if prob.status == 'optimal':
-                        #     import pdb; pdb.set_trace()
-                        # try:
-                        #     prob.solve()
-                        # except:
-                        #     prob.solve(solver='SCS')
                         b_[i] = prob.value
 
 
@@ -671,25 +595,6 @@ class ClosedLoopCROWNIBPCodebasePropagator(ClosedLoopPropagator):
                         xt_min_candidate = np.min(vertices, axis=0)
                         xt_range_max = np.maximum(xt_range_max, xt_max_candidate)
                         xt_range_min = np.minimum(xt_range_min, xt_min_candidate)
-                    
-                        # print(ranges)
-                        # print(A_)
-                        # print(A_NN)
-                        # print(A_stack)
-                        # print(b_)
-                        # print(b_NN)
-                        # print(b_stack)
-                        # print("xt_max: {}".format(xt_range_max))
-                        # print("xt_min: {}".format(xt_range_min))
-                        # ut_max_candidate = np.maximum(upper_A@xt_max+upper_sum_b, upper_A@xt_min+upper_sum_b)
-                        # ut_min_candidate = np.minimum(lower_A@xt_max+lower_sum_b, lower_A@xt_min+lower_sum_b)
-                        # print("upper_i: {}".format(ut_max))
-                        # print("lower_i: {}".format(ut_min))
-                        # print("upper: {}".format(ut_max_candidate))
-                        # print("lower: {}".format(ut_min_candidate))
-                        # ut_min = np.minimum(ut_min, ut_min_candidate)
-                        # ut_max = np.maximum(ut_max, ut_max_candidate)
-
                         
 
                         tightened_constraint.A.append(A_)
@@ -705,6 +610,9 @@ class ClosedLoopCROWNIBPCodebasePropagator(ClosedLoopPropagator):
                 raise NotImplementedError
 
             infos['tightened_constraint'] = tightened_constraint
+            x_overapprox = np.vstack((xt_range_min, xt_range_max)).T
+            A_overapprox, b_overapprox = range_to_polytope(x_overapprox)
+            infos['tightened_overapprox'] = constraints.PolytopeConstraint(A_overapprox, b_overapprox)
             return input_constraint, infos
 
 
