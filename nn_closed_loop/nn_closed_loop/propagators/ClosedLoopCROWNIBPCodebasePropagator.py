@@ -231,8 +231,10 @@ class ClosedLoopCROWNIBPCodebasePropagator(ClosedLoopPropagator):
         constrs = []
         constrs += [u_min <= ut]
         constrs += [ut <= u_max]
-        constrs += [self.dynamics.At@xt + self.dynamics.bt@ut <= xt1_max]
-        constrs += [self.dynamics.At@xt + self.dynamics.bt@ut >= xt1_min]
+        # constrs += [self.dynamics.At@xt + self.dt*self.dynamics.bt@ut + self.dt*self.dynamics.ct <= xt1_max]
+        # constrs += [self.dynamics.At@xt + self.dt*self.dynamics.bt@ut + self.dt*self.dynamics.ct >= xt1_min]
+        constrs += [self.dynamics.dynamics_step(xt,ut) <= xt1_max]
+        constrs += [self.dynamics.dynamics_step(xt,ut) >= xt1_min]
         A_t_i = cp.Parameter(num_states)
         obj = A_t_i@xt
         min_prob = cp.Problem(cp.Minimize(obj), constrs)
@@ -243,6 +245,7 @@ class ClosedLoopCROWNIBPCodebasePropagator(ClosedLoopPropagator):
             coords[2*i, :] = xt.value
             max_prob.solve()
             coords[2*i+1, :] = xt.value
+            # import pdb; pdb.set_trace()
 
         # min/max of each element of xt in the backreachable set
         ranges = np.vstack([coords.min(axis=0), coords.max(axis=0)]).T
@@ -335,8 +338,10 @@ class ClosedLoopCROWNIBPCodebasePropagator(ClosedLoopPropagator):
                 # all xt s.t. there exists some u \in [pi^L(x_t), pi^U(x_t)]
                 #              that leads to the target set
 
+                ut_max_candidate = np.maximum(upper_A@xt_max+upper_sum_b, upper_A@xt_min+upper_sum_b)
+                ut_min_candidate = np.minimum(lower_A@xt_max+lower_sum_b, lower_A@xt_min+lower_sum_b)
 
-
+                #########################
                 xt = cp.Variable(xt1_min.shape)
                 ut = cp.Variable(num_control_inputs)
                 constrs = []
@@ -346,10 +351,15 @@ class ClosedLoopCROWNIBPCodebasePropagator(ClosedLoopPropagator):
                 
                 constrs += [lower_A@xt+lower_sum_b <= ut]
                 constrs += [ut <= upper_A@xt+upper_sum_b]
+                # constrs += [ut_min_candidate <= ut]
+                # constrs += [ut <= ut_max_candidate]
 
 
-                constrs += [self.dynamics.At@xt + self.dynamics.bt@ut <= xt1_max]
-                constrs += [self.dynamics.At@xt + self.dynamics.bt@ut >= xt1_min]
+
+                # constrs += [self.dynamics.At@xt + self.dynamics.bt@ut + self.dynamics.ct <= xt1_max]
+                # constrs += [self.dynamics.At@xt + self.dynamics.bt@ut + self.dynamics.ct >= xt1_min]
+                constrs += [self.dynamics.dynamics_step(xt,ut) <= xt1_max]
+                constrs += [self.dynamics.dynamics_step(xt,ut) >= xt1_min]
                 A_t_ = np.vstack([A_t, -A_t])
                 num_facets = 2*num_states
                 A_t_i = cp.Parameter(num_states)
@@ -361,7 +371,61 @@ class ClosedLoopCROWNIBPCodebasePropagator(ClosedLoopPropagator):
                     A_t_i.value = A_t_[i, :]
                     prob.solve()
                     b_[i] = prob.value
+                    
+                print(b_)
+                # import pdb; pdb.set_trace()
 
+
+                #########################
+
+                # coords = np.empty((2*num_states, num_states))
+                # num_facets = A_t.shape[0]
+                # min_prob = cp.Problem(cp.Minimize(obj), constrs)
+                # max_prob = cp.Problem(cp.Maximize(obj), constrs)
+                # for i in range(num_facets):
+                #     A_t_i.value = A_t[i, :]
+                #     min_prob.solve()
+                #     coords[2*i, :] = xt.value
+                #     max_prob.solve()
+                #     coords[2*i+1, :] = xt.value
+                #     import pdb; pdb.set_trace()
+
+                # A_t = np.eye(xt1_min.shape[0])
+                # num_facets = A_t.shape[0]
+                # coords = np.empty((2*num_states, num_states))
+                # # import pdb; pdb.set_trace()
+
+                # # For each dimension of the output constraint (facet/lp-dimension):
+                # # compute a bound of the NN output using the pre-computed matrices
+                # xt = cp.Variable(xt1_min.shape)
+                # ut = cp.Variable(num_control_inputs)
+                # constrs = []
+                # constrs += [lower_A@xt+lower_sum_b <= ut]
+                # constrs += [ut <= upper_A@xt+upper_sum_b]
+                # # constrs += [ut_min_candidate <= ut]
+                # # constrs += [ut <= ut_max_candidate]
+                # # constrs += [self.dynamics.At@xt + self.dt*self.dynamics.bt@ut + self.dt*self.dynamics.ct <= xt1_max]
+                # # constrs += [self.dynamics.At@xt + self.dt*self.dynamics.bt@ut + self.dt*self.dynamics.ct >= xt1_min]
+                # constrs += [self.dynamics.dynamics_step(xt,ut) <= xt1_max]
+                # constrs += [self.dynamics.dynamics_step(xt,ut) >= xt1_min]
+                # A_t_i = cp.Parameter(num_states)
+                # obj = A_t_i@xt
+                # min_prob = cp.Problem(cp.Minimize(obj), constrs)
+                # max_prob = cp.Problem(cp.Maximize(obj), constrs)
+                # for i in range(num_facets):
+                #     A_t_i.value = A_t[i, :]
+                #     min_prob.solve()
+                #     coords[2*i, :] = xt.value
+                #     max_prob.solve()
+                #     coords[2*i+1, :] = xt.value
+                #     # import pdb; pdb.set_trace()
+
+                
+                   
+
+                # element_range = np.vstack([coords.min(axis=0), coords.max(axis=0)]).T
+                # A_, b_ = range_to_polytope(element_range)
+                # import pdb; pdb.set_trace()
 
                 # This cell of the backprojection set is upper-bounded by the
                 # cell of the backreachable set that we used in the NN relaxation
@@ -371,11 +435,45 @@ class ClosedLoopCROWNIBPCodebasePropagator(ClosedLoopPropagator):
                 A_stack = np.vstack([A_, A_NN])
                 b_stack = np.hstack([b_, b_NN])
 
+                # import pdb; pdb.set_trace()
+
                 # Only add that polytope to the list if it's non-empty
-                try:
-                    pypoman.polygon.compute_polygon_hull(A_stack, b_stack+1e-10)
+                # try:
+                #     print('init')
+                #     pypoman.polygon.compute_polygon_hull(A_stack, b_stack+1e-10)
                     
-                    vertices = np.array(pypoman.duality.compute_polytope_vertices(A_stack,b_stack))
+                #     print('bout to make verts')
+                #     vertices = np.array(pypoman.duality.compute_polytope_vertices(A_stack,b_stack))
+                #     print('ok')
+                    
+                #     xt_max_candidate = np.max(vertices, axis=0)
+                #     xt_min_candidate = np.min(vertices, axis=0)
+                #     xt_range_max = np.maximum(xt_range_max, xt_max_candidate)
+                #     xt_range_min = np.minimum(xt_range_min, xt_min_candidate)
+
+                #     ut_max_candidate = np.maximum(upper_A@xt_max+upper_sum_b, upper_A@xt_min+upper_sum_b)
+                #     ut_min_candidate = np.minimum(lower_A@xt_max+lower_sum_b, lower_A@xt_min+lower_sum_b)
+
+                #     ut_min = np.minimum(ut_min, ut_min_candidate)
+                #     ut_max = np.maximum(ut_max, ut_max_candidate)
+                    
+
+                #     input_constraint.A.append(A_)
+                #     input_constraint.b.append(b_)
+                #     print('add')
+                # except:
+                #     print('dont add')
+                #     continue
+
+                
+                
+                print('bout to make verts')
+                vertices = np.array(pypoman.duality.compute_polytope_vertices(A_stack,b_stack))
+                if len(vertices) > 0:
+                    input_constraint.A.append(A_)
+                    input_constraint.b.append(b_)
+                
+                
                     xt_max_candidate = np.max(vertices, axis=0)
                     xt_min_candidate = np.min(vertices, axis=0)
                     xt_range_max = np.maximum(xt_range_max, xt_max_candidate)
@@ -386,12 +484,10 @@ class ClosedLoopCROWNIBPCodebasePropagator(ClosedLoopPropagator):
 
                     ut_min = np.minimum(ut_min, ut_min_candidate)
                     ut_max = np.maximum(ut_max, ut_max_candidate)
-                    
+                else:
+                    print('dont add')
 
-                    input_constraint.A.append(A_)
-                    input_constraint.b.append(b_)
-                except:
-                    continue
+                
 
             else:
                 # For our under-approximation, refer to the Access21 paper.

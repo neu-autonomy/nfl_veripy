@@ -138,11 +138,12 @@ class Dynamics:
                 projection = '3d'
             ax = plt.subplot(projection=projection)
 
+        num_trajectories = 20
         if xs is None:
             xs, us = self.collect_data(
                 t_max,
                 input_constraint,
-                num_samples=10000,
+                num_samples=num_trajectories*(t_max+self.dt),
                 controller=controller,
                 merge_cols=False,
             )
@@ -152,13 +153,242 @@ class Dynamics:
         if colors is None:
             colors = self.colors(num_timesteps)
 
-        for t in range(num_timesteps):
-            ax.scatter(
-                *[xs[:, t, i] for i in input_dims],
-                color=colors[t],
-                s=4,
-                zorder=zorder,
+        # for t in range(num_timesteps):
+        #     ax.scatter(
+        #         *[xs[:, t, i] for i in input_dims],
+        #         color=colors[t],
+        #         s=4,
+        #         zorder=zorder,
+        #     )
+        for traj in range(num_runs):
+            if len(input_dims) == 2:
+                # import pdb; pdb.set_trace()
+                ax.scatter(
+                    xs[traj, :, 0],
+                    xs[traj, :, 1],
+                    color='b',
+                    zorder=zorder,
+                )
+            elif len(input_dims) == 3:
+                ax.plot(
+                    xs[traj, :, 0],
+                    xs[traj, :, 1],
+                    xs[traj, :, 2],
+                    color=colors[traj],
+                    zorder=zorder,
+                )
+
+        ax.set_xlabel("$x_" + str(input_dims[0][0]) + "$")
+        ax.set_ylabel("$x_" + str(input_dims[1][0]) + "$")
+        if len(input_dims) == 3:
+            ax.set_zlabel("$x_" + str(input_dims[2][0]) + "$")
+
+        if save_plot:
+            ax.savefig(plot_name)
+
+        if show:
+            plt.show()
+
+
+    # def show_trajectories(
+    #     self,
+    #     t_max,
+    #     input_constraint,
+    #     num_trajectories=2,
+    #     save_plot=False,
+    #     ax=None,
+    #     show=False,
+    #     controller="mpc",
+    #     input_dims=[[0], [1]],
+    #     zorder=1,
+    #     xs=None,
+    #     colors=None,
+    # ):
+    #     if ax is None:
+    #         if len(input_dims) == 2:
+    #             projection = None
+    #         elif len(input_dims) == 3:
+    #             projection = '3d'
+    #         ax = plt.subplot(projection=projection)
+
+    #     if xs is None:
+    #         xs, us = self.collect_data(
+    #             t_max,
+    #             input_constraint,
+    #             num_samples=num_trajectories*(t_max+self.dt),
+    #             controller=controller,
+    #             merge_cols=False,
+    #         )
+
+    #     num_runs, num_timesteps, num_states = xs.shape
+
+    #     if colors is None:
+    #         colors = self.colors(num_timesteps)
+
+    #     import pdb; pdb.set_trace()
+
+    #     for traj in range(num_runs):
+    #         if len(input_dims) == 2:
+    #             ax.plot(
+    #                 xs[traj, :, 0],
+    #                 xs[traj, :, 1],
+    #                 color='b',
+    #                 zorder=8,
+    #             )
+    #         elif len(input_dims) == 3:
+    #             ax.plot(
+    #                 xs[traj, :, 0],
+    #                 xs[traj, :, 1],
+    #                 xs[traj, :, 2],
+    #                 color=colors[traj],
+    #                 zorder=zorder,
+    #             )
+        
+
+
+    #     ax.set_xlabel("$x_" + str(input_dims[0][0]) + "$")
+    #     ax.set_ylabel("$x_" + str(input_dims[1][0]) + "$")
+    #     if len(input_dims) == 3:
+    #         ax.set_zlabel("$x_" + str(input_dims[2][0]) + "$")
+
+    #     if save_plot:
+    #         ax.savefig(plot_name)
+
+
+    #     if show:
+    #         plt.show()
+
+
+    # def show_trajectories(
+    #     self,
+    #     t_max,
+    #     input_constraint,
+    #     num_trajectories=10,
+    #     save_plot=False,
+    #     ax=None,
+    #     show=False,
+    #     controller="mpc",
+    #     input_dims=[[0], [1]],
+    #     zorder=1,
+    #     xs=None,
+    #     colors=None,
+    # ):
+    #     if ax is None:
+    #         if len(input_dims) == 2:
+    #             projection = None
+    #         elif len(input_dims) == 3:
+    #             projection = '3d'
+    #         ax = plt.subplot(projection=projection)
+
+    #     if xs is None:
+    #         xs, us = self.collect_data(
+    #             t_max,
+    #             input_constraint,
+    #             num_samples=num_trajectories*(t_max+self.dt),
+    #             controller=controller,
+    #             merge_cols=False,
+    #         )
+
+    #     num_runs, num_timesteps, num_states = xs.shape
+
+    #     if colors is None:
+    #         colors = self.colors(num_timesteps)
+
+    #     for traj in range(num_runs):
+    #         if len(input_dims) == 2:
+    #             # import pdb; pdb.set_trace()
+    #             ax.plot(
+    #                 xs[traj, :, 0],
+    #                 xs[traj, :, 1],
+    #                 color='b',
+    #                 zorder=zorder,
+    #             )
+    #         elif len(input_dims) == 3:
+    #             ax.plot(
+    #                 xs[traj, :, 0],
+    #                 xs[traj, :, 1],
+    #                 xs[traj, :, 2],
+    #                 color=colors[traj],
+    #                 zorder=zorder,
+    #             )
+    #     # for t in range(num_timesteps):
+    #     #     ax.scatter(
+    #     #         *[xs[:, t, i] for i in input_dims],
+    #     #         color=colors[t],
+    #     #         s=4,
+    #     #         zorder=zorder,
+    #     #     )
+
+    #     ax.set_xlabel("$x_" + str(input_dims[0][0]) + "$")
+    #     ax.set_ylabel("$x_" + str(input_dims[1][0]) + "$")
+    #     if len(input_dims) == 3:
+    #         ax.set_zlabel("$x_" + str(input_dims[2][0]) + "$")
+
+    #     if save_plot:
+    #         ax.savefig(plot_name)
+
+    #     if show:
+    #         plt.show()
+
+    def show_trajectories(
+        self,
+        t_max,
+        input_constraint,
+        save_plot=False,
+        ax=None,
+        show=False,
+        controller="mpc",
+        input_dims=[[0], [1]],
+        zorder=1,
+        xs=None,
+        colors=None,
+    ):
+        if ax is None:
+            if len(input_dims) == 2:
+                projection = None
+            elif len(input_dims) == 3:
+                projection = '3d'
+            ax = plt.subplot(projection=projection)
+
+        num_trajectories = 20
+        if xs is None:
+            xs, us = self.collect_data(
+                t_max,
+                input_constraint,
+                num_samples=num_trajectories*(t_max+self.dt),
+                controller=controller,
+                merge_cols=False,
             )
+
+        num_runs, num_timesteps, num_states = xs.shape
+
+        if colors is None:
+            colors = self.colors(num_timesteps)
+
+        # for t in range(num_timesteps):
+        #     ax.scatter(
+        #         *[xs[:, t, i] for i in input_dims],
+        #         color=colors[t],
+        #         s=4,
+        #         zorder=zorder,
+        #     )
+        for traj in range(num_runs):
+            if len(input_dims) == 2:
+                # import pdb; pdb.set_trace()
+                ax.scatter(
+                    xs[traj, :, 0],
+                    xs[traj, :, 1],
+                    color='b',
+                    zorder=zorder,
+                )
+            elif len(input_dims) == 3:
+                ax.plot(
+                    xs[traj, :, 0],
+                    xs[traj, :, 1],
+                    xs[traj, :, 2],
+                    color=colors[traj],
+                    zorder=zorder,
+                )
 
         ax.set_xlabel("$x_" + str(input_dims[0][0]) + "$")
         ax.set_ylabel("$x_" + str(input_dims[1][0]) + "$")
@@ -336,14 +566,17 @@ class ContinuousTimeDynamics(Dynamics):
         self.continuous_time = True
 
     def dynamics(self, xs, us):
-        xdot = (np.dot(self.At, xs.T) + np.dot(self.bt, us.T)).T + self.ct
-        if self.process_noise is not None:
-            noise = np.random.uniform(
-                low=self.process_noise[:, 0],
-                high=self.process_noise[:, 1],
-                size=xs.shape,
-            )
-            xdot += noise
+        if isinstance(xs,np.ndarray): # For tracking MC samples
+            xdot = (np.dot(self.At, xs.T) + np.dot(self.bt, us.T)).T + self.ct
+            if self.process_noise is not None:
+                noise = np.random.uniform(
+                    low=self.process_noise[:, 0],
+                    high=self.process_noise[:, 1],
+                    size=xs.shape,
+                )
+                xdot += noise
+        else: # For solving LP
+            xdot = self.At@xs + self.bt@us + self.ct
         return xdot
 
     def dynamics_step(self, xs, us):
@@ -366,14 +599,18 @@ class DiscreteTimeDynamics(Dynamics):
         self.continuous_time = False
 
     def dynamics_step(self, xs, us):
-        xs_t1 = (np.dot(self.At, xs.T) + np.dot(self.bt, us.T)).T + self.ct
-        if self.process_noise is not None:
-            noise = np.random.uniform(
-                low=self.process_noise[:, 0],
-                high=self.process_noise[:, 1],
-                size=xs.shape,
-            )
-            xs_t1 += noise
+        if isinstance(xs, np.ndarray): # For tracking MC samples
+            xs_t1 = (np.dot(self.At, xs.T) + np.dot(self.bt, us.T)).T + self.ct
+            if self.process_noise is not None:
+                noise = np.random.uniform(
+                    low=self.process_noise[:, 0],
+                    high=self.process_noise[:, 1],
+                    size=xs.shape,
+                )
+                xs_t1 += noise
+        else: # For solving LP
+            xs_t1 = self.At@xs + self.bt@us + self.ct
+
         return xs_t1
 
 
