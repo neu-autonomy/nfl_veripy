@@ -1,31 +1,25 @@
-variables:
-  GIT_SUBMODULE_STRATEGY: recursive
-
 image: docker:19.03.12
 services:
   - docker:19.03.12-dind
 
 stages:
   - build_container
-  - build
-  - test
-  - release
+  # - build
+  # - test
+  # - release
   # - deploy
 
 variables:
   # Use TLS https://docs.gitlab.com/ee/ci/docker/using_docker_build.html#tls-enabled
   DOCKER_HOST: tcp://docker:2376
   DOCKER_TLS_CERTDIR: "/certs"
-  CONTAINER_TEST_IMAGE: test_nn:123
-  # CONTAINER_TEST_IMAGE: $CI_REGISTRY_IMAGE:$CI_COMMIT_REF_SLUG
+  CONTAINER_TEST_IMAGE: $CI_REGISTRY_IMAGE:$CI_COMMIT_REF_SLUG
   CONTAINER_RELEASE_IMAGE: $CI_REGISTRY_IMAGE:latest
-  MOUNT_POINT: /builds/$CI_PROJECT_PATH/jackal_ws
-  DOCKER_TLS_VERIFY: "1"
-  # DOCKER_CERT_PATH: /certs/client
-  GIT_SSL_NO_VERIFY: "1"
+  # MOUNT_POINT: /builds/$CI_PROJECT_PATH/jackal_ws
+  GIT_SUBMODULE_STRATEGY: recursive
 
-# before_script:
-#   - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
+before_script:
+  - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
 
 build_container:
   stage: build_container
@@ -34,49 +28,10 @@ build_container:
       - docker/Dockerfile
       - nn_closed_loop/setup.py
       - nn_partition/setup.py
+      - .gitlab-ci.yml
   script:
-    - ls
-    - ls ..
-    - ls ../../certs/client
-    - pwd
     - docker build --pull -t $CONTAINER_TEST_IMAGE -f docker/Dockerfile .
     - docker push $CONTAINER_TEST_IMAGE
-
-# catkin_build:
-#   stage: build
-#   script:
-#     - mkdir -p /builds/jackal_ws/src
-#     - cp -r $CI_PROJECT_DIR /builds/jackal_ws/src/
-#     - docker pull $CONTAINER_TEST_IMAGE
-#     - docker run -v /builds/jackal_ws:/home/jackal_ws $CONTAINER_TEST_IMAGE /home/jackal_ws/src/jackal_ros/tests/catkin.sh
-#     - mkdir -p $CI_PROJECT_DIR/artifacts
-#     - cp -r /builds/jackal_ws/devel $CI_PROJECT_DIR/artifacts/
-#     - cp -r /builds/jackal_ws/build $CI_PROJECT_DIR/artifacts/
-#   artifacts:
-#     paths:
-#       - $CI_PROJECT_DIR/artifacts/devel/
-#       - $CI_PROJECT_DIR/artifacts/build/
-
-# test_jackal_robot_launch:
-#   stage: test
-#   script:
-#     - mkdir -p /builds/jackal_ws/src
-#     - cp -r $CI_PROJECT_DIR /builds/jackal_ws/src/
-#     - cp -r $CI_PROJECT_DIR/artifacts/devel /builds/jackal_ws/
-#     - cp -r $CI_PROJECT_DIR/artifacts/build /builds/jackal_ws/
-#     - docker pull $CONTAINER_TEST_IMAGE
-#     # - docker run -v /builds/jackal_ws:/home/jackal_ws $CONTAINER_TEST_IMAGE /home/jackal_ws/src/jackal_ros/tests/post_catkin.sh
-#     - docker run -v /builds/jackal_ws:/home/jackal_ws $CONTAINER_TEST_IMAGE /bin/bash -c 'source /home/jackal_ws/devel/setup.bash && timeout 30 roslaunch jackal_ros jackal_robot.launch || [[ $? -eq 124 ]]'
-
-# test_jackal_outdoor_launch:
-#   stage: test
-#   script:
-#     - mkdir -p /builds/jackal_ws/src
-#     - cp -r $CI_PROJECT_DIR /builds/jackal_ws/src/
-#     - cp -r $CI_PROJECT_DIR/artifacts/devel /builds/jackal_ws/
-#     - cp -r $CI_PROJECT_DIR/artifacts/build /builds/jackal_ws/
-#     - docker pull $CONTAINER_TEST_IMAGE
-#     - docker run -v /builds/jackal_ws:/home/jackal_ws $CONTAINER_TEST_IMAGE /bin/bash -c 'source /home/jackal_ws/devel/setup.bash && timeout 30 roslaunch jackal_ros jackal_outdoor.launch || [[ $? -eq 124 ]]'
 
 test_partition:
   image: $CONTAINER_TEST_IMAGE
