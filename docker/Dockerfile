@@ -5,6 +5,8 @@ RUN apt-get update && apt-get install -y \
     liblapack-dev \
     gifsicle
 
+RUN ls
+
 RUN python -m pip install ./crown_ibp ./auto_LiRPA ./robust_sdp ./nn_partition ./nn_closed_loop
 
 CMD ["/bin/bash"]
