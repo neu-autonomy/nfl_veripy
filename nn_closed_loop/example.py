@@ -165,6 +165,7 @@ def main(args):
     # Set up analyzer (+ parititoner + propagator)
     analyzer = analyzers.ClosedLoopAnalyzer(controller, dyn)
     analyzer.partitioner = partitioner_hyperparams
+    # import pdb; pdb.set_trace()
     analyzer.propagator = propagator_hyperparams
 
     # Set up initial state set (and placeholder for reachable sets)
@@ -318,10 +319,11 @@ def main(args):
                     [-0.25, 0.25],  # x1min, x1max
                 ]
             )
-        num_partitions = np.array([32, 32])
+        num_partitions = np.array([4, 4])
         
         back_analyzer = analyzers.ClosedLoopBackwardAnalyzer(controller, dyn)
         back_analyzer.partitioner = partitioner_hyperparams
+        # import pdb; pdb.set_trace()
         back_analyzer.propagator = propagator_hyperparams
         
         A_out, b_out = range_to_polytope(final_state_range)
@@ -330,10 +332,10 @@ def main(args):
         )
         back_input_constraint = constraints.PolytopeConstraint(None, None)
 
-        back_input_constraint, back_analyzer_info = back_analyzer.get_backprojection_set(
+        back_input_constraint, back_analyzer_info = back_analyzer.get_N_step_backprojection_set(
             back_output_constraint, back_input_constraint, t_max=args.t_max, num_partitions=num_partitions, overapprox=True
         )
-        import pdb; pdb.set_trace()
+        # import pdb; pdb.set_trace()
 
         back_analyzer.visualize(
             back_input_constraint,
