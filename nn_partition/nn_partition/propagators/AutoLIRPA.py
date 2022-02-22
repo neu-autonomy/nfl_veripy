@@ -45,7 +45,7 @@ class AutoLIRPAPropagator(Propagator):
         # Define perturbation
         ptb = PerturbationLpNorm(norm=np.inf, eps=radius)
         # Make the input a BoundedTensor with perturbation
-        my_input = BoundedTensor(torch.Tensor([center]), ptb)
+        my_input = BoundedTensor(torch.Tensor(np.expand_dims(center, 0)), ptb)
         # Forward propagation using BoundedTensor
         prediction = self.network(my_input)
         # Compute LiRPA bounds
