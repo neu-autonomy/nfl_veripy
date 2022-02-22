@@ -34,12 +34,15 @@ class PolytopeConstraint(Constraint):
             )[0]
         return ranges
 
-    def plot(self, ax, dims, color, fc_color="None", linewidth=3, label=None, zorder=2, plot_2d=True, ls='-'):
+    def plot(self, ax, dims, color, fc_color="None", linewidth=1.5, label=None, zorder=2, plot_2d=True, ls='-'):
         if not plot_2d:
             raise NotImplementedError
             return self.plot3d(ax, dims, color, fc_color=fc_color, linewidth=linewidth, zorder=zorder)
 
         # TODO: this doesn't use the computed input_dims...
+
+        if linewidth != 2.5:
+            linewidth = 1.5
 
         lines = []
 
@@ -50,17 +53,17 @@ class PolytopeConstraint(Constraint):
             # backprojection set
 
             for i in range(len(self.A)):
-                line = make_polytope_from_arrs(ax, self.A[i], self.b[i], color, label, zorder, ls)
+                line = make_polytope_from_arrs(ax, self.A[i], self.b[i], color, label, zorder, ls, linewidth)
                 lines += line
 
         else:
             # Forward reachability
             if isinstance(self.b, np.ndarray) and self.b.ndim == 1:
-                line = make_polytope_from_arrs(ax, self.A, self.b, color, label, zorder, ls)
+                line = make_polytope_from_arrs(ax, self.A, self.b, color, label, zorder, ls, linewidth)
                 lines += line
             else:
                 for i in range(len(self.b)):
-                    line = make_polytope_from_arrs(ax, self.A, self.b[i], color, label, zorder, ls)
+                    line = make_polytope_from_arrs(ax, self.A, self.b[i], color, label, zorder, ls, linewidth)
                     lines += line
 
         return lines
@@ -115,7 +118,7 @@ def make_rect_from_arr(arr, dims, color, linewidth, fc_color, ls, zorder=None):
     return rect
 
 
-def make_polytope_from_arrs(ax, A, b, color, label, zorder, ls):
+def make_polytope_from_arrs(ax, A, b, color, label, zorder, ls, linewidth=1.5):
     vertices = np.stack(
         pypoman.polygon.compute_polygon_hull(
             A, b + 1e-10
@@ -128,5 +131,6 @@ def make_polytope_from_arrs(ax, A, b, color, label, zorder, ls):
         label=label,
         zorder=zorder,
         ls=ls,
+        linewidth=linewidth
     )
     return lines

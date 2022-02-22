@@ -138,12 +138,11 @@ class Dynamics:
                 projection = '3d'
             ax = plt.subplot(projection=projection)
 
-        num_trajectories = 20
         if xs is None:
             xs, us = self.collect_data(
                 t_max,
                 input_constraint,
-                num_samples=num_trajectories*(t_max+self.dt),
+                num_samples=10000,
                 controller=controller,
                 merge_cols=False,
             )
@@ -153,30 +152,30 @@ class Dynamics:
         if colors is None:
             colors = self.colors(num_timesteps)
 
-        # for t in range(num_timesteps):
-        #     ax.scatter(
-        #         *[xs[:, t, i] for i in input_dims],
-        #         color=colors[t],
-        #         s=4,
-        #         zorder=zorder,
-        #     )
-        for traj in range(num_runs):
-            if len(input_dims) == 2:
-                # import pdb; pdb.set_trace()
-                ax.scatter(
-                    xs[traj, :, 0],
-                    xs[traj, :, 1],
-                    color='b',
-                    zorder=zorder,
-                )
-            elif len(input_dims) == 3:
-                ax.plot(
-                    xs[traj, :, 0],
-                    xs[traj, :, 1],
-                    xs[traj, :, 2],
-                    color=colors[traj],
-                    zorder=zorder,
-                )
+        for t in range(num_timesteps):
+            ax.scatter(
+                *[xs[:, t, i] for i in input_dims],
+                color=colors[t],
+                s=4,
+                zorder=zorder,
+            )
+        # for traj in range(num_runs):
+        #     if len(input_dims) == 2:
+        #         # import pdb; pdb.set_trace()
+        #         ax.scatter(
+        #             xs[traj, :, 0],
+        #             xs[traj, :, 1],
+        #             color='b',
+        #             zorder=zorder,
+        #         )
+        #     elif len(input_dims) == 3:
+        #         ax.plot(
+        #             xs[traj, :, 0],
+        #             xs[traj, :, 1],
+        #             xs[traj, :, 2],
+        #             color=colors[traj],
+        #             zorder=zorder,
+        #         )
 
         ax.set_xlabel("$x_" + str(input_dims[0][0]) + "$")
         ax.set_ylabel("$x_" + str(input_dims[1][0]) + "$")
@@ -375,10 +374,11 @@ class Dynamics:
         for traj in range(num_runs):
             if len(input_dims) == 2:
                 # import pdb; pdb.set_trace()
-                ax.scatter(
+                ax.plot(
                     xs[traj, :, 0],
                     xs[traj, :, 1],
                     color='b',
+                    # s=4,
                     zorder=zorder,
                 )
             elif len(input_dims) == 3:

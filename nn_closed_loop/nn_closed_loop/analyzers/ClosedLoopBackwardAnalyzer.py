@@ -136,16 +136,16 @@ class ClosedLoopBackwardAnalyzer(analyzers.Analyzer):
             #     zorder=1,
             #     linestyle='--',
             # )
-            try:
-                self.plot_backprojection_set(
-                    backreachable_set,
-                    target_set,
-                    color='tab:pink',
-                    zorder=1,
-                    linestyle='--',
-                )
-            except: 
-                pass
+            # try:
+            #     self.plot_backprojection_set(
+            #         backreachable_set,
+            #         target_set,
+            #         color='tab:pink',
+            #         zorder=1,
+            #         linestyle='--',
+            #     )
+            # except: 
+            #     pass
             # import pdb; pdb.set_trace()
             self.plot_target_set(
                 backproj_overapprox,
@@ -189,6 +189,23 @@ class ClosedLoopBackwardAnalyzer(analyzers.Analyzer):
                     linestyle='-',
                     linewidth=2.5
                 )
+        
+        import nn_closed_loop.constraints as constraints
+        x0 = np.array(
+            [  # (num_inputs, 2)
+                [-5.5, -5.0],  # x0min, x0max
+                [-0.5, 0.5],  # x1min, x1max
+            ]
+        )
+        x0_constraint = constraints.LpConstraint(
+            range=x0, p=np.inf
+        )
+        self.dynamics.show_trajectories(
+            t_max * self.dynamics.dt,
+            x0_constraint,
+            ax=self.partitioner.animate_axes,
+            controller=self.propagator.network,
+        ) 
             
 
 

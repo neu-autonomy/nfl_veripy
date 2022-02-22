@@ -134,6 +134,7 @@ class ClosedLoopPartitioner(partitioners.Partitioner):
         t_max,
         propagator,
         show_samples=True,
+        show_trajectories=False,
         inputs_to_highlight=None,
         aspect="auto",
         initial_set_color=None,
@@ -167,11 +168,32 @@ class ClosedLoopPartitioner(partitioners.Partitioner):
             aspect = "auto"
 
         self.animate_fig, self.animate_axes = plt.subplots(1, 1, subplot_kw=dict(projection=projection))
+        # from nn_training.ground_robot_testing.controller_generation import display_ground_robot_control_field
+        # display_ground_robot_control_field(name='complex_potential_field',ax=self.animate_axes)
 
         self.animate_axes.set_aspect(aspect)
+        # Double Integrator
+        # self.animate_axes.set_xlim([-3.8, 5.64])
+        # self.animate_axes.set_ylim([-0.64, 2.5])
+
+        # Ground Robot
+        self.animate_axes.set_xlim([-6, 3])
+        self.animate_axes.set_ylim([-7, 7])
+
 
         if show_samples:
             self.dynamics.show_samples(
+                t_max * self.dynamics.dt,
+                input_constraint,
+                ax=self.animate_axes,
+                controller=propagator.network,
+                input_dims=input_dims,
+                zorder=sample_zorder,
+                colors=sample_colors,
+            )
+        
+        if show_trajectories:
+            self.dynamics.show_trajectories(
                 t_max * self.dynamics.dt,
                 input_constraint,
                 ax=self.animate_axes,
@@ -217,6 +239,42 @@ class ClosedLoopPartitioner(partitioners.Partitioner):
         self.plot_reachable_sets(output_constraint, self.input_dims, reachable_set_color=reachable_set_color, reachable_set_zorder=reachable_set_zorder, reachable_set_ls=reachable_set_ls)
         self.plot_partitions(M, output_constraint, self.input_dims)
 
+        # from nn_closed_loop.utils.utils import range_to_polytope
+        # target_range = np.array(
+        #     [
+        #         [-1, 1],
+        #         [-1, 1]
+        #     ]
+        # )
+        # A, b = range_to_polytope(target_range)
+
+        # target_constraint = constraints.PolytopeConstraint(A,b)
+        # self.plot_reachable_sets(
+        #     target_constraint,
+        #     self.input_dims,
+        #     reachable_set_color='tab:green',
+        #     reachable_set_zorder=4,
+        #     reachable_set_ls='-'
+        # )
+        # initial_range = np.array(
+        #     [
+        #         [-5.5, -5],
+        #         [-0.5, 0.5]
+        #     ]
+        # )
+        # A, b = range_to_polytope(target_range)
+
+        # initial_constraint = constraints.LpConstraint(initial_range)
+        # self.plot_reachable_sets(
+        #     initial_constraint,
+        #     self.input_dims,
+        #     reachable_set_color='tab:grey',
+        #     reachable_set_zorder=5,
+        #     reachable_set_ls='-'
+        # )
+
+        
+
         if plot_lims is not None:
             import ast
             plot_lims_arr = np.array(
@@ -249,13 +307,15 @@ class ClosedLoopPartitioner(partitioners.Partitioner):
                 plt.savefig(filename)
             self.compile_animation(i, delete_files=True, duration=0.2)
 
-    def plot_reachable_sets(self, constraint, dims, reachable_set_color=None, reachable_set_zorder=None, reachable_set_ls=None):
+    def plot_reachable_sets(self, constraint, dims, reachable_set_color=None, reachable_set_zorder=None, reachable_set_ls=None, reachable_set_lw=None):
         if reachable_set_color is None:
             reachable_set_color = "tab:blue"
         if reachable_set_ls is None:
             reachable_set_ls = "-"
+        if reachable_set_lw is None:
+            reachable_set_lw = self.linewidth
         fc_color = "None"
-        constraint.plot(self.animate_axes, dims, reachable_set_color, fc_color=fc_color, zorder=reachable_set_zorder, plot_2d=self.plot_2d, linewidth=self.linewidth, ls=reachable_set_ls)
+        constraint.plot(self.animate_axes, dims, reachable_set_color, fc_color=fc_color, zorder=reachable_set_zorder, plot_2d=self.plot_2d, linewidth=reachable_set_lw, ls=reachable_set_ls)
 
     # def plot_partition(self, constraint, bounds, dims, color):
     def plot_partition(self, constraint, dims, color):
