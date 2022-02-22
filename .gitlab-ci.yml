@@ -3,7 +3,7 @@ services:
   - docker:19.03.12-dind
 
 stages:
-  # - build_container
+  - build_container
   - test
   # - release
   # - deploy
