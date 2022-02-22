@@ -37,10 +37,13 @@ test_partition:
     - docker run -v /builds/mit-acl/ford_ugvs/nn_robustness_analysis:/home/nn_robustness_analysis $CONTAINER_TEST_IMAGE python -m nn_partition.tests.test
     # - python -m nn_partition.tests.test
 
-# test_closed_loop:
-#   image: $CONTAINER_TEST_IMAGE
-#   script:
-#     - python -m nn_closed_loop.tests.test
+test_closed_loop:
+  stage: test
+  script:
+    - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
+    - docker pull $CONTAINER_TEST_IMAGE
+    - docker run -v /builds/mit-acl/ford_ugvs/nn_robustness_analysis:/home/nn_robustness_analysis $CONTAINER_TEST_IMAGE python -m nn_closed_loop.tests.test
+    # - python -m nn_partition.tests.test
 
 # release-image:
 #   stage: release
