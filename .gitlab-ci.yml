@@ -3,7 +3,7 @@ services:
   - docker:19.03.12-dind
 
 stages:
-  # - build_container
+  - build_container
   - test
   # - release
   # - deploy
@@ -17,19 +17,17 @@ variables:
   # MOUNT_POINT: /builds/$CI_PROJECT_PATH/jackal_ws
   GIT_SUBMODULE_STRATEGY: recursive
 
-# before_script:
-#   - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
-
-# build_container:
-#   stage: build_container
-#   only:
-#     changes:
-#       - docker/Dockerfile
-#       - nn_closed_loop/setup.py
-#       - nn_partition/setup.py
-#   script:
-#     - docker build --pull -t $CONTAINER_TEST_IMAGE -f docker/Dockerfile .
-#     - docker push $CONTAINER_TEST_IMAGE
+build_container:
+  stage: build_container
+  only:
+    changes:
+      - docker/Dockerfile
+      - nn_closed_loop/setup.py
+      - nn_partition/setup.py
+  script:
+    - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
+    - docker build --pull -t $CONTAINER_TEST_IMAGE -f docker/Dockerfile .
+    - docker push $CONTAINER_TEST_IMAGE
 
 test_partition:
   stage: test
