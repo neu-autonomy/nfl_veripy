@@ -1,6 +1,8 @@
 import numpy as np
 import matplotlib
-matplotlib.use('MacOSX')
+from sys import platform
+if platform == 'darwin':
+    matplotlib.use('MacOSX')
 import matplotlib.pyplot as plt
 from matplotlib import cm
 
