@@ -22,7 +22,7 @@ def main(args):
         if args.final_state_range is None:
             final_state_range = np.array(
                 [  # (num_inputs, 2)
-                    [2.5, 3.0],  # x0min, x0max
+                    [4.5, 5.0],  # x0min, x0max
                     [-0.25, 0.25],  # x1min, x1max
                 ]
             )
@@ -244,7 +244,7 @@ def setup_parser():
     parser.add_argument(
         "--propagator",
         default="IBP",
-        choices=["IBP", "CROWN", "FastLin", "SDP", "CROWNLP"],
+        choices=["IBP", "CROWN", "FastLin", "SDP", "CROWNLP", "CROWNNStep"],
         help="which propagator to use (default: IBP)",
     )
 
