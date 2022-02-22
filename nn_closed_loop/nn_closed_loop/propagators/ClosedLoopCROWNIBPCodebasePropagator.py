@@ -438,40 +438,16 @@ class ClosedLoopCROWNIBPCodebasePropagator(ClosedLoopPropagator):
                 # import pdb; pdb.set_trace()
 
                 # Only add that polytope to the list if it's non-empty
-                # try:
-                #     print('init')
-                #     pypoman.polygon.compute_polygon_hull(A_stack, b_stack+1e-10)
+                # print(b_)
+                # import pdb; pdb.set_trace()
+                try:
+                    pypoman.polygon.compute_polygon_hull(A_stack, b_stack+1e-10)
+                    # from scipy.spatial import ConvexHull
+                    # print('bout to make verts')
+                    vertices = np.array(pypoman.duality.compute_polytope_vertices(A_stack,b_stack))
+                    # print('ok')
+                    # hull = ConvexHull(vertices)
                     
-                #     print('bout to make verts')
-                #     vertices = np.array(pypoman.duality.compute_polytope_vertices(A_stack,b_stack))
-                #     print('ok')
-                    
-                #     xt_max_candidate = np.max(vertices, axis=0)
-                #     xt_min_candidate = np.min(vertices, axis=0)
-                #     xt_range_max = np.maximum(xt_range_max, xt_max_candidate)
-                #     xt_range_min = np.minimum(xt_range_min, xt_min_candidate)
-
-                #     ut_max_candidate = np.maximum(upper_A@xt_max+upper_sum_b, upper_A@xt_min+upper_sum_b)
-                #     ut_min_candidate = np.minimum(lower_A@xt_max+lower_sum_b, lower_A@xt_min+lower_sum_b)
-
-                #     ut_min = np.minimum(ut_min, ut_min_candidate)
-                #     ut_max = np.maximum(ut_max, ut_max_candidate)
-                    
-
-                #     input_constraint.A.append(A_)
-                #     input_constraint.b.append(b_)
-                #     print('add')
-                # except:
-                #     print('dont add')
-                #     continue
-
-                
-                vertices = np.array(pypoman.duality.compute_polytope_vertices(A_stack,b_stack))
-                if len(vertices) > 0:
-                    input_constraint.A.append(A_)
-                    input_constraint.b.append(b_)
-                
-                
                     xt_max_candidate = np.max(vertices, axis=0)
                     xt_min_candidate = np.min(vertices, axis=0)
                     xt_range_max = np.maximum(xt_range_max, xt_max_candidate)
@@ -481,7 +457,31 @@ class ClosedLoopCROWNIBPCodebasePropagator(ClosedLoopPropagator):
                     ut_min_candidate = np.minimum(lower_A@xt_max+lower_sum_b, lower_A@xt_min+lower_sum_b)
 
                     ut_min = np.minimum(ut_min, ut_min_candidate)
-                    ut_max = np.maximum(ut_max, ut_max_candidate)       
+                    ut_max = np.maximum(ut_max, ut_max_candidate)
+                    
+
+                    input_constraint.A.append(A_)
+                    input_constraint.b.append(b_)
+                except:
+                    continue
+
+                
+                # vertices = np.array(pypoman.duality.compute_polytope_vertices(A_stack,b_stack))
+                # if len(vertices) > 0:
+                #     input_constraint.A.append(A_)
+                #     input_constraint.b.append(b_)
+                
+                
+                #     xt_max_candidate = np.max(vertices, axis=0)
+                #     xt_min_candidate = np.min(vertices, axis=0)
+                #     xt_range_max = np.maximum(xt_range_max, xt_max_candidate)
+                #     xt_range_min = np.minimum(xt_range_min, xt_min_candidate)
+
+                #     ut_max_candidate = np.maximum(upper_A@xt_max+upper_sum_b, upper_A@xt_min+upper_sum_b)
+                #     ut_min_candidate = np.minimum(lower_A@xt_max+lower_sum_b, lower_A@xt_min+lower_sum_b)
+
+                #     ut_min = np.minimum(ut_min, ut_min_candidate)
+                #     ut_max = np.maximum(ut_max, ut_max_candidate)       
 
             else:
                 # For our under-approximation, refer to the Access21 paper.
