@@ -3,7 +3,7 @@ services:
   - docker:19.03.12-dind
 
 stages:
-  - build_container
+  # - build_container
   - test
   # - release
   # - deploy
@@ -31,9 +31,10 @@ build_container:
 
 test_partition:
   stage: test
-  image: $CONTAINER_TEST_IMAGE
   script:
-    - python -m nn_partition.tests.test
+    - docker pull $CONTAINER_TEST_IMAGE
+    - docker run -v /builds/mit-acl/ford_ugvs/nn_robustness_analysis:/home/nn_robustness_analysis $CONTAINER_TEST_IMAGE python -m nn_partition.tests.test
+    # - python -m nn_partition.tests.test
 
 # test_closed_loop:
 #   image: $CONTAINER_TEST_IMAGE
