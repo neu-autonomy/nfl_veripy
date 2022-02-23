@@ -56,6 +56,11 @@ class ClosedLoopBackwardAnalyzer(analyzers.Analyzer):
         )
         return backprojection_set, info
 
+    def get_backprojection_error(self, target_set, backprojection_sets, t_max):
+        return self.partitioner.get_backprojection_error(
+            target_set, backprojection_sets, self.propagator, t_max
+        )
+
     def visualize(
         self,
         input_constraint,
@@ -190,22 +195,23 @@ class ClosedLoopBackwardAnalyzer(analyzers.Analyzer):
                     linewidth=2.5
                 )
         
-        import nn_closed_loop.constraints as constraints
-        x0 = np.array(
-            [  # (num_inputs, 2)
-                [-5.5, -5.0],  # x0min, x0max
-                [-0.5, 0.5],  # x1min, x1max
-            ]
-        )
-        x0_constraint = constraints.LpConstraint(
-            range=x0, p=np.inf
-        )
-        self.dynamics.show_trajectories(
-            t_max * self.dynamics.dt,
-            x0_constraint,
-            ax=self.partitioner.animate_axes,
-            controller=self.propagator.network,
-        ) 
+        ## Sketchy workaround to trajectories not showing up
+        # import nn_closed_loop.constraints as constraints
+        # x0 = np.array(
+        #     [  # (num_inputs, 2)
+        #         [-5.5, -5.0],  # x0min, x0max
+        #         [-0.5, 0.5],  # x1min, x1max
+        #     ]
+        # )
+        # x0_constraint = constraints.LpConstraint(
+        #     range=x0, p=np.inf
+        # )
+        # self.dynamics.show_trajectories(
+        #     t_max * self.dynamics.dt,
+        #     x0_constraint,
+        #     ax=self.partitioner.animate_axes,
+        #     controller=self.propagator.network,
+        # ) 
             
 
 
@@ -355,27 +361,8 @@ class ClosedLoopBackwardAnalyzer(analyzers.Analyzer):
 
         # Sample a bunch of pts from our "true" backreachable set
         # (it's actually the tightest axis-aligned rectangle around the backreachable set)
-        # and run them forward 1 step in time under the NN policy
-        xs, _ = self.partitioner.dynamics.collect_data(
-            t_max,
-            backreachable_set,
-            num_samples=1e5,
-            controller=self.propagator.network,
-            merge_cols=False,
-        )
-
-        # Find which of the xt+t_max points actually end up in the target set
-        within_constraint_inds = np.where(
-            np.all(
-                (
-                    np.dot(target_set.A, xs[:, -1, :].T)
-                    - np.expand_dims(target_set.b[0], axis=-1)
-                )
-                <= 0,
-                axis=0,
-            )
-        )
-        x_samples_inside_backprojection_set = xs[within_constraint_inds]
+        # and run them forward t_max steps in time under the NN policy
+        x_samples_inside_backprojection_set = self.dynamics.get_true_backprojection_set(backreachable_set, target_set, t_max=t_max, controller=self.propagator.network)
 
         if show_samples:
             # raise NotImplementedError

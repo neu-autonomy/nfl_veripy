@@ -1,5 +1,6 @@
 import numpy as np
 import nn_partition.partitioners as partitioners
+from pandas.core.indexing import convert_to_index_sliceable
 import pypoman
 import matplotlib.pyplot as plt
 from matplotlib import cm
@@ -173,12 +174,12 @@ class ClosedLoopPartitioner(partitioners.Partitioner):
 
         self.animate_axes.set_aspect(aspect)
         # Double Integrator
-        # self.animate_axes.set_xlim([-3.8, 5.64])
-        # self.animate_axes.set_ylim([-0.64, 2.5])
+        self.animate_axes.set_xlim([-3.8, 5.64])
+        self.animate_axes.set_ylim([-0.64, 2.5])
 
         # Ground Robot
-        self.animate_axes.set_xlim([-6, 3])
-        self.animate_axes.set_ylim([-7, 7])
+        # self.animate_axes.set_xlim([-6, 3])
+        # self.animate_axes.set_ylim([-7, 7])
 
 
         if show_samples:
@@ -362,6 +363,67 @@ class ClosedLoopPartitioner(partitioners.Partitioner):
         input_constraint = input_constraint_.copy()
 
         return input_constraint, info
+
+    def get_backprojection_error(
+        self, target_set, backprojection_sets, propagator, t_max
+    ):
+        errors = []
+
+        if isinstance(target_set, constraints.LpConstraint):
+            raise NotImplementedError
+            output_estimated_range = output_constraint.range
+            output_range_exact = self.get_sampled_out_range(
+                input_constraint, propagator, t_max, num_samples=1000
+            )
+            num_steps = len(output_constraint.range)
+            for t in range(num_steps):
+                true_area = np.product(
+                    output_range_exact[t][..., 1]
+                    - output_range_exact[t][..., 0]
+                )
+                estimated_area = np.product(
+                    output_estimated_range[t][..., 1]
+                    - output_estimated_range[t][..., 0]
+                )
+                errors.append((estimated_area - true_area) / true_area)
+        else:
+            # This implementation should actually be moved to Lp constraint
+
+
+
+            # Note: This compares the estimated polytope
+            # with the "best" polytope with those facets.
+            # There could be a much better polytope with lots of facets.
+            true_verts_reversed = self.dynamics.get_true_backprojection_set(
+                backprojection_sets[-1], target_set, 
+                t_max, controller=propagator.network
+            )
+            true_verts = np.flip(true_verts_reversed, axis=1)
+            # output_bs_exact = self.get_sampled_out_range(
+            #     input_constraint, propagator, t_max, num_samples=1000,
+            #     output_constraint=output_constraint
+            # )
+            num_steps = len(backprojection_sets)
+            from scipy.spatial import ConvexHull
+            for t in range(num_steps):
+                # true_verts = pypoman.polygon.compute_polygon_hull(output_constraint.A, output_bs_exact[t])
+                x_min = np.min(true_verts[:,t+1,:], axis=0)
+                x_max = np.max(true_verts[:,t+1,:], axis=0)
+
+                x_range = x_max-x_min
+                true_area = np.prod(x_range)
+
+
+
+                # true_hull = ConvexHull(true_verts[:, t+1, :])
+                # true_area = true_hull.area
+                estimated_verts = pypoman.polygon.compute_polygon_hull(backprojection_sets[t].A, backprojection_sets[t].b)
+                estimated_hull = ConvexHull(estimated_verts)
+                estimated_area = estimated_hull.volume
+                errors.append((estimated_area - true_area) / true_area)
+        final_error = errors[-1]
+        avg_error = np.mean(errors)
+        return final_error, avg_error, np.array(errors)
 
     def get_N_step_backprojection_set(
         self, output_constraint, input_constraint, propagator, t_max, num_partitions=None, overapprox=False

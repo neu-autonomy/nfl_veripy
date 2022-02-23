@@ -120,6 +120,32 @@ class Dynamics:
 
         return xs[:, 0, :], xs[:, 1, :]
 
+    def get_true_backprojection_set(self, backreachable_set, target_set, t_max=1, controller="mpc"):
+        
+        
+        xs, _ = self.collect_data(
+            t_max,
+            backreachable_set,
+            num_samples=1e6,
+            controller=controller,
+            merge_cols=False,
+        )
+
+        # Find which of the xt+t_max points actually end up in the target set
+        within_constraint_inds = np.where(
+            np.all(
+                (
+                    np.dot(target_set.A, xs[:, -1, :].T)
+                    - np.expand_dims(target_set.b[0], axis=-1)
+                )
+                <= 0,
+                axis=0,
+            )
+        )
+        x_samples_inside_backprojection_set = xs[within_constraint_inds]
+
+        return x_samples_inside_backprojection_set
+
     def show_samples(
         self,
         t_max,
