@@ -113,7 +113,23 @@ def main(args):
             t = t_end - t_start
             times[num] = t
 
+            if 'tightened_overapprox' in analyzer_info['per_timestep'][-1]:
+                backprojection_sets = [i['tightened_overapprox'] for i in analyzer_info['per_timestep']]
+            else:
+                backprojection_sets = [i['backproj_overapprox'] for i in analyzer_info['per_timestep']]
+            target_set = output_constraint
+            final_error, avg_error, all_error = analyzer.get_backprojection_error(target_set, backprojection_sets, t_max=args.t_max)
+
+            final_errors[num] = final_error
+            avg_errors[num] = avg_error
+            all_errors[num] = all_error
+            output_constraints[num] = output_constraint
+
         stats['runtimes'] = times
+        stats['final_step_errors'] = final_errors
+        stats['avg_errors'] = avg_errors
+        stats['all_errors'] = all_errors
+        stats['output_constraints'] = output_constraints
 
         print("All times: {}".format(times))
         print("Avg time: {} +/- {}".format(times.mean(), times.std()))
@@ -123,7 +139,8 @@ def main(args):
         input_constraint, analyzer_info = analyzer.get_backprojection_set(
             output_constraint, input_constraint, t_max=args.t_max, num_partitions=num_partitions, overapprox=args.overapprox
         )
-        # import pdb; pdb.set_trace()
+        
+        
 
     # print(input_constraint.A, input_constraint.b)
     # error, avg_error = analyzer.get_error(input_constraint,output_constraint, t_max=args.t_max)
@@ -199,7 +216,7 @@ def main(args):
             **analyzer_info
         )
 
-    return stats
+    return stats, analyzer_info
 
 
 def setup_parser():
