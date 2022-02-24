@@ -56,10 +56,22 @@ def main(args):
             # )
             init_state_range = np.array(
                 [  # (num_inputs, 2)
-                    [-6.75, -5.5],  # x0min, x0max
-                    [0, 1.5],  # x1min, x1max
+                    [-5.5, -5.0],  # x0min, x0max
+                    [-0.5, 0.5],  # x1min, x1max
                 ]
             )
+            # init_state_range = np.array(
+            #     [  # (num_inputs, 2)
+            #         [-6.75, -5.5],  # x0min, x0max
+            #         [0, 1.5],  # x1min, x1max
+            #     ]
+            # )
+            # init_state_range = np.array(
+            #     [  # (num_inputs, 2)
+            #         [-6.75, -5.5],  # x0min, x0max
+            #         [0, 1.5],  # x1min, x1max
+            #     ]
+            # )
             # init_state_range = np.array(
             #     [  # (num_inputs, 2)
             #         [-6.28125, -6.125],  # x0min, x0max
@@ -186,6 +198,14 @@ def main(args):
         output_constraint = constraints.LpConstraint(p=np.inf)
     else:
         raise NotImplementedError
+    
+
+    # dyn.show_trajectories(
+    #     args.t_max * dyn.dt,
+    #     input_constraint,
+    #     ax=None,
+    #     controller=analyzer.propagator.network,
+    # )
 
     if args.estimate_runtime:
         # Run the analyzer N times to compute an estimated runtime
@@ -226,6 +246,7 @@ def main(args):
         output_constraint, analyzer_info = analyzer.get_reachable_set(
             input_constraint, output_constraint, t_max=args.t_max
         )
+        # print(output_constraint.range)
 
     if args.estimate_error:
         final_error, avg_error, errors = analyzer.get_error(input_constraint, output_constraint, t_max=args.t_max)
@@ -289,7 +310,8 @@ def main(args):
         analyzer.visualize(
             input_constraint,
             output_constraint,
-            show_samples=True,
+            show_samples=False,
+            show_trajectories=True,
             show=args.show_plot,
             labels=args.plot_labels,
             aspect=args.plot_aspect,
@@ -307,19 +329,48 @@ def main(args):
         #         [-0.5, 0.5]
         #     ]
         # )
+        final_state_range = np.array(
+            [
+                [-1, 1],
+                [-1, 1]
+            ]
+        )
+        # final_state_range = np.array(
+        #         [  # (num_inputs, 2)
+        #             [4.5, 5.0],  # x0min, x0max
+        #             [-0.25, 0.25],  # x1min, x1max
+        #         ]
+        #     )
+        # final_state_range = np.array(
+        #         [
+        #             [ 4.91619968,  4.53423548,  2.36018491, -0.11017013, -1.06671727, -3.92222357],
+        #             [ 5.02522087,  4.64494753,  2.46865058, -0.08676434, -1.03767562, -3.89723158]
+        #         ]
+        #     ).T
+        # final_state_range = np.array(
+        #         [  # (num_inputs, 2)
+        #             [4.65, 4.65, 2.95, 0.94, -0.01, -0.01],
+        #             [4.75, 4.75, 3.05, 0.96, 0.01, 0.01],
+        #         ]
+        #     ).T
+        # final_state_range = np.array(
+        #         [  # (num_inputs, 2)
+        #             [5.58999968, 4.63999987, 2.94000006, 0.70083475, -0.31463686, -9.74409199],
+        #             [5.70999956, 4.75999975, 3.05999994, 0.75489312, -0.20422009, -9.71696091],
+        #         ]
+        #     ).T
         # final_state_range = np.array(
         #     [
-        #         [-7, -6.5],
-        #         [2.5, 3.0]
+        #         [ 4.74399948,  4.84599972],
+        #         [ 4.64899969,  4.75099993],
+        #         [ 2.94900012,  3.05099988],
+        #         [ 0.91608346,  0.93948931],
+        #         [-0.04046369, -0.01142201],
+        #         [-0.98340923, -0.96269608],
         #     ]
         # )
-        final_state_range = np.array(
-                [  # (num_inputs, 2)
-                    [2.5, 3.0],  # x0min, x0max
-                    [-0.25, 0.25],  # x1min, x1max
-                ]
-            )
-        num_partitions = np.array([4, 4])
+        # num_partitions = np.array([2, 2, 2, 2, 2, 2])
+        num_partitions = np.array([4,4])
         
         back_analyzer = analyzers.ClosedLoopBackwardAnalyzer(controller, dyn)
         back_analyzer.partitioner = partitioner_hyperparams
@@ -332,15 +383,15 @@ def main(args):
         )
         back_input_constraint = constraints.PolytopeConstraint(None, None)
 
-        back_input_constraint, back_analyzer_info = back_analyzer.get_N_step_backprojection_set(
+        back_input_constraint, back_analyzer_info = back_analyzer.get_backprojection_set(
             back_output_constraint, back_input_constraint, t_max=args.t_max, num_partitions=num_partitions, overapprox=True
         )
-        # import pdb; pdb.set_trace()
-
+        # print(back_analyzer_info[])
+        # args.plot_lims = np.array([[-6, 1],[-4, 4]])
         back_analyzer.visualize(
             back_input_constraint,
             back_output_constraint,
-            show_samples=True,
+            show_samples=False,
             show=args.show_plot,
             labels=args.plot_labels,
             aspect=args.plot_aspect,
