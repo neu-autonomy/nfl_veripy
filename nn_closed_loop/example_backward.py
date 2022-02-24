@@ -41,8 +41,8 @@ def main(args):
         if args.final_state_range is None:
             final_state_range = np.array(
                 [  # (num_inputs, 2)
-                    [2.5, 3.0],  # x0min, x0max
-                    [-0.25, 0.25],  # x1min, x1max
+                    [-1., 1.],  # x0min, x0max
+                    [-1., 1.],  # x1min, x1max
                 ]
             )
     else:
