@@ -15,10 +15,23 @@ class ClosedLoopBackwardAnalyzer(analyzers.Analyzer):
         self.dynamics = dynamics
         analyzers.Analyzer.__init__(self, torch_model=torch_model)
 
-        self.reachable_set_color = 'tab:green'
-        self.reachable_set_zorder = 4
-        self.initial_set_color = 'tab:gray'
-        self.initial_set_zorder = 1
+        self.true_backprojection_set_color = 'darkblue'
+        self.estimated_backprojection_set_color = 'tab:blue'
+        self.estimated_one_step_backprojection_set_color = 'gold'
+        self.estimated_backprojection_partitioned_set_color = 'tab:gray'
+        self.target_set_color = 'tab:green'
+        
+        self.true_backprojection_set_zorder = 1
+        self.estimated_backprojection_set_zorder = 1
+        self.estimated_one_step_backprojection_set_zorder = 1
+        self.estimated_backprojection_partitioned_set_zorder = 1
+        self.target_set_zorder = 1
+        
+        self.true_backprojection_set_linestyle = '-'
+        self.estimated_backprojection_set_linestyle = '-'
+        self.estimated_one_step_backprojection_set_linestyle = '-'
+        self.estimated_backprojection_partitioned_set_linestyle = '-'
+        self.target_set_linestyle = '-'
 
     @property
     def partitioner_dict(self):
@@ -63,7 +76,7 @@ class ClosedLoopBackwardAnalyzer(analyzers.Analyzer):
 
     def visualize(
         self,
-        input_constraint,
+        input_constraints,
         output_constraint,
         show=True,
         show_samples=False,
@@ -76,144 +89,69 @@ class ClosedLoopBackwardAnalyzer(analyzers.Analyzer):
         # sampled_outputs = self.get_sampled_outputs(input_range)
         # output_range_exact = self.samples_to_range(sampled_outputs)
 
-
-        if 'tightened_constraint' not in kwargs:
-            self.partitioner.setup_visualization(
-                input_constraint[0],
-                output_constraint.get_t_max(),
-                self.propagator,
-                show_samples=False,
-                # show_samples=show_samples,
-                inputs_to_highlight=[
-                    {"dim": [0], "name": "$x$"},
-                    {"dim": [1], "name": "$\dot{x}$"},
-                ],
-                aspect=aspect,
-                initial_set_color=self.initial_set_color,
-                initial_set_zorder=self.initial_set_zorder,
-            )
-        else:
-            self.partitioner.setup_visualization(
-                kwargs['tightened_overapprox'],
-                output_constraint.get_t_max(),
-                self.propagator,
-                show_samples=False,
-                show_trajectories=show_trajectories,
-                # show_samples=show_samples,
-                inputs_to_highlight=[
-                    {"dim": [0], "name": "$x$"},
-                    {"dim": [1], "name": "$\dot{x}$"},
-                ],
-                aspect=aspect,
-                initial_set_color=self.initial_set_color,
-                initial_set_zorder=self.initial_set_zorder,
-            )
-
-        # plot all our input constraints
-        for ic in input_constraint[1:-1]:
-            if 'tightened_constraint' not in kwargs['per_timestep'][-1]:
-                rect = ic.plot(self.partitioner.animate_axes, self.partitioner.input_dims, self.initial_set_color, zorder=self.initial_set_zorder, linewidth=self.partitioner.linewidth, plot_2d=self.partitioner.plot_2d)
-                self.partitioner.default_patches += rect
-        
-        if 'tightened_constraint' not in kwargs['per_timestep'][-1]:
-            rect = input_constraint[-1].plot(self.partitioner.animate_axes, self.partitioner.input_dims, self.initial_set_color, zorder=self.initial_set_zorder, linewidth=self.partitioner.linewidth, plot_2d=self.partitioner.plot_2d)
-            self.partitioner.default_patches += rect
-        
-        self.partitioner.visualize(
-            kwargs.get(
-                "exterior_partitions", kwargs.get("all_partitions", [])
-            ),
-            kwargs.get("interior_partitions", []),
-            output_constraint,
-            reachable_set_color=self.reachable_set_color,
-            reachable_set_zorder=self.reachable_set_zorder,
-            plot_lims=plot_lims,
+        self.partitioner.setup_visualization(
+            input_constraints[0],
+            output_constraint.get_t_max(),
+            self.propagator,
+            show_samples=False,
+            # show_samples=show_samples,
+            inputs_to_highlight=[
+                {"dim": [0], "name": "$x$"},
+                {"dim": [1], "name": "$\dot{x}$"},
+            ],
+            aspect=aspect,
+            initial_set_color=self.estimated_backprojection_set_color,
+            initial_set_zorder=self.estimated_backprojection_set_zorder,
         )
 
-        # Show the backreachable set (tightest rectangular outer-bounds via our LP)
-        for t in range(len(input_constraint)):
-            backreachable_set = kwargs['per_timestep'][t]['backreachable_set']
-            target_set = kwargs['per_timestep'][t]['target_set']
-            backproj_overapprox = kwargs['per_timestep'][t]['backproj_overapprox']
-            # self.plot_backreachable_set(
-            #     backreachable_set,
-            #     color='tab:purple',
-            #     zorder=1,
-            #     linestyle='--',
-            # )
-            # try:
-            #     self.plot_backprojection_set(
-            #         backreachable_set,
-            #         target_set,
-            #         color='tab:pink',
-            #         zorder=1,
-            #         linestyle='--',
-            #     )
-            # except: 
-            #     pass
-            # import pdb; pdb.set_trace()
-            self.plot_target_set(
-                backproj_overapprox,
-                color='tab:blue',
-                zorder=2,
-                linestyle='-',
-                linewidth=2.5,
-            )
+        # Plot all our input constraints (i.e., our backprojection set estimates)
+        for ic in input_constraints[1:]:
+            rect = ic.plot(self.partitioner.animate_axes, self.partitioner.input_dims, self.estimated_backprojection_set_color, zorder=self.estimated_backprojection_set_zorder, linewidth=self.partitioner.linewidth, plot_2d=self.partitioner.plot_2d)
+            self.partitioner.default_patches += rect
+
+        # Show the target set
+        self.plot_target_set(
+            output_constraint,
+            color=self.target_set_color,
+            zorder=self.target_set_zorder,
+            linestyle=self.target_set_linestyle,
+            linewidth=2.5,
+        )
 
         # Show the "true" N-Step backprojection set as a convex hull
         backreachable_set = kwargs['per_timestep'][-1]['backreachable_set']
-        target_set = kwargs['per_timestep'][0]['target_set']
+        target_set = output_constraint
         t_max = len(kwargs['per_timestep'])
-        try:
-            self.plot_true_backprojection_sets(
-                backreachable_set,
-                target_set,
-                t_max=t_max,
-                color='darkblue',
-                zorder=2,
-                linestyle='-',
-            )
-        except:
-            pass
+        self.plot_true_backprojection_sets(
+            backreachable_set,
+            target_set,
+            t_max=t_max,
+            color=self.true_backprojection_set_color,
+            zorder=self.true_backprojection_set_zorder,
+            linestyle=self.true_backprojection_set_linestyle,
+        )
 
-        # import pdb; pdb.set_trace()
-        for t in range(len(input_constraint)):
-            if 'tightened_constraint' in kwargs['per_timestep'][-1]:
-                tightened_backproj_overapprox = kwargs['per_timestep'][t]['tightened_overapprox']
-                tightened_constraint = kwargs['per_timestep'][t]['tightened_constraint']
-                self.plot_tightened_backprojection_set(
-                    tightened_constraint,
-                    color='grey',
-                    zorder=2,
-                    linestyle='-',
-                )
-                self.plot_target_set(
-                    tightened_backproj_overapprox,
-                    color='orange',
-                    zorder=3,
-                    linestyle='-',
-                    linewidth=2.5
-                )
-        
-        ## Sketchy workaround to trajectories not showing up
-        # import nn_closed_loop.constraints as constraints
-        # x0 = np.array(
-        #     [  # (num_inputs, 2)
-        #         [-5.5, -5.0],  # x0min, x0max
-        #         [-0.5, 0.5],  # x1min, x1max
-        #     ]
-        # )
-        # x0_constraint = constraints.LpConstraint(
-        #     range=x0, p=np.inf
-        # )
-        # self.dynamics.show_trajectories(
-        #     t_max * self.dynamics.dt,
-        #     x0_constraint,
-        #     ax=self.partitioner.animate_axes,
-        #     controller=self.propagator.network,
-        # ) 
-            
+        # If they exist, plot all our loose input constraints (i.e., our one-step backprojection set estimates)
+        # TODO: Make plotting these optional via a flag
+        for info in kwargs.get('per_timestep', []):
+            ic = info.get('one_step_backprojection_overapprox', None)
+            if ic is None: continue
+            rect = ic.plot(self.partitioner.animate_axes, self.partitioner.input_dims, self.estimated_one_step_backprojection_set_color, zorder=self.estimated_one_step_backprojection_set_zorder, linewidth=self.partitioner.linewidth, plot_2d=self.partitioner.plot_2d)
+            self.partitioner.default_patches += rect
 
+        # TODO: Visualize all the partitions
+        # self.partitioner.visualize(
+        #     kwargs.get(
+        #         "exterior_partitions", kwargs.get("all_partitions", [])
+        #     ),
+        #     kwargs.get("interior_partitions", []),
+        #     output_constraint,
+        #     reachable_set_color=self.estimated_backprojection_partitioned_set_color,
+        #     reachable_set_zorder=self.estimated_backprojection_partitioned_set_zorder,
+        #     plot_lims=plot_lims,
+        # )
+
+        # TODO: Optionally show the backreachable sets
 
         # self.partitioner.animate_axes.legend(
         #     bbox_to_anchor=(0, 1.02, 1, 0.2),
@@ -270,7 +208,7 @@ class ClosedLoopBackwardAnalyzer(analyzers.Analyzer):
             reachable_set_ls=linestyle
         )
 
-    def plot_target_set(self, target_set, color='cyan', zorder=None, linestyle='-',linewidth=2.5):
+    def plot_target_set(self, target_set, color='cyan', zorder=None, linestyle='-', linewidth=2.5):
         self.partitioner.plot_reachable_sets(
             target_set,
             self.partitioner.input_dims,

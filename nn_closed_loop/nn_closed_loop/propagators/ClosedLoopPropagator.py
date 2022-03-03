@@ -43,7 +43,7 @@ class ClosedLoopPropagator(propagators.Propagator):
         input_constraints.append(deepcopy(input_constraint))
         info = {'per_timestep': []}
         info['per_timestep'].append(this_info)
-        
+
         if overapprox:
             for i in np.arange(0 + self.dynamics.dt + 1e-10, t_max, self.dynamics.dt):
                 next_output_constraint = over_approximate_constraint(deepcopy(input_constraint))
@@ -57,6 +57,13 @@ class ClosedLoopPropagator(propagators.Propagator):
             for i in np.arange(0 + self.dynamics.dt + 1e-10, t_max, self.dynamics.dt):
                 # TODO: Support N-step backprojection in the under-approximation case
                 raise NotImplementedError
+
+        # output_constraint: describes goal/avoid set at t=t_max
+        # input_constraints: [BP_{-1}, ..., BP_{-t_max}]
+        #       i.e., [ set of states that will get to goal/avoid set in 1 step,
+        #               ...,
+        #               set of states that will get to goal/avoid set in t_max steps
+        #             ]
 
         return input_constraints, info
 

@@ -6,6 +6,7 @@ import torch
 from nn_closed_loop.utils.utils import range_to_polytope
 import cvxpy as cp
 from itertools import product
+from copy import deepcopy
 
 
 class ClosedLoopCROWNIBPCodebasePropagator(ClosedLoopPropagator):
@@ -207,8 +208,12 @@ class ClosedLoopCROWNIBPCodebasePropagator(ClosedLoopPropagator):
         '''
 
         if self.dynamics.u_limits is None:
-            u_min = -np.inf
-            u_max = np.inf
+            print(
+                "self.dynamics.u_limits is None ==> \
+                The backreachable set is probably the whole state space. \
+                Giving up."
+                )
+            raise NotImplementedError
         else:
             u_min = self.dynamics.u_limits[:, 0]
             u_max = self.dynamics.u_limits[:, 1]
@@ -222,7 +227,6 @@ class ClosedLoopCROWNIBPCodebasePropagator(ClosedLoopPropagator):
         A_t = np.eye(xt1_min.shape[0])
         num_facets = A_t.shape[0]
         coords = np.empty((2*num_states, num_states))
-        # import pdb; pdb.set_trace()
 
         # For each dimension of the output constraint (facet/lp-dimension):
         # compute a bound of the NN output using the pre-computed matrices
@@ -245,14 +249,12 @@ class ClosedLoopCROWNIBPCodebasePropagator(ClosedLoopPropagator):
             coords[2*i, :] = xt.value
             max_prob.solve()
             coords[2*i+1, :] = xt.value
-            # import pdb; pdb.set_trace()
 
         # min/max of each element of xt in the backreachable set
         ranges = np.vstack([coords.min(axis=0), coords.max(axis=0)]).T
 
         backreachable_set = constraints.LpConstraint(range=ranges)
         info['backreachable_set'] = backreachable_set
-        from copy import deepcopy
         info['target_set'] = deepcopy(output_constraint)
 
         '''
@@ -280,8 +282,8 @@ class ClosedLoopCROWNIBPCodebasePropagator(ClosedLoopPropagator):
         ut_min = np.inf*np.ones(num_control_inputs)
         xt_range_max = -np.inf*np.ones(xt1_min.shape)
         xt_range_min = np.inf*np.ones(xt1_min.shape)
-        upper_A_max, lower_A_min = -np.inf*np.ones((num_control_inputs, num_states)),  np.inf*np.ones((num_control_inputs, num_states))
-        upper_sum_b_max, lower_sum_b_min = -np.inf*np.ones(num_control_inputs),  np.inf*np.ones(num_control_inputs)
+        # upper_A_max, lower_A_min = -np.inf*np.ones((num_control_inputs, num_states)), np.inf*np.ones((num_control_inputs, num_states))
+        # upper_sum_b_max, lower_sum_b_min = -np.inf*np.ones(num_control_inputs), np.inf*np.ones(num_control_inputs)
 
         # Iterate through each partition
         for element in product(
@@ -331,190 +333,45 @@ class ClosedLoopCROWNIBPCodebasePropagator(ClosedLoopPropagator):
             upper_sum_b = upper_sum_b.detach().numpy()[0]
             lower_sum_b = lower_sum_b.detach().numpy()[0]
 
-
             if overapprox:
-
-                # An over-approximation of the backprojection set is the set of:
-                # all xt s.t. there exists some u \in [pi^L(x_t), pi^U(x_t)]
-                #              that leads to the target set
-
-                ut_max_candidate = np.maximum(upper_A@xt_max+upper_sum_b, upper_A@xt_min+upper_sum_b)
-                ut_min_candidate = np.minimum(lower_A@xt_max+lower_sum_b, lower_A@xt_min+lower_sum_b)
-
-                #########################
-                xt = cp.Variable(xt1_min.shape)
-                ut = cp.Variable(num_control_inputs)
-                constrs = []
-                constrs += [xt_min <= xt]
-                constrs += [xt <= xt_max]
-
-                
-                constrs += [lower_A@xt+lower_sum_b <= ut]
-                constrs += [ut <= upper_A@xt+upper_sum_b]
-                # constrs += [ut_min_candidate <= ut]
-                # constrs += [ut <= ut_max_candidate]
-
-
-
-                # constrs += [self.dynamics.At@xt + self.dynamics.bt@ut + self.dynamics.ct <= xt1_max]
-                # constrs += [self.dynamics.At@xt + self.dynamics.bt@ut + self.dynamics.ct >= xt1_min]
-                constrs += [self.dynamics.dynamics_step(xt,ut) <= xt1_max]
-                constrs += [self.dynamics.dynamics_step(xt,ut) >= xt1_min]
-                A_t_ = np.vstack([A_t, -A_t])
-                num_facets = 2*num_states
-                A_t_i = cp.Parameter(num_states)
-                obj = A_t_i@xt
-                prob = cp.Problem(cp.Maximize(obj), constrs)
-                A_ = A_t_
-                b_ = np.empty(2*num_states)
-                for i in range(num_facets):
-                    A_t_i.value = A_t_[i, :]
-                    prob.solve()
-                    b_[i] = prob.value
-                    
-                # print(b_)
-                # import pdb; pdb.set_trace()
-
-
-                #########################
-
-                # coords = np.empty((2*num_states, num_states))
-                # num_facets = A_t.shape[0]
-                # min_prob = cp.Problem(cp.Minimize(obj), constrs)
-                # max_prob = cp.Problem(cp.Maximize(obj), constrs)
-                # for i in range(num_facets):
-                #     A_t_i.value = A_t[i, :]
-                #     min_prob.solve()
-                #     coords[2*i, :] = xt.value
-                #     max_prob.solve()
-                #     coords[2*i+1, :] = xt.value
-                #     import pdb; pdb.set_trace()
-
-                # A_t = np.eye(xt1_min.shape[0])
-                # num_facets = A_t.shape[0]
-                # coords = np.empty((2*num_states, num_states))
-                # # import pdb; pdb.set_trace()
-
-                # # For each dimension of the output constraint (facet/lp-dimension):
-                # # compute a bound of the NN output using the pre-computed matrices
-                # xt = cp.Variable(xt1_min.shape)
-                # ut = cp.Variable(num_control_inputs)
-                # constrs = []
-                # constrs += [lower_A@xt+lower_sum_b <= ut]
-                # constrs += [ut <= upper_A@xt+upper_sum_b]
-                # # constrs += [ut_min_candidate <= ut]
-                # # constrs += [ut <= ut_max_candidate]
-                # # constrs += [self.dynamics.At@xt + self.dt*self.dynamics.bt@ut + self.dt*self.dynamics.ct <= xt1_max]
-                # # constrs += [self.dynamics.At@xt + self.dt*self.dynamics.bt@ut + self.dt*self.dynamics.ct >= xt1_min]
-                # constrs += [self.dynamics.dynamics_step(xt,ut) <= xt1_max]
-                # constrs += [self.dynamics.dynamics_step(xt,ut) >= xt1_min]
-                # A_t_i = cp.Parameter(num_states)
-                # obj = A_t_i@xt
-                # min_prob = cp.Problem(cp.Minimize(obj), constrs)
-                # max_prob = cp.Problem(cp.Maximize(obj), constrs)
-                # for i in range(num_facets):
-                #     A_t_i.value = A_t[i, :]
-                #     min_prob.solve()
-                #     coords[2*i, :] = xt.value
-                #     max_prob.solve()
-                #     coords[2*i+1, :] = xt.value
-                #     # import pdb; pdb.set_trace()
-
-                
-                   
-
-                # element_range = np.vstack([coords.min(axis=0), coords.max(axis=0)]).T
-                # A_, b_ = range_to_polytope(element_range)
-                # import pdb; pdb.set_trace()
-
-                # This cell of the backprojection set is upper-bounded by the
-                # cell of the backreachable set that we used in the NN relaxation
-                # ==> the polytope is the intersection (i.e., concatenation)
-                # of the polytope used for relaxing the NN and the soln to the LP
-                A_NN, b_NN = range_to_polytope(ranges)
-                A_stack = np.vstack([A_, A_NN])
-                b_stack = np.hstack([b_, b_NN])
-
-                # import pdb; pdb.set_trace()
-
-                # Only add that polytope to the list if it's non-empty
-                # print(b_)
-                # import pdb; pdb.set_trace()
-                try:
-                    pypoman.polygon.compute_polygon_hull(A_stack, b_stack+1e-10)
-                    # from scipy.spatial import ConvexHull
-                    # print('bout to make verts')
-                    vertices = np.array(pypoman.duality.compute_polytope_vertices(A_stack,b_stack))
-                    # print('ok')
-                    # hull = ConvexHull(vertices)
-                    
-                    xt_max_candidate = np.max(vertices, axis=0)
-                    xt_min_candidate = np.min(vertices, axis=0)
-                    xt_range_max = np.maximum(xt_range_max, xt_max_candidate)
-                    xt_range_min = np.minimum(xt_range_min, xt_min_candidate)
-
-                    ut_max_candidate = np.maximum(upper_A@xt_max+upper_sum_b, upper_A@xt_min+upper_sum_b)
-                    ut_min_candidate = np.minimum(lower_A@xt_max+lower_sum_b, lower_A@xt_min+lower_sum_b)
-
-                    ut_min = np.minimum(ut_min, ut_min_candidate)
-                    ut_max = np.maximum(ut_max, ut_max_candidate)
-                    
-
-                    input_constraint.A.append(A_)
-                    input_constraint.b.append(b_)
-                except:
-                    continue
-
-                
-                # vertices = np.array(pypoman.duality.compute_polytope_vertices(A_stack,b_stack))
-                # if len(vertices) > 0:
-                #     input_constraint.A.append(A_)
-                #     input_constraint.b.append(b_)
-                
-                
-                #     xt_max_candidate = np.max(vertices, axis=0)
-                #     xt_min_candidate = np.min(vertices, axis=0)
-                #     xt_range_max = np.maximum(xt_range_max, xt_max_candidate)
-                #     xt_range_min = np.minimum(xt_range_min, xt_min_candidate)
-
-                #     ut_max_candidate = np.maximum(upper_A@xt_max+upper_sum_b, upper_A@xt_min+upper_sum_b)
-                #     ut_min_candidate = np.minimum(lower_A@xt_max+lower_sum_b, lower_A@xt_min+lower_sum_b)
-
-                #     ut_min = np.minimum(ut_min, ut_min_candidate)
-                #     ut_max = np.maximum(ut_max, ut_max_candidate)       
+                input_constraint, xt_range_min, xt_range_max, ut_min, ut_max = self.get_one_step_backprojection_set_overapprox(
+                    ranges,
+                    upper_A,
+                    lower_A,
+                    upper_sum_b,
+                    lower_sum_b,
+                    xt_max,
+                    xt_min,
+                    xt1_max,
+                    xt1_min,
+                    num_control_inputs,
+                    num_states,
+                    A_t,
+                    xt_range_max,
+                    xt_range_min,
+                    ut_min,
+                    ut_max,
+                    input_constraint
+                )  
 
             else:
-                # For our under-approximation, refer to the Access21 paper.
+                input_constraint = self.get_one_step_backprojection_set_underapprox(
+                    ranges,
+                    upper_A,
+                    lower_A,
+                    upper_sum_b,
+                    lower_sum_b,
+                    xt1_max,
+                    xt1_min,
+                    input_constraint
+                )
 
-                # The NN matrices define three types of constraints:
-                # - NN's resulting lower bnds on xt1 >= lower bnds on xt1
-                # - NN's resulting upper bnds on xt1 <= upper bnds on xt1
-                # - NN matrices are only valid within the partition
-                A_NN, b_NN = range_to_polytope(ranges)
-                A_ = np.vstack([
-                        (self.dynamics.At+self.dynamics.bt@upper_A),
-                        -(self.dynamics.At+self.dynamics.bt@lower_A),
-                        A_NN
-                    ])
-                b_ = np.hstack([
-                        xt1_max - self.dynamics.bt@upper_sum_b,
-                        -xt1_min + self.dynamics.bt@lower_sum_b,
-                        b_NN
-                        ])
-
-                # If those constraints to a non-empty set, then add it to
-                # the list of input_constraints. Otherwise, skip it.
-                try:
-                    pypoman.polygon.compute_polygon_hull(A_, b_+1e-10)
-                    input_constraint.A.append(A_)
-                    input_constraint.b.append(b_)
-                except:
-                    continue
-
-        # input_constraint contains lists for A, b
+        # input_constraint should contain [A] and [b]
+        # TODO: Store the detailed partitions in info
         x_overapprox = np.vstack((xt_range_min, xt_range_max)).T
         A_overapprox, b_overapprox = range_to_polytope(x_overapprox)
-        info['backproj_overapprox'] = constraints.PolytopeConstraint(A_overapprox, b_overapprox)
+        input_constraint.A = [A_overapprox]
+        input_constraint.b = [b_overapprox]
 
         lower_A_range, upper_A_range, lower_sum_b_range, upper_sum_b_range = self.network(
                 method_opt=self.method_opt,
@@ -535,6 +392,131 @@ class ClosedLoopCROWNIBPCodebasePropagator(ClosedLoopPropagator):
         
         return input_constraint, info
 
+    def get_one_step_backprojection_set_underapprox(
+        self,
+        ranges,
+        upper_A,
+        lower_A,
+        upper_sum_b,
+        lower_sum_b,
+        xt1_max,
+        xt1_min,
+        input_constraint
+    ):
+        # For our under-approximation, refer to the Access21 paper.
+
+        # The NN matrices define three types of constraints:
+        # - NN's resulting lower bnds on xt1 >= lower bnds on xt1
+        # - NN's resulting upper bnds on xt1 <= upper bnds on xt1
+        # - NN matrices are only valid within the partition
+        A_NN, b_NN = range_to_polytope(ranges)
+        A_ = np.vstack([
+                (self.dynamics.At+self.dynamics.bt@upper_A),
+                -(self.dynamics.At+self.dynamics.bt@lower_A),
+                A_NN
+            ])
+        b_ = np.hstack([
+                xt1_max - self.dynamics.bt@upper_sum_b,
+                -xt1_min + self.dynamics.bt@lower_sum_b,
+                b_NN
+                ])
+
+        # If those constraints to a non-empty set, then add it to
+        # the list of input_constraints. Otherwise, skip it.
+        try:
+            pypoman.polygon.compute_polygon_hull(A_, b_+1e-10)
+            input_constraint.A.append(A_)
+            input_constraint.b.append(b_)
+        except:
+            pass
+
+        return input_constraint
+
+    def get_one_step_backprojection_set_overapprox(
+        self,
+        ranges,
+        upper_A,
+        lower_A,
+        upper_sum_b,
+        lower_sum_b,
+        xt_max,
+        xt_min,
+        xt1_max,
+        xt1_min,
+        num_control_inputs,
+        num_states,
+        A_t,
+        xt_range_max,
+        xt_range_min,
+        ut_min,
+        ut_max,
+        input_constraint
+    ):
+
+        # An over-approximation of the backprojection set is the set of:
+        # all xt s.t. there exists some u \in [pi^L(x_t), pi^U(x_t)]
+        #              that leads to the target set
+
+        ut_max_candidate = np.maximum(upper_A@xt_max+upper_sum_b, upper_A@xt_min+upper_sum_b)
+        ut_min_candidate = np.minimum(lower_A@xt_max+lower_sum_b, lower_A@xt_min+lower_sum_b)
+
+        xt = cp.Variable(xt1_min.shape)
+        ut = cp.Variable(num_control_inputs)
+        constrs = []
+        constrs += [xt_min <= xt]
+        constrs += [xt <= xt_max]
+
+        constrs += [lower_A@xt+lower_sum_b <= ut]
+        constrs += [ut <= upper_A@xt+upper_sum_b]
+        # constrs += [ut_min_candidate <= ut]
+        # constrs += [ut <= ut_max_candidate]
+
+        # constrs += [self.dynamics.At@xt + self.dynamics.bt@ut + self.dynamics.ct <= xt1_max]
+        # constrs += [self.dynamics.At@xt + self.dynamics.bt@ut + self.dynamics.ct >= xt1_min]
+        constrs += [self.dynamics.dynamics_step(xt, ut) <= xt1_max]
+        constrs += [self.dynamics.dynamics_step(xt, ut) >= xt1_min]
+        A_t_ = np.vstack([A_t, -A_t])
+        num_facets = 2*num_states
+        A_t_i = cp.Parameter(num_states)
+        obj = A_t_i@xt
+        prob = cp.Problem(cp.Maximize(obj), constrs)
+        A_ = A_t_
+        b_ = np.empty(2*num_states)
+        for i in range(num_facets):
+            A_t_i.value = A_t_[i, :]
+            prob.solve()
+            b_[i] = prob.value
+            
+        # This cell of the backprojection set is upper-bounded by the
+        # cell of the backreachable set that we used in the NN relaxation
+        # ==> the polytope is the intersection (i.e., concatenation)
+        # of the polytope used for relaxing the NN and the soln to the LP
+        A_NN, b_NN = range_to_polytope(ranges)
+        A_stack = np.vstack([A_, A_NN])
+        b_stack = np.hstack([b_, b_NN])
+
+        # Only add that polytope to the list if it's non-empty
+        try:
+            pypoman.polygon.compute_polygon_hull(A_stack, b_stack+1e-10)
+            vertices = np.array(pypoman.duality.compute_polytope_vertices(A_stack,b_stack))
+            
+            xt_max_candidate = np.max(vertices, axis=0)
+            xt_min_candidate = np.min(vertices, axis=0)
+            xt_range_max = np.maximum(xt_range_max, xt_max_candidate)
+            xt_range_min = np.minimum(xt_range_min, xt_min_candidate)
+
+            ut_max_candidate = np.maximum(upper_A@xt_max+upper_sum_b, upper_A@xt_min+upper_sum_b)
+            ut_min_candidate = np.minimum(lower_A@xt_max+lower_sum_b, lower_A@xt_min+lower_sum_b)
+
+            ut_min = np.minimum(ut_min, ut_min_candidate)
+            ut_max = np.maximum(ut_max, ut_max_candidate)
+            
+            input_constraint.A.append(A_)
+            input_constraint.b.append(b_)
+        except:
+            pass
+
+        return input_constraint, xt_range_min, xt_range_max, ut_min, ut_max
 
 
 class ClosedLoopIBPPropagator(ClosedLoopCROWNIBPCodebasePropagator):
@@ -584,7 +566,6 @@ class ClosedLoopCROWNNStepPropagator(ClosedLoopCROWNPropagator):
         )
 
     def get_reachable_set(self, input_constraint, output_constraint, t_max):
-        from copy import deepcopy
 
         output_constraints, infos = super().get_reachable_set(
             input_constraint, output_constraint, t_max)
@@ -618,6 +599,213 @@ class ClosedLoopCROWNNStepPropagator(ClosedLoopCROWNPropagator):
         # tightened_infos = infos  # TODO: fix this...
 
         return output_constraints, tightened_infos
+
+    def get_backprojection_set(
+        self,
+        output_constraint,
+        input_constraint,
+        t_max=1,
+        num_partitions=None,
+        overapprox=True,
+    ):
+        # Initialize backprojections and u bounds (in infos)
+        input_constraints, infos = super().get_backprojection_set(
+            output_constraint, 
+            input_constraint, 
+            t_max,
+            num_partitions=num_partitions, 
+            overapprox=overapprox
+        )
+
+        # Symbolically refine all N steps
+        tightened_input_constraints = []
+        tightened_infos = deepcopy(infos)
+        N = len(input_constraints)
+
+        for t in range(2, N + 1):
+
+            # N-step analysis accepts as input:
+            # [1st input constraint, {2,...,t} tightened input constraints,
+            #  dummy input constraint]
+            input_constraints_better = deepcopy(input_constraints[:1])
+            input_constraints_better += deepcopy(tightened_input_constraints)
+            input_constraints_better += deepcopy([input_constraints[t-1]])  # the first pass' backproj overapprox
+
+            input_constraint, info = self.get_N_step_backprojection_set(
+                output_constraint, input_constraints_better, infos['per_timestep'][:t], overapprox=overapprox
+            )
+            tightened_input_constraints.append(input_constraint)
+            tightened_infos['per_timestep'][t-1] = info
+
+        input_constraints = input_constraints[:1] + tightened_input_constraints
+
+        return input_constraints, tightened_infos
+
+    def get_N_step_backprojection_set(
+        self,
+        output_constraint,
+        input_constraints,
+        infos,
+        num_partitions=None,
+        overapprox=True,
+    ):
+
+        if overapprox:
+            input_constraint, info = self.get_N_step_backprojection_set_overapprox(
+                output_constraint,
+                input_constraints,
+                infos,
+                num_partitions=num_partitions,
+            )
+        else:
+            input_constraint, info = self.get_N_step_backprojection_set_underapprox()
+
+        return input_constraint, info
+
+    def get_N_step_backprojection_set_underapprox(self):
+        raise NotImplementedError
+
+    def get_N_step_backprojection_set_overapprox(
+        self,
+        output_constraint,
+        input_constraints,
+        infos,
+        num_partitions=None,
+    ):
+
+        # Get range of "earliest" backprojection overapprox
+        vertices = np.array(
+            pypoman.duality.compute_polytope_vertices(
+                input_constraints[-1].A[0],
+                input_constraints[-1].b[0]
+            )
+        )
+        tightened_constraint = constraints.PolytopeConstraint(A=[], b=[])
+        ranges = np.vstack([vertices.min(axis=0), vertices.max(axis=0)]).T
+        input_range = ranges
+
+        # Partition "earliest" backproj overapprox
+        if num_partitions is None:
+            num_partitions = np.array([10, 10])
+        slope = np.divide(
+            (input_range[..., 1] - input_range[..., 0]), num_partitions
+        )
+
+        num_states = self.dynamics.At.shape[1]
+        num_control_inputs = self.dynamics.bt.shape[1]
+        num_steps = len(input_constraints)
+        xt_range_max = -np.inf*np.ones(num_states)
+        xt_range_min = np.inf*np.ones(num_states)
+        A_facets = np.vstack([np.eye(num_states), -np.eye(num_states)])
+        num_facets = A_facets.shape[0]
+        input_shape = input_range.shape[:-1]
+
+        # Iterate through each partition
+        for element in product(
+            *[range(num) for num in num_partitions.flatten()]
+        ):
+            element_ = np.array(element).reshape(input_shape)
+            input_range_ = np.empty_like(input_range)
+            input_range_[..., 0] = input_range[..., 0] + np.multiply(
+                element_, slope
+            )
+            input_range_[..., 1] = input_range[..., 0] + np.multiply(
+                element_ + 1, slope
+            )
+            ranges = input_range_
+            xt_min = ranges[..., 0]
+            xt_max = ranges[..., 1]
+
+            # Initialize cvxpy variables
+            xt = cp.Variable((num_states, num_steps+1))
+            ut = cp.Variable((num_control_inputs, num_steps))
+            constrs = []
+
+            # x_{t=0} \in this partition of 0-th backreachable set
+            constrs += [xt_min <= xt[:, 0]]
+            constrs += [xt[:, 0] <= xt_max]
+
+            # # Each xt must be in a backprojection overapprox
+            # for t in range(num_steps - 1):
+            #     A, b = input_constraints[t].A[0], input_constraints[t].b[0]
+            #     constrs += [A@xt[:, t+1] <= b]
+
+            # x_{t=T} must be in target set
+            constrs += [output_constraint.A@xt[:, -1] <= output_constraint.b[0]]
+
+            # Each ut must not exceed CROWN bounds
+            for t in range(num_steps):
+
+                if t == 0:
+                    lower_A, upper_A, lower_sum_b, upper_sum_b = self.get_crown_matrices(xt_min, xt_max, num_control_inputs)
+                else:
+                    # Gather CROWN bounds for full backprojection overapprox
+                    upper_A = infos[-t-1]['upper_A']
+                    lower_A = infos[-t-1]['lower_A']
+                    upper_sum_b = infos[-t-1]['upper_sum_b']
+                    lower_sum_b = infos[-t-1]['lower_sum_b']
+
+                # u_t bounded by CROWN bounds
+                constrs += [lower_A@xt[:, t]+lower_sum_b <= ut[:, t]]
+                constrs += [ut[:, t] <= upper_A@xt[:, t]+upper_sum_b]
+
+            # x_t and x_{t+1} connected through system dynamics
+            for t in range(num_steps):
+                constrs += [self.dynamics.dynamics_step(xt[:, t], ut[:, t]) == xt[:, t+1]]
+
+            # u_t satisfies control limits (TODO: Necessary? CROWN should account for these)
+            # for t in range(num_steps):
+            #     constrs += [-1 <= ut[:, t]]
+            #     constrs += [1 >= ut[:, t]]
+
+            A_facets_i = cp.Parameter(num_states)
+            obj = A_facets_i@xt[:, 0]
+            prob = cp.Problem(cp.Maximize(obj), constrs)
+            A_ = A_facets
+            b_ = np.empty(num_facets)
+            for i in range(num_facets):
+                A_facets_i.value = A_facets[i, :]
+                prob.solve()
+
+                # prob.solve(solver=cp.SCIPY, scipy_options={"method": "highs"})
+                b_[i] = prob.value
+
+            # This cell of the backprojection set is upper-bounded by the
+            # cell of the backreachable set that we used in the NN relaxation
+            # ==> the polytope is the intersection (i.e., concatenation)
+            # of the polytope used for relaxing the NN and the soln to the LP
+            A_NN, b_NN = range_to_polytope(ranges)
+            A_stack = np.vstack([A_, A_NN])
+            b_stack = np.hstack([b_, b_NN])
+
+            # Only add that polytope to the list if it's non-empty
+            try:
+                pypoman.polygon.compute_polygon_hull(A_stack, b_stack+1e-10)
+                vertices = np.array(pypoman.duality.compute_polytope_vertices(A_stack, b_stack))
+                xt_max_candidate = np.max(vertices, axis=0)
+                xt_min_candidate = np.min(vertices, axis=0)
+                xt_range_max = np.maximum(xt_range_max, xt_max_candidate)
+                xt_range_min = np.minimum(xt_range_min, xt_min_candidate)
+                
+                tightened_constraint.A.append(A_)
+                tightened_constraint.b.append(b_)
+            except:
+                continue
+
+        x_overapprox = np.vstack((xt_range_min, xt_range_max)).T
+        A_overapprox, b_overapprox = range_to_polytope(x_overapprox)
+
+        # infos[-1]['tightened_constraint'] = tightened_constraint
+        # infos[-1]['tightened_overapprox'] = constraints.PolytopeConstraint(A_overapprox, b_overapprox)
+        
+        input_constraint = deepcopy(input_constraints[-1])
+        input_constraint.A = [A_overapprox]
+        input_constraint.b = [b_overapprox]
+
+        info = infos[-1]
+        info['one_step_backprojection_overapprox'] = input_constraints[-1]
+
+        return input_constraint, info
 
     def get_N_step_reachable_set(
         self,
@@ -752,190 +940,29 @@ class ClosedLoopCROWNNStepPropagator(ClosedLoopCROWNPropagator):
             ranges[i, 0] = A_out_xtN_min
             ranges[i, 1] = A_out_xtN_max
 
-        from copy import deepcopy
         output_constraint = deepcopy(output_constraints[-1])
         output_constraint.range = ranges
         return output_constraint, infos
 
+    def get_crown_matrices(self, xt_min, xt_max, num_control_inputs):
+        nn_input_max = torch.Tensor([xt_max])
+        nn_input_min = torch.Tensor([xt_min])
 
+        # Compute the NN output matrices (for this xt partition)
+        C = torch.eye(num_control_inputs).unsqueeze(0)
+        lower_A, upper_A, lower_sum_b, upper_sum_b = self.network(
+            method_opt=self.method_opt,
+            norm=np.inf,
+            x_U=nn_input_max,
+            x_L=nn_input_min,
+            upper=True,
+            lower=True,
+            C=C,
+            return_matrices=True,
+        )
+        upper_A = upper_A.detach().numpy()[0]
+        lower_A = lower_A.detach().numpy()[0]
+        upper_sum_b = upper_sum_b.detach().numpy()[0]
+        lower_sum_b = lower_sum_b.detach().numpy()[0]
 
-    
-    def get_backprojection_set(self,
-            output_constraint,
-            input_constraint,
-            t_max=1,
-            num_partitions=None,
-            overapprox=True,
-        ):
-            if overapprox:
-                # Initialize backprojections and u bounds (in infos)
-                input_constraint, infos = super().get_backprojection_set(
-                    output_constraint, 
-                    input_constraint, 
-                    t_max,
-                    num_partitions=num_partitions, 
-                    overapprox=overapprox
-                )
-
-                if num_partitions is None:
-                    num_partitions = np.array([10, 10])
-                
-
-                for t in range(int(t_max)-1,0,-1):
-                    # Get range of final backprojection overapprox
-                    vertices = np.array(
-                        pypoman.duality.compute_polytope_vertices(
-                            infos['per_timestep'][t]['backproj_overapprox'].A, infos['per_timestep'][t]['backproj_overapprox'].b
-                        )
-                    )
-                    tightened_constraint = constraints.PolytopeConstraint(A=[], b=[])
-                    ranges = np.vstack([vertices.min(axis=0), vertices.max(axis=0)]).T
-                    input_range = ranges
-                    input_shape = input_range.shape[:-1]
-                    
-                    # Partition final backproj overapprox
-                    slope = np.divide(
-                        (input_range[..., 1] - input_range[..., 0]), num_partitions
-                    )
-
-                    num_states = self.dynamics.At.shape[1]
-                    num_control_inputs = self.dynamics.bt.shape[1]
-                    xt_range_max = -np.inf*np.ones(num_states)
-                    xt_range_min = np.inf*np.ones(num_states)
-                    A_t = np.eye(num_states)
-                    from copy import deepcopy
-                    constr_timesteps = deepcopy(infos['per_timestep'])
-                    constr_timesteps.reverse()
-                    
-
-                    # Iterate through each partition
-                    for element in product(
-                        *[range(num) for num in num_partitions.flatten()]
-                    ):
-                        element_ = np.array(element).reshape(input_shape)
-                        input_range_ = np.empty_like(input_range)
-                        input_range_[..., 0] = input_range[..., 0] + np.multiply(
-                            element_, slope
-                        )
-                        input_range_[..., 1] = input_range[..., 0] + np.multiply(
-                            element_ + 1, slope
-                        )
-                        ranges = input_range_
-                        xt_min = ranges[..., 0]
-                        xt_max = ranges[..., 1]
-
-
-
-
-
-                        nn_input_max = torch.Tensor([xt_max])
-                        nn_input_min = torch.Tensor([xt_min])
-
-                        # Compute the NN output matrices (for this xt partition)
-                        C = torch.eye(num_control_inputs).unsqueeze(0)
-                        lower_A, upper_A, lower_sum_b, upper_sum_b = self.network(
-                            method_opt=self.method_opt,
-                            norm=np.inf,
-                            x_U=nn_input_max,
-                            x_L=nn_input_min,
-                            upper=True,
-                            lower=True,
-                            C=C,
-                            return_matrices=True,
-                        )
-                        upper_A = upper_A.detach().numpy()[0]
-                        lower_A = lower_A.detach().numpy()[0]
-                        upper_sum_b = upper_sum_b.detach().numpy()[0]
-                        lower_sum_b = lower_sum_b.detach().numpy()[0]
-
-
-                        # t+1
-                        xt = cp.Variable((num_states, t+2))
-                        ut = cp.Variable((num_control_inputs, t+2))
-                        constrs = []
-                        
-                        constrs += [xt_min <= xt[:,0]]
-                        constrs += [xt[:,0] <= xt_max]
-
-                        # Add constraints for each backprojection set leading to the target set
-                        current_timestep = (int(t_max)-1-t)
-                        for i in range(current_timestep,int(t_max)):
-                            index = i-current_timestep
-                        
-                            # Gather CROWN bounds for full backprojection overapprox
-                            if i > current_timestep: # If looking at final set, use bounds from current partition
-                                upper_A = constr_timesteps[i]['upper_A']
-                                lower_A = constr_timesteps[i]['lower_A']
-                                upper_sum_b = constr_timesteps[i]['upper_sum_b']
-                                lower_sum_b = constr_timesteps[i]['lower_sum_b']
-                            
-                            # x_{t+1} must be in the next backprojection overapprox or target set
-                            if i < t_max-1:
-                                A_i, b_i = constr_timesteps[i+1]['backproj_overapprox'].A, constr_timesteps[i+1]['backproj_overapprox'].b
-                            else:
-                                A_i, b_i = output_constraint.A, output_constraint.b[0]
-                            constrs += [A_i@xt[:,index+1] <= b_i]
-
-                            # u_t bounded by CROWN bounds
-                            constrs += [lower_A@xt[:,index]+lower_sum_b <= ut[:,index]]
-                            constrs += [ut[:,index] <= upper_A@xt[:,index]+upper_sum_b]
-
-                            constrs += [self.dynamics.u_limits[:, 0] <= ut[:,index]]
-                            constrs += [ut[:,index] <= self.dynamics.u_limits[:, 1]]
-
-                            # x_t and x_{t+1} connected through system dynamics
-                            constrs += [self.dynamics.dynamics_step(xt[:,index],ut[:,index]) == xt[:,index+1]]
-
-                        A_t_ = np.vstack([A_t, -A_t])
-                        num_facets = 2*num_states
-                        A_t_i = cp.Parameter(num_states)
-                        obj = A_t_i@xt[:,0]
-                        prob = cp.Problem(cp.Maximize(obj), constrs)
-                        A_ = A_t_
-                        b_ = np.empty(2*num_states)
-                        for i in range(num_facets):
-                            A_t_i.value = A_t_[i, :]
-                            prob.solve(solver=cp.SCIPY, scipy_options={"method": "highs"})
-                            b_[i] = prob.value
-
-
-                        # This cell of the backprojection set is upper-bounded by the
-                        # cell of the backreachable set that we used in the NN relaxation
-                        # ==> the polytope is the intersection (i.e., concatenation)
-                        # of the polytope used for relaxing the NN and the soln to the LP
-                        A_NN, b_NN = range_to_polytope(ranges)
-                        A_stack = np.vstack([A_, A_NN])
-                        b_stack = np.hstack([b_, b_NN])
-
-                        # Only add that polytope to the list if it's non-empty
-                        try:
-                            pypoman.polygon.compute_polygon_hull(A_stack, b_stack+1e-10)
-                            
-                            vertices = np.array(pypoman.duality.compute_polytope_vertices(A_stack,b_stack))
-                            xt_max_candidate = np.max(vertices, axis=0)
-                            xt_min_candidate = np.min(vertices, axis=0)
-                            xt_range_max = np.maximum(xt_range_max, xt_max_candidate)
-                            xt_range_min = np.minimum(xt_range_min, xt_min_candidate)
-                            
-
-                            tightened_constraint.A.append(A_)
-                            tightened_constraint.b.append(b_)
-                        except:
-                            continue
-
-                    infos['per_timestep'][t]['tightened_constraint'] = tightened_constraint
-                    x_overapprox = np.vstack((xt_range_min, xt_range_max)).T
-                    A_overapprox, b_overapprox = range_to_polytope(x_overapprox)
-                    infos['per_timestep'][t]['tightened_overapprox'] = constraints.PolytopeConstraint(A_overapprox, b_overapprox)
-                    # import pdb; pdb.set_trace()
-                
-                infos['per_timestep'][0]['tightened_constraint'] = input_constraint[0]
-                infos['per_timestep'][0]['tightened_overapprox'] = infos['per_timestep'][0]['backproj_overapprox']
-            
-                    
-                
-            else:
-                raise NotImplementedError
-
-
-            return input_constraint, infos
+        return lower_A, upper_A, lower_sum_b, upper_sum_b
