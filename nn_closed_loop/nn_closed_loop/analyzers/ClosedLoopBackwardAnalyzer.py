@@ -17,12 +17,12 @@ class ClosedLoopBackwardAnalyzer(analyzers.Analyzer):
 
         self.true_backprojection_set_color = 'darkblue'
         self.estimated_backprojection_set_color = 'tab:blue'
-        self.estimated_one_step_backprojection_set_color = 'gold'
+        self.estimated_one_step_backprojection_set_color = 'orange'
         self.estimated_backprojection_partitioned_set_color = 'tab:gray'
         self.target_set_color = 'tab:green'
         
-        self.true_backprojection_set_zorder = 1
-        self.estimated_backprojection_set_zorder = 1
+        self.true_backprojection_set_zorder = 3
+        self.estimated_backprojection_set_zorder = 2
         self.estimated_one_step_backprojection_set_zorder = 1
         self.estimated_backprojection_partitioned_set_zorder = 1
         self.target_set_zorder = 1
@@ -84,21 +84,23 @@ class ClosedLoopBackwardAnalyzer(analyzers.Analyzer):
         aspect="auto",
         labels={},
         plot_lims=None,
+        inputs_to_highlight=None,
         **kwargs
     ):
         # sampled_outputs = self.get_sampled_outputs(input_range)
         # output_range_exact = self.samples_to_range(sampled_outputs)
-
+        if inputs_to_highlight is None:
+            inputs_to_highlight=[
+                {"dim": [0], "name": "$x$"},
+                {"dim": [1], "name": "$\dot{x}$"},
+            ]
         self.partitioner.setup_visualization(
             input_constraints[0],
             output_constraint.get_t_max(),
             self.propagator,
             show_samples=False,
             # show_samples=show_samples,
-            inputs_to_highlight=[
-                {"dim": [0], "name": "$x$"},
-                {"dim": [1], "name": "$\dot{x}$"},
-            ],
+            inputs_to_highlight=inputs_to_highlight,
             aspect=aspect,
             initial_set_color=self.estimated_backprojection_set_color,
             initial_set_zorder=self.estimated_backprojection_set_zorder,
@@ -115,21 +117,24 @@ class ClosedLoopBackwardAnalyzer(analyzers.Analyzer):
             color=self.target_set_color,
             zorder=self.target_set_zorder,
             linestyle=self.target_set_linestyle,
-            linewidth=2.5,
         )
 
         # Show the "true" N-Step backprojection set as a convex hull
         backreachable_set = kwargs['per_timestep'][-1]['backreachable_set']
         target_set = output_constraint
         t_max = len(kwargs['per_timestep'])
-        self.plot_true_backprojection_sets(
-            backreachable_set,
-            target_set,
-            t_max=t_max,
-            color=self.true_backprojection_set_color,
-            zorder=self.true_backprojection_set_zorder,
-            linestyle=self.true_backprojection_set_linestyle,
-        )
+        # Plotting the backprojection has an issue if there are no points found in the true backprojection (i.e, 'empty set')
+        try:
+            self.plot_true_backprojection_sets(
+                backreachable_set,
+                target_set,
+                t_max=t_max,
+                color=self.true_backprojection_set_color,
+                zorder=self.true_backprojection_set_zorder,
+                linestyle=self.true_backprojection_set_linestyle,
+            )
+        except:
+            pass
 
         # If they exist, plot all our loose input constraints (i.e., our one-step backprojection set estimates)
         # TODO: Make plotting these optional via a flag
@@ -208,14 +213,14 @@ class ClosedLoopBackwardAnalyzer(analyzers.Analyzer):
             reachable_set_ls=linestyle
         )
 
-    def plot_target_set(self, target_set, color='cyan', zorder=None, linestyle='-', linewidth=2.5):
+    def plot_target_set(self, target_set, color='cyan', zorder=None, linestyle='-'):
         self.partitioner.plot_reachable_sets(
             target_set,
             self.partitioner.input_dims,
             reachable_set_color=color,
             reachable_set_zorder=zorder,
             reachable_set_ls=linestyle,
-            reachable_set_lw=linewidth
+            # reachable_set_lw=linewidth
         )
 
     def plot_tightened_backprojection_set(self, tightened_set, color='darkred', zorder=None, linestyle='-'):

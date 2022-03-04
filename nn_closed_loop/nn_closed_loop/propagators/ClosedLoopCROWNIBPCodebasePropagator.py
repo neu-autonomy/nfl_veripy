@@ -277,7 +277,10 @@ class ClosedLoopCROWNIBPCodebasePropagator(ClosedLoopPropagator):
         )
 
         # Set an empty Constraint that will get filled in
-        input_constraint = constraints.PolytopeConstraint(A=[], b=[])
+        if isinstance(output_constraint, constraints.PolytopeConstraint):
+            input_constraint = constraints.PolytopeConstraint(A=[], b=[])
+        elif isinstance(output_constraint, constraints.LpConstraint):
+            input_constraint = constraints.LpConstraint(p=np.inf)
         ut_max = -np.inf*np.ones(num_control_inputs)
         ut_min = np.inf*np.ones(num_control_inputs)
         xt_range_max = -np.inf*np.ones(xt1_min.shape)
@@ -496,25 +499,65 @@ class ClosedLoopCROWNIBPCodebasePropagator(ClosedLoopPropagator):
         b_stack = np.hstack([b_, b_NN])
 
         # Only add that polytope to the list if it's non-empty
-        try:
-            pypoman.polygon.compute_polygon_hull(A_stack, b_stack+1e-10)
-            vertices = np.array(pypoman.duality.compute_polytope_vertices(A_stack,b_stack))
+        # try:
+        #     vertices = np.array(pypoman.duality.compute_polytope_vertices(A_stack,b_stack))
+        #     import pdb; pdb.set_trace()
+        #     pypoman.polygon.compute_polygon_hull(A_stack, b_stack+1e-10)
+        #     vertices = np.array(pypoman.duality.compute_polytope_vertices(A_stack,b_stack))
             
-            xt_max_candidate = np.max(vertices, axis=0)
-            xt_min_candidate = np.min(vertices, axis=0)
-            xt_range_max = np.maximum(xt_range_max, xt_max_candidate)
-            xt_range_min = np.minimum(xt_range_min, xt_min_candidate)
+        #     xt_max_candidate = np.max(vertices, axis=0)
+        #     xt_min_candidate = np.min(vertices, axis=0)
+        #     xt_range_max = np.maximum(xt_range_max, xt_max_candidate)
+        #     xt_range_min = np.minimum(xt_range_min, xt_min_candidate)
+
+        #     ut_max_candidate = np.maximum(upper_A@xt_max+upper_sum_b, upper_A@xt_min+upper_sum_b)
+        #     ut_min_candidate = np.minimum(lower_A@xt_max+lower_sum_b, lower_A@xt_min+lower_sum_b)
+
+        #     ut_min = np.minimum(ut_min, ut_min_candidate)
+        #     ut_max = np.maximum(ut_max, ut_max_candidate)
+            
+        #     input_constraint.A.append(A_)
+        #     input_constraint.b.append(b_)
+        # except:
+        #     pass
+        # import pdb; pdb.set_trace()
+        if isinstance(input_constraint, constraints.LpConstraint):
+            b_max = b_[0:int(len(b_)/2)]
+            b_min = -b_[int(len(b_)/2):int(len(b_))]
 
             ut_max_candidate = np.maximum(upper_A@xt_max+upper_sum_b, upper_A@xt_min+upper_sum_b)
             ut_min_candidate = np.minimum(lower_A@xt_max+lower_sum_b, lower_A@xt_min+lower_sum_b)
 
             ut_min = np.minimum(ut_min, ut_min_candidate)
             ut_max = np.maximum(ut_max, ut_max_candidate)
-            
-            input_constraint.A.append(A_)
-            input_constraint.b.append(b_)
-        except:
-            pass
+
+            xt_range_max = np.max((xt_range_max, b_max),axis=0)
+            xt_range_min = np.min((xt_range_min, b_min),axis=0)
+
+            input_constraint.range = np.array([xt_range_min,xt_range_max]).T
+
+        elif isinstance(input_constraint, constraints.PolytopeConstraint):
+            vertices = np.array(pypoman.duality.compute_polytope_vertices(A_stack,b_stack))
+            if len(vertices) > 0:
+                # import pdb; pdb.set_trace()
+                # pypoman.polygon.compute_polygon_hull(A_stack, b_stack+1e-10)
+                # vertices = np.array(pypoman.duality.compute_polytope_vertices(A_stack,b_stack))
+                
+                xt_max_candidate = np.max(vertices, axis=0)
+                xt_min_candidate = np.min(vertices, axis=0)
+                xt_range_max = np.maximum(xt_range_max, xt_max_candidate)
+                xt_range_min = np.minimum(xt_range_min, xt_min_candidate)
+
+                ut_max_candidate = np.maximum(upper_A@xt_max+upper_sum_b, upper_A@xt_min+upper_sum_b)
+                ut_min_candidate = np.minimum(lower_A@xt_max+lower_sum_b, lower_A@xt_min+lower_sum_b)
+
+                ut_min = np.minimum(ut_min, ut_min_candidate)
+                ut_max = np.maximum(ut_max, ut_max_candidate)
+                
+                input_constraint.A.append(A_)
+                input_constraint.b.append(b_)
+        else:
+            raise NotImplementedError
 
         return input_constraint, xt_range_min, xt_range_max, ut_min, ut_max
 

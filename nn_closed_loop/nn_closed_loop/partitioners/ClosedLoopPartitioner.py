@@ -158,10 +158,11 @@ class ClosedLoopPartitioner(partitioners.Partitioner):
             input_names = [x["name"] for x in inputs_to_highlight]
         self.input_dims = input_dims
 
+        # import pdb; pdb.set_trace()
         if len(input_dims) == 2:
             projection = None
             self.plot_2d = True
-            self.linewidth = 3
+            self.linewidth = 2
         elif len(input_dims) == 3:
             projection = '3d'
             self.plot_2d = False
@@ -174,8 +175,8 @@ class ClosedLoopPartitioner(partitioners.Partitioner):
 
         self.animate_axes.set_aspect(aspect)
         # Double Integrator
-        self.animate_axes.set_xlim([-3.8, 5.64])
-        self.animate_axes.set_ylim([-0.64, 2.5])
+        # self.animate_axes.set_xlim([-3.8, 5.64])
+        # self.animate_axes.set_ylim([-0.64, 2.5])
 
         # Ground Robot
         # self.animate_axes.set_xlim([-6, 3])
