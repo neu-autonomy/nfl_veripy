@@ -1,3 +1,5 @@
+import imp
+from operator import imod
 from .ClosedLoopPropagator import ClosedLoopPropagator
 import numpy as np
 import pypoman
@@ -675,7 +677,7 @@ class ClosedLoopCROWNNStepPropagator(ClosedLoopCROWNPropagator):
             input_constraints_better += deepcopy([input_constraints[t-1]])  # the first pass' backproj overapprox
 
             input_constraint, info = self.get_N_step_backprojection_set(
-                output_constraint, input_constraints_better, infos['per_timestep'][:t], overapprox=overapprox
+                output_constraint, input_constraints_better, infos['per_timestep'][:t], overapprox=overapprox, num_partitions=num_partitions
             )
             tightened_input_constraints.append(input_constraint)
             tightened_infos['per_timestep'][t-1] = info
@@ -723,7 +725,12 @@ class ClosedLoopCROWNNStepPropagator(ClosedLoopCROWNPropagator):
                 input_constraints[-1].b[0]
             )
         )
-        tightened_constraint = constraints.PolytopeConstraint(A=[], b=[])
+        if isinstance(output_constraint, constraints.LpConstraint):
+            tightened_constraint = constraints.LpConstraint(p=np.inf)
+        elif isinstance(output_constraint, constraints.PolytopeConstraint):
+            tightened_constraint = constraints.PolytopeConstraint(A=[], b=[])
+        else:
+            raise NotImplementedError
         ranges = np.vstack([vertices.min(axis=0), vertices.max(axis=0)]).T
         input_range = ranges
 
@@ -774,7 +781,11 @@ class ClosedLoopCROWNNStepPropagator(ClosedLoopCROWNPropagator):
             #     constrs += [A@xt[:, t+1] <= b]
 
             # x_{t=T} must be in target set
-            constrs += [output_constraint.A@xt[:, -1] <= output_constraint.b[0]]
+            if isinstance(output_constraint, constraints.LpConstraint):
+                goal_set_A, goal_set_b = range_to_polytope(output_constraint.range)
+            elif isinstance(output_constraint, constraints.PolytopeConstraint):
+                goal_set_A, goal_set_b = output_constraint.A, output_constraint.b[0]
+            constrs += [goal_set_A@xt[:, -1] <= goal_set_b]
 
             # Each ut must not exceed CROWN bounds
             for t in range(num_steps):
@@ -821,29 +832,46 @@ class ClosedLoopCROWNNStepPropagator(ClosedLoopCROWNPropagator):
             A_stack = np.vstack([A_, A_NN])
             b_stack = np.hstack([b_, b_NN])
 
-            # Only add that polytope to the list if it's non-empty
-            try:
-                pypoman.polygon.compute_polygon_hull(A_stack, b_stack+1e-10)
-                vertices = np.array(pypoman.duality.compute_polytope_vertices(A_stack, b_stack))
-                xt_max_candidate = np.max(vertices, axis=0)
-                xt_min_candidate = np.min(vertices, axis=0)
-                xt_range_max = np.maximum(xt_range_max, xt_max_candidate)
-                xt_range_min = np.minimum(xt_range_min, xt_min_candidate)
-                
-                tightened_constraint.A.append(A_)
-                tightened_constraint.b.append(b_)
-            except:
-                continue
+            if isinstance(output_constraint, constraints.LpConstraint):
+                b_max = b_[0:int(len(b_)/2)]
+                b_min = -b_[int(len(b_)/2):int(len(b_))]
 
-        x_overapprox = np.vstack((xt_range_min, xt_range_max)).T
-        A_overapprox, b_overapprox = range_to_polytope(x_overapprox)
+                xt_range_max = np.max((xt_range_max, b_max),axis=0)
+                xt_range_min = np.min((xt_range_min, b_min),axis=0)
 
-        # infos[-1]['tightened_constraint'] = tightened_constraint
-        # infos[-1]['tightened_overapprox'] = constraints.PolytopeConstraint(A_overapprox, b_overapprox)
-        
-        input_constraint = deepcopy(input_constraints[-1])
-        input_constraint.A = [A_overapprox]
-        input_constraint.b = [b_overapprox]
+                tightened_constraint.range = np.array([xt_range_min,xt_range_max]).T
+
+            elif isinstance(output_constraint, constraints.PolytopeConstraint):
+                vertices = np.array(pypoman.duality.compute_polytope_vertices(A_stack,b_stack))
+                if len(vertices) > 0:
+                    # import pdb; pdb.set_trace()
+                    # pypoman.polygon.compute_polygon_hull(A_stack, b_stack+1e-10)
+                    # vertices = np.array(pypoman.duality.compute_polytope_vertices(A_stack,b_stack))
+                    
+                    xt_max_candidate = np.max(vertices, axis=0)
+                    xt_min_candidate = np.min(vertices, axis=0)
+                    xt_range_max = np.maximum(xt_range_max, xt_max_candidate)
+                    xt_range_min = np.minimum(xt_range_min, xt_min_candidate)
+
+                    
+                    tightened_constraint.A.append(A_)
+                    tightened_constraint.b.append(b_)
+            else:
+                raise NotImplementedError
+
+        if isinstance(output_constraint, constraints.LpConstraint):
+            input_constraint = deepcopy(input_constraints[-1])
+            input_constraint.range = np.vstack((xt_range_min, xt_range_max)).T
+        elif isinstance(output_constraint, constraints.PolytopeConstraint):
+            x_overapprox = np.vstack((xt_range_min, xt_range_max)).T
+            A_overapprox, b_overapprox = range_to_polytope(x_overapprox)
+
+            # infos[-1]['tightened_constraint'] = tightened_constraint
+            # infos[-1]['tightened_overapprox'] = constraints.PolytopeConstraint(A_overapprox, b_overapprox)
+            
+            input_constraint = deepcopy(input_constraints[-1])
+            input_constraint.A = [A_overapprox]
+            input_constraint.b = [b_overapprox]
 
         info = infos[-1]
         info['one_step_backprojection_overapprox'] = input_constraints[-1]
