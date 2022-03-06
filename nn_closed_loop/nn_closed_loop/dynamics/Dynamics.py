@@ -1,3 +1,4 @@
+from nn_closed_loop.utils.utils import range_to_polytope
 import numpy as np
 import matplotlib
 from sys import platform
@@ -130,13 +131,19 @@ class Dynamics:
             controller=controller,
             merge_cols=False,
         )
+        if isinstance(target_set, constraints.PolytopeConstraint):
+            A, b = target_set.A, target_set.b[0]
+        elif isinstance(target_set, constraints.LpConstraint):
+            A, b = range_to_polytope(target_set.range)
+        else:
+            raise NotImplementedError
 
         # Find which of the xt+t_max points actually end up in the target set
         within_constraint_inds = np.where(
             np.all(
                 (
-                    np.dot(target_set.A, xs[:, -1, :].T)
-                    - np.expand_dims(target_set.b[0], axis=-1)
+                    np.dot(A, xs[:, -1, :].T)
+                    - np.expand_dims(b, axis=-1)
                 )
                 <= 0,
                 axis=0,
