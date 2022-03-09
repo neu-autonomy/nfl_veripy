@@ -803,6 +803,12 @@ class ClosedLoopCROWNNStepPropagator(ClosedLoopCROWNPropagator):
                 constrs += [lower_A@xt[:, t]+lower_sum_b <= ut[:, t]]
                 constrs += [ut[:, t] <= upper_A@xt[:, t]+upper_sum_b]
 
+            # Each xt must fall in the original backprojection
+            for t in range(num_steps):
+                constrs += [input_constraints[-t-1].range[:,0] <= xt[:,t]]
+                constrs += [xt[:,t] <= input_constraints[-t-1].range[:,1]]
+
+
             # x_t and x_{t+1} connected through system dynamics
             for t in range(num_steps):
                 constrs += [self.dynamics.dynamics_step(xt[:, t], ut[:, t]) == xt[:, t+1]]
