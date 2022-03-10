@@ -86,10 +86,20 @@ def main(args):
         )
         input_constraint = constraints.PolytopeConstraint(None, None)
     elif args.boundaries == "lp":
-        output_constraint = constraints.LpConstraint(
+        output_constraint1 = constraints.LpConstraint(
             range=final_state_range, p=np.inf
         )
         input_constraint = constraints.LpConstraint(p=np.inf, range=None)
+        final_state_range2 = np.array(
+                [  # (num_inputs, 2)
+                    [6.5, 7.0],  # x0min, x0max
+                    [-0.25, 0.25],  # x1min, x1max
+                ]
+            )
+        output_constraint2 = constraints.LpConstraint(
+            range=final_state_range2, p=np.inf
+        )
+        output_constraint = [output_constraint2,output_constraint1]
     else:
         raise NotImplementedError
 
@@ -136,7 +146,7 @@ def main(args):
     else:
         # Run analysis once
         # Run analysis & generate a plot
-        input_constraint, analyzer_info = analyzer.get_backprojection_set(
+        input_constraint_list, analyzer_info_list = analyzer.get_backprojection_set(
             output_constraint, input_constraint, t_max=args.t_max, num_partitions=num_partitions, overapprox=args.overapprox
         )
         
@@ -177,7 +187,7 @@ def main(args):
                 if key not in ["input_shape", "type"]
             ]
         )
-        analyzer_info["save_name"] = (
+        analyzer_info_list[0]["save_name"] = (
             save_dir
             + args.system
             + pars
@@ -199,24 +209,24 @@ def main(args):
             + np.array2string(num_partitions, separator='_')[1:-1]
         )
         if len(pars2) > 0:
-            analyzer_info["save_name"] = (
-                analyzer_info["save_name"] + "_" + pars2
+            analyzer_info_list[0]["save_name"] = (
+                analyzer_info_list[0]["save_name"] + "_" + pars2
             )
-        analyzer_info["save_name"] = analyzer_info["save_name"] + ".png"
+        analyzer_info_list[0]["save_name"] = analyzer_info_list[0]["save_name"] + ".png"
 
     if args.show_plot or args.save_plot:
         analyzer.visualize(
-            input_constraint,
+            input_constraint_list,
             output_constraint,
+            analyzer_info_list,
             show_samples=True,
             show=args.show_plot,
             labels=args.plot_labels,
             aspect=args.plot_aspect,
             plot_lims=args.plot_lims,
-            **analyzer_info
         )
 
-    return stats, analyzer_info
+    return stats, analyzer_info_list
 
 
 def setup_parser():

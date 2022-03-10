@@ -1,3 +1,5 @@
+from cProfile import label
+from termios import VMIN
 import nn_partition.analyzers as analyzers
 import nn_closed_loop.partitioners as partitioners
 import nn_closed_loop.propagators as propagators
@@ -76,6 +78,62 @@ class ClosedLoopBackwardAnalyzer(analyzers.Analyzer):
 
     def visualize(
         self,
+        input_constraint_list,
+        output_constraint_list,
+        info_list,
+        show=True,
+        show_samples=False,
+        show_trajectories=False,
+        aspect="auto",
+        labels={},
+        plot_lims=None,
+        inputs_to_highlight=None
+    ):
+        # sampled_outputs = self.get_sampled_outputs(input_range)
+        # output_range_exact = self.samples_to_range(sampled_outputs)
+        if inputs_to_highlight is None:
+            inputs_to_highlight=[
+                {"dim": [0], "name": "$x$"},
+                {"dim": [1], "name": "$\dot{x}$"},
+            ]
+        self.partitioner.setup_visualization(
+            input_constraint_list[0][0],
+            output_constraint_list[0].get_t_max(),
+            self.propagator,
+            show_samples=False,
+            # show_samples=show_samples,
+            inputs_to_highlight=inputs_to_highlight,
+            aspect=aspect,
+            initial_set_color=self.estimated_backprojection_set_color,
+            initial_set_zorder=self.estimated_backprojection_set_zorder,
+        )
+
+        for i in range(len(output_constraint_list)):
+            self.visualize_single_set(
+                input_constraint_list[i],
+                output_constraint_list[i],
+                show_samples=True,
+                show=show,
+                labels=labels,
+                aspect=aspect,
+                plot_lims=plot_lims,
+                **info_list[i]
+            )
+        self.partitioner.animate_fig.tight_layout()
+
+        if "save_name" in info_list[0] and info_list[0]["save_name"] is not None:
+            plt.savefig(info_list[0]["save_name"])
+
+        if show:
+            plt.show()
+        else:
+            plt.close()
+    
+    
+    
+    
+    def visualize_single_set(
+        self,
         input_constraints,
         output_constraint,
         show=True,
@@ -87,27 +145,66 @@ class ClosedLoopBackwardAnalyzer(analyzers.Analyzer):
         inputs_to_highlight=None,
         **kwargs
     ):
-        # sampled_outputs = self.get_sampled_outputs(input_range)
-        # output_range_exact = self.samples_to_range(sampled_outputs)
-        if inputs_to_highlight is None:
-            inputs_to_highlight=[
-                {"dim": [0], "name": "$x$"},
-                {"dim": [1], "name": "$\dot{x}$"},
-            ]
-        self.partitioner.setup_visualization(
-            input_constraints[0],
-            output_constraint.get_t_max(),
-            self.propagator,
-            show_samples=False,
-            # show_samples=show_samples,
-            inputs_to_highlight=inputs_to_highlight,
-            aspect=aspect,
-            initial_set_color=self.estimated_backprojection_set_color,
-            initial_set_zorder=self.estimated_backprojection_set_zorder,
-        )
+        
+
+        # import nn_closed_loop.constraints as constraints
+        # from nn_closed_loop.utils.utils import range_to_polytope
+        # target_range = np.array(
+        #     [
+        #         [-1, 1],
+        #         [-1, 1]
+        #     ]
+        # )
+        # A, b = range_to_polytope(target_range)
+
+        # target_constraint = constraints.PolytopeConstraint(A,b)
+        # self.partitioner.plot_reachable_sets(
+        #     target_constraint,
+        #     self.partitioner.input_dims,
+        #     reachable_set_color='tab:green',
+        #     reachable_set_zorder=4,
+        #     reachable_set_ls='-'
+        # )
+        # initial_range = np.array(
+        #     [
+        #         [-5.5, -4.5],
+        #         [-0.5, 0.5]
+        #     ]
+        # )
+        # A, b = range_to_polytope(target_range)
+        
+        # initial_constraint = constraints.LpConstraint(initial_range)
+        # self.partitioner.plot_reachable_sets(
+        #     initial_constraint,
+        #     self.partitioner.input_dims,
+        #     reachable_set_color='k',
+        #     reachable_set_zorder=5,
+        #     reachable_set_ls='-'
+        # )
+
+        # # import pdb; pdb.set_trace()
+        # self.dynamics.show_trajectories(
+        #         len(input_constraints) * self.dynamics.dt,
+        #         initial_constraint,
+        #         ax=self.partitioner.animate_axes,
+        #         controller=self.propagator.network,
+        #         zorder=1,
+        #     )
+        # from colour import Color
+        # orange = Color("orange")
+        # colors = list(orange.range_to(Color("purple"),len(input_constraints)))
+        # import matplotlib as mpl
+        # from mpl_toolkits.axes_grid1 import make_axes_locatable
+        # divider = make_axes_locatable(plt.gca())
+        # ax_cb = divider.new_horizontal(size="5%", pad=0.05)
+        # cmap = mpl.colors.LinearSegmentedColormap.from_list("", [color.hex for color in colors])
+        # cb1 = mpl.colorbar.ColorbarBase(ax_cb, cmap=cmap, orientation='vertical', label='t', values=range(len(input_constraints)))
+        
+        # plt.gcf().add_axes(ax_cb)
+
 
         # Plot all our input constraints (i.e., our backprojection set estimates)
-        for ic in input_constraints[1:]:
+        for ic in input_constraints[0:]:
             rect = ic.plot(self.partitioner.animate_axes, self.partitioner.input_dims, self.estimated_backprojection_set_color, zorder=self.estimated_backprojection_set_zorder, linewidth=self.partitioner.linewidth, plot_2d=self.partitioner.plot_2d)
             self.partitioner.default_patches += rect
 
@@ -132,6 +229,7 @@ class ClosedLoopBackwardAnalyzer(analyzers.Analyzer):
                 color=self.true_backprojection_set_color,
                 zorder=self.true_backprojection_set_zorder,
                 linestyle=self.true_backprojection_set_linestyle,
+                show_samples=True
             )
         except:
             pass
@@ -166,15 +264,7 @@ class ClosedLoopBackwardAnalyzer(analyzers.Analyzer):
         #     ncol=1,
         # )
 
-        self.partitioner.animate_fig.tight_layout()
-
-        if "save_name" in kwargs and kwargs["save_name"] is not None:
-            plt.savefig(kwargs["save_name"])
-
-        if show:
-            plt.show()
-        else:
-            plt.close()
+        
 
     def get_sampled_outputs(self, input_range, N=1000):
         return get_sampled_outputs(input_range, self.propagator, N=N)

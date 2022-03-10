@@ -40,8 +40,8 @@ def main(args):
             )
     elif args.system == "ground_robot":
         inputs_to_highlight = [
-            {"dim": [0], "name": "$x_0$"},
-            {"dim": [1], "name": "$x_1$"},
+            {"dim": [0], "name": "$p_x$"},
+            {"dim": [1], "name": "$p_y$"},
         ]
         if args.state_feedback:
             dyn = dynamics.GroundRobotSI()
@@ -56,8 +56,8 @@ def main(args):
             # )
             init_state_range = np.array(
                 [  # (num_inputs, 2)
-                    [-5.5, -5.0],  # x0min, x0max
-                    [-0.5, 0.5],  # x1min, x1max
+                    [-5.5, -4.5],  # x0min, x0max
+                    [1-0.5, 1+0.5],  # x1min, x1max
                 ]
             )
             # init_state_range = np.array(
@@ -369,34 +369,43 @@ def main(args):
         #         [-0.98340923, -0.96269608],
         #     ]
         # )
-        # num_partitions = np.array([2, 2, 2, 2, 2, 2])
-        num_partitions = np.array([4,4])
+        # num_partitions = 1*np.array([1, 1, 1, 1, 1, 1])
+        # num_partitions = np.array([4,4])
         
         back_analyzer = analyzers.ClosedLoopBackwardAnalyzer(controller, dyn)
         back_analyzer.partitioner = partitioner_hyperparams
         # import pdb; pdb.set_trace()
         back_analyzer.propagator = propagator_hyperparams
         
-        A_out, b_out = range_to_polytope(final_state_range)
-        back_output_constraint = constraints.PolytopeConstraint(
-            A=A_out, b=[b_out]
-        )
-        back_input_constraint = constraints.PolytopeConstraint(None, None)
+        # A_out, b_out = range_to_polytope(final_state_range)
+        # back_output_constraint = constraints.PolytopeConstraint(
+        #     A=A_out, b=[b_out]
+        # )
+        # back_input_constraint = constraints.PolytopeConstraint(None, None)
 
-        back_input_constraint, back_analyzer_info = back_analyzer.get_backprojection_set(
+        import time
+        back_output_constraint = [constraints.LpConstraint(range=final_state_range, p=np.inf)]
+        back_input_constraint = constraints.LpConstraint(p=np.inf)
+        t_start = time.time()
+        back_input_constraint_list, back_analyzer_info_list = back_analyzer.get_backprojection_set(
             back_output_constraint, back_input_constraint, t_max=args.t_max, num_partitions=num_partitions, overapprox=True
         )
+        t_end = time.time()
+        print(t_end - t_start)
+        # import pdb; pdb.set_trace()
         # print(back_analyzer_info[])
         # args.plot_lims = np.array([[-6, 1],[-4, 4]])
+        # import pdb; pdb.set_trace()
         back_analyzer.visualize(
-            back_input_constraint,
+            back_input_constraint_list,
             back_output_constraint,
-            show_samples=False,
+            back_analyzer_info_list,
+            show_samples=True,
             show=args.show_plot,
             labels=args.plot_labels,
             aspect=args.plot_aspect,
+            inputs_to_highlight=inputs_to_highlight,
             # plot_lims=args.plot_lims,
-            **back_analyzer_info
         )
 
 

@@ -647,21 +647,46 @@ class ClosedLoopCROWNNStepPropagator(ClosedLoopCROWNPropagator):
 
     def get_backprojection_set(
         self,
-        output_constraint,
+        output_constraints,
         input_constraint,
         t_max=1,
         num_partitions=None,
         overapprox=True,
     ):
+        input_constraint_list = []
+        tightened_infos_list = []
+        if not isinstance(output_constraints, list):
+            output_constraint_list = [deepcopy(output_constraints)]
+        else:
+            output_constraint_list = deepcopy(output_constraints)
+
         # Initialize backprojections and u bounds (in infos)
         input_constraints, infos = super().get_backprojection_set(
-            output_constraint, 
+            output_constraint_list, 
             input_constraint, 
             t_max,
             num_partitions=num_partitions, 
             overapprox=overapprox
         )
+        # import pdb; pdb.set_trace()
+        for i in range(len(output_constraint_list)):
+            tightened_input_constraints, tightened_infos = self.get_single_target_N_step_backprojection_set(output_constraint_list[i], input_constraints[i], infos[i], t_max=t_max, num_partitions=num_partitions, overapprox=overapprox)
 
+            input_constraint_list.append(deepcopy(tightened_input_constraints))
+            tightened_infos_list.append(deepcopy(tightened_infos))
+
+        return input_constraint_list, tightened_infos_list
+
+
+    def get_single_target_N_step_backprojection_set(
+        self,
+        output_constraint,
+        input_constraints,
+        infos,
+        t_max=1,
+        num_partitions=None,
+        overapprox=True,
+    ):
         # Symbolically refine all N steps
         tightened_input_constraints = []
         tightened_infos = deepcopy(infos)
