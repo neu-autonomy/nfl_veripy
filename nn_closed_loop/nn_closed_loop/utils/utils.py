@@ -1,14 +1,20 @@
 import pickle
 import numpy as np
+import os
+
+dir_path = os.path.dirname(os.path.realpath(__file__))
 
 
-def save_dataset(xs, us):
-    with open("dataset.pkl", "wb") as f:
+def save_dataset(xs, us, system="DoubleIntegrator", dataset_name="default"):
+    path = "{}/../../datasets/{}/{}".format(dir_path, system, dataset_name)
+    os.makedirs(path, exist_ok=True)
+    with open(path+"/dataset.pkl", "wb") as f:
         pickle.dump([xs, us], f)
 
 
-def load_dataset():
-    with open("/Users/mfe/Downloads/dataset.pkl", "rb") as f:
+def load_dataset(system="DoubleIntegrator", dataset_name="default"):
+    path = "{}/../../datasets/{}/{}".format(dir_path, system, dataset_name)
+    with open(path+"/dataset.pkl", "rb") as f:
         xs, us = pickle.load(f)
     return xs, us
 
