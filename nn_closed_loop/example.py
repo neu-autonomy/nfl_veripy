@@ -95,10 +95,22 @@ def main(args):
         else:
             dyn = dynamics.QuadrotorOutputFeedback()
         if args.init_state_range is None:
+            # init_state_range = np.array(
+            #     [  # (num_inputs, 2)
+            #         [4.65, 4.65, 2.95, 0.94, -0.01, -0.01],
+            #         [4.75, 4.75, 3.05, 0.96, 0.01, 0.01],
+            #     ]
+            # ).T
+            # init_state_range = np.array( # tree_trunks_vs_quadrotor_12__
+            #     [  # (num_inputs, 2)
+            #         [-5.5, 0.25-0.25, 2, 1.0, -0.01, -0.01],
+            #         [-5, 0.25+0.25, 2.5, 1.05, 0.01, 0.01],
+            #     ]
+            # ).T
             init_state_range = np.array(
                 [  # (num_inputs, 2)
-                    [4.65, 4.65, 2.95, 0.94, -0.01, -0.01],
-                    [4.75, 4.75, 3.05, 0.96, 0.01, 0.01],
+                    [-2.8, -0.25, -0.25, 0.25, -0.01, -0.01],
+                    [-2.3, 0.25, 0.25, 0.35, 0.01, 0.01],
                 ]
             ).T
         else:
@@ -310,8 +322,8 @@ def main(args):
         analyzer.visualize(
             input_constraint,
             output_constraint,
-            show_samples=False,
-            show_trajectories=True,
+            show_samples=True,
+            show_trajectories=False,
             show=args.show_plot,
             labels=args.plot_labels,
             aspect=args.plot_aspect,
@@ -369,7 +381,13 @@ def main(args):
         #         [-0.98340923, -0.96269608],
         #     ]
         # )
-        # num_partitions = 1*np.array([1, 1, 1, 1, 1, 1])
+        final_state_range = np.array(
+            [  # (num_inputs, 2)
+                [-1-0.25, -0.25, -0.25, -0.01, -0.01, -0.01],
+                [-1+0.25, 0.25, 0.25, 0.01, 0.01, 0.01],
+            ]
+        ).T
+        num_partitions = 1*np.array([1, 1, 1, 1, 1, 1])
         # num_partitions = np.array([4,4])
         
         back_analyzer = analyzers.ClosedLoopBackwardAnalyzer(controller, dyn)

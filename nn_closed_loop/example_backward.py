@@ -99,7 +99,8 @@ def main(args):
         output_constraint2 = constraints.LpConstraint(
             range=final_state_range2, p=np.inf
         )
-        output_constraint = [output_constraint2,output_constraint1]
+        # output_constraint = [output_constraint2,output_constraint1]
+        output_constraint = [output_constraint1]
     else:
         raise NotImplementedError
 
@@ -213,7 +214,7 @@ def main(args):
                 analyzer_info_list[0]["save_name"] + "_" + pars2
             )
         analyzer_info_list[0]["save_name"] = analyzer_info_list[0]["save_name"] + ".png"
-
+    # import pdb; pdb.set_trace()
     if args.show_plot or args.save_plot:
         analyzer.visualize(
             input_constraint_list,

@@ -1,5 +1,3 @@
-from cProfile import label
-from termios import VMIN
 import nn_partition.analyzers as analyzers
 import nn_closed_loop.partitioners as partitioners
 import nn_closed_loop.propagators as propagators
@@ -220,7 +218,6 @@ class ClosedLoopBackwardAnalyzer(analyzers.Analyzer):
         backreachable_set = kwargs['per_timestep'][-1]['backreachable_set']
         target_set = output_constraint
         t_max = len(kwargs['per_timestep'])
-        # Plotting the backprojection has an issue if there are no points found in the true backprojection (i.e, 'empty set')
         try:
             self.plot_true_backprojection_sets(
                 backreachable_set,
@@ -242,19 +239,25 @@ class ClosedLoopBackwardAnalyzer(analyzers.Analyzer):
             rect = ic.plot(self.partitioner.animate_axes, self.partitioner.input_dims, self.estimated_one_step_backprojection_set_color, zorder=self.estimated_one_step_backprojection_set_zorder, linewidth=self.partitioner.linewidth, plot_2d=self.partitioner.plot_2d)
             self.partitioner.default_patches += rect
 
-        # TODO: Visualize all the partitions
-        # self.partitioner.visualize(
-        #     kwargs.get(
-        #         "exterior_partitions", kwargs.get("all_partitions", [])
-        #     ),
-        #     kwargs.get("interior_partitions", []),
-        #     output_constraint,
-        #     reachable_set_color=self.estimated_backprojection_partitioned_set_color,
-        #     reachable_set_zorder=self.estimated_backprojection_partitioned_set_zorder,
-        #     plot_lims=plot_lims,
+        ## Sketchy workaround to trajectories not showing up
+        # import nn_closed_loop.constraints as constraints
+        # x0 = np.array(
+        #     [  # (num_inputs, 2)
+        #         [-5.5, -5.0],  # x0min, x0max
+        #         [-0.5, 0.5],  # x1min, x1max
+        #     ]
         # )
+        # x0_constraint = constraints.LpConstraint(
+        #     range=x0, p=np.inf
+        # )
+        # self.dynamics.show_trajectories(
+        #     t_max * self.dynamics.dt,
+        #     x0_constraint,
+        #     ax=self.partitioner.animate_axes,
+        #     controller=self.propagator.network,
+        # ) 
+            
 
-        # TODO: Optionally show the backreachable sets
 
         # self.partitioner.animate_axes.legend(
         #     bbox_to_anchor=(0, 1.02, 1, 0.2),
@@ -264,7 +267,15 @@ class ClosedLoopBackwardAnalyzer(analyzers.Analyzer):
         #     ncol=1,
         # )
 
-        
+        # self.partitioner.animate_fig.tight_layout()
+
+        # if "save_name" in kwargs and kwargs["save_name"] is not None:
+        #     plt.savefig(kwargs["save_name"])
+
+        # if show:
+        #     plt.show()
+        # else:
+        #     plt.close()
 
     def get_sampled_outputs(self, input_range, N=1000):
         return get_sampled_outputs(input_range, self.propagator, N=N)
@@ -303,14 +314,14 @@ class ClosedLoopBackwardAnalyzer(analyzers.Analyzer):
             reachable_set_ls=linestyle
         )
 
-    def plot_target_set(self, target_set, color='cyan', zorder=None, linestyle='-'):
+    def plot_target_set(self, target_set, color='cyan', zorder=None, linestyle='-',linewidth=2.5):
         self.partitioner.plot_reachable_sets(
             target_set,
             self.partitioner.input_dims,
             reachable_set_color=color,
             reachable_set_zorder=zorder,
             reachable_set_ls=linestyle,
-            # reachable_set_lw=linewidth
+            reachable_set_lw=linewidth
         )
 
     def plot_tightened_backprojection_set(self, tightened_set, color='darkred', zorder=None, linestyle='-'):
