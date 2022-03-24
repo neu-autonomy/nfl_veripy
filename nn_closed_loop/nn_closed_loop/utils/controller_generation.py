@@ -1,8 +1,12 @@
 from turtle import color
 import numpy as np
+import scipy.io
 from nn_closed_loop.utils.nn import create_and_train_model, save_model, load_controller, create_model
 import os
 import matplotlib.pyplot as plt
+import nn_closed_loop.dynamics as dynamics
+import nn_closed_loop.constraints as constraints
+import pickle
 
 dir_path = os.path.dirname(os.path.realpath(__file__))
 
@@ -91,6 +95,34 @@ def display_ground_robot_control_field(name = 'avoid_origin_controller_simple', 
     else:
         ax.quiver(x,y,us[:,0].reshape(len(x),len(y)),us[:,1].reshape(len(x),len(y)))
 
+def build_controller_from_matlab(filename = "quad_mpc_data.mat"):
+    neurons_per_layer = [25,25,25]
+    
+    file = dir_path+"/controllers/MATLAB_data/"+filename
+    mat = scipy.io.loadmat(file)
+    xs = mat['data'][0][0][0][:,0:6]
+    us = mat['data'][0][0][1]
+
+    model = create_and_train_model(neurons_per_layer, xs, us, epochs=50, verbose=True, validation_split=0.1)
+    save_model(model, name="model", dir=dir_path+"/controllers/quadrotor_matlab_3/")
+
+def generate_mpc_data_quadrotor(num_samples=100):
+    dyn = dynamics.Quadrotor()
+    state_range = np.array(
+        [  # (num_inputs, 3)
+            [-2.8, -0.8, -0.8, -0.5, -0.5, -0.5],
+            [0.2, 0.8, 0.8, 0.5, 0.5, 0.5],
+        ]
+    ).T
+    input_constraint = constraints.LpConstraint(range=state_range)
+    # import pdb; pdb.set_trace()
+    xs, us = dyn.collect_data(t_max=1, input_constraint=input_constraint, num_samples=num_samples)
+    with open('xs.pickle', 'wb') as handle:
+        pickle.dump(xs, handle, protocol=pickle.HIGHEST_PROTOCOL)
+    with open('us.pickle', 'wb') as handle:
+        pickle.dump(xs, handle, protocol=pickle.HIGHEST_PROTOCOL)
+
+
 
 
 def main():
@@ -99,7 +131,9 @@ def main():
     # stop_at_origin_controller()
     # zero_input_controller()
     # complex_potential_field_controller()
-    display_ground_robot_control_field(name='complex_potential_field')
+    # display_ground_robot_control_field(name='complex_potential_field')
+    build_controller_from_matlab("quad_mpc_data_paths_small.mat")
+    # generate_mpc_data_quadrotor()
 
 if __name__ == "__main__":
     main()
