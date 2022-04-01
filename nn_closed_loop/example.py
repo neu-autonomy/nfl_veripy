@@ -40,8 +40,8 @@ def main(args):
             )
     elif args.system == "ground_robot":
         inputs_to_highlight = [
-            {"dim": [0], "name": "$p_x$"},
-            {"dim": [1], "name": "$p_y$"},
+            {"dim": [0], "name": "$p_x \ (\mathrm{m})$"},
+            {"dim": [1], "name": "$p_y \ (\mathrm{m})$"},
         ]
         if args.state_feedback:
             dyn = dynamics.GroundRobotSI()
@@ -84,6 +84,30 @@ def main(args):
             init_state_range = np.array(
                 ast.literal_eval(args.init_state_range)
             )
+    elif args.system == "ground_robot_DI":
+        inputs_to_highlight = [
+            {"dim": [0], "name": "$p_x$"},
+            {"dim": [1], "name": "$p_y$"},
+        ]
+        if args.state_feedback:
+            dyn = dynamics.GroundRobotDI()
+        else:
+            raise NotImplementedError
+        if args.init_state_range is None:
+            init_state_range = np.array(
+                [  # (num_inputs, 2)
+                    [-0.25, 0.25],  # x0min, x0max
+                    [-0.25, 0.25],  # x1min, x1max
+                    [0.99, 1.01],
+                    [1.24, 1.26]
+                ]
+            )
+        else:
+            import ast
+
+            init_state_range = np.array(
+                ast.literal_eval(args.init_state_range)
+            )
     elif args.system == "quadrotor":
         inputs_to_highlight = [
             {"dim": [0], "name": "$x$"},
@@ -103,14 +127,20 @@ def main(args):
             # ).T
             # init_state_range = np.array( # tree_trunks_vs_quadrotor_12__
             #     [  # (num_inputs, 2)
-            #         [-5.5, 0.25-0.25, 2, 1.0, -0.01, -0.01],
-            #         [-5, 0.25+0.25, 2.5, 1.05, 0.01, 0.01],
+            #         [-6.5, 0.25-0.25, 2, .95, -0.01, -0.01],
+            #         [-6, 0.25+0.25, 2.5, 1.0, 0.01, 0.01],
             #     ]
             # ).T
-            init_state_range = np.array(
+            # init_state_range = np.array(
+            #     [  # (num_inputs, 2)
+            #         [-4.5, -0.25, 2, 0.95, -0.01, -0.01],
+            #         [-4.5, 0.25, 2.5, 1.05, 0.01, 0.01],
+            #     ]
+            # ).T
+            init_state_range = np.array( # tree_trunks_vs_quadrotor_12__
                 [  # (num_inputs, 2)
-                    [-2.8, -0.25, -0.25, 0.25, -0.01, -0.01],
-                    [-2.3, 0.25, 0.25, 0.35, 0.01, 0.01],
+                    [-6.5,-0.25, 2, 1.95, -0.01, -0.01],
+                    [-6, 0.25, 2.5, 2.0, 0.01, 0.01],
                 ]
             ).T
         else:
@@ -255,9 +285,13 @@ def main(args):
         print("Avg time: {} +/- {}".format(times.mean(), times.std()))
     else:
         # Run analysis once
+        import time
+        t_start = time.time()
         output_constraint, analyzer_info = analyzer.get_reachable_set(
             input_constraint, output_constraint, t_max=args.t_max
         )
+        t_end = time.time()
+        print(t_end - t_start)
         # print(output_constraint.range)
 
     if args.estimate_error:
@@ -322,7 +356,7 @@ def main(args):
         analyzer.visualize(
             input_constraint,
             output_constraint,
-            show_samples=True,
+            show_samples=False,
             show_trajectories=False,
             show=args.show_plot,
             labels=args.plot_labels,
@@ -381,14 +415,39 @@ def main(args):
         #         [-0.98340923, -0.96269608],
         #     ]
         # )
-        final_state_range = np.array(
-            [  # (num_inputs, 2)
-                [-1-0.25, -0.25, -0.25, -0.01, -0.01, -0.01],
-                [-1+0.25, 0.25, 0.25, 0.01, 0.01, 0.01],
-            ]
-        ).T
-        num_partitions = 1*np.array([1, 1, 1, 1, 1, 1])
-        # num_partitions = np.array([4,4])
+        # final_state_range = np.array(
+        #     [  # (num_inputs, 2)
+        #         [-0.25, 0.5-0.25, 1, -0.2, -0.2, -0.2],
+        #         [0.25, 0.5+0.25, 4, 0.2, 0.2, 0.2],
+        #     ]
+        # ).T
+
+        # final_state_range = np.array(
+        #     [  # (num_inputs, 2)
+        #         [-0.25, -0.25, 2, -0.01, -0.01, -0.01],
+        #         [0.25, 0.25, 2.5, 0.01, 0.01, 0.01],
+        #     ]
+        # ).T
+
+        # final_state_range = np.array(
+        #     [  # (num_inputs, 2)
+        #         [-0.25, 0.25],  # x0min, x0max
+        #         [-0.25, 0.25],  # x1min, x1max
+        #         [0.99,1.01],
+        #         [1.254,1.260]
+        #     ]
+        # )
+        # final_state_range = np.array(
+        #     [  # (num_inputs, 2)
+        #         [-0.25, 0.25],  # x0min, x0max
+        #         [-0.25, 0.25],  # x1min, x1max
+        #         [-0.5, 0.5],
+        #         [-0.01, 0.01]
+        #     ]
+        # )
+        # num_partitions = 1*np.array([1, 1, 1, 1, 1, 1])
+        num_partitions = 1*np.array([4,4])
+        # num_partitions = 1*np.array([4, 1, 4, 1])
         
         back_analyzer = analyzers.ClosedLoopBackwardAnalyzer(controller, dyn)
         back_analyzer.partitioner = partitioner_hyperparams
@@ -418,7 +477,7 @@ def main(args):
             back_input_constraint_list,
             back_output_constraint,
             back_analyzer_info_list,
-            show_samples=True,
+            show_samples=False,
             show=args.show_plot,
             labels=args.plot_labels,
             aspect=args.plot_aspect,
@@ -442,7 +501,7 @@ def setup_parser():
     parser.add_argument(
         "--system",
         default="double_integrator",
-        choices=["double_integrator", "quadrotor", "duffing", "iss", "ground_robot"],
+        choices=["double_integrator", "quadrotor", "duffing", "iss", "ground_robot", "ground_robot_DI"],
         help="which system to analyze (default: double_integrator)",
     )
     parser.add_argument(

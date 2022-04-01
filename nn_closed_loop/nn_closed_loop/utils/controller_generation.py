@@ -78,9 +78,32 @@ def complex_potential_field_controller():
     save_model(model, name="model", dir=dir_path+"/controllers/complex_potential_field/")
 
 
+# Control policy used for CDC 2022 paper (maybe)
+def buggy_complex_potential_field_controller():
+    neurons_per_layer = [10,10]
+    state_range = np.array(
+        [
+            [-10, 10],
+            [-10, 10]
+        ]
+    )
+    xs = np.random.uniform(low=state_range[:, 0], high=state_range[:, 1], size=(1000000, 2))
+    us = np.zeros(xs.shape)
+    for i,x in enumerate(xs):
+        if (np.abs(x[0]+x[1]) < 0.5):
+            vx = 1
+            vy = -1
+        else:
+            vx = max(min(1+2*x[0]/(x[0]**2+x[1]**2), 1), -1)
+            vy = max(min(x[1]/(x[0]**2+x[1]**2)+np.sign(x[1])*2*(1+np.exp(-(0.5*x[0]+2)))**-2*np.exp(-(0.5*x[0]+2)), 1), -1)
+        us[i] = np.array([vx,vy])
+        
+    model = create_and_train_model(neurons_per_layer, xs, us, epochs=20)
+    save_model(model, name="model", dir=dir_path+"/controllers/buggy_complex_potential_field/")
+
 def display_ground_robot_control_field(name = 'avoid_origin_controller_simple', ax=None):
     controller = load_controller(system='GroundRobotSI', model_name=name, model_type='keras')
-    x,y = np.meshgrid(np.linspace(-6,4,20), np.linspace(-7,7,20))
+    x,y = np.meshgrid(np.linspace(-7.5,4,20), np.linspace(-7.2,7.2,20))
     # import pdb; pdb.set_trace()
     inputs = np.hstack((x.reshape(len(x)*len(x[0]),1), y.reshape(len(y)*len(y[0]),1)))
     us = controller.predict(inputs)
@@ -95,6 +118,225 @@ def display_ground_robot_control_field(name = 'avoid_origin_controller_simple', 
     else:
         ax.quiver(x,y,us[:,0].reshape(len(x),len(y)),us[:,1].reshape(len(x),len(y)))
 
+def tree_trunks_vs_quad():
+    neurons_per_layer = [50,50]
+    state_range = np.array(
+        [
+            [-8, 5],
+            [-12, 12],
+            [0, 5],
+            [-4, 4],
+            [-4, 4],
+            [-3, 3]
+        ]
+    )
+    g = 9.8
+    xs = np.random.uniform(low=state_range[:, 0], high=state_range[:, 1], size=(10000000, 6))
+    # import pdb; pdb.set_trace()
+    # us = np.zeros(xs.shape)
+    us = np.zeros((len(xs),3))
+    trees = [(0,0)]#, (5,6), (4,-7)]
+    for i,pos in enumerate(xs):
+        # vx_eval = vx.subs([(x,pos[0]), (y,pos[1])])
+        # vy_eval = vy1.subs([(x,pos[0]), (y,pos[1])])+np.sign(pos[1])*vy2.subs([(x,pos[0]), (y,pos[1])])
+        # ax_ = vx_eval*dvxdx.subs([(x,pos[0]), (y,pos[1])]) + vy_eval*dvxdy.subs([(x,pos[0]), (y,pos[1])])
+        # ay_ = vx_eval*(dvy1dx.subs([(x,pos[0]), (y,pos[1])]) + np.sign(pos[1])*dvy2dx.subs([(x,pos[0]), (y,pos[1])])) + vy_eval*(dvy1dy.subs([(x,pos[0]), (y,pos[1])]) + np.sign(pos[1])*dvy2dy.subs([(x,pos[0]), (y,pos[1])]))
+        # vx_eval = vx(pos[0], pos[1])
+        # vy_eval = vy1(pos[0], pos[1])+np.sign(pos[1])*vy2(pos[0], pos[1])
+        # ax_ = vx_eval*dvxdx(pos[0], pos[1]) + vy_eval*dvxdy(pos[0], pos[1])
+        # ay_ = vx_eval*dvy1dx(pos[0], pos[1]) + np.sign(pos[1])*dvy2dx(pos[0], pos[1]) + vy_eval*(dvy1dy(pos[0], pos[1]) + np.sign(pos[1])*dvy2dy(pos[0], pos[1]))
+
+        # vx_eval = max(min(vx(pos[0], pos[2]), 1), -1)
+        # vy_eval = max(min(vy1(pos[0], pos[2])+np.sign(pos[2])*vy2(pos[0], pos[2]), 1), -1)
+        # ax_ = vx_eval*dvxdx(pos[0], pos[2]) + vy_eval*dvxdy(pos[0], pos[2])
+        # ay_ = vx_eval*(dvy1dx(pos[0], pos[2]) + np.sign(pos[2])*dvy2dx(pos[0], pos[2])) + vy_eval*(dvy1dy(pos[0], pos[2]) + np.sign(pos[2])*dvy2dy(pos[0], pos[2]))
+
+        ## tree_trunks_vs_quadrotor_9_
+        # ax_ = 0.5*(0.2+np.sign(pos[1])*pos[1]/(pos[0]**2+pos[1]**2)+2*pos[0]/(pos[0]**2+pos[1]**2)          +     1*np.sign(pos[0])*pos[3]/(pos[0]**2+pos[1]**2))
+        # ay_ = 0.5*(-np.sign(pos[1])*2*pos[0]/(pos[0]**2+pos[1]**2)+pos[1]/(pos[0]**2+pos[1]**2)-pos[1]/15   +     2*2*np.sign(pos[1])*pos[4]/(pos[0]**2+pos[1]**2))
+
+        # ax_ = 0.5*(0.2+np.sign(pos[1])*pos[1]/(pos[0]**2+pos[1]**2)+1*pos[0]/(pos[0]**2+pos[1]**2)              +     1*np.sign(pos[0])*pos[3]/(pos[0]**2+pos[1]**2))
+        # ay_ = 0.5*(-np.sign(pos[1])*2*pos[0]/(pos[0]**2+pos[1]**2)+0.5*pos[1]/(pos[0]**2+pos[1]**2)-pos[1]/15   +     1.5*np.sign(pos[1])*pos[4]/(pos[0]**2+pos[1]**2))
+
+        # ax_ = 0.5*(0.2+np.sign(pos[1])*pos[1]/(pos[0]**2+pos[1]**2)+1*pos[0]/(pos[0]**2+pos[1]**2)              +     1*np.sign(pos[0])*pos[3]/(pos[0]**2+pos[1]**2))
+        # ay_ = 0.5*(-np.sign(pos[1])*2*pos[0]/(pos[0]**2+pos[1]**2)+1*pos[1]/(pos[0]**2+pos[1]**2)-pos[1]/15   +     2*np.sign(pos[1])*pos[4]/(pos[0]**2+pos[1]**2))
+
+        # tree_trunks_vs_quadrotor_12__
+        # ax_ = 0.5*(0.2+np.sign(pos[1])*pos[1]/(pos[0]**2+pos[1]**2)+1.5*pos[0]/(pos[0]**2+pos[1]**2)              +     1*np.sign(pos[0])*pos[3]/(pos[0]**2+pos[1]**2))
+        # ay_ = 0.5*(-np.sign(pos[1])*2*pos[0]/(pos[0]**2+pos[1]**2)+1*pos[1]/(pos[0]**2+pos[1]**2)-pos[1]/15   +     2*np.sign(pos[1])*pos[4]/(pos[0]**2+pos[1]**2))
+
+        # ax = (1/g)*max(min(ax_, np.pi/9), -np.pi/9)
+        # ay = -(1/g)*max(min(ay_, np.pi/9), -np.pi/9)
+        # az = g
+
+
+        ax_ = (0.4+np.sign(pos[1])*pos[1]/(pos[0]**2+pos[1]**2)+1.5*pos[0]/(pos[0]**2+pos[1]**2)           + 1*np.sign(pos[0])*pos[3]/(pos[0]**2+pos[1]**2))
+        ay_ = (-np.sign(pos[1])*2*pos[0]/(pos[0]**2+pos[1]**2)+1*pos[1]/(pos[0]**2+pos[1]**2)-pos[1]/15      + 2*np.sign(pos[1])*pos[4]/(pos[0]**2+pos[1]**2))
+        az_ = g-5*pos[5]
+
+        # ax_ = 0.5*(0.2)
+        # ay_ = 0.5*(-pos[1]/15)
+
+        # for tree in trees:
+        #     rel_x, rel_y = pos[0]-tree[0], pos[1]-tree[1]
+        #     ax_ += 0.5*(np.sign(rel_y)*rel_y/(rel_x**2+rel_y**2)+1.5*rel_x/(rel_x**2+rel_y**2)              +     1*np.sign(rel_x)*pos[3]/(rel_x**2+rel_y**2))
+        #     ay_ += 0.5*(-np.sign(rel_y)*2*rel_x/(rel_x**2+rel_y**2)+1*rel_y/(rel_x**2+rel_y**2)              +     2*np.sign(rel_y)*pos[4]/(rel_x**2+rel_y**2))
+
+        
+        ax = max(min(ax_, np.pi/9), -np.pi/9)
+        ay = -max(min(ay_, np.pi/9), -np.pi/9)
+        az = max(min(az_, 2*g), 0)
+        us[i] = np.array([ax,ay,az])
+        if np.mod(i,1000000)==0:
+            print('yeayea')
+    print('ok')
+    model = create_and_train_model(neurons_per_layer, xs, us, epochs=8, verbose=True)
+    save_model(model, name="model", dir=dir_path+"/controllers/tree_trunks_vs_quadrotor_20/")
+
+def simple_quad():
+    neurons_per_layer = [20,20]
+    state_range = np.array(
+        [
+            [-8, 5],
+            [-12, 12],
+            [1, 4],
+            [-6, 6],
+            [-6, 6],
+            [-3, 3]
+        ]
+    )
+    g = 9.8
+    xs = np.random.uniform(low=state_range[:, 0], high=state_range[:, 1], size=(10000000, 6))
+    # import pdb; pdb.set_trace()
+    # us = np.zeros(xs.shape)
+    us = np.zeros((len(xs),3))
+    trees = [(0,0)]#, (5,6), (4,-7)]
+    for i,pos in enumerate(xs):
+        ax_ = 1*(pos[0]/(pos[0]**2+pos[1]**2))
+        ay_ = 1*(pos[1]/(pos[0]**2+pos[1]**2))
+        az_ = g-3*pos[5]
+
+        
+        ax = max(min(ax_, np.pi/9), -np.pi/9)
+        ay = -max(min(ay_, np.pi/9), -np.pi/9)
+        az = max(min(az_, 2*g), 0)
+        us[i] = np.array([ax,ay,az])
+        if np.mod(i,1000000)==0:
+            print('yeayea')
+    print('ok')
+    model = create_and_train_model(neurons_per_layer, xs, us, epochs=5, verbose=True)
+    save_model(model, name="model", dir=dir_path+"/controllers/simple_quad/")
+
+
+def ground_robotDI():
+    neurons_per_layer = [20,20]
+    state_range = np.array(
+        [
+            [-20, 20],
+            [-20, 20],
+            [-10, 10],
+            [-10, 10],
+        ]
+    )
+    xs = np.random.uniform(low=state_range[:, 0], high=state_range[:, 1], size=(1000000, 4))
+    us = np.zeros((len(xs),2))
+    for i,pos in enumerate(xs):
+        ax_ = 0.5
+        ay_ = 0
+
+        
+        ax = max(min(ax_, 1), -1)
+        ay = max(min(ay_, 1), -1)
+        us[i] = np.array([ax,ay])
+        if np.mod(i,1000000)==0:
+            print('yeayea')
+    print('ok')
+    model = create_and_train_model(neurons_per_layer, xs, us, epochs=5, verbose=True)
+    save_model(model, name="model", dir=dir_path+"/controllers/ground_robot_DI_simple/")
+
+def ground_robotDI_obstacle():
+    neurons_per_layer = [20,20]
+    state_range = np.array(
+        [
+            [-20, 20],
+            [-20, 20],
+            [-3, 3],
+            [-3, 3],
+        ]
+    )
+    xs = np.random.uniform(low=state_range[:, 0], high=state_range[:, 1], size=(1000000, 4))
+    us = np.zeros((len(xs),2))
+    for i,pos in enumerate(xs):
+        ax_ = 1*(pos[0]/(pos[0]**2+pos[1]**2))
+        ay_ = 1*(pos[1]/(pos[0]**2+pos[1]**2))
+        
+        ax = max(min(ax_, 1), -1)
+        ay = max(min(ay_, 1), -1)
+        us[i] = np.array([ax,ay])
+        if np.mod(i,1000000)==0:
+            print('yeayea')
+    print('ok')
+    model = create_and_train_model(neurons_per_layer, xs, us, epochs=5, verbose=True)
+    save_model(model, name="model", dir=dir_path+"/controllers/ground_robot_DI_obstacle_simple/")
+
+def ground_robotDI_obstacle_1D():
+    neurons_per_layer = [20,20]
+    state_range = np.array(
+        [
+            [-20, 20],
+            [-20, 20],
+            [-3, 3],
+            [-3, 3],
+        ]
+    )
+    xs = np.random.uniform(low=state_range[:, 0], high=state_range[:, 1], size=(1000000, 4))
+    us = np.zeros((len(xs),2))
+    for i,pos in enumerate(xs):
+        if abs(pos[0]) > 0.33: 
+            ax_ = 1*(pos[0]/(0.01*pos[0]**8))
+        else:
+            ax_ = 3*pos[0]
+        if abs(pos[0]) > 0.33: 
+            ay_ = 1*(pos[1]/(0.01*pos[1]**8))
+        else:
+            ay_ = 3*pos[1]
+        
+        ax = max(min(ax_, 1), -1)
+        ay = max(min(ay_, 1), -1)
+        us[i] = np.array([ax,ay])
+        if np.mod(i,1000000)==0:
+            print('yeayea')
+    print('ok')
+    model = create_and_train_model(neurons_per_layer, xs, us, epochs=5, verbose=True)
+    save_model(model, name="model", dir=dir_path+"/controllers/ground_robot_DI_obstacle_simple_2D_slant/")
+
+
+
+def ground_robotDI_sine():
+    neurons_per_layer = [20,20]
+    state_range = np.array(
+        [
+            [-30, 30],
+            [-30, 30],
+            [-3, 3],
+            [-3, 3],
+        ]
+    )
+    xs = np.random.uniform(low=state_range[:, 0], high=state_range[:, 1], size=(2000000, 4))
+    us = np.zeros((len(xs),2))
+    for i,pos in enumerate(xs):
+        ax_= 0
+        ay_ = -2*(2*np.pi/10)**2*np.sin(2*np.pi/10*pos[0])
+        
+        ax = max(min(ax_, 1), -1)
+        ay = max(min(ay_, 1), -1)
+        us[i] = np.array([ax,ay])
+        if np.mod(i,1000000)==0:
+            print('yeayea')
+    print('ok')
+    model = create_and_train_model(neurons_per_layer, xs, us, epochs=8, verbose=True)
+    save_model(model, name="model", dir=dir_path+"/controllers/ground_robot_DI_sine/")
+
 def build_controller_from_matlab(filename = "quad_mpc_data.mat"):
     neurons_per_layer = [25,25,25]
     
@@ -104,7 +346,7 @@ def build_controller_from_matlab(filename = "quad_mpc_data.mat"):
     us = mat['data'][0][0][1]
 
     model = create_and_train_model(neurons_per_layer, xs, us, epochs=50, verbose=True, validation_split=0.1)
-    save_model(model, name="model", dir=dir_path+"/controllers/quadrotor_matlab_3/")
+    save_model(model, name="model", dir=dir_path+"/controllers/quadrotor_matlab_5/")
 
 def generate_mpc_data_quadrotor(num_samples=100):
     dyn = dynamics.Quadrotor()
@@ -131,9 +373,14 @@ def main():
     # stop_at_origin_controller()
     # zero_input_controller()
     # complex_potential_field_controller()
+    # buggy_complex_potential_field_controller()
     # display_ground_robot_control_field(name='complex_potential_field')
-    build_controller_from_matlab("quad_mpc_data_paths_small.mat")
+    # build_controller_from_matlab("quad_mpc_data_paths_not_as_small.mat")
     # generate_mpc_data_quadrotor()
+    # tree_trunks_vs_quad()
+    # simple_quad()
+    ground_robotDI_obstacle_1D()
+    # ground_robotDI_sine()
 
 if __name__ == "__main__":
     main()

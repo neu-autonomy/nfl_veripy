@@ -6,8 +6,11 @@ import matplotlib.pyplot as plt
 from matplotlib import cm
 from matplotlib.patches import Rectangle
 import nn_closed_loop.constraints as constraints
+from nn_closed_loop.utils.utils import range_to_polytope
 from copy import deepcopy
 import os
+
+from nn_closed_loop.constraints.ClosedLoopConstraints import PolytopeConstraint
 
 
 class ClosedLoopPartitioner(partitioners.Partitioner):
@@ -170,8 +173,8 @@ class ClosedLoopPartitioner(partitioners.Partitioner):
             aspect = "auto"
 
         self.animate_fig, self.animate_axes = plt.subplots(1, 1, subplot_kw=dict(projection=projection))
-        # from nn_training.ground_robot_testing.controller_generation import display_ground_robot_control_field
-        # display_ground_robot_control_field(name='complex_potential_field',ax=self.animate_axes)
+        from nn_closed_loop.utils.controller_generation import display_ground_robot_control_field
+        display_ground_robot_control_field(name='complex_potential_field',ax=self.animate_axes)
 
         self.animate_axes.set_aspect(aspect)
         # Double Integrator
@@ -179,8 +182,8 @@ class ClosedLoopPartitioner(partitioners.Partitioner):
         # self.animate_axes.set_ylim([-0.64, 2.5])
 
         # Ground Robot
-        # self.animate_axes.set_xlim([-6, 3])
-        # self.animate_axes.set_ylim([-7, 7])
+        self.animate_axes.set_xlim([-7.2, 3])
+        self.animate_axes.set_ylim([-7.2, 7.2])
 
 
         if show_samples:
@@ -239,9 +242,9 @@ class ClosedLoopPartitioner(partitioners.Partitioner):
 
         # Actually draw the reachable sets and partitions
         self.plot_reachable_sets(output_constraint, self.input_dims, reachable_set_color=reachable_set_color, reachable_set_zorder=reachable_set_zorder, reachable_set_ls=reachable_set_ls)
-        self.plot_partitions(M, output_constraint, self.input_dims)
+        # self.plot_partitions(M, output_constraint, self.input_dims)
 
-        # from nn_closed_loop.utils.utils import range_to_polytope
+        from nn_closed_loop.utils.utils import range_to_polytope
         # target_range = np.array(
         #     [
         #         [-1, 1],
@@ -264,17 +267,7 @@ class ClosedLoopPartitioner(partitioners.Partitioner):
         #         [-0.5, 0.5]
         #     ]
         # )
-        # A, b = range_to_polytope(target_range)
-
-        # initial_constraint = constraints.LpConstraint(initial_range)
-        # self.plot_reachable_sets(
-        #     initial_constraint,
-        #     self.input_dims,
-        #     reachable_set_color='tab:grey',
-        #     reachable_set_zorder=5,
-        #     reachable_set_ls='-'
-        # )
-
+        
         
 
         if plot_lims is not None:
@@ -369,29 +362,58 @@ class ClosedLoopPartitioner(partitioners.Partitioner):
         self, target_set, backprojection_sets, propagator, t_max
     ):
         errors = []
+        from scipy.spatial import ConvexHull
 
         if isinstance(target_set, constraints.LpConstraint):
-            raise NotImplementedError
-            output_estimated_range = output_constraint.range
-            output_range_exact = self.get_sampled_out_range(
-                input_constraint, propagator, t_max, num_samples=1000
+            # raise NotImplementedError
+            # output_estimated_range = output_constraint.range
+            # output_range_exact = self.get_sampled_out_range(
+            #     input_constraint, propagator, t_max, num_samples=1000
+            # )
+            # num_steps = len(output_constraint.range)
+            # for t in range(num_steps):
+            #     true_area = np.product(
+            #         output_range_exact[t][..., 1]
+            #         - output_range_exact[t][..., 0]
+            #     )
+            #     estimated_area = np.product(
+            #         output_estimated_range[t][..., 1]
+            #         - output_estimated_range[t][..., 0]
+            #     )
+            #     errors.append((estimated_area - true_area) / true_area)
+            Ats, bts = range_to_polytope(target_set.range)
+            target_set_poly = PolytopeConstraint(A=Ats, b=bts)
+            true_verts_reversed = self.dynamics.get_true_backprojection_set(
+                backprojection_sets[-1], target_set, 
+                t_max, controller=propagator.network
             )
-            num_steps = len(output_constraint.range)
+            true_verts = np.flip(true_verts_reversed, axis=1)
+            num_steps = len(backprojection_sets)
+
             for t in range(num_steps):
-                true_area = np.product(
-                    output_range_exact[t][..., 1]
-                    - output_range_exact[t][..., 0]
-                )
-                estimated_area = np.product(
-                    output_estimated_range[t][..., 1]
-                    - output_estimated_range[t][..., 0]
-                )
+                # true_verts = pypoman.polygon.compute_polygon_hull(output_constraint.A, output_bs_exact[t])
+                x_min = np.min(true_verts[:,t+1,:], axis=0)
+                x_max = np.max(true_verts[:,t+1,:], axis=0)
+
+                x_range = x_max-x_min
+                true_area = np.prod(x_range)
+
+                # true_hull = ConvexHull(true_verts[:, t+1, :])
+                # true_area = true_hull.volume
+
+                Abp, bbp = range_to_polytope(backprojection_sets[t].range)
+                estimated_verts = pypoman.polygon.compute_polygon_hull(Abp, bbp)
+                estimated_hull = ConvexHull(estimated_verts)
+                estimated_area = estimated_hull.volume
+                
+
                 errors.append((estimated_area - true_area) / true_area)
+            # import pdb; pdb.set_trace()
         else:
             # This implementation should actually be moved to Lp constraint
 
 
-
+            # import pdb; pdb.set_trace()
             # Note: This compares the estimated polytope
             # with the "best" polytope with those facets.
             # There could be a much better polytope with lots of facets.
@@ -405,7 +427,7 @@ class ClosedLoopPartitioner(partitioners.Partitioner):
             #     output_constraint=output_constraint
             # )
             num_steps = len(backprojection_sets)
-            from scipy.spatial import ConvexHull
+            
             for t in range(num_steps):
                 # true_verts = pypoman.polygon.compute_polygon_hull(output_constraint.A, output_bs_exact[t])
                 x_min = np.min(true_verts[:,t+1,:], axis=0)
@@ -415,11 +437,16 @@ class ClosedLoopPartitioner(partitioners.Partitioner):
                 true_area = np.prod(x_range)
 
                 # true_hull = ConvexHull(true_verts[:, t+1, :])
-                # true_area = true_hull.area
-                estimated_verts = pypoman.polygon.compute_polygon_hull(backprojection_sets[t].A, backprojection_sets[t].b)
+                # true_area = true_hull.volume
+                estimated_verts = pypoman.polygon.compute_polygon_hull(backprojection_sets[t].A[0], backprojection_sets[t].b[0])
                 estimated_hull = ConvexHull(estimated_verts)
                 estimated_area = estimated_hull.volume
+                
+
+
                 errors.append((estimated_area - true_area) / true_area)
+            import pdb; pdb.set_trace()
+        
         final_error = errors[-1]
         avg_error = np.mean(errors)
         return final_error, avg_error, np.array(errors)

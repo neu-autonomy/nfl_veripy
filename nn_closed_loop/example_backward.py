@@ -45,6 +45,37 @@ def main(args):
                     [-1., 1.],  # x1min, x1max
                 ]
             )
+    elif args.system == "ground_robot_DI":
+        if args.state_feedback:
+            dyn = dynamics.GroundRobotDI()
+        else:
+            raise NotImplementedError
+        if args.final_state_range is None:
+            final_state_range = np.array(
+                [  # (num_inputs, 2)
+                    [-1., 1.],  # x0min, x0max
+                    [-1., 1.],  # x1min, x1max
+                    [-0.01, 0.01],
+                    [-0.01, 0.01],
+                ]
+            )
+    elif args.system == "quadrotor":
+        inputs_to_highlight = [
+            {"dim": [0], "name": "$x$"},
+            {"dim": [1], "name": "$y$"},
+            {"dim": [2], "name": "$z$"},
+        ]
+        if args.state_feedback:
+            dyn = dynamics.Quadrotor()
+        else:
+            dyn = dynamics.QuadrotorOutputFeedback()
+        if args.init_state_range is None:
+            final_state_range = np.array(
+                [  # (num_inputs, 2)
+                    [-0.25, -0.25, 2, -0.01, -0.01, -0.01],
+                    [0.25, 0.25, 2.5, 0.01, 0.01, 0.01],
+                ]
+            ).T
     else:
             raise NotImplementedError
             import ast
@@ -81,10 +112,11 @@ def main(args):
     # Set up initial state set (and placeholder for reachable sets)
     if args.boundaries == "polytope":
         A_out, b_out = range_to_polytope(final_state_range)
-        output_constraint = constraints.PolytopeConstraint(
+        output_constraint1 = constraints.PolytopeConstraint(
             A=A_out, b=[b_out]
         )
         input_constraint = constraints.PolytopeConstraint(None, None)
+        output_constraint = [output_constraint1]
     elif args.boundaries == "lp":
         output_constraint1 = constraints.LpConstraint(
             range=final_state_range, p=np.inf
@@ -117,18 +149,20 @@ def main(args):
         for num in range(num_calls):
             print('call: {}'.format(num))
             t_start = time.time()
-            input_constraint, analyzer_info = analyzer.get_backprojection_set(
+            input_constraint_list, analyzer_info_list = analyzer.get_backprojection_set(
                 output_constraint, input_constraint, t_max=args.t_max, num_partitions=num_partitions, overapprox=args.overapprox
             )
             t_end = time.time()
             t = t_end - t_start
             times[num] = t
 
-            if 'tightened_overapprox' in analyzer_info['per_timestep'][-1]:
-                backprojection_sets = [i['tightened_overapprox'] for i in analyzer_info['per_timestep']]
-            else:
-                backprojection_sets = [i['backproj_overapprox'] for i in analyzer_info['per_timestep']]
-            target_set = output_constraint
+            # import pdb; pdb.set_trace()
+            # if 'tightened_overapprox' in analyzer_info[0]['per_timestep'][-1]:
+            #     backprojection_sets = [i['tightened_overapprox'] for i in analyzer_info[0]['per_timestep']]
+            # else:
+            #     backprojection_sets = [i['backproj_overapprox'] for i in analyzer_info[0]['per_timestep']]
+            backprojection_sets = input_constraint_list[0]
+            target_set = output_constraint[0]
             final_error, avg_error, all_error = analyzer.get_backprojection_error(target_set, backprojection_sets, t_max=args.t_max)
 
             final_errors[num] = final_error
@@ -238,7 +272,7 @@ def setup_parser():
     parser.add_argument(
         "--system",
         default="double_integrator",
-        choices=["double_integrator", "quadrotor", "ground_robot"],
+        choices=["double_integrator", "quadrotor", "ground_robot", "ground_robot_DI"],
         help="which system to analyze (default: double_integrator_mpc)",
     )
     parser.add_argument(

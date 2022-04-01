@@ -103,6 +103,65 @@ class ClosedLoopAnalyzer(analyzers.Analyzer):
         #     ncol=1,
         # )
 
+        import numpy as np
+        import nn_closed_loop.constraints as constraints
+        x0 = np.array(
+            [  # (num_inputs, 2)
+                [-5.5, -4.5],  # x0min, x0max
+                [1-0.5, 1+0.5],  # x1min, x1max
+            ]
+        )
+        # x0 = np.array( # tree_trunks_vs_quadrotor_12__
+        #         [  # (num_inputs, 2)
+        #             [-6.5,-0.25, 2, 1.95, -0.01, -0.01],
+        #             [-6, 0.25, 2.5, 2.0, 0.01, 0.01],
+        #         ]
+        #     ).T
+        # x0 = np.array(
+        #     [  # (num_inputs, 2)
+        #         [-0.25, 0.25],  # x0min, x0max
+        #         [-0.25, 0.25],  # x1min, x1max
+        #         [0.99,1.01],
+        #         [1.24,1.26]
+        #     ]
+        # )
+        x0_constraint = constraints.LpConstraint(
+            range=x0, p=np.inf
+        )
+        input_dims = [x["dim"] for x in inputs_to_highlight]
+        self.dynamics.show_trajectories(
+            output_constraint.get_t_max() * self.dynamics.dt,
+            x0_constraint,
+            input_dims=input_dims,
+            ax=self.partitioner.animate_axes,
+            controller=self.propagator.network,
+        ) 
+
+        initial_constraint = constraints.LpConstraint(x0)
+        self.partitioner.plot_reachable_sets(
+            initial_constraint,
+            input_dims,
+            reachable_set_color='k',
+            reachable_set_zorder=10,
+            reachable_set_ls='-'
+        )
+        xf = np.array(
+            [  # (num_inputs, 2)
+                [-1, 1],  # x0min, x0max
+                [-1, 1],  # x1min, x1max
+            ]
+        )
+        xf_constraint = constraints.LpConstraint(
+            range=xf, p=np.inf
+        )
+        self.partitioner.plot_reachable_sets(
+            xf_constraint,
+            input_dims,
+            reachable_set_color='tab:red',
+            reachable_set_zorder=10,
+            reachable_set_ls='-'
+        )
+
         self.partitioner.animate_fig.tight_layout()
 
         if "save_name" in kwargs and kwargs["save_name"] is not None:

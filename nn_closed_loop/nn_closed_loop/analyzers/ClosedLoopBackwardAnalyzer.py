@@ -15,16 +15,16 @@ class ClosedLoopBackwardAnalyzer(analyzers.Analyzer):
         self.dynamics = dynamics
         analyzers.Analyzer.__init__(self, torch_model=torch_model)
 
-        self.true_backprojection_set_color = 'darkblue'
+        self.true_backprojection_set_color = 'darkgreen'
         self.estimated_backprojection_set_color = 'tab:blue'
-        self.estimated_one_step_backprojection_set_color = 'orange'
+        self.estimated_one_step_backprojection_set_color = 'tab:orange'
         self.estimated_backprojection_partitioned_set_color = 'tab:gray'
-        self.target_set_color = 'tab:green'
+        self.target_set_color = 'tab:red'
         
         self.true_backprojection_set_zorder = 3
         self.estimated_backprojection_set_zorder = 2
-        self.estimated_one_step_backprojection_set_zorder = 1
-        self.estimated_backprojection_partitioned_set_zorder = 1
+        self.estimated_one_step_backprojection_set_zorder = -1
+        self.estimated_backprojection_partitioned_set_zorder = -1
         self.target_set_zorder = 1
         
         self.true_backprojection_set_linestyle = '-'
@@ -32,6 +32,13 @@ class ClosedLoopBackwardAnalyzer(analyzers.Analyzer):
         self.estimated_one_step_backprojection_set_linestyle = '-'
         self.estimated_backprojection_partitioned_set_linestyle = '-'
         self.target_set_linestyle = '-'
+        
+        
+        # self.reachable_set_color = 'tab:green'
+        # self.reachable_set_zorder = 4
+        # self.initial_set_color = 'tab:gray'
+        # self.initial_set_zorder = 1
+
 
     @property
     def partitioner_dict(self):
@@ -115,6 +122,7 @@ class ClosedLoopBackwardAnalyzer(analyzers.Analyzer):
                 labels=labels,
                 aspect=aspect,
                 plot_lims=plot_lims,
+                inputs_to_highlight=inputs_to_highlight,
                 **info_list[i]
             )
         self.partitioner.animate_fig.tight_layout()
@@ -188,17 +196,17 @@ class ClosedLoopBackwardAnalyzer(analyzers.Analyzer):
         #         controller=self.propagator.network,
         #         zorder=1,
         #     )
-        # from colour import Color
-        # orange = Color("orange")
-        # colors = list(orange.range_to(Color("purple"),len(input_constraints)))
-        # import matplotlib as mpl
-        # from mpl_toolkits.axes_grid1 import make_axes_locatable
-        # divider = make_axes_locatable(plt.gca())
-        # ax_cb = divider.new_horizontal(size="5%", pad=0.05)
-        # cmap = mpl.colors.LinearSegmentedColormap.from_list("", [color.hex for color in colors])
-        # cb1 = mpl.colorbar.ColorbarBase(ax_cb, cmap=cmap, orientation='vertical', label='t', values=range(len(input_constraints)))
+        from colour import Color
+        orange = Color("orange")
+        colors = list(orange.range_to(Color("purple"),len(input_constraints)))
+        import matplotlib as mpl
+        from mpl_toolkits.axes_grid1 import make_axes_locatable
+        divider = make_axes_locatable(plt.gca())
+        ax_cb = divider.new_horizontal(size="5%", pad=0.05)
+        cmap = mpl.colors.LinearSegmentedColormap.from_list("", [color.hex for color in colors])
+        cb1 = mpl.colorbar.ColorbarBase(ax_cb, cmap=cmap, orientation='vertical', label='t (s)', values=range(len(input_constraints)))
         
-        # plt.gcf().add_axes(ax_cb)
+        plt.gcf().add_axes(ax_cb)
 
 
         # Plot all our input constraints (i.e., our backprojection set estimates)
@@ -218,28 +226,29 @@ class ClosedLoopBackwardAnalyzer(analyzers.Analyzer):
         backreachable_set = kwargs['per_timestep'][-1]['backreachable_set']
         target_set = output_constraint
         t_max = len(kwargs['per_timestep'])
-        try:
-            self.plot_true_backprojection_sets(
-                backreachable_set,
-                target_set,
-                t_max=t_max,
-                color=self.true_backprojection_set_color,
-                zorder=self.true_backprojection_set_zorder,
-                linestyle=self.true_backprojection_set_linestyle,
-                show_samples=True
-            )
-        except:
-            pass
+        # try:
+        #     self.plot_true_backprojection_sets(
+        #         input_constraints[-1],
+        #         # backreachable_set, 
+        #         target_set,
+        #         t_max=t_max,
+        #         color=self.true_backprojection_set_color,
+        #         zorder=self.true_backprojection_set_zorder,
+        #         linestyle=self.true_backprojection_set_linestyle,
+        #         show_samples=False,
+        #     )
+        # except:
+        #     pass
 
         # If they exist, plot all our loose input constraints (i.e., our one-step backprojection set estimates)
         # TODO: Make plotting these optional via a flag
-        for info in kwargs.get('per_timestep', []):
-            ic = info.get('one_step_backprojection_overapprox', None)
-            if ic is None: continue
-            rect = ic.plot(self.partitioner.animate_axes, self.partitioner.input_dims, self.estimated_one_step_backprojection_set_color, zorder=self.estimated_one_step_backprojection_set_zorder, linewidth=self.partitioner.linewidth, plot_2d=self.partitioner.plot_2d)
-            self.partitioner.default_patches += rect
+        # for info in kwargs.get('per_timestep', []):
+        #     ic = info.get('one_step_backprojection_overapprox', None)
+        #     if ic is None: continue
+        #     rect = ic.plot(self.partitioner.animate_axes, self.partitioner.input_dims, self.estimated_one_step_backprojection_set_color, zorder=self.estimated_one_step_backprojection_set_zorder, linewidth=self.partitioner.linewidth, plot_2d=self.partitioner.plot_2d)
+        #     self.partitioner.default_patches += rect
 
-        ## Sketchy workaround to trajectories not showing up
+        # Sketchy workaround to trajectories not showing up
         # import nn_closed_loop.constraints as constraints
         # x0 = np.array(
         #     [  # (num_inputs, 2)
@@ -256,6 +265,66 @@ class ClosedLoopBackwardAnalyzer(analyzers.Analyzer):
         #     ax=self.partitioner.animate_axes,
         #     controller=self.propagator.network,
         # ) 
+
+        import numpy as np
+        import nn_closed_loop.constraints as constraints
+        x0 = np.array(
+            [  # (num_inputs, 2)
+                [-5.5, -4.5],  # x0min, x0max
+                [-0.5, 0.5],  # x1min, x1max
+            ]
+        )
+        # x0 = np.array( # tree_trunks_vs_quadrotor_12__
+        #         [  # (num_inputs, 2)
+        #             [-6.5,-0.25, 2, 1.95, -0.01, -0.01],
+        #             [-6, 0.25, 2.5, 2.0, 0.01, 0.01],
+        #         ]
+        #     ).T
+        # x0 = np.array(
+        #     [  # (num_inputs, 2)
+        #         [-0.5, 0.5],
+        #         [-0.5, 0.5],
+        #         [-0.01, 0.01],
+        #         [-0.01, 0.01],
+        #     ]
+        # )
+        # x0 = np.array(
+        #         [  # (num_inputs, 2)
+        #             [-2-0.25, -4+0.25],  # x0min, x0max
+        #             [-3., 3.],  # x1min, x1max
+        #             [0.49, 0.50],
+        #             [-0.01, 0.01]
+        #         ]
+        #     )
+        x0_constraint = constraints.LpConstraint(
+            range=x0, p=np.inf
+        )
+        input_dims = [x["dim"] for x in inputs_to_highlight]
+        self.dynamics.show_trajectories(
+            len(input_constraints) * self.dynamics.dt,
+            x0_constraint,
+            input_dims=input_dims,
+            ax=self.partitioner.animate_axes,
+            controller=self.propagator.network,
+            zorder=10
+        ) 
+
+        # initial_range = np.array( # tree_trunks_vs_quadrotor_12__
+        #     [  # (num_inputs, 2)
+        #         [-6.5, 0.25-0.25, 2, .95, -0.01, -0.01],
+        #         [-6, 0.25+0.25, 2.5, 1.0, 0.01, 0.01],
+        #     ]
+        # ).T
+
+        initial_constraint = constraints.LpConstraint(x0)
+        self.partitioner.plot_reachable_sets(
+            initial_constraint,
+            input_dims,
+            reachable_set_color='k',
+            reachable_set_zorder=11,
+            reachable_set_ls='-'
+        )
+
             
 
 

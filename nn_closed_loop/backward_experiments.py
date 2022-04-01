@@ -1,4 +1,4 @@
-import nn_closed_loop.example_backward as ex
+import example_backward as ex
 import numpy as np
 from tabulate import tabulate
 import pandas as pd
@@ -24,13 +24,13 @@ class Experiment:
     def __init__(self):
         self.info = {
             ('CROWN', 'None'): {
-                'name': 'Algorithm 2',
-                'color': 'tab:blue',
+                'name': 'BReach-LP',
+                'color': 'tab:orange',
                 'ls': '-',
             },
             ('CROWNNStep', 'None'): {
-                'name': 'Algorithm 3',
-                'color': 'tab:orange',
+                'name': 'ReBReach-LP',
+                'color': 'tab:blue',
                 'ls': '-',
             },
         }
@@ -112,7 +112,7 @@ class CompareRuntimeVsErrorTable(Experiment):
         args.show_animation = False
         args.init_state_range = "[[4.5, 5.0], [-0.25, 0.25]]"
         args.state_feedback = True
-        args.boundaries = "polytope"
+        args.boundaries = "lp"
         args.system = "double_integrator"
         args.t_max = 5
         args.estimate_runtime = True
@@ -137,6 +137,7 @@ class CompareRuntimeVsErrorTable(Experiment):
             for key, value in expt.items():
                 setattr(args, key, value)
             stats, info = ex.main(args)
+            # import pdb; pdb.set_trace()
 
             for i, runtime in enumerate(stats['runtimes']):
                 df = df.append({
@@ -166,7 +167,7 @@ class CompareRuntimeVsErrorTable(Experiment):
 
         # Setup table columns
         rows = []
-        rows.append(["Algorithm", "Runtime [s]", "Error"])
+        rows.append(["Algorithm", "Runtime [s]", "Final Step Error"])
 
         tuples = []
         tuples += [('CROWN', 'None'), ('CROWNNStep', 'None')]
@@ -178,7 +179,7 @@ class CompareRuntimeVsErrorTable(Experiment):
             except KeyError:
                 continue
 
-            import pdb; pdb.set_trace()
+            # import pdb; pdb.set_trace()
 
             name = self.info[prop_part_tuple]['name']
 
@@ -192,7 +193,7 @@ class CompareRuntimeVsErrorTable(Experiment):
             row = []
             row.append(name)
             row.append(runtime_str)
-            row.append(round(final_step_error))
+            row.append("{:.2f}".format(final_step_error))
 
             rows.append(row)
 
@@ -505,7 +506,7 @@ if __name__ == '__main__':
 
     # Like Fig 3 in ICRA21 paper
     c = CompareRuntimeVsErrorTable()
-    # c.run()
+    c.run()
     c.plot()  # 3A: table
     # c.plot_reachable_sets()  # 3B: overlay reachable sets
     c.plot_error_vs_timestep()  # 3C: error vs timestep
