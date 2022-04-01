@@ -27,6 +27,7 @@ class Dynamics:
         c=None,
         sensor_noise=None,
         process_noise=None,
+        x_limits=None,
     ):
 
         # State dynamics
@@ -45,7 +46,13 @@ class Dynamics:
 
         # Min/max control inputs
         self.u_limits = u_limits
-
+        
+        # if x_limits is None:
+        #     self.x_limits = np.hstack((-1e6*np.ones((self.num_states,1)), 1e6*np.ones((self.num_states,1))))
+        # else:
+            
+        self.x_limits = x_limits
+        # import pdb; pdb.set_trace()
         self.dt = dt
 
     def control_nn(self, x, model):
@@ -185,6 +192,9 @@ class Dynamics:
         num_runs, num_timesteps, num_states = xs.shape
 
         if colors is None:
+            # from colour import Color
+            # orange = Color("orange")
+            # colors = list(orange.range_to(Color("purple"),len(num_timesteps)))
             colors = self.colors(num_timesteps)
 
         for t in range(num_timesteps):
@@ -384,12 +394,12 @@ class Dynamics:
                 projection = '3d'
             ax = plt.subplot(projection=projection)
 
-        num_trajectories = 20
+        num_trajectories = 100
         if xs is None:
             xs, us = self.collect_data(
                 t_max,
                 input_constraint,
-                num_samples=num_trajectories*(t_max+self.dt),
+                num_samples=num_trajectories*(t_max+self.dt)/self.dt,
                 controller=controller,
                 merge_cols=False,
             )
@@ -406,35 +416,42 @@ class Dynamics:
         #         s=4,
         #         zorder=zorder,
         #     )
+        
+
+        from colour import Color
+        orange = Color("orange")
+        colors = list(orange.range_to(Color("purple"),num_timesteps))
+        # import pdb; pdb.set_trace()
         for traj in range(num_runs):
             if len(input_dims) == 2:
-                # import pdb; pdb.set_trace()
-                ax.plot(
-                    xs[traj, :, 0],
-                    xs[traj, :, 1],
-                    color='b',
-                    # s=4,
-                    zorder=zorder,
-                )
+                for seg in range(num_timesteps-1):
+                    ax.plot(
+                        xs[traj, seg:seg+2, 0],
+                        xs[traj, seg:seg+2, 1],
+                        color=colors[seg].hex_l,
+                        zorder=zorder,
+                    )
             elif len(input_dims) == 3:
-                ax.plot(
-                    xs[traj, :, 0],
-                    xs[traj, :, 1],
-                    xs[traj, :, 2],
-                    color=colors[traj],
-                    zorder=zorder,
-                )
+                for seg in range(num_timesteps-1):
+                    ax.plot(
+                        xs[traj, seg:seg+2, 0],
+                        xs[traj, seg:seg+2, 1],
+                        xs[traj, seg:seg+2, 2],
+                        color=colors[seg].hex_l,
+                        zorder=zorder,
+                    )
+        # import pdb; pdb.set_trace()
 
-        ax.set_xlabel("$x_" + str(input_dims[0][0]) + "$")
-        ax.set_ylabel("$x_" + str(input_dims[1][0]) + "$")
-        if len(input_dims) == 3:
-            ax.set_zlabel("$x_" + str(input_dims[2][0]) + "$")
+        # ax.set_xlabel("$x_" + str(input_dims[0][0]) + "$")
+        # ax.set_ylabel("$x_" + str(input_dims[1][0]) + "$")
+        # if len(input_dims) == 3:
+        #     ax.set_zlabel("$x_" + str(input_dims[2][0]) + "$")
 
-        if save_plot:
-            ax.savefig(plot_name)
+        # if save_plot:
+        #     ax.savefig(plot_name)
 
-        if show:
-            plt.show()
+        # if show:
+        #     plt.show()
 
     def collect_data(
         self,
@@ -464,7 +481,7 @@ class Dynamics:
         controller="mpc",
         merge_cols=False,
     ):
-        
+
         np.random.seed(0)
         num_timesteps = int(
             (t_max + self.dt + np.finfo(float).eps) / (self.dt)
@@ -596,8 +613,9 @@ class ContinuousTimeDynamics(Dynamics):
         c=None,
         sensor_noise=None,
         process_noise=None,
+        x_limits=None
     ):
-        super().__init__(At, bt, ct, u_limits, dt, c, sensor_noise, process_noise)
+        super().__init__(At, bt, ct, u_limits, dt, c, sensor_noise, process_noise, x_limits)
         self.continuous_time = True
 
     def dynamics(self, xs, us):
@@ -615,7 +633,14 @@ class ContinuousTimeDynamics(Dynamics):
         return xdot
 
     def dynamics_step(self, xs, us):
-        return xs + self.dt * self.dynamics(xs, us)
+        xs_t1 = xs + self.dt * self.dynamics(xs, us)
+        
+        if self.x_limits is not None and isinstance(xs,np.ndarray):
+            # import pdb; pdb.set_trace()
+            xs_t1 = np.minimum(xs_t1, self.x_limits[..., 1])
+            xs_t1 = np.maximum(xs_t1, self.x_limits[..., 0])
+        
+        return xs_t1
 
 
 class DiscreteTimeDynamics(Dynamics):
@@ -629,8 +654,9 @@ class DiscreteTimeDynamics(Dynamics):
         c=None,
         sensor_noise=None,
         process_noise=None,
+        x_limits=None,
     ):
-        super().__init__(At, bt, ct, u_limits, dt, c, sensor_noise, process_noise)
+        super().__init__(At, bt, ct, u_limits, dt, c, sensor_noise, process_noise, x_limits)
         self.continuous_time = False
 
     def dynamics_step(self, xs, us):
@@ -645,6 +671,10 @@ class DiscreteTimeDynamics(Dynamics):
                 xs_t1 += noise
         else: # For solving LP
             xs_t1 = self.At@xs + self.bt@us + self.ct
+
+        if self.x_limits is not None and isinstance(xs,np.ndarray):
+            xs_t1 = np.minimum(xs_t1, self.x_limits[..., 1])
+            xs_t1 = np.maximum(xs_t1, self.x_limits[..., 0])
 
         return xs_t1
 

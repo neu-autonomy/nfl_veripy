@@ -237,8 +237,21 @@ class ClosedLoopCROWNIBPCodebasePropagator(ClosedLoopPropagator):
         constrs = []
         constrs += [u_min <= ut]
         constrs += [ut <= u_max]
+
+        if self.dynamics.x_limits is not None:
+            x_llim = self.dynamics.x_limits[:, 0]
+            x_ulim = self.dynamics.x_limits[:, 1]
+            # import pdb; pdb.set_trace()
+            constrs += [x_llim <= xt]
+            constrs += [xt <= x_ulim]
+            constrs += [self.dynamics.dynamics_step(xt,ut) <= x_ulim]
+            constrs += [self.dynamics.dynamics_step(xt,ut) >= x_llim]
+
+
+
         # constrs += [self.dynamics.At@xt + self.dt*self.dynamics.bt@ut + self.dt*self.dynamics.ct <= xt1_max]
         # constrs += [self.dynamics.At@xt + self.dt*self.dynamics.bt@ut + self.dt*self.dynamics.ct >= xt1_min]
+
         constrs += [self.dynamics.dynamics_step(xt,ut) <= xt1_max]
         constrs += [self.dynamics.dynamics_step(xt,ut) >= xt1_min]
         A_t_i = cp.Parameter(num_states)
@@ -480,6 +493,12 @@ class ClosedLoopCROWNIBPCodebasePropagator(ClosedLoopPropagator):
         # constrs += [self.dynamics.At@xt + self.dynamics.bt@ut + self.dynamics.ct >= xt1_min]
         constrs += [self.dynamics.dynamics_step(xt, ut) <= xt1_max]
         constrs += [self.dynamics.dynamics_step(xt, ut) >= xt1_min]
+        if self.dynamics.x_limits is not None:
+            x_llim = self.dynamics.x_limits[:, 0]
+            x_ulim = self.dynamics.x_limits[:, 1]
+            constrs += [self.dynamics.dynamics_step(xt,ut) <= x_ulim]
+            constrs += [self.dynamics.dynamics_step(xt,ut) >= x_llim]
+
         A_t_ = np.vstack([A_t, -A_t])
         num_facets = 2*num_states
         A_t_i = cp.Parameter(num_states)
@@ -800,6 +819,11 @@ class ClosedLoopCROWNNStepPropagator(ClosedLoopCROWNPropagator):
             constrs += [xt_min <= xt[:, 0]]
             constrs += [xt[:, 0] <= xt_max]
 
+            if self.dynamics.x_limits is not None:
+                x_llim = self.dynamics.x_limits[:, 0]
+                x_ulim = self.dynamics.x_limits[:, 1]
+            
+
             # # Each xt must be in a backprojection overapprox
             # for t in range(num_steps - 1):
             #     A, b = input_constraints[t].A[0], input_constraints[t].b[0]
@@ -837,6 +861,12 @@ class ClosedLoopCROWNNStepPropagator(ClosedLoopCROWNPropagator):
             # x_t and x_{t+1} connected through system dynamics
             for t in range(num_steps):
                 constrs += [self.dynamics.dynamics_step(xt[:, t], ut[:, t]) == xt[:, t+1]]
+                
+                if self.dynamics.x_limits is not None:
+                    x_llim = self.dynamics.x_limits[:, 0]
+                    x_ulim = self.dynamics.x_limits[:, 1]
+                    constrs += [self.dynamics.dynamics_step(xt[:, t], ut[:, t]) <= x_ulim]
+                    constrs += [self.dynamics.dynamics_step(xt[:, t], ut[:, t]) >= x_llim]
 
             # u_t satisfies control limits (TODO: Necessary? CROWN should account for these)
             # for t in range(num_steps):

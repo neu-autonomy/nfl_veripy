@@ -32,9 +32,22 @@ class Quadrotor(ContinuousTimeDynamics):
             ]
         )
 
+        # x_limits = 2*np.array(
+        #     [
+        #         [-100, 100],
+        #         [-100, 100],
+        #         [-100, 100],
+        #         [-0.5, 0.5],
+        #         [-0.5, 0.5],
+        #         [-0.05, 0.05],
+        #     ]
+        # )
+        # 
+        x_limits=None   
+
         dt = 0.125
 
-        super().__init__(At=At, bt=bt, ct=ct, u_limits=u_limits, dt=dt)
+        super().__init__(At=At, bt=bt, ct=ct, u_limits=u_limits, dt=dt, x_limits=x_limits)
         Q_ = np.zeros((6,6))
         Q_[0,0], Q_[1,1], Q_[2,2] = 2, 2, 1
         self.Q = Q_
