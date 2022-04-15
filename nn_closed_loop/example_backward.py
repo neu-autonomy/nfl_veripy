@@ -53,8 +53,8 @@ def main(args):
         if args.final_state_range is None:
             final_state_range = np.array(
                 [  # (num_inputs, 2)
-                    [-1., 1.],  # x0min, x0max
-                    [-1., 1.],  # x1min, x1max
+                    [-2., -1.],  # x0min, x0max
+                    [-2., -1.],  # x1min, x1max
                     [-0.01, 0.01],
                     [-0.01, 0.01],
                 ]
@@ -81,7 +81,7 @@ def main(args):
             import ast
 
     if args.num_partitions is None:
-        num_partitions = np.array([2, 2])
+        num_partitions = np.array([1, 1, 1, 1])
     else:
         import ast
 

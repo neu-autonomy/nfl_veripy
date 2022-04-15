@@ -57,7 +57,7 @@ def main(args):
             init_state_range = np.array(
                 [  # (num_inputs, 2)
                     [-5.5, -4.5],  # x0min, x0max
-                    [1-0.5, 1+0.5],  # x1min, x1max
+                    [-0.5, 0.5],  # x1min, x1max
                 ]
             )
             # init_state_range = np.array(
@@ -84,6 +84,19 @@ def main(args):
             init_state_range = np.array(
                 ast.literal_eval(args.init_state_range)
             )
+        if args.final_state_range is None:
+            final_state_range = np.array(
+                [
+                    [-1, 1],
+                    [-1, 1]
+                ]
+            )
+        else:
+            import ast
+
+            final_state_range = np.array(
+                ast.literal_eval(args.final_state_range)
+            )
     elif args.system == "ground_robot_DI":
         inputs_to_highlight = [
             {"dim": [0], "name": "$p_x$"},
@@ -96,7 +109,7 @@ def main(args):
         if args.init_state_range is None:
             init_state_range = np.array(
                 [  # (num_inputs, 2)
-                    [-0.25, 0.25],  # x0min, x0max
+                    [1-0.25, 1+0.25],  # x0min, x0max
                     [-0.25, 0.25],  # x1min, x1max
                     [0.99, 1.01],
                     [1.24, 1.26]
@@ -108,6 +121,22 @@ def main(args):
             init_state_range = np.array(
                 ast.literal_eval(args.init_state_range)
             )
+        if args.final_state_range is None:
+            final_state_range = np.array(
+                [  # (num_inputs, 2)
+                    [-0.25, 0.25],  # x0min, x0max
+                    [-0.25, 0.25],  # x1min, x1max
+                    [-0.5, 0.5],
+                    [-0.01, 0.01]
+                ]
+            )
+        else:
+            import ast
+
+            init_state_range = np.array(
+                ast.literal_eval(args.init_state_range)
+            )
+
     elif args.system == "quadrotor":
         inputs_to_highlight = [
             {"dim": [0], "name": "$x$"},
@@ -119,12 +148,12 @@ def main(args):
         else:
             dyn = dynamics.QuadrotorOutputFeedback()
         if args.init_state_range is None:
-            # init_state_range = np.array(
-            #     [  # (num_inputs, 2)
-            #         [4.65, 4.65, 2.95, 0.94, -0.01, -0.01],
-            #         [4.75, 4.75, 3.05, 0.96, 0.01, 0.01],
-            #     ]
-            # ).T
+            init_state_range = np.array(
+                [  # (num_inputs, 2)
+                    [4.65, 4.65, 2.95, 0.94, -0.01, -0.01],
+                    [4.75, 4.75, 3.05, 0.96, 0.01, 0.01],
+                ]
+            ).T
             # init_state_range = np.array( # tree_trunks_vs_quadrotor_12__
             #     [  # (num_inputs, 2)
             #         [-6.5, 0.25-0.25, 2, .95, -0.01, -0.01],
@@ -137,17 +166,30 @@ def main(args):
             #         [-4.5, 0.25, 2.5, 1.05, 0.01, 0.01],
             #     ]
             # ).T
-            init_state_range = np.array( # tree_trunks_vs_quadrotor_12__
-                [  # (num_inputs, 2)
-                    [-6.5,-0.25, 2, 1.95, -0.01, -0.01],
-                    [-6, 0.25, 2.5, 2.0, 0.01, 0.01],
-                ]
-            ).T
+            # init_state_range = np.array( # tree_trunks_vs_quadrotor_12__
+            #     [  # (num_inputs, 2)
+            #         [-6.5,-0.25, 2, 1.95, -0.01, -0.01],
+            #         [-6, 0.25, 2.5, 2.0, 0.01, 0.01],
+            #     ]
+            # ).T
         else:
             import ast
 
             init_state_range = np.array(
                 ast.literal_eval(args.init_state_range)
+            )
+        if args.final_state_range is None:
+            final_state_range = np.array(
+                [
+                    [-1, 1],
+                    [-1, 1]
+                ]
+            )
+        else:
+            import ast
+
+            final_state_range = np.array(
+                ast.literal_eval(args.final_state_range)
             )
     elif args.system == "duffing":
         inputs_to_highlight = [
@@ -238,6 +280,9 @@ def main(args):
             range=init_state_range, p=np.inf
         )
         output_constraint = constraints.LpConstraint(p=np.inf)
+
+        back_input_constraint = constraints.LpConstraint(p=np.inf)
+        back_output_constraint = [constraints.LpConstraint(range=final_state_range, p=np.inf)]
     else:
         raise NotImplementedError
     
@@ -356,11 +401,13 @@ def main(args):
         analyzer.visualize(
             input_constraint,
             output_constraint,
+            target_constraint = back_output_constraint,
             show_samples=False,
             show_trajectories=False,
             show=args.show_plot,
             labels=args.plot_labels,
             aspect=args.plot_aspect,
+            plot_lims=args.plot_lims,
             iteration=None,
             inputs_to_highlight=inputs_to_highlight,
             **analyzer_info
@@ -422,12 +469,12 @@ def main(args):
         #     ]
         # ).T
 
-        # final_state_range = np.array(
-        #     [  # (num_inputs, 2)
-        #         [-0.25, -0.25, 2, -0.01, -0.01, -0.01],
-        #         [0.25, 0.25, 2.5, 0.01, 0.01, 0.01],
-        #     ]
-        # ).T
+        final_state_range = np.array(
+            [  # (num_inputs, 2)
+                [-0.25, -0.25, 2, -0.01, -0.01, -0.01],
+                [0.25, 0.25, 2.5, 0.01, 0.01, 0.01],
+            ]
+        ).T
 
         # final_state_range = np.array(
         #     [  # (num_inputs, 2)
@@ -447,7 +494,7 @@ def main(args):
         # )
         # num_partitions = 1*np.array([1, 1, 1, 1, 1, 1])
         num_partitions = 1*np.array([4,4])
-        # num_partitions = 1*np.array([4, 1, 4, 1])
+        # num_partitions = 1*np.array([1, 1, 1, 1])
         
         back_analyzer = analyzers.ClosedLoopBackwardAnalyzer(controller, dyn)
         back_analyzer.partitioner = partitioner_hyperparams
@@ -461,8 +508,8 @@ def main(args):
         # back_input_constraint = constraints.PolytopeConstraint(None, None)
 
         import time
-        back_output_constraint = [constraints.LpConstraint(range=final_state_range, p=np.inf)]
-        back_input_constraint = constraints.LpConstraint(p=np.inf)
+        # back_output_constraint = [constraints.LpConstraint(range=final_state_range, p=np.inf)]
+        # back_input_constraint = constraints.LpConstraint(p=np.inf)
         t_start = time.time()
         back_input_constraint_list, back_analyzer_info_list = back_analyzer.get_backprojection_set(
             back_output_constraint, back_input_constraint, t_max=args.t_max, num_partitions=num_partitions, overapprox=True
@@ -482,7 +529,8 @@ def main(args):
             labels=args.plot_labels,
             aspect=args.plot_aspect,
             inputs_to_highlight=inputs_to_highlight,
-            # plot_lims=args.plot_lims,
+            plot_lims=args.plot_lims,
+            initial_constraint=[input_constraint],
         )
 
 
@@ -511,6 +559,12 @@ def setup_parser():
     )
     parser.add_argument(
         "--init_state_range",
+        default=None,
+        help="2*num_states values (default: None)",
+    )
+
+    parser.add_argument(
+        "--final_state_range",
         default=None,
         help="2*num_states values (default: None)",
     )
@@ -617,6 +671,11 @@ def setup_parser():
         default="auto",
         choices=["auto", "equal"],
         help="aspect ratio on input partition plot (default: auto)",
+    )
+    parser.add_argument(
+        "--plot_lims",
+        default=None,
+        help='x and y lims on plot (default: None)',
     )
 
     parser.add_argument(

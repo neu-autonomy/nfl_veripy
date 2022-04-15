@@ -1,3 +1,4 @@
+from matplotlib.pyplot import plot
 import nn_partition.analyzers as analyzers
 import nn_closed_loop.partitioners as partitioners
 import nn_closed_loop.propagators as propagators
@@ -16,9 +17,12 @@ class ClosedLoopAnalyzer(analyzers.Analyzer):
 
         self.reachable_set_color = 'tab:blue'
         self.reachable_set_zorder = 2
-        self.initial_set_color = 'tab:red'
+        self.initial_set_color = 'k'
         self.initial_set_zorder = 2
+        self.target_set_color = 'tab:red'
+        self.target_set_zorder = 2
         self.sample_zorder = 1
+
 
     @property
     def partitioner_dict(self):
@@ -54,10 +58,12 @@ class ClosedLoopAnalyzer(analyzers.Analyzer):
         self,
         input_constraint,
         output_constraint,
+        target_constraint=None,
         show=True,
         show_samples=False,
         show_trajectories=False,
         aspect="auto",
+        plot_lims=None,
         labels={},
         inputs_to_highlight=None,
         dont_close=True,
@@ -71,7 +77,7 @@ class ClosedLoopAnalyzer(analyzers.Analyzer):
                 {"dim": [0], "name": "$x_0$"},
                 {"dim": [1], "name": "$x_1$"},
             ]
-
+        # import pdb; pdb.set_trace()
         self.partitioner.setup_visualization(
             input_constraint,
             output_constraint.get_t_max(),
@@ -82,7 +88,11 @@ class ClosedLoopAnalyzer(analyzers.Analyzer):
             aspect=aspect,
             initial_set_color=self.initial_set_color,
             initial_set_zorder=self.initial_set_zorder,
-            sample_zorder=self.sample_zorder
+            extra_set_color=self.target_set_color,
+            extra_set_zorder=self.target_set_zorder,
+            sample_zorder=self.sample_zorder,
+            extra_constraint=target_constraint,
+            plot_lims=plot_lims
         )
         self.partitioner.visualize(
             kwargs.get(
@@ -92,7 +102,8 @@ class ClosedLoopAnalyzer(analyzers.Analyzer):
             output_constraint,
             kwargs.get("iteration", None),
             reachable_set_color=self.reachable_set_color,
-            reachable_set_zorder=self.reachable_set_zorder
+            reachable_set_zorder=self.reachable_set_zorder,
+            # plot_lims=plot_lims
         )
 
         # self.partitioner.animate_axes.legend(
@@ -125,44 +136,53 @@ class ClosedLoopAnalyzer(analyzers.Analyzer):
         #         [1.24,1.26]
         #     ]
         # )
-        x0_constraint = constraints.LpConstraint(
-            range=x0, p=np.inf
-        )
-        input_dims = [x["dim"] for x in inputs_to_highlight]
-        self.dynamics.show_trajectories(
-            output_constraint.get_t_max() * self.dynamics.dt,
-            x0_constraint,
-            input_dims=input_dims,
-            ax=self.partitioner.animate_axes,
-            controller=self.propagator.network,
-        ) 
+        # x0_constraint = constraints.LpConstraint(
+        #     range=x0, p=np.inf
+        # )
+        # input_dims = [x["dim"] for x in inputs_to_highlight]
+        # self.dynamics.show_trajectories(
+        #     output_constraint.get_t_max() * self.dynamics.dt,
+        #     x0_constraint,
+        #     input_dims=input_dims,
+        #     ax=self.partitioner.animate_axes,
+        #     controller=self.propagator.network,
+        # ) 
 
-        initial_constraint = constraints.LpConstraint(x0)
-        self.partitioner.plot_reachable_sets(
-            initial_constraint,
-            input_dims,
-            reachable_set_color='k',
-            reachable_set_zorder=10,
-            reachable_set_ls='-'
-        )
-        xf = np.array(
-            [  # (num_inputs, 2)
-                [-1, 1],  # x0min, x0max
-                [-1, 1],  # x1min, x1max
-            ]
-        )
-        xf_constraint = constraints.LpConstraint(
-            range=xf, p=np.inf
-        )
-        self.partitioner.plot_reachable_sets(
-            xf_constraint,
-            input_dims,
-            reachable_set_color='tab:red',
-            reachable_set_zorder=10,
-            reachable_set_ls='-'
-        )
+        # initial_constraint = constraints.LpConstraint(x0)
+        # self.partitioner.plot_reachable_sets(
+        #     initial_constraint,
+        #     input_dims,
+        #     reachable_set_color='k',
+        #     reachable_set_zorder=10,
+        #     reachable_set_ls='-'
+        # )
+        # xf = np.array(
+        #     [  # (num_inputs, 2)
+        #         [-1, 1],  # x0min, x0max
+        #         [-1, 1],  # x1min, x1max
+        #     ]
+        # )
+        # xf_constraint = constraints.LpConstraint(
+        #     range=xf, p=np.inf
+        # )
+        # self.partitioner.plot_reachable_sets(
+        #     xf_constraint,
+        #     input_dims,
+        #     reachable_set_color='tab:red',
+        #     reachable_set_zorder=10,
+        #     reachable_set_ls='-'
+        # )
 
         self.partitioner.animate_fig.tight_layout()
+
+        if plot_lims is not None:
+            import ast
+            plot_lims_arr = np.array(
+                ast.literal_eval(plot_lims)
+            )
+            self.partitioner.animate_axes.set_xlim(plot_lims_arr[0])
+            self.partitioner.animate_axes.set_ylim(plot_lims_arr[1])
+
 
         if "save_name" in kwargs and kwargs["save_name"] is not None:
             plt.savefig(kwargs["save_name"])

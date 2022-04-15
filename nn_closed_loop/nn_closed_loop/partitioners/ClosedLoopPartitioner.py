@@ -143,8 +143,12 @@ class ClosedLoopPartitioner(partitioners.Partitioner):
         aspect="auto",
         initial_set_color=None,
         initial_set_zorder=None,
+        extra_set_color=None,
+        extra_set_zorder=None,
         sample_zorder=None,
         sample_colors=None,
+        extra_constraint=None,
+        plot_lims=None
     ):
 
         self.default_patches = []
@@ -173,17 +177,10 @@ class ClosedLoopPartitioner(partitioners.Partitioner):
             aspect = "auto"
 
         self.animate_fig, self.animate_axes = plt.subplots(1, 1, subplot_kw=dict(projection=projection))
-        from nn_closed_loop.utils.controller_generation import display_ground_robot_control_field
-        display_ground_robot_control_field(name='complex_potential_field',ax=self.animate_axes)
+        # from nn_closed_loop.utils.controller_generation import display_ground_robot_control_field
+        # display_ground_robot_control_field(name='complex_potential_field',ax=self.animate_axes)
 
         self.animate_axes.set_aspect(aspect)
-        # Double Integrator
-        # self.animate_axes.set_xlim([-3.8, 5.64])
-        # self.animate_axes.set_ylim([-0.64, 2.5])
-
-        # Ground Robot
-        self.animate_axes.set_xlim([-7.2, 3])
-        self.animate_axes.set_ylim([-7.2, 7.2])
 
 
         if show_samples:
@@ -218,6 +215,13 @@ class ClosedLoopPartitioner(partitioners.Partitioner):
             initial_set_color = "tab:grey"
         rect = input_constraint.plot(self.animate_axes, input_dims, initial_set_color, zorder=initial_set_zorder, linewidth=self.linewidth, plot_2d=self.plot_2d)
         self.default_patches += rect
+
+        if extra_set_color is None:
+            extra_set_color = "tab:red"
+        if extra_constraint is not None:
+            for i in range(len(extra_constraint)):
+                rect = extra_constraint[i].plot(self.animate_axes, input_dims, extra_set_color, zorder=extra_set_zorder, linewidth=self.linewidth, plot_2d=self.plot_2d)
+                self.default_patches += rect
 
         # # Reachable sets
         # self.plot_reachable_sets(output_constraint, input_dims)

@@ -36,16 +36,16 @@ class GroundRobotDI(DiscreteTimeDynamics):
             ]
         )
 
-        x_limits = np.array(
-            [
-                [-1e2, 1e2],
-                [-1e2, 1e2],
-                [-0.5, 0.5],
-                [-0.5, 0.5],
-            ]
-        )
+        # x_limits = np.array(
+        #     [
+        #         [-1e2, 1e2],
+        #         [-1e2, 1e2],
+        #         [-0.5, 0.5],
+        #         [-0.5, 0.5],
+        #     ]
+        # )
 
-        # x_limits=None
+        x_limits=None
 
 
         dt = 1
