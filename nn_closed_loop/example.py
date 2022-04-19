@@ -191,6 +191,42 @@ def main(args):
             final_state_range = np.array(
                 ast.literal_eval(args.final_state_range)
             )
+    elif args.system == "quadrotor_8D":
+        inputs_to_highlight = [
+            {"dim": [0], "name": "$x$"},
+            {"dim": [1], "name": "$y$"},
+            {"dim": [2], "name": "$z$"},
+        ]
+        if args.state_feedback:
+            dyn = dynamics.Quadrotor()
+        else:
+            dyn = dynamics.QuadrotorOutputFeedback()
+        if args.init_state_range is None:
+            init_state_range = np.array(
+                [  # (num_inputs, 2)
+                    [4.65, 4.65, 2.95, 0.94, -0.01, -0.01],
+                    [4.75, 4.75, 3.05, 0.96, 0.01, 0.01],
+                ]
+            ).T
+        else:
+            import ast
+
+            init_state_range = np.array(
+                ast.literal_eval(args.init_state_range)
+            )
+        if args.final_state_range is None:
+            final_state_range = np.array(
+                [  # (num_inputs, 2)
+                    [-0.25, 0.5-0.25, 1, -0.2, -0.2, -0.2],
+                    [0.25, 0.5+0.25, 4, 0.2, 0.2, 0.2],
+                ]
+            ).T
+        else:
+            import ast
+
+            final_state_range = np.array(
+                ast.literal_eval(args.final_state_range)
+            )
     elif args.system == "duffing":
         inputs_to_highlight = [
             {"dim": [0], "name": "$x_0$"},
@@ -549,7 +585,7 @@ def setup_parser():
     parser.add_argument(
         "--system",
         default="double_integrator",
-        choices=["double_integrator", "quadrotor", "duffing", "iss", "ground_robot", "ground_robot_DI"],
+        choices=["double_integrator", "quadrotor", "duffing", "iss", "ground_robot", "ground_robot_DI", "quadrotor_8D"],
         help="which system to analyze (default: double_integrator)",
     )
     parser.add_argument(

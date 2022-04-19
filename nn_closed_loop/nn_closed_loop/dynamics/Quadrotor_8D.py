@@ -1,21 +1,41 @@
-from .Dynamics import ContinuousTimeDynamics
+from .Dynamics import DiscreteTimeDynamics
 import numpy as np
 import cvxpy as cp
 from scipy.linalg import solve_discrete_are
 import osqp
 
 
-class Quadrotor(ContinuousTimeDynamics):
+class Quadrotor(DiscreteTimeDynamics):
     def __init__(self):
 
         g = 9.8  # m/s^2
 
-        At = np.zeros((6, 6))
-        At[0][3] = 1
-        At[1][4] = 1
-        At[2][5] = 1
+        At = np.zeros((8, 8))
+        At = np.array(
+            [
+                [1,0,0, 0.0995, 0,      0,      0,      0.0388],
+                [0,1,0, 0,      0.0995, 0,     -0.0388, 0     ],
+                [0,0,1, 0,      0,      0.0995, 0,      0     ],
+                [0,0,0, 0.9900, 0,      0,      0,      0.7758],
+                [0,0,0, 0,      0.9900, 0,     -0.7754, 0     ],
+                [0,0,0, 0,      0,      0.9900, 0,      0     ],
+                [0,0,0, 0,      0,      0,      0.5892, 0     ],
+                [0,0,0, 0,      0,      0,      0,      0.5901],
+            ]
+        )
 
-        bt = np.zeros((6, 3))
+        bt = np.array(
+            [
+                [ 0,      0.0097, 0     ],
+                [-0.0096, 0,      0     ],
+                [ 0,      0,      0.0050],
+                [ 0,      0.1947, 0     ],
+                [-0.1925, 0,      0     ],
+                [ 0,      0,      0.0995],
+                [ 0.3946, 0,      0     ],
+                [ 0,      0.3991, 0     ]
+            ]
+        )
         bt[3][0] = g
         bt[4][1] = -g
         bt[5][2] = 1
