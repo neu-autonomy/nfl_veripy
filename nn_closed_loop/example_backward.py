@@ -150,7 +150,7 @@ def main(args):
             print('call: {}'.format(num))
             t_start = time.time()
             input_constraint_list, analyzer_info_list = analyzer.get_backprojection_set(
-                output_constraint, input_constraint, t_max=args.t_max, num_partitions=num_partitions, overapprox=args.overapprox
+                output_constraint, input_constraint, t_max=args.t_max, num_partitions=num_partitions, overapprox=args.overapprox, refined=args.refined
             )
             t_end = time.time()
             t = t_end - t_start
@@ -182,7 +182,7 @@ def main(args):
         # Run analysis once
         # Run analysis & generate a plot
         input_constraint_list, analyzer_info_list = analyzer.get_backprojection_set(
-            output_constraint, input_constraint, t_max=args.t_max, num_partitions=num_partitions, overapprox=args.overapprox
+            output_constraint, input_constraint, t_max=args.t_max, num_partitions=num_partitions, overapprox=args.overapprox, refined=args.refined
         )
         
         
@@ -391,7 +391,13 @@ def setup_parser():
         "--underapprox", dest="overapprox", action="store_false"
     )
     parser.set_defaults(overapprox=False)
-
+    parser.add_argument(
+        "--refined",
+        dest="refined",
+        action="store_true",
+        help="whether to use extended set of constraints for BReach-LP",
+    )
+    parser.set_defaults(refined=False)
     return parser
 
 
