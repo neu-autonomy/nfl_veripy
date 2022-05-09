@@ -86,6 +86,10 @@ def main(args):
     else:
         output_range, analyzer_info = analyzer.get_output_range(input_range)
 
+    t_ = t
+    t = time.time()
+    print("Finished getting output range.", t - t_)
+
     if args.estimate_error:
 
         error = analyzer.get_error(input_range, output_range, **analyzer_info)
@@ -95,7 +99,7 @@ def main(args):
 
     t_ = t
     t = time.time()
-    print("Finished getting output range.", t - t_)
+    print("Finished estimating error.", t - t_)
 
 
     # Generate a visualization of the input/output mapping
