@@ -161,12 +161,12 @@ class Analyzer:
     def samples_to_range(self, sampled_outputs):
         return samples_to_range(sampled_outputs)
 
-    def get_exact_output_range(self, input_range):
-        sampled_outputs = self.get_sampled_outputs(input_range)
+    def get_exact_output_range(self, input_range, N=int(1e4)):
+        sampled_outputs = self.get_sampled_outputs(input_range, N=N)
         output_range = self.samples_to_range(sampled_outputs)
         return output_range
 
-    def get_exact_hull(self, input_range, N=int(1e7)):
+    def get_exact_hull(self, input_range, N=int(1e4)):
         sampled_outputs = self.get_sampled_outputs(input_range, N=N)
         return ConvexHull(sampled_outputs)
 
