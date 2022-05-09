@@ -172,17 +172,11 @@ class Analyzer:
 
     def get_error(self, input_range, output_range, **analyzer_info):
         if self.partitioner.interior_condition == "convex_hull":
-            t_start = time.time()
             exact_hull = self.get_exact_hull(input_range)
-            t_end = time.time()
-            print("get exact hull:", t_end - t_start)
 
-            t_start = time.time()
             error = self.partitioner.get_error(
                 exact_hull, analyzer_info['estimated_hull']
             )
-            t_end = time.time()
-            print("get error:", t_end - t_start)
         elif self.partitioner.interior_condition in ["lower_bnds", "linf"]:
             output_range_exact = self.get_exact_output_range(input_range)
 
