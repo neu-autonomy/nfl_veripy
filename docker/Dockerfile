@@ -12,6 +12,8 @@ ENV APPPATH /home/nn_robustness_analysis
 COPY . $APPPATH
 WORKDIR $APPPATH
 
+RUN python -m pip install --no-cache-dir torch==1.10.2+cpu -f https://download.pytorch.org/whl/torch_stable.html
+RUN python -m pip install --no-cache-dir tensorflow-cpu
 RUN python -m pip install --no-cache-dir -e crown_ibp 
 RUN python -m pip install --no-cache-dir -e auto_LiRPA
 RUN python -m pip install --no-cache-dir -e robust_sdp

@@ -70,13 +70,13 @@ class ClosedLoopCROWNIBPCodebasePropagator(ClosedLoopPropagator):
 
         # Because there might sensor noise, the NN could see a different set of
         # states than the system is actually in
-        prev_state_max = torch.Tensor([x_max])
-        prev_state_min = torch.Tensor([x_min])
+        prev_state_max = torch.Tensor(np.array([x_max]))
+        prev_state_min = torch.Tensor(np.array([x_min]))
         nn_input_max = prev_state_max
         nn_input_min = prev_state_min
         if self.dynamics.sensor_noise is not None:
-            nn_input_max += torch.Tensor([self.dynamics.sensor_noise[:, 1]])
-            nn_input_min += torch.Tensor([self.dynamics.sensor_noise[:, 0]])
+            nn_input_max += torch.Tensor(np.array([self.dynamics.sensor_noise[:, 1]]))
+            nn_input_min += torch.Tensor(np.array([self.dynamics.sensor_noise[:, 0]]))
 
         # Compute the NN output matrices (for the input constraints)
         num_control_inputs = self.dynamics.bt.shape[1]
@@ -98,7 +98,7 @@ class ClosedLoopCROWNIBPCodebasePropagator(ClosedLoopPropagator):
             if A_out is None:
                 A_out_torch = None
             else:
-                A_out_torch = torch.Tensor([A_out[i, :]])
+                A_out_torch = torch.Tensor(np.array([A_out[i, :]]))
 
             # CROWN was initialized knowing dynamics, no need to pass them here
             # (unless they've changed, e.g., time-varying At matrix)
@@ -265,8 +265,8 @@ class ClosedLoopCROWNIBPCodebasePropagator(ClosedLoopPropagator):
             # set of states than the system is actually in
             xt_min = ranges[..., 0]
             xt_max = ranges[..., 1]
-            prev_state_max = torch.Tensor([xt_max])
-            prev_state_min = torch.Tensor([xt_min])
+            prev_state_max = torch.Tensor(np.array([xt_max]))
+            prev_state_min = torch.Tensor(np.array([xt_min]))
             nn_input_max = prev_state_max
             nn_input_min = prev_state_min
             if self.dynamics.sensor_noise is not None:
@@ -427,13 +427,13 @@ class ClosedLoopCROWNNStepPropagator(ClosedLoopCROWNPropagator):
         x_min = output_constraints[-2].range[..., 0]
         x_max = output_constraints[-2].range[..., 1]
         norm = output_constraints[-2].p
-        prev_state_max = torch.Tensor([x_max])
-        prev_state_min = torch.Tensor([x_min])
+        prev_state_max = torch.Tensor(np.array([x_max]))
+        prev_state_min = torch.Tensor(np.array([x_min]))
         nn_input_max = prev_state_max
         nn_input_min = prev_state_min
         if self.dynamics.sensor_noise is not None:
-            nn_input_max += torch.Tensor([self.dynamics.sensor_noise[:, 1]])
-            nn_input_min += torch.Tensor([self.dynamics.sensor_noise[:, 0]])
+            nn_input_max += torch.Tensor(np.array([self.dynamics.sensor_noise[:, 1]]))
+            nn_input_min += torch.Tensor(np.array([self.dynamics.sensor_noise[:, 0]]))
 
         # Compute the NN output matrices (for the input constraints)
         num_control_inputs = self.dynamics.bt.shape[1]
