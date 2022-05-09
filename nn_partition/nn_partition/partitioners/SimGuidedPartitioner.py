@@ -42,6 +42,9 @@ class SimGuidedPartitioner(Partitioner):
         return inside
 
     def get_output_range(self, input_range, propagator):
+        t = time.time()
+
+
         t_start_overall = time.time()
         propagator_computation_time = 0
 
@@ -51,6 +54,10 @@ class SimGuidedPartitioner(Partitioner):
         num_propagator_calls = 0
         interior_M = []
 
+        t_ = t
+        t = time.time()
+        print("before sample.", t - t_)
+
         # Run N simulations (i.e., randomly sample N pts from input range -->
         # query NN --> get N output pts)
         # Compute [u_sim], aka bounds on the sampled outputs (Line 6)
@@ -58,6 +65,11 @@ class SimGuidedPartitioner(Partitioner):
         output_range_sim, sampled_outputs, sampled_inputs = self.sample(
             input_range, propagator
         )
+
+        t_ = t
+        t = time.time()
+        print("Finished sampling.", t - t_)
+
         if self.adaptive_flag:
             (
                 M,
@@ -115,6 +127,10 @@ class SimGuidedPartitioner(Partitioner):
                 show_output=self.show_output,
             )
 
+        t_ = t
+        t = time.time()
+        print("Start partition loop.", t - t_)
+
         u_e, info = self.partition_loop(
             M,
             interior_M,
@@ -127,5 +143,10 @@ class SimGuidedPartitioner(Partitioner):
             propagator_computation_time,
             t_start_overall,
         )
+
+        t_ = t
+        t = time.time()
+        print("Finished partition loop.", t - t_)
+
 
         return u_e, info
