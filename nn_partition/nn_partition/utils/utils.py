@@ -1,4 +1,5 @@
 import numpy as np
+import time
 
 
 def bisect(input_range):
@@ -30,10 +31,18 @@ def sect(input_range, num_sects=3, select="random"):
 
 def get_sampled_outputs(input_range, propagator, N=1000):
     input_shape = input_range.shape[:-1]
+    t_start = time.time()
     sampled_inputs = np.random.uniform(
         input_range[..., 0], input_range[..., 1], (N,) + input_shape
     )
+    t_end = time.time()
+    print("get random samples:", t_end - t_start)
+
+    t_start = time.time()
     sampled_outputs = propagator.forward_pass(sampled_inputs)
+    t_end = time.time()
+    print("get forward pass:", t_end - t_start)
+
     return sampled_outputs
 
 

@@ -13,6 +13,8 @@ from auto_LiRPA.utils import logger
 
 logger.setLevel(logging.WARNING)
 
+import time
+
 
 class AutoLIRPAPropagator(Propagator):
     def __init__(self, input_shape=None, bound_opts={}):
@@ -32,6 +34,16 @@ class AutoLIRPAPropagator(Propagator):
         return model
 
     def forward_pass(self, input_data):
+        t_start = time.time()
+        tmp = self.network(torch.Tensor(input_data))
+        t_end = time.time()
+        print("network:", t_end - t_start)
+
+        t_start = time.time()
+        tmp = tmp.data.numpy()
+        t_end = time.time()
+        print("torch to numpy:", t_end - t_start)
+
         return self.network(torch.Tensor(input_data)).data.numpy()
 
     def get_output_range(self, input_range, verbose=False):
