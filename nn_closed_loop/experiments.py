@@ -569,6 +569,7 @@ class NxScalability(Experiment):
         args.system = "unity"
         args.t_max = 5
         args.estimate_runtime = True
+        args.nu = 2
 
         expts = [
             {
@@ -582,7 +583,8 @@ class NxScalability(Experiment):
             # },
         ]
 
-        nxs = [2, 3, 4, 10, 20, 30, 50, 100]
+        nxs = [1, 2, 3, 4, 5]
+        # nxs = [2, 3, 4, 10, 20, 30, 50, 100]
 
         df = pd.DataFrame()
 
@@ -642,13 +644,13 @@ class NxScalability(Experiment):
 
 if __name__ == '__main__':
 
-    # Like Fig 3 in ICRA21 paper
-    c = CompareRuntimeVsErrorTable()
-    # c.run()
-    c.plot()  # 3A: table
-    c.plot_reachable_sets_3d()  # 3B: overlay reachable sets
-    # c.plot_reachable_sets()  # 3B: overlay reachable sets
-    c.plot_error_vs_timestep()  # 3C: error vs timestep
+    # # Like Fig 3 in ICRA21 paper
+    # c = CompareRuntimeVsErrorTable()
+    # # c.run()
+    # c.plot()  # 3A: table
+    # c.plot_reachable_sets_3d()  # 3B: overlay reachable sets
+    # # c.plot_reachable_sets()  # 3B: overlay reachable sets
+    # c.plot_error_vs_timestep()  # 3C: error vs timestep
 
     # c = CompareLPvsCF(system="double_integrator")
     # c.run()
@@ -659,9 +661,9 @@ if __name__ == '__main__':
     # c.plot()
 
     # See how runtime scales with number of states
-    # c = NxScalability("state")
-    # c.run()
-    # c.plot()
+    c = NxScalability("state")
+    c.run()
+    c.plot()
 
     # See how runtime scales with number of control inputs
     # c = NxScalability("control")

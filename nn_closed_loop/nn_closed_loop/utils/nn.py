@@ -38,14 +38,16 @@ def create_and_train_model(
     return model
 
 
-def save_model(model, name="model", dir=dir_path+"/../../models/double_integrator_debug/"):
-    os.makedirs(dir, exist_ok=True)
+def save_model(model, system="DoubleIntegrator", model_name="default"):
+    path = "{}/../../models/{}/{}".format(dir_path, system, model_name)
+    os.makedirs(path, exist_ok=True)
     # serialize model to JSON
     model_json = model.to_json()
-    with open(dir + name + ".json", "w") as json_file:
+    name = "model"
+    with open(path + "/" + name + ".json", "w") as json_file:
         json_file.write(model_json)
     # serialize weights to HDF5
-    model.save_weights(dir + name + ".h5")
+    model.save_weights(path + "/" + name + ".h5")
     print("Saved model to disk")
 
 
@@ -59,10 +61,11 @@ def load_controller(system="DoubleIntegrator", model_name="default"):
     torch_model = keras2torch(model, "torch_model")
     return torch_model
 
+
 def load_controller_unity(nx, nu):
-    name = "unity"
-    path = "{}/../../models/{}".format(dir_path, name)
-    model_name = "/model_nx_{}_nu_{}".format(nx, nu)
+    system = "unity"
+    path = "{}/../../models/{}".format(dir_path, system)
+    model_name = "/nx_{}_nu_{}/model".format(str(nx).zfill(3), str(nu).zfill(3))
     filename = path + model_name + ".json"
     try:
         with open(filename, "r") as f:
@@ -71,7 +74,7 @@ def load_controller_unity(nx, nu):
         model.load_weights(path + model_name + ".h5")
     except FileNotFoundError:
         model = create_model([5, 5], (nx,), (nu,))
-        save_model(model, name=model_name, dir=path)
+        save_model(model, system=system, model_name="nx_{}_nu_{}".format(str(nx).zfill(3), str(nu).zfill(3)))
     torch_model = keras2torch(model, "torch_model")
 
     return torch_model
