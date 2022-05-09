@@ -23,11 +23,11 @@ class TestSum(unittest.TestCase):
     def test_fig4a(self):
         self.check_if_cmd_runs(figure_dir, "fig4a")
 
-    # def test_fig4b(self):
-    #     self.check_if_cmd_runs(figure_dir, "fig4b")
+    def test_fig4b(self):
+        self.check_if_cmd_runs(figure_dir, "fig4b")
 
-    # def test_fig4c(self):
-    #     self.check_if_cmd_runs(figure_dir, "fig4c")
+    def test_fig4c(self):
+        self.check_if_cmd_runs(figure_dir, "fig4c")
 
     # def test_fig5a(self):
     #     self.check_if_cmd_runs(figure_dir, "fig5a")
