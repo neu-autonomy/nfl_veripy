@@ -31,10 +31,10 @@ build_container:
 
 test_partition:
   stage: test
-  # only:
-  #   changes:
-  #     - docker/Dockerfile
-  #     - nn_partition
+  only:
+    changes:
+      - docker/Dockerfile
+      - nn_partition
   script:
     - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
     - docker pull $CONTAINER_TEST_IMAGE
