@@ -137,17 +137,5 @@ We build on excellent open-source repositories from the neural network analysis 
 
 ## TODOS:
 
-- [x] ICRA Fig 3 as single script
-- [x] ICRA Fig 3b make pkl
-- [x] ICRA Fig 3c from pkl
-- [x] get animation working for ICRA
-
-Someday soon...
 - [ ] add rtdocs (auto-fill code snippets from test files)
-- [ ] LCSS Fig 8
-- [ ] Replicate LCSS Table 6b
-- [ ] Replicate LCSS Table I
-- [ ] ICRA Fig 4a make pkl
-- [ ] ICRA Fig 4a from pkl
-- [ ] ICRA Fig 4b as single script
-- [ ] ICRA Fig 4b load correct model
+- [ ] add installation instructions & tests for julia code
