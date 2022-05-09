@@ -14,6 +14,7 @@ import argparse
 def main(args):
     np.random.seed(seed=0)
     stats = {}
+    controller = None
 
     # Dynamics
     if args.system == "double_integrator":
@@ -145,10 +146,11 @@ def main(args):
         propagator_hyperparams["cvxpy_solver"] = args.cvxpy_solver
 
     # Load NN control policy
-    controller = load_controller(
-        system=dyn.__class__.__name__,
-        model_name=args.controller,
-    )
+    if controller is None:
+        controller = load_controller(
+            system=dyn.__class__.__name__,
+            model_name=args.controller,
+        )
 
     # Set up analyzer (+ parititoner + propagator)
     analyzer = analyzers.ClosedLoopAnalyzer(controller, dyn)
@@ -251,7 +253,7 @@ def main(args):
         )
         analyzer_info["save_name"] = (
             save_dir
-            + args.system
+            + dyn.name
             + pars
             + "_"
             + partitioner_hyperparams["type"]
