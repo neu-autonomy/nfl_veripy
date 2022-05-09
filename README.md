@@ -139,3 +139,5 @@ We build on excellent open-source repositories from the neural network analysis 
 
 - [ ] add rtdocs (auto-fill code snippets from test files)
 - [ ] add installation instructions & tests for julia code
+- [ ] add link to backproj paper
+- [ ] add backproj code (when approved)
