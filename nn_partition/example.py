@@ -6,9 +6,12 @@ from nn_partition.models.models import (
 )
 import argparse
 import os
+import time
 
 
 def main(args):
+    t = time.time()
+
     np.random.seed(seed=0)
     stats = {}
 
@@ -47,6 +50,10 @@ def main(args):
     else:
         raise NotImplementedError
 
+    t_ = t
+    t = time.time()
+    print("Finished setting up model.", t - t_)
+
     partitioner_hyperparams = {
         "num_simulations": args.num_simulations,
         "type": args.partitioner,
@@ -69,6 +76,11 @@ def main(args):
     analyzer.partitioner = partitioner_hyperparams
     analyzer.propagator = propagator_hyperparams
 
+    t_ = t
+    t = time.time()
+    print("Finished setting up analyzer.", t - t_)
+
+
     if args.estimate_runtime:
         raise NotImplementedError
     else:
@@ -80,6 +92,11 @@ def main(args):
         stats['error'] = error
 
     stats['output_range'] = output_range
+
+    t_ = t
+    t = time.time()
+    print("Finished getting output range.", t - t_)
+
 
     # Generate a visualization of the input/output mapping
     if args.save_plot:
@@ -140,6 +157,11 @@ def main(args):
             "output": args.output_plot_aspect,
         }
 
+        t_ = t
+        t = time.time()
+        print("Finished preparing for viz.", t - t_)
+
+
         # Generate the plot & save
         analyzer.visualize(
             input_range,
@@ -154,6 +176,11 @@ def main(args):
             aspects=aspects,
             **analyzer_info
         )
+
+    t_ = t
+    t = time.time()
+    print("Finished visualization.", t - t_)
+
 
     print("done.")
     return stats, analyzer_info

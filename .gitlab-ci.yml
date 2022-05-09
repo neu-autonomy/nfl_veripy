@@ -43,10 +43,10 @@ test_partition:
 
 test_closed_loop:
   stage: test
-  # only:
-  #   changes:
-  #     - docker/Dockerfile
-  #     - nn_closed_loop
+  only:
+    changes:
+      - docker/Dockerfile
+      - nn_closed_loop
   script:
     - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
     - docker pull $CONTAINER_TEST_IMAGE
