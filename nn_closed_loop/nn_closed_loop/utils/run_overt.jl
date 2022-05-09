@@ -363,8 +363,8 @@ function start_server()
     HTTP.serve(r, "127.0.0.1", 8000; verbose=false)
 end
 
-simple_testcase()
+# simple_testcase()
 
-# start_server()
+start_server()
 
 

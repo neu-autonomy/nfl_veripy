@@ -1,6 +1,6 @@
 ## Updates
 
-**2022-05-09:** Add new MILP-based `ClosedLoopPropagator`, using [`OVERT`](https://github.com/sisl/OVERTVerify.jl). Note that this component requires a Julia installation, and we pass data between Python and Julia using a lightweight local HTTP server.
+**2022-05-09:** Add new MILP-based `ClosedLoopPropagator`, using [`OVERT`](https://github.com/sisl/OVERTVerify.jl). Note that this component requires a Julia installation, and we pass data between Python and Julia using a lightweight local HTTP server. More info [here](/docs/_static/other.md).
 
 ## About
 
@@ -14,8 +14,8 @@ For more info, please see [this README](/docs/_static/access21/access21.md).
 ### `nn_closed_loop`: Closed-Loop Analysis (NNs in feedback loops) -- includes Reach-LP
 
 **Handles problems such as:**
-- Given a set of possible initial states, a trained NN, and a known dynamics model, compute outer bounds on the set of possible future states (**forward reachable sets**).
-- Given a set of terminal states, a trained NN, and a known dynamics model, compute inner/outer bounds on the set of possible initial states that will/won't lead to the terminal state set (**backprojection sets**).
+- Given a set of possible initial states, a trained NN controller, and a known dynamics model, compute outer bounds on the set of possible future states (**forward reachable sets**).
+- Given a set of terminal states, a trained NN controller, and a known dynamics model, compute inner/outer bounds on the set of possible initial states that will/won't lead to the terminal state set (**backprojection sets**).
 
 For more info, please see [this README](/docs/_static/access21/access21.md).
 

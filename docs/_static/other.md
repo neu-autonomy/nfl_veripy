@@ -6,7 +6,7 @@
 
 To use OVERT, first start a julia session, then start the HTTP server that hosts an OVERT query endpoint:
 ```bash
-julia> include("/home/mfe/code/nn_robustness_analysis/run_overt.jl")
+julia> include("<path_to_repo>/nn_closed_loop/nn_closed_loop/utils/run_overt.jl")
 ```
 There won't be any output but you should now have a server at `http://127.0.0.1:8000/` so you can send a `POST` request to call OVERT.
 Note that the reason for having an HTTP server is that compiling julia libraries can take a while and you don't want to wait for this every time you run the python script.
