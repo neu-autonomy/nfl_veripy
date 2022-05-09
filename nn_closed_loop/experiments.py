@@ -38,6 +38,11 @@ class Experiment:
                 'color': 'tab:green',
                 'ls': '--',
             },
+            ('OVERT', 'None'): {
+                'name': 'OVERT',
+                'color': 'tab:purple',
+                'ls': '-',
+            },
             ('SDP', 'Uniform'): {
                 'name': 'Reach-SDP-Partition',
                 'color': 'tab:red',
@@ -139,34 +144,38 @@ class CompareRuntimeVsErrorTable(Experiment):
         args.estimate_runtime = True
 
         expts = [
-            {
-                'partitioner': 'None',
-                'propagator': 'SeparableCROWN',
-            },
-            {
-                'partitioner': 'None',
-                'propagator': 'SeparableSGIBP',
-            },
+            # {
+            #     'partitioner': 'None',
+            #     'propagator': 'SeparableCROWN',
+            # },
+            # {
+            #     'partitioner': 'None',
+            #     'propagator': 'SeparableSGIBP',
+            # },
             {
                 'partitioner': 'None',
                 'propagator': 'CROWN',
             },
             {
-                'partitioner': 'Uniform',
-                'num_partitions': "[4, 4]",
-                'propagator': 'CROWN',
-            },
-            {
                 'partitioner': 'None',
-                'propagator': 'SDP',
-                'cvxpy_solver': 'MOSEK',
+                'propagator': 'OVERT',
             },
-            {
-                'partitioner': 'Uniform',
-                'num_partitions': "[4, 4]",
-                'propagator': 'SDP',
-                'cvxpy_solver': 'MOSEK',
-            },
+            # {
+            #     'partitioner': 'Uniform',
+            #     'num_partitions': "[4, 4]",
+            #     'propagator': 'CROWN',
+            # },
+            # {
+            #     'partitioner': 'None',
+            #     'propagator': 'SDP',
+            #     'cvxpy_solver': 'MOSEK',
+            # },
+            # {
+            #     'partitioner': 'Uniform',
+            #     'num_partitions': "[4, 4]",
+            #     'propagator': 'SDP',
+            #     'cvxpy_solver': 'MOSEK',
+            # },
         ]
 
         df = pd.DataFrame()
@@ -208,7 +217,7 @@ class CompareRuntimeVsErrorTable(Experiment):
 
         tuples = []
         tuples += [('SeparableCROWN', 'None'), ('SeparableSGIBP', 'None')]
-        tuples += [(prop, part) for part in ['None', 'Uniform'] for prop in ['SDP', 'CROWN']]
+        tuples += [(prop, part) for part in ['None', 'Uniform'] for prop in ['SDP', 'CROWN', 'OVERT']]
 
         # Go through each combination of prop/part we want in the table
         for prop_part_tuple in tuples:
@@ -244,7 +253,7 @@ class CompareRuntimeVsErrorTable(Experiment):
         fig, ax = plt.subplots(1, 1)
 
         # Go through each combination of prop/part we want in the table
-        for propagator in ['SDP', 'CROWN']:
+        for propagator in ['SDP', 'CROWN', 'OVERT']:
             for partitioner in ['None', 'Uniform']:
                 prop_part_tuple = (propagator, partitioner)
                 try:
@@ -284,7 +293,7 @@ class CompareRuntimeVsErrorTable(Experiment):
         grouped, filename = self.grab_latest_groups()
 
         dyn = dynamics.DoubleIntegrator()
-        controller = load_controller(name="double_integrator")
+        controller = load_controller(system=dyn.__class__.__name__)
 
         init_state_range = np.array(
             [  # (num_inputs, 2)
@@ -332,7 +341,7 @@ class CompareRuntimeVsErrorTable(Experiment):
         analyzer.partitioner.linewidth = 1
 
         # Go through each combination of prop/part we want in the table
-        for propagator in ['SDP', 'CROWN']:
+        for propagator in ['SDP', 'CROWN', 'OVERT']:
             for partitioner in ['None', 'Uniform']:
                 prop_part_tuple = (propagator, partitioner)
                 try:

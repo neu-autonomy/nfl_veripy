@@ -11,6 +11,7 @@ data
 *.ipynb_checkpoints/
 
 torch_model
+tmp_model
 tmp.txt
 partition/results
 
@@ -29,3 +30,4 @@ nn_closed_loop/models/quadrotor_small
 nn_closed_loop/datasets/double_integrator.zip
 nn_closed_loop/nn_closed_loop/utils/leftover_ipynb.py
 nn_closed_loop/models/unity/model_*
+nn_closed_loop/models/nnet/

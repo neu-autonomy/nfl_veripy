@@ -7,3 +7,4 @@ from .Duffing import Duffing
 from .ISS import ISS
 from .Unity import Unity
 from .GroundRobotSI import GroundRobotSI
+from .Unicycle import Unicycle

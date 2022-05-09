@@ -51,8 +51,31 @@ def main(args):
         if args.init_state_range is None:
             init_state_range = np.array(
                 [  # (num_inputs, 2)
-                    [2.5, 3.0],  # x0min, x0max
+                    [-12.0, -11.5],  # x0min, x0max
                     [-0.25, 0.25],  # x1min, x1max
+                ]
+            )
+        else:
+            import ast
+
+            init_state_range = np.array(
+                ast.literal_eval(args.init_state_range)
+            )
+    elif args.system == "unicycle":
+        inputs_to_highlight = [
+            {"dim": [0], "name": "$x_0$"},
+            {"dim": [1], "name": "$x_1$"},
+        ]
+        if args.state_feedback:
+            dyn = dynamics.Unicycle()
+        else:
+            raise NotImplementedError
+        if args.init_state_range is None:
+            init_state_range = np.array(
+                [  # (num_inputs, 2)
+                    [-0.25, 0.25],  # x0min, x0max
+                    [-3.0, -2.5],  # x1min, x1max
+                    [-np.pi/100, np.pi/100]
                 ]
             )
         else:
@@ -298,7 +321,7 @@ def setup_parser():
     parser.add_argument(
         "--system",
         default="double_integrator",
-        choices=["double_integrator", "quadrotor", "duffing", "iss", "ground_robot"],
+        choices=["double_integrator", "quadrotor", "duffing", "iss", "ground_robot", "unicycle"],
         help="which system to analyze (default: double_integrator)",
     )
     parser.add_argument(
@@ -338,7 +361,7 @@ def setup_parser():
     parser.add_argument(
         "--propagator",
         default="IBP",
-        choices=["IBP", "CROWN", "CROWNNStep", "FastLin", "SDP", "CROWNLP", "SeparableCROWN", "SeparableIBP", "SeparableSGIBP"],
+        choices=["IBP", "CROWN", "CROWNNStep", "FastLin", "SDP", "CROWNLP", "SeparableCROWN", "SeparableIBP", "SeparableSGIBP", "OVERT"],
         help="which propagator to use (default: IBP)",
     )
 
