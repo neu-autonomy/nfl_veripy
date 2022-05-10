@@ -1,5 +1,6 @@
 from .ClosedLoopPropagator import ClosedLoopPropagator
 from .ClosedLoopSDPPropagator import ClosedLoopSDPPropagator
+from .ClosedLoopOVERTPropagator import ClosedLoopOVERTPropagator
 from .ClosedLoopCROWNIBPCodebasePropagator import (
     ClosedLoopCROWNIBPCodebasePropagator,
     ClosedLoopCROWNLPPropagator,
@@ -24,4 +25,5 @@ propagator_dict = {
     "SeparableCROWN": ClosedLoopSeparableCROWNPropagator,
     "SeparableIBP": ClosedLoopSeparableIBPPropagator,
     "SeparableSGIBP": ClosedLoopSeparableSGIBPPropagator,
+    "OVERT": ClosedLoopOVERTPropagator,
 }

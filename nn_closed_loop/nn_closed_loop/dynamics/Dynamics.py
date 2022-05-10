@@ -47,6 +47,8 @@ class Dynamics:
 
         self.dt = dt
 
+        self.name = self.__class__.__name__
+
     def control_nn(self, x, model):
         if x.ndim == 1:
             batch_x = np.expand_dims(x, axis=0)

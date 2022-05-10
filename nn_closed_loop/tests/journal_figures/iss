@@ -3,5 +3,5 @@ python -m nn_closed_loop.example \
 	--propagator CROWN \
 	--system iss \
 	--state_feedback \
-	--t_max 0.21 \
+	--t_max 0.06 \
 	--skip_show_plot

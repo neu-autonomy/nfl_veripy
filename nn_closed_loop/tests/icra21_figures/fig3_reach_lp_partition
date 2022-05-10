@@ -3,5 +3,6 @@ python -m nn_closed_loop.example \
 	--propagator CROWN \
 	--system double_integrator \
 	--state_feedback \
-	--t_max 5 \
-	--save_plot --skip_show_plot
+	--t_max 2 \
+	--save_plot --skip_show_plot \
+	--num_partitions "[2, 2]"

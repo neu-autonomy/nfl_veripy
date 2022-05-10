@@ -1,41 +1,25 @@
-### About
+## Updates
 
-This repository provides Python implementations for the robustness analysis tools in some of our recent papers. This research is supported by Ford Motor Company.
+**2022-05-09:** Add new MILP-based `ClosedLoopPropagator`, using [`OVERT`](https://github.com/sisl/OVERTVerify.jl). Note that this component requires a Julia installation, and we pass data between Python and Julia using a lightweight local HTTP server. More info [here](/docs/_static/other.md).
 
-#### `nn_partition`
+## About
 
-* Michael Everett, Golnaz Habibi, Jonathan P. How, ["Robustness Analysis of Neural Networks via Efficient Partitioning with Applications in Control Systems"](https://doi.org/10.1109/LCSYS.2020.3045323), IEEE LCSS 2020 & ACC 2021.
+### `nn_partition`: Open-Loop Analysis (NNs in Isolation)
 
-We introduce the concepts of `Analyzer`, `Propagator`, and `Partitioner` in our LCSS/ACC '21 paper and implement several instances of each concept as a starting point.
-This modular view on NN robustness analysis essentially defines an API that decouples each component.
-This decoupling enables improvements in either `Propagator` or `Partitioner` algorithms to have a wide impact across many analysis/verification problems.
+**Handles problems such as:**
+- Given a set of possible NN inputs and a trained NN, compute outer bounds on the set of possible NN outputs.
 
-![nn_partition](/docs/_static/lcss21/animations/GreedySimGuidedPartitioner.gif)
+For more info, please see [this README](/docs/_static/access21/access21.md).
 
-#### `nn_closed_loop`
+### `nn_closed_loop`: Closed-Loop Analysis (NNs in feedback loops) -- includes Reach-LP
 
-* Michael Everett, Golnaz Habibi, Chuangchuang Sun, Jonathan P. How, ["Reachability Analysis of Neural Feedback Loops"](https://arxiv.org/pdf/2108.04140.pdf), in review.
-* Michael Everett, Golnaz Habibi, Jonathan P. How, ["Efficient Reachability Analysis for Closed-Loop Systems with Neural Network Controllers"](https://arxiv.org/pdf/2101.01815.pdf), ICRA 2021.
+**Handles problems such as:**
+- Given a set of possible initial states, a trained NN controller, and a known dynamics model, compute outer bounds on the set of possible future states (**forward reachable sets**).
+- Given a set of terminal states, a trained NN controller, and a known dynamics model, compute inner/outer bounds on the set of possible initial states that will/won't lead to the terminal state set (**backprojection sets**).
 
-Since NNs are rarely deployed in isolation, we developed a framework for analyzing closed-loop systems that employ NN control policies.
-The `nn_closed_loop` codebase follows a similar API as the `nn_partition` package, leveraging analogous `ClosedLoopAnalyzer`, `ClosedLoopPropagator` and `ClosedLoopPartitioner` concepts.
-The typical problem statement is: given a known initial state set (and a known dynamics model), compute bounds on the reachable sets for N steps into the future.
-These bounds provide a safety guarantee for autonomous systems employing NN controllers, as they guarantee that the system will never enter parts of the state space outside of the reachable set bounds.
+For more info, please see [this README](/docs/_static/access21/access21.md).
 
-Reach-LP-Partition | Reach-LP w/ Polytopes
------ | -----
-![nn_partition_polytope](/docs/_static/icra21/other/double_integrator_Uniform_CROWN_tmax_5.0_lp_8.png) | ![nn_partition_polytope](/docs/_static/icra21/other/double_integrator_None_CROWN_tmax_4.0_polytope_35.png)
-
-
-![nn_closed_loop](/docs/_static/journal/partitions/ClosedLoopGreedySimGuidedPartitioner4.gif)
-
----
-
-We build on excellent open-source repositories from the neural network analysis community. These repositories are imported as Git submodules or re-implemented in Python here, with some changes to reflect the slightly different problem statements:
-* [`auto_LIRPA`](https://github.com/KaidiXu/auto_LiRPA)
-* [`crown_ibp`](https://github.com/huanzhang12/CROWN-IBP)
-* [`robust_nn`](https://github.com/arobey1/RobustNN)
-* [`nnv`](https://github.com/verivital/nnv)
+## Setup
 
 ### Get the code
 
@@ -111,10 +95,11 @@ Please see the `jupyter_notebooks` folder for an interactive version of the abov
 
 * LCSS/ACC '21: [README](/docs/_static/lcss21/lcss21.md)
 * ICRA '21: [README](/docs/_static/icra21/icra21.md)
-* Journal: [README](/docs/_static/journal/journal.md)
+* IEEE Access '21: [README](/docs/_static/access21/access21.md)
 
 ### If you find this code useful, please consider citing:
-For the partitioning-only code (LCSS/ACC '21):
+
+For the open-loop code:
 ```
 @article{everett2020robustness,
   title={Robustness Analysis of Neural Networks via Efficient Partitioning with Applications in Control Systems},
@@ -126,40 +111,33 @@ For the partitioning-only code (LCSS/ACC '21):
 }
 ```
 
-For the closed-loop system analysis code (ICRA '21):
+For the closed-loop code:
 ```
-@inproceedings{Everett21_ICRA,
-    Author = {Michael Everett and Golnaz Habibi and Jonathan P. How},
-    Booktitle = {IEEE International Conference on Robotics and Automation (ICRA)},
-    Title = {Efficient Reachability Analysis for Closed-Loop Systems with Neural Network Controllers},
-    Year = {2021},
-    Url = {https://arxiv.org/pdf/2101.01815.pdf},
-    }
-```
-and/or:
-```
-@article{Everett21_journal,
-    Author = {Michael Everett and Golnaz Habibi and Chuangchuang Sun and Jonathan P. How},
-    Title = {Reachability Analysis of Neural Feedback Loops},
-    journal={IEEE Access},
-    Year = {2021 (accepted)},
-    Url = {https://arxiv.org/pdf/2101.01815.pdf},
-    }
+@article{everett2021reachability,
+  title={Reachability Analysis of Neural Feedback Loops},
+  author={Everett, Michael and Habibi, Golnaz and Sun, Chuangchuang and How, Jonathan P},
+  journal={IEEE Access},
+  volume={9},
+  pages={163938--163953},
+  year={2021},
+  publisher={IEEE}
+}
 ```
 
-### TODOS:
+## Acknowledgements
 
-- [x] ICRA Fig 3 as single script
-- [x] ICRA Fig 3b make pkl
-- [x] ICRA Fig 3c from pkl
-- [x] get animation working for ICRA
+This research is supported by Ford Motor Company.
 
-Someday soon...
+We build on excellent open-source repositories from the neural network analysis community. These repositories are imported as Git submodules or re-implemented in Python here, with some changes to reflect the slightly different problem statements:
+* [`auto_LIRPA`](https://github.com/KaidiXu/auto_LiRPA)
+* [`crown_ibp`](https://github.com/huanzhang12/CROWN-IBP)
+* [`robust_nn`](https://github.com/arobey1/RobustNN)
+* [`nnv`](https://github.com/verivital/nnv)
+
+
+## TODOS:
+
 - [ ] add rtdocs (auto-fill code snippets from test files)
-- [ ] LCSS Fig 8
-- [ ] Replicate LCSS Table 6b
-- [ ] Replicate LCSS Table I
-- [ ] ICRA Fig 4a make pkl
-- [ ] ICRA Fig 4a from pkl
-- [ ] ICRA Fig 4b as single script
-- [ ] ICRA Fig 4b load correct model
+- [ ] add installation instructions & tests for julia code
+- [ ] add link to backproj paper
+- [ ] add backproj code (when approved)

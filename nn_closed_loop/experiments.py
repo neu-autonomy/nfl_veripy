@@ -28,19 +28,19 @@ class Experiment:
                 'color': 'tab:green',
                 'ls': '-',
             },
-            ('CROWN', 'None'): {
-                'name': 'Reach-LP',
-                'color': 'tab:green',
-                'ls': '--',
-            },
             ('CROWNNStep', 'None'): {
                 'name': 'Reach-LP-N-Step',
                 'color': 'black',
                 'ls': '--',
             },
-            ('CROWNNStep', 'Uniform'): {
-                'name': 'Reach-LP-N-Step-Partition',
-                'color': 'black',
+            ('CROWN', 'None'): {
+                'name': 'Reach-LP',
+                'color': 'tab:green',
+                'ls': '--',
+            },
+            ('OVERT', 'None'): {
+                'name': 'OVERT',
+                'color': 'tab:purple',
                 'ls': '-',
             },
             ('SDP', 'Uniform'): {
@@ -136,17 +136,12 @@ class CompareRuntimeVsErrorTable(Experiment):
         args.show_plot = False
         args.make_animation = False
         args.show_animation = False
+        args.init_state_range = "[[2.5, 3.0], [-0.25, 0.25]]"
         args.state_feedback = True
         args.boundaries = "lp"
-        args.estimate_runtime = True
-
         args.system = "double_integrator"
-        args.init_state_range = "[[2.5, 3.0], [-0.25, 0.25]]"
         args.t_max = 5
-
-        # args.system = "quadrotor"
-        # args.init_state_range = "[[4.65, 4.75], [4.65, 4.75], [2.95, 3.05], [0.94, 0.96], [-0.01, 0.01], [-0.01, 0.01]]"
-        # args.t_max = 2.0
+        args.estimate_runtime = True
 
         expts = [
             # {
@@ -163,18 +158,8 @@ class CompareRuntimeVsErrorTable(Experiment):
             },
             {
                 'partitioner': 'None',
-                'propagator': 'CROWNNStep',
+                'propagator': 'OVERT',
             },
-            # {
-            #     'partitioner': 'Uniform',
-            #     'num_partitions': "[4, 4]",
-            #     'propagator': 'CROWNNStep',
-            # },
-            # {
-            #     'partitioner': 'Uniform',
-            #     'num_partitions': "[4, 4]",
-            #     'propagator': 'CROWN',
-            # },
             # {
             #     'partitioner': 'Uniform',
             #     'num_partitions': "[4, 4]",
@@ -232,7 +217,7 @@ class CompareRuntimeVsErrorTable(Experiment):
 
         tuples = []
         tuples += [('SeparableCROWN', 'None'), ('SeparableSGIBP', 'None')]
-        tuples += [(prop, part) for part in ['None', 'Uniform'] for prop in ['SDP', 'CROWN', 'CROWNNStep']]
+        tuples += [(prop, part) for part in ['None', 'Uniform'] for prop in ['SDP', 'CROWN', 'OVERT']]
 
         # Go through each combination of prop/part we want in the table
         for prop_part_tuple in tuples:
@@ -268,7 +253,7 @@ class CompareRuntimeVsErrorTable(Experiment):
         fig, ax = plt.subplots(1, 1)
 
         # Go through each combination of prop/part we want in the table
-        for propagator in ['SDP', 'CROWN', 'CROWNNStep']:
+        for propagator in ['SDP', 'CROWN', 'OVERT']:
             for partitioner in ['None', 'Uniform']:
                 prop_part_tuple = (propagator, partitioner)
                 try:
@@ -356,7 +341,7 @@ class CompareRuntimeVsErrorTable(Experiment):
         analyzer.partitioner.linewidth = 1
 
         # Go through each combination of prop/part we want in the table
-        for propagator in ['SDP', 'CROWN', 'CROWNNStep']:
+        for propagator in ['SDP', 'CROWN', 'OVERT']:
             for partitioner in ['None', 'Uniform']:
                 prop_part_tuple = (propagator, partitioner)
                 try:
@@ -412,61 +397,11 @@ class CompareRuntimeVsErrorTable(Experiment):
 
         # plt.show()
 
-    def plot_reachable_sets_3d(self):
-
+    def plot_error_vs_runtime(self):
         grouped, filename = self.grab_latest_groups()
 
-        dyn = dynamics.Quadrotor()
-        controller = load_controller(system=dyn.__class__.__name__)
-
-        init_state_range = np.array(
-            [  # (num_inputs, 2)
-                [4.65, 4.65, 2.95, 0.94, -0.01, -0.01],
-                [4.75, 4.75, 3.05, 0.96, 0.01, 0.01],
-            ]
-        ).T
-
-        partitioner_hyperparams = {
-            "type": "None",
-        }
-        propagator_hyperparams = {
-            "type": "CROWN",
-            "input_shape": init_state_range.shape[:-1],
-        }
-
-        # Set up analyzer (+ parititoner + propagator)
-        analyzer = analyzers.ClosedLoopAnalyzer(controller, dyn)
-        analyzer.partitioner = partitioner_hyperparams
-        analyzer.propagator = propagator_hyperparams
-
-        input_constraint = constraints.LpConstraint(
-            range=init_state_range, p=np.inf
-        )
-
-        inputs_to_highlight = [
-            {"dim": [0], "name": "$x$"},
-            {"dim": [1], "name": "$y$"},
-            {"dim": [2], "name": "$z$"},
-        ]
-
-        t_max = 20
-
-        analyzer.partitioner.setup_visualization(
-            input_constraint,
-            t_max,
-            analyzer.propagator,
-            show_samples=True,
-            inputs_to_highlight=inputs_to_highlight,
-            aspect="auto",
-            initial_set_color=analyzer.initial_set_color,
-            initial_set_zorder=analyzer.initial_set_zorder,
-            sample_zorder=analyzer.sample_zorder
-        )
-
-        analyzer.partitioner.linewidth = 1
-
         # Go through each combination of prop/part we want in the table
-        for propagator in ['SDP', 'CROWN', 'CROWNNStep']:
+        for propagator in ['CROWN', 'CROWNNStep']:
             for partitioner in ['None', 'Uniform']:
                 prop_part_tuple = (propagator, partitioner)
                 try:
@@ -474,24 +409,15 @@ class CompareRuntimeVsErrorTable(Experiment):
                 except KeyError:
                     continue
 
-                output_constraint = group['output_constraint'].iloc[0]
+                import pdb; pdb.set_trace()
+                error = group['final_step_error'].iloc[0]
+                label = self.info[prop_part_tuple]['name']
+                runtime = group['runtime'].mean()
 
-                analyzer.partitioner.visualize(
-                    [],
-                    [],
-                    output_constraint,
-                    None,
-                    reachable_set_color=self.info[prop_part_tuple]['color'],
-                    reachable_set_ls=self.info[prop_part_tuple]['ls'],
-                    reachable_set_zorder=analyzer.reachable_set_zorder
-                )
-
-                analyzer.partitioner.default_patches = analyzer.partitioner.animate_axes.patches.copy()
-                analyzer.partitioner.default_lines = analyzer.partitioner.animate_axes.lines.copy()
-
-        # Save plot with similar name to pkl file that contains data
-        fig_filename = filename.replace('table', 'reachable').replace('pkl', 'png')
-        plt.savefig(fig_filename)
+                print(propagator, partitioner)
+                print(error)
+                print(runtime)
+                print('--')
 
 
 class CompareLPvsCF(Experiment):
@@ -569,22 +495,23 @@ class NxScalability(Experiment):
         args.system = "unity"
         args.t_max = 5
         args.estimate_runtime = True
-        args.nu = 2
 
         expts = [
+            # {
+            #     'partitioner': 'None',
+            #     'propagator': 'CROWN',
+            # },
             {
-                'partitioner': 'None',
+                'partitioner': 'Uniform',
                 'propagator': 'CROWN',
             },
             # {
             #     'partitioner': 'None',
-            #     'propagator': 'SDP',
-            #     'cvxpy_solver': 'MOSEK',
+            #     'propagator': 'CROWNNStep',
             # },
         ]
 
-        nxs = [1, 2, 3, 4, 5]
-        # nxs = [2, 3, 4, 10, 20, 30, 50, 100]
+        nxs = [2, 3, 4, 5, 6, 7, 8, 9, 10, 20, 30, 50, 100]
 
         df = pd.DataFrame()
 
@@ -592,6 +519,13 @@ class NxScalability(Experiment):
             for expt in expts:
                 for key, value in expt.items():
                     setattr(args, key, value)
+
+                print("Prop: {}, Part: {}, nx: {}".format(expt['propagator'], expt['partitioner'], nx))
+
+                args.num_partitions = "2"
+
+                if nx > 10 and expt['partitioner'] == 'Uniform':
+                    continue
 
                 if self.state_or_control == "state":
                     args.nx = nx
@@ -619,21 +553,39 @@ class NxScalability(Experiment):
         latest_filename = max(list_of_files, key=os.path.getctime)
         df = pd.read_pickle(latest_filename)
 
-        runtime_mean_series = df.groupby(['propagator', 'nx']).runtime.mean().unstack()
-        runtime_std_series = df.groupby(['propagator', 'nx']).runtime.std().unstack()
-        
+        max_runtime_to_plot = 40.
+
+        groups = df.groupby(['propagator', 'partitioner'])
+
         plt.clf()
 
-        color = 'tab:green'
-        plt.plot(runtime_mean_series.columns.to_numpy(), runtime_mean_series.iloc[0].to_numpy(), color=color)
-        plt.gca().fill_between(runtime_mean_series.columns.to_numpy(), runtime_mean_series.iloc[0].to_numpy()-runtime_std_series.iloc[0].to_numpy(), runtime_mean_series.iloc[0].to_numpy(), alpha=0.2, color=color)
-        plt.gca().fill_between(runtime_mean_series.columns.to_numpy(), runtime_mean_series.iloc[0].to_numpy(), runtime_mean_series.iloc[0].to_numpy()+runtime_std_series.iloc[0].to_numpy(), alpha=0.2, color=color)
+        for (prop, part), df_ in groups:
+            grp = df_.groupby(['nx'])
+            # stat = 'final_step_error'
+            stat = 'runtime'
+            runtime_mean_series = grp[stat].mean()
+            runtime_std_series = grp[stat].std()
+
+            color = self.info[(prop, part)]['color']
+            ls = self.info[(prop, part)]['ls']
+            label = self.info[(prop, part)]['name']
+
+            inds = runtime_mean_series < max_runtime_to_plot
+
+            runtime_mean_series = runtime_mean_series[inds]
+            runtime_std_series = runtime_std_series[inds]
+
+            plt.plot(runtime_mean_series.index.to_numpy(), runtime_mean_series.to_numpy(), color=color, linestyle=ls, label=label)
+            plt.gca().fill_between(runtime_mean_series.index.to_numpy(), runtime_mean_series.to_numpy()-runtime_std_series.to_numpy(), runtime_mean_series.to_numpy(), alpha=0.2, color=color, linestyle=ls)
+            plt.gca().fill_between(runtime_mean_series.index.to_numpy(), runtime_mean_series.to_numpy(), runtime_mean_series.to_numpy()+runtime_std_series.to_numpy(), alpha=0.2, color=color, linestyle=ls)
 
         if self.state_or_control == "state":
             plt.xlabel('Number of States, $n_x$')
         elif self.state_or_control == "control":
             plt.xlabel('Number of Control Inputs, $n_u$')
+        # plt.ylabel(stat)
         plt.ylabel('Computation Time [s]')
+        plt.legend(prop={'size': 14})
         plt.tight_layout()
 
         # Save plot with similar name to pkl file that contains data
@@ -644,13 +596,13 @@ class NxScalability(Experiment):
 
 if __name__ == '__main__':
 
-    # # Like Fig 3 in ICRA21 paper
-    # c = CompareRuntimeVsErrorTable()
-    # # c.run()
+    # Like Fig 3 in ICRA21 paper
+    c = CompareRuntimeVsErrorTable()
+    # c.run()
     # c.plot()  # 3A: table
-    # c.plot_reachable_sets_3d()  # 3B: overlay reachable sets
-    # # c.plot_reachable_sets()  # 3B: overlay reachable sets
+    # c.plot_reachable_sets()  # 3B: overlay reachable sets
     # c.plot_error_vs_timestep()  # 3C: error vs timestep
+    c.plot_error_vs_runtime()
 
     # c = CompareLPvsCF(system="double_integrator")
     # c.run()
@@ -661,9 +613,9 @@ if __name__ == '__main__':
     # c.plot()
 
     # See how runtime scales with number of states
-    c = NxScalability("state")
-    c.run()
-    c.plot()
+    # c = NxScalability("state")
+    # c.run()
+    # c.plot()
 
     # See how runtime scales with number of control inputs
     # c = NxScalability("control")

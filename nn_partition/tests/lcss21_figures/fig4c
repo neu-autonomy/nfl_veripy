@@ -6,4 +6,5 @@ python -m nn_partition.example \
 	--interior_condition convex_hull \
 	--model random_weights \
 	--activation relu \
-	--show_input --show_output
+	--show_input --show_output \
+    --skip_show_plot --save_plot

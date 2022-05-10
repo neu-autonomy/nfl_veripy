@@ -2,6 +2,7 @@ from .SimGuidedPartitioner import SimGuidedPartitioner
 import numpy as np
 from itertools import product
 from sklearn.metrics import pairwise_distances
+from shapely.geometry import Point, Polygon
 
 
 class GreedySimGuidedPartitioner(SimGuidedPartitioner):
@@ -106,7 +107,6 @@ class GreedySimGuidedPartitioner(SimGuidedPartitioner):
                 worst_M_index = worst_index[-1]
                 input_range_, output_range_ = M.pop(worst_M_index)
             elif self.interior_condition == "convex_hull":
-                from shapely.geometry import Point, Polygon
 
                 # Create Point objects
 

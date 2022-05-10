@@ -1,22 +1,16 @@
-from .Dynamics import DiscreteTimeDynamics
+from .Dynamics import Dynamics
 import numpy as np
 from scipy.linalg import solve_discrete_are
 from nn_closed_loop.utils.mpc import control_mpc
 
 
-class Unity(DiscreteTimeDynamics):
+class Unity(Dynamics):
     def __init__(self, nx=2, nu=2):
 
         self.continuous_time = False
 
-        self.nx = nx
-        self.nu = nu
-
         At = np.eye(nx)
-        for i in range(nx):
-            At[i, i+1:] = 0.1
-        bt = np.zeros((nx, nu))
-        bt[-1, -1] = 1.
+        bt = np.ones((nx, nu))
         ct = np.zeros((nx,))
 
         # u_limits = None
@@ -27,25 +21,16 @@ class Unity(DiscreteTimeDynamics):
 
         self.cmap_name = "tab10"
 
-    def control_mpc(self, x0):
-        # LQR-MPC parameters
-        if not hasattr(self, "Q"):
-            self.Q = np.eye(self.nx)
-        if not hasattr(self, "R"):
-            self.R = np.eye(self.nu)
-        if not hasattr(self, "Pinf"):
-            self.Pinf = solve_discrete_are(self.At, self.bt, self.Q, self.R)
+        self.name = "Unity_{}".format(str(nx).zfill(3))
 
-        return control_mpc(
-            x0,
-            self.At,
-            self.bt,
-            self.ct,
-            self.Q,
-            self.R,
-            self.Pinf,
-            self.u_limits[:, 0],
-            self.u_limits[:, 1],
-            n_mpc=5,
-            debug=False,
-        )
+    def dynamics_step(self, xs, us):
+        # Dynamics are already discretized:
+        xs_t1 = (np.dot(self.At, xs.T) + np.dot(self.bt, us.T)).T + self.ct
+        if self.process_noise is not None:
+            noise = np.random.uniform(
+                low=self.process_noise[:, 0],
+                high=self.process_noise[:, 1],
+                size=xs.shape,
+            )
+            xs_t1 += noise
+        return xs_t1
