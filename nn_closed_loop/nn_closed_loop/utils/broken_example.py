@@ -54,22 +54,22 @@ if __name__ == '__main__':
     umin = np.minimum(lower_A_numpy@x_max+lower_sum_b_numpy, lower_A_numpy@x_min+lower_sum_b_numpy)
     print("upper: {}".format(umax))
     print("lower: {}".format(umin))
-    import pdb; pdb.set_trace()
+    # import pdb; pdb.set_trace()
 
 
     ######################################################
-    ## Old evaluation code from bound_layers.py
+    # Old evaluation code from bound_layers.py
 
-    # # Sample a grid of pts from the input set, to get exact NN output polytope
-    # x0 = np.linspace(x0_min, x0_max, num=100)
-    # x1 = np.linspace(x1_min, x1_max, num=100)
-    # xx,yy = np.meshgrid(x0, x1)
-    # pts = np.reshape(np.dstack([xx,yy]), (-1,2))
-    # sampled_outputs = torch_model.forward(torch.Tensor(pts))
-    # # import pdb; pdb.set_trace()
-    # # Print and compare the two bounds numerically    
-    # sampled_output_min = np.min(sampled_outputs.data.numpy()[:,0])
-    # sampled_output_max = np.max(sampled_outputs.data.numpy()[:,0])
+    # Sample a grid of pts from the input set, to get exact NN output polytope
+    x0 = np.linspace(x0_min, x0_max, num=100)
+    x1 = np.linspace(x1_min, x1_max, num=100)
+    xx,yy = np.meshgrid(x0, x1)
+    pts = np.reshape(np.dstack([xx,yy]), (-1,2))
+    sampled_outputs = torch_model.forward(torch.Tensor(pts))
+    # import pdb; pdb.set_trace()
+    # Print and compare the two bounds numerically    
+    sampled_output_min = np.min(sampled_outputs.data.numpy()[:,0])
+    sampled_output_max = np.max(sampled_outputs.data.numpy()[:,0])
     # crown_min = out_min_crown.data.numpy()[0,0]
     # crown_max = out_max_crown.data.numpy()[0,0]
     # print("The sampled outputs lie between: [{},{}]".format(
@@ -88,15 +88,15 @@ if __name__ == '__main__':
     # plt.axvline(out_max_crown.data.numpy()[0,0], ls='--')
 
 
-    ######################################################
-    ## Plot vx over state space (also uncomment block above)
-    # fig = plt.figure()
-    # ax = fig.add_subplot(projection='3d')
-    # ax.scatter(pts[:,0], pts[:,1], sampled_outputs.data.numpy()[:,0])
+    #####################################################
+    # Plot vx over state space (also uncomment block above)
+    fig = plt.figure()
+    ax = fig.add_subplot(projection='3d')
+    ax.scatter(pts[:,0], pts[:,1], sampled_outputs.data.numpy()[:,0])
 
-    # print("Showing plot...")
-    # plt.show()
-    # print('---')
+    print("Showing plot...")
+    plt.show()
+    print('---')
 
     #
     ###########################

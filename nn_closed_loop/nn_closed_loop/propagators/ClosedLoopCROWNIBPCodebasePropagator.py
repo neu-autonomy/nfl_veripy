@@ -1,4 +1,5 @@
 from gc import collect
+from http.client import ImproperConnectionState
 import imp
 from operator import imod
 from .ClosedLoopPropagator import ClosedLoopPropagator
@@ -123,7 +124,9 @@ class ClosedLoopCROWNIBPCodebasePropagator(ClosedLoopPropagator):
                 A_in=A_inputs,
                 b_in=b_inputs,
             )
-
+            # if self.dynamics.x_limits is not None:
+            #     A_out_xt1_max = np.clip(A_out_xt1_max, self.dynamics.x_limits[i,0], self.dynamics.x_limits[i,1])
+            #     A_out_xt1_min = np.clip(A_out_xt1_min, self.dynamics.x_limits[i,0], self.dynamics.x_limits[i,1])
             if isinstance(
                 output_constraint, constraints.PolytopeConstraint
             ):
@@ -312,7 +315,7 @@ class ClosedLoopCROWNIBPCodebasePropagator(ClosedLoopPropagator):
 
         # Iterate through each partition
         for element in product(
-            *[range(num) for num in num_partitions.flatten()]
+            *[range(int(num)) for num in num_partitions.flatten()]
         ):
             # Compute this partition's min/max xt values
             element_ = np.array(element).reshape(input_shape)
@@ -823,7 +826,7 @@ class ClosedLoopCROWNPropagator(ClosedLoopCROWNIBPCodebasePropagator):
             self, input_shape=input_shape, dynamics=dynamics
         )
         self.method_opt = "full_backward_range"
-        self.params = {"same-slope": False}
+        self.params = {"same-slope": False, "zero-lb": True}
 
 
 class ClosedLoopCROWNLPPropagator(ClosedLoopCROWNPropagator):

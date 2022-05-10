@@ -20,6 +20,21 @@ def random_weight_controller():
     save_model(model, name="model", dir=dir_path+"/controllers/random_weight_controller/")
 
 # Policy used to debug CROWN
+def corner_policy():
+    neurons_per_layer = [2]
+    state_range = np.array([-10, 10])
+    xs = np.random.uniform(low=state_range[0], high=state_range[1], size=(10000, 1))
+    us = np.zeros(xs.shape)
+    for i,x in enumerate(xs):
+        if x < 0:
+            us[i] = x
+        else:
+            us[i] = 0
+        
+    model = create_and_train_model(neurons_per_layer, xs, us, epochs=200)
+    save_model(model, name="model", dir=dir_path+"/controllers/corner_policy3/")
+
+# Policy used to debug CROWN
 def zero_input_controller():
     neurons_per_layer = [10,10]
     state_range = np.array(
@@ -279,7 +294,7 @@ def ground_robotDI_obstacle():
     model = create_and_train_model(neurons_per_layer, xs, us, epochs=5, verbose=True)
     save_model(model, name="model", dir=dir_path+"/controllers/ground_robot_DI_obstacle_simple/")
 
-def ground_robotDI_obstacle_1D():
+def ground_robotDI_obstacle_2D():
     neurons_per_layer = [20,20]
     state_range = np.array(
         [
@@ -292,23 +307,75 @@ def ground_robotDI_obstacle_1D():
     xs = np.random.uniform(low=state_range[:, 0], high=state_range[:, 1], size=(1000000, 4))
     us = np.zeros((len(xs),2))
     for i,pos in enumerate(xs):
-        if abs(pos[0]) > 0.33: 
-            ax_ = 1*(pos[0]/(0.01*pos[0]**8))
+        if abs(pos[0]) < 0.33:
+            ax_ = 12*pos[0]
+        elif abs(pos[0]) < 2:
+            ax_ = (10*pos[0]/(pos[0]**5))
         else:
-            ax_ = 3*pos[0]
-        if abs(pos[0]) > 0.33: 
-            ay_ = 1*(pos[1]/(0.01*pos[1]**8))
+            ax_ = 1
+        if abs(pos[1]) < 0.33:
+            ay_ = 12*pos[1]
+        elif abs(pos[1]) < 2:
+            ay_ = (10*pos[1]/(pos[1]**5))
         else:
-            ay_ = 3*pos[1]
+            ay_ = -1*np.sign(pos[1])
         
-        ax = max(min(ax_, 1), -1)
-        ay = max(min(ay_, 1), -1)
+        ax = max(min(ax_, 4), -4)
+        ay = max(min(ay_, 4), -4)
         us[i] = np.array([ax,ay])
         if np.mod(i,1000000)==0:
             print('yeayea')
     print('ok')
-    model = create_and_train_model(neurons_per_layer, xs, us, epochs=5, verbose=True)
+    model = create_and_train_model(neurons_per_layer, xs, us, epochs=15, verbose=True)
     save_model(model, name="model", dir=dir_path+"/controllers/ground_robot_DI_obstacle_simple_2D_slant/")
+
+def ground_robotDI_avoid_origin_2D():
+    neurons_per_layer = [20,20]
+    state_range = np.array(
+        [
+            [-20, 20],
+            [-20, 20],
+            [-3, 3],
+            [-3, 3],
+        ]
+    )
+    xs = np.random.uniform(low=state_range[:, 0], high=state_range[:, 1], size=(1000000, 4))
+    us = np.zeros((len(xs),2))
+    for i,pos in enumerate(xs):
+        ax = 4*np.sign(pos[0])
+        ay = 4*np.sign(pos[1])
+        us[i] = np.array([ax,ay])
+        if np.mod(i,1000000)==0:
+            print('yeayea')
+    print('ok')
+    model = create_and_train_model(neurons_per_layer, xs, us, epochs=15, verbose=True)
+    save_model(model, name="model", dir=dir_path+"/controllers/ground_robot_DI_avoid_origin/")
+
+def ground_robotDI_obstacle_2D_circle():
+    neurons_per_layer = [20,20]
+    state_range = np.array(
+        [
+            [-20, 20],
+            [-20, 20],
+            [-2, 2],
+            [-2, 2],
+        ]
+    )
+    xs = np.random.uniform(low=state_range[:, 0], high=state_range[:, 1], size=(1000000, 4))
+    us = np.zeros((len(xs),2))
+    for i,pos in enumerate(xs):
+        ax_ = np.sign(pos[0])*10*pos[0]/((pos[0]**2 + pos[1]**2)**4)
+        ay_ = np.sign(pos[1])*10*pos[1]/((pos[0]**2 + pos[1]**2)**4)
+        
+        
+        ax = max(min(ax_, 4), -4)
+        ay = max(min(ay_, 4), -4)
+        us[i] = np.array([ax,ay])
+        if np.mod(i,1000000)==0:
+            print('yeayea')
+    print('ok')
+    model = create_and_train_model(neurons_per_layer, xs, us, epochs=15, verbose=True)
+    save_model(model, name="model", dir=dir_path+"/controllers/ground_robot_DI_obstacle_2D_circle/")
 
 
 
@@ -336,6 +403,41 @@ def ground_robotDI_sine():
     print('ok')
     model = create_and_train_model(neurons_per_layer, xs, us, epochs=8, verbose=True)
     save_model(model, name="model", dir=dir_path+"/controllers/ground_robot_DI_sine/")
+
+
+def double_integratorx4():
+    neurons_per_layer = [20,20]
+    state_range = np.array(
+        [
+            [-20, 20],
+            [-20, 20],
+            [-20, 20],
+            [-20, 20],
+            [-10, 10],
+            [-10, 10],
+            [-10, 10],
+            [-10, 10],
+        ]
+    )
+    xs = np.random.uniform(low=state_range[:, 0], high=state_range[:, 1], size=(1000000, 8))
+    us = np.zeros((len(xs),4))
+    for i,pos in enumerate(xs):
+        ax_ = 0.5
+        ay_ = 0
+        az_ = 0
+        ai_ = 0
+
+        
+        ax = max(min(ax_, 1), -1)
+        ay = max(min(ay_, 1), -1)
+        az = max(min(az_, 1), -1)
+        ai = max(min(ai_, 1), -1)
+        us[i] = np.array([ax,ay,az,ai])
+        if np.mod(i,1000000)==0:
+            print('yeayea')
+    print('ok')
+    model = create_and_train_model(neurons_per_layer, xs, us, epochs=5, verbose=True)
+    save_model(model, name="model", dir=dir_path+"/controllers/simple_4_DI/")
 
 def build_controller_from_matlab(filename = "quad_mpc_data.mat"):
     neurons_per_layer = [25,25,25]
@@ -379,8 +481,11 @@ def main():
     # generate_mpc_data_quadrotor()
     # tree_trunks_vs_quad()
     # simple_quad()
-    ground_robotDI_obstacle_1D()
+    # ground_robotDI_obstacle_2D()
+    # ground_robotDI_avoid_origin_2D()
+    # double_integratorx4()
     # ground_robotDI_sine()
+    corner_policy()
 
 if __name__ == "__main__":
     main()
