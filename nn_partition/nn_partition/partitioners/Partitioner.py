@@ -542,8 +542,8 @@ class Partitioner:
             )
 
         elif self.interior_condition == "convex_hull":
-            true_area = output_range_exact.area
-            estimated_area = output_range_estimate.area
+            true_area = output_range_exact.volume
+            estimated_area = output_range_estimate.volume
             error = (estimated_area - true_area) / true_area
         else:
             raise NotImplementedError
