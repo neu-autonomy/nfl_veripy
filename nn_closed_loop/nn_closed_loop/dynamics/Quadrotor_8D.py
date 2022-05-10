@@ -5,7 +5,7 @@ from scipy.linalg import solve_discrete_are
 import osqp
 
 
-class Quadrotor(DiscreteTimeDynamics):
+class Quadrotor_8D(DiscreteTimeDynamics):
     def __init__(self):
 
         g = 9.8  # m/s^2
@@ -36,12 +36,8 @@ class Quadrotor(DiscreteTimeDynamics):
                 [ 0,      0.3991, 0     ]
             ]
         )
-        bt[3][0] = g
-        bt[4][1] = -g
-        bt[5][2] = 1
 
-        ct = np.zeros((6,))
-        ct[-1] = -g
+        ct = np.zeros((8,))
 
         # u_limits = None
         u_limits = np.array(
@@ -65,7 +61,7 @@ class Quadrotor(DiscreteTimeDynamics):
         # 
         x_limits=None   
 
-        dt = 0.125
+        dt = 0.1
 
         super().__init__(At=At, bt=bt, ct=ct, u_limits=u_limits, dt=dt, x_limits=x_limits)
         Q_ = np.zeros((6,6))

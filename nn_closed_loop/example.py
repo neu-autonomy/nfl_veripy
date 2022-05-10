@@ -1,4 +1,5 @@
 import numpy as np
+import torch as th
 import nn_closed_loop.dynamics as dynamics
 import nn_closed_loop.analyzers as analyzers
 import nn_closed_loop.constraints as constraints
@@ -10,6 +11,7 @@ from nn_closed_loop.utils.utils import (
 import os
 import argparse
 
+dir_path = os.path.dirname(os.path.realpath(__file__))
 
 def main(args):
     np.random.seed(seed=0)
@@ -56,7 +58,7 @@ def main(args):
             # )
             init_state_range = np.array(
                 [  # (num_inputs, 2)
-                    [-5.5, -4.5],  # x0min, x0max
+                    [-1.5, -0.5],  # x0min, x0max
                     [-0.5, 0.5],  # x1min, x1max
                 ]
             )
@@ -87,8 +89,8 @@ def main(args):
         if args.final_state_range is None:
             final_state_range = np.array(
                 [
-                    [-1, 1],
-                    [-1, 1]
+                    [-7.0, -6.5],
+                    [-0.5, 0.5]
                 ]
             )
         else:
@@ -109,10 +111,10 @@ def main(args):
         if args.init_state_range is None:
             init_state_range = np.array(
                 [  # (num_inputs, 2)
-                    [1-0.25, 1+0.25],  # x0min, x0max
+                    [-5-0.25, -5+0.25],  # x0min, x0max
                     [-0.25, 0.25],  # x1min, x1max
-                    [0.99, 1.01],
-                    [1.24, 1.26]
+                    [0.95, 0.99],
+                    [-0.01, 0.01]
                 ]
             )
         else:
@@ -126,8 +128,8 @@ def main(args):
                 [  # (num_inputs, 2)
                     [-0.25, 0.25],  # x0min, x0max
                     [-0.25, 0.25],  # x1min, x1max
-                    [-0.5, 0.5],
-                    [-0.01, 0.01]
+                    [-1, 1],
+                    [-1, 1]
                 ]
             )
         else:
@@ -180,11 +182,11 @@ def main(args):
             )
         if args.final_state_range is None:
             final_state_range = np.array(
-                [
-                    [-1, 1],
-                    [-1, 1]
+                [  # (num_inputs, 2)
+                    [-0.25, 0.5-0.25, 1, -0.2, -0.2, -0.2],
+                    [0.25, 0.5+0.25, 4, 0.2, 0.2, 0.2],
                 ]
-            )
+            ).T
         else:
             import ast
 
@@ -204,8 +206,8 @@ def main(args):
         if args.init_state_range is None:
             init_state_range = np.array(
                 [  # (num_inputs, 2)
-                    [4.65, 4.65, 2.95, 0.94, -0.01, -0.01],
-                    [4.75, 4.75, 3.05, 0.96, 0.01, 0.01],
+                    [4.65, 4.65, 2.95, 0.94, -0.01, -0.01, 0, 0],
+                    [4.75, 4.75, 3.05, 0.96, 0.01, 0.01, 0, 0],
                 ]
             ).T
         else:
@@ -267,7 +269,7 @@ def main(args):
         raise NotImplementedError
 
     if args.num_partitions is None:
-        num_partitions = np.array([4, 4])
+        num_partitions = np.ones(dyn.At.shape[0])
     else:
         import ast
 
@@ -289,10 +291,16 @@ def main(args):
         propagator_hyperparams["cvxpy_solver"] = args.cvxpy_solver
 
     # Load NN control policy
-    controller = load_controller(
-        system=dyn.__class__.__name__,
-        model_name=args.controller,
-    )
+    if args.system is not "Quadrotor_8D":
+        controller = load_controller(
+            system=dyn.__class__.__name__,
+            model_name=args.controller,
+        )
+    elif args.system is "Quadrotor_8D":
+        controller = th.load(dir_path+"/models/Quadrotor_8D/intermediate_policy_0.pt")
+        controller.eval()
+    else:
+        raise NotImplementedError
 
     # Set up analyzer (+ parititoner + propagator)
     analyzer = analyzers.ClosedLoopAnalyzer(controller, dyn)
@@ -437,8 +445,8 @@ def main(args):
         analyzer.visualize(
             input_constraint,
             output_constraint,
-            target_constraint = back_output_constraint,
-            show_samples=False,
+            target_constraint = None,
+            show_samples=True,
             show_trajectories=False,
             show=args.show_plot,
             labels=args.plot_labels,
@@ -458,12 +466,12 @@ def main(args):
         #         [-0.5, 0.5]
         #     ]
         # )
-        final_state_range = np.array(
-            [
-                [-1, 1],
-                [-1, 1]
-            ]
-        )
+        # final_state_range = np.array(
+        #     [
+        #         [-1, 1],
+        #         [-1, 1]
+        #     ]
+        # )
         # final_state_range = np.array(
         #         [  # (num_inputs, 2)
         #             [4.5, 5.0],  # x0min, x0max
@@ -505,12 +513,12 @@ def main(args):
         #     ]
         # ).T
 
-        final_state_range = np.array(
-            [  # (num_inputs, 2)
-                [-0.25, -0.25, 2, -0.01, -0.01, -0.01],
-                [0.25, 0.25, 2.5, 0.01, 0.01, 0.01],
-            ]
-        ).T
+        # final_state_range = np.array(
+        #     [  # (num_inputs, 2)
+        #         [-0.25, -0.25, 2, -0.01, -0.01, -0.01],
+        #         [0.25, 0.25, 2.5, 0.01, 0.01, 0.01],
+        #     ]
+        # ).T
 
         # final_state_range = np.array(
         #     [  # (num_inputs, 2)
@@ -529,7 +537,7 @@ def main(args):
         #     ]
         # )
         # num_partitions = 1*np.array([1, 1, 1, 1, 1, 1])
-        num_partitions = 1*np.array([4,4])
+        # num_partitions = 1*np.array([4,4])
         # num_partitions = 1*np.array([1, 1, 1, 1])
         
         back_analyzer = analyzers.ClosedLoopBackwardAnalyzer(controller, dyn)
@@ -566,7 +574,7 @@ def main(args):
             aspect=args.plot_aspect,
             inputs_to_highlight=inputs_to_highlight,
             plot_lims=args.plot_lims,
-            initial_constraint=[input_constraint],
+            initial_constraint=None,
         )
 
 

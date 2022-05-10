@@ -59,6 +59,24 @@ def main(args):
                     [-0.01, 0.01],
                 ]
             )
+    elif args.system == "4_double_integrators":
+        if args.state_feedback:
+            dyn = dynamics.DoubleIntegratorx4()
+        else:
+            raise NotImplementedError
+        if args.final_state_range is None:
+            final_state_range = np.array(
+                [  # (num_inputs, 2)
+                    [-0.5, 0.5],  # x0min, x0max
+                    [-0.5, 0.5],  # x1min, x1max
+                    [-0.5, 0.5],  # x2min, x2max
+                    [-0.5, 0.5],  # x3min, x3max
+                    [-0.01, 0.01],
+                    [-0.01, 0.01],
+                    [-0.01, 0.01],
+                    [-0.01, 0.01],
+                ]
+            )
     elif args.system == "quadrotor":
         inputs_to_highlight = [
             {"dim": [0], "name": "$x$"},
@@ -69,11 +87,11 @@ def main(args):
             dyn = dynamics.Quadrotor()
         else:
             dyn = dynamics.QuadrotorOutputFeedback()
-        if args.init_state_range is None:
+        if args.final_state_range is None:
             final_state_range = np.array(
                 [  # (num_inputs, 2)
-                    [-0.25, -0.25, 2, -0.01, -0.01, -0.01],
-                    [0.25, 0.25, 2.5, 0.01, 0.01, 0.01],
+                    [-5-0.25, -0.25, 2, -0.01, -0.01, -0.01],
+                    [-5+0.25, 0.25, 2.5, 0.01, 0.01, 0.01],
                 ]
             ).T
     else:
@@ -161,14 +179,14 @@ def main(args):
             #     backprojection_sets = [i['tightened_overapprox'] for i in analyzer_info[0]['per_timestep']]
             # else:
             #     backprojection_sets = [i['backproj_overapprox'] for i in analyzer_info[0]['per_timestep']]
-            backprojection_sets = input_constraint_list[0]
-            target_set = output_constraint[0]
-            final_error, avg_error, all_error = analyzer.get_backprojection_error(target_set, backprojection_sets, t_max=args.t_max)
+            # backprojection_sets = input_constraint_list[0]
+            # target_set = output_constraint[0]
+            # final_error, avg_error, all_error = analyzer.get_backprojection_error(target_set, backprojection_sets, t_max=args.t_max)
 
-            final_errors[num] = final_error
-            avg_errors[num] = avg_error
-            all_errors[num] = all_error
-            output_constraints[num] = output_constraint
+            # final_errors[num] = final_error
+            # avg_errors[num] = avg_error
+            # all_errors[num] = all_error
+            # output_constraints[num] = output_constraint
 
         stats['runtimes'] = times
         stats['final_step_errors'] = final_errors
@@ -272,7 +290,7 @@ def setup_parser():
     parser.add_argument(
         "--system",
         default="double_integrator",
-        choices=["double_integrator", "quadrotor", "ground_robot", "ground_robot_DI"],
+        choices=["double_integrator", "quadrotor", "ground_robot", "ground_robot_DI", "4_double_integrators"],
         help="which system to analyze (default: double_integrator_mpc)",
     )
     parser.add_argument(
