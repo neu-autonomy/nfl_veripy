@@ -121,10 +121,11 @@ class ClosedLoopUniformPartitioner(ClosedLoopPartitioner):
             else:
                 raise NotImplementedError
 
-            output_constraint_, info = propagator.get_reachable_set(
+            output_constraint_, info_ = propagator.get_reachable_set(
                 input_constraint_, deepcopy(output_constraint), t_max
             )
             num_propagator_calls += t_max
+            info['nn_matrices'] = info_
 
             if isinstance(
                 output_constraint, constraints.PolytopeConstraint

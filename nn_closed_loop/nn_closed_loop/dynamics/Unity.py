@@ -21,6 +21,8 @@ class Unity(Dynamics):
 
         self.cmap_name = "tab10"
 
+        self.name = "Unity_{}".format(str(nx).zfill(3))
+
     def dynamics_step(self, xs, us):
         # Dynamics are already discretized:
         xs_t1 = (np.dot(self.At, xs.T) + np.dot(self.bt, us.T)).T + self.ct

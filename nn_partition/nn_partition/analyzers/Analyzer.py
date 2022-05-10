@@ -3,6 +3,8 @@ from nn_partition.utils.utils import get_sampled_outputs, samples_to_range
 import nn_partition.partitioners as partitioners
 import nn_partition.propagators as propagators
 import inspect
+from scipy.spatial import ConvexHull
+import time
 
 plt.rcParams["mathtext.fontset"] = "stix"
 plt.rcParams["font.family"] = "STIXGeneral"
@@ -15,6 +17,14 @@ class Analyzer:
 
         self.partitioner = None
         self.propagator = None
+
+    @property
+    def partitioner_dict(self):
+        return partitioners.partitioner_dict
+
+    @property
+    def propagator_dict(self):
+        return propagators.propagator_dict
 
     @property
     def partitioner(self):
@@ -30,7 +40,7 @@ class Analyzer:
 
         # Make sure we don't send any args to a partitioner that can't handle
         # them. e.g, don't give NoPartitioner a time budget
-        args = inspect.getfullargspec(partitioners.partitioner_dict[partitioner]).args
+        args = inspect.getfullargspec(self.partitioner_dict[partitioner]).args
         for hyperparam in hyperparams:
             if hyperparam not in args:
                 hyperparams_.pop(hyperparam, None)
@@ -40,7 +50,7 @@ class Analyzer:
         )
 
     def instantiate_partitioner(self, partitioner, hyperparams):
-        return partitioners.partitioner_dict[partitioner](**hyperparams)
+        return self.partitioner_dict[partitioner](**hyperparams)
 
     @property
     def propagator(self):
@@ -55,7 +65,7 @@ class Analyzer:
 
         # Make sure we don't send any args to a propagator that can't handle
         # them.
-        args = inspect.getfullargspec(propagators.propagator_dict[propagator]).args
+        args = inspect.getfullargspec(self.propagator_dict[propagator]).args
         for hyperparam in hyperparams:
             if hyperparam not in args:
                 hyperparams_.pop(hyperparam, None)
@@ -67,7 +77,7 @@ class Analyzer:
             self._propagator.network = self.torch_model
 
     def instantiate_propagator(self, propagator, hyperparams):
-        return propagators.propagator_dict[propagator](**hyperparams)
+        return self.propagator_dict[propagator](**hyperparams)
 
     def get_output_range(self, input_range, verbose=False):
         output_range, info = self.partitioner.get_output_range(
@@ -151,14 +161,12 @@ class Analyzer:
     def samples_to_range(self, sampled_outputs):
         return samples_to_range(sampled_outputs)
 
-    def get_exact_output_range(self, input_range):
-        sampled_outputs = self.get_sampled_outputs(input_range)
+    def get_exact_output_range(self, input_range, N=int(1e4)):
+        sampled_outputs = self.get_sampled_outputs(input_range, N=N)
         output_range = self.samples_to_range(sampled_outputs)
         return output_range
 
-    def get_exact_hull(self, input_range, N=int(1e7)):
-        from scipy.spatial import ConvexHull
-
+    def get_exact_hull(self, input_range, N=int(1e4)):
         sampled_outputs = self.get_sampled_outputs(input_range, N=N)
         return ConvexHull(sampled_outputs)
 

@@ -38,19 +38,22 @@ def create_and_train_model(
     return model
 
 
-def save_model(model, name="model", dir=dir_path+"/../../models/double_integrator_debug/"):
-    os.makedirs(dir, exist_ok=True)
+def save_model(model, system="DoubleIntegrator", model_name="default"):
+    path = "{}/../../models/{}/{}".format(dir_path, system, model_name)
+    os.makedirs(path, exist_ok=True)
     # serialize model to JSON
     model_json = model.to_json()
-    with open(dir + name + ".json", "w") as json_file:
+    name = "model"
+    with open(path + "/" + name + ".json", "w") as json_file:
         json_file.write(model_json)
     # serialize weights to HDF5
-    model.save_weights(dir + name + ".h5")
+    model.save_weights(path + "/" + name + ".h5")
     print("Saved model to disk")
 
 
-def load_controller(name="double_integrator_mpc"):
-    path = "{}/../../models/{}".format(dir_path, name)
+def load_controller(system="DoubleIntegrator", model_name="default"):
+    system = system.replace('OutputFeedback', '')  # remove OutputFeedback suffix if applicable
+    path = "{}/../../models/{}/{}".format(dir_path, system, model_name)
     with open(path + "/model.json", "r") as f:
         loaded_model_json = f.read()
     model = model_from_json(loaded_model_json)
@@ -60,9 +63,9 @@ def load_controller(name="double_integrator_mpc"):
 
 
 def load_controller_unity(nx, nu):
-    name = "unity"
-    path = "{}/../../models/{}".format(dir_path, name)
-    model_name = "/model_nx_{}_nu_{}".format(nx, nu)
+    system = "unity"
+    path = "{}/../../models/{}".format(dir_path, system)
+    model_name = "/nx_{}_nu_{}/model".format(str(nx).zfill(3), str(nu).zfill(3))
     filename = path + model_name + ".json"
     try:
         with open(filename, "r") as f:
@@ -71,7 +74,7 @@ def load_controller_unity(nx, nu):
         model.load_weights(path + model_name + ".h5")
     except FileNotFoundError:
         model = create_model([5, 5], (nx,), (nu,))
-        save_model(model, name=model_name, dir=path)
+        save_model(model, system=system, model_name="nx_{}_nu_{}".format(str(nx).zfill(3), str(nu).zfill(3)))
     torch_model = keras2torch(model, "torch_model")
 
     return torch_model
@@ -149,6 +152,80 @@ def create_and_save_deep_models():
             ),
         )
 
+def train_n_models(xs, us):
+    num_models = 3
+
+    colors = ['r', 'c', 'b']
+
+    import matplotlib.pyplot as plt
+
+    import nn_closed_loop.dynamics as dynamics
+    import nn_closed_loop.analyzers as analyzers
+    import nn_closed_loop.constraints as constraints
+
+    fig = plt.figure()
+    ax = fig.add_subplot(projection='3d')
+
+    for i in range(num_models):
+        neurons_per_layer = [10, 5]
+        # model = create_model(neurons_per_layer)
+        model = create_and_train_model(
+            neurons_per_layer,
+            xs,
+            us,
+            epochs=1000,
+            verbose=False
+            )
+
+        us_pred = model.predict(xs)
+        # ax.scatter(xs[:,0], xs[:,1], us_pred, color=colors[i])
+        print(us_pred)
+
+        controller = keras2torch(model, "tmp_model")
+        dyn = dynamics.DoubleIntegrator()
+        init_state_range = np.array(
+            [  # (num_inputs, 2)
+                [2.5, 3.0],  # x0min, x0max
+                [-0.25, 0.25],  # x1min, x1max
+            ]
+        )
+        input_constraint = constraints.LpConstraint(
+            range=init_state_range, p=np.inf
+        )
+        output_constraint = constraints.LpConstraint(p=np.inf)
+        partitioner_hyperparams = {
+            "type": "None",
+            "make_animation": False,
+            "show_animation": False,
+        }
+        propagator_hyperparams = {
+            "type": "CROWN",
+            "input_shape": init_state_range.shape[:-1],
+        }
+        analyzer = analyzers.ClosedLoopAnalyzer(controller, dyn)
+        analyzer.partitioner = partitioner_hyperparams
+        analyzer.propagator = propagator_hyperparams
+        t_max = 5
+        output_constraint, analyzer_info = analyzer.get_reachable_set(
+            input_constraint, output_constraint, t_max=t_max
+        )
+        analyzer.visualize(
+            input_constraint,
+            output_constraint,
+            show_samples=True,
+            show=True,
+            labels=None,
+            aspect="auto",
+            iteration=None,
+            inputs_to_highlight=[{"dim": [0], "name": "$x_0$"}, {"dim": [1], "name": "$x_1$"}],
+            **analyzer_info
+        )
+
+
+    # ax.scatter(xs[:,0], xs[:,1], us, color='g')
+
+    # plt.show()
+
 
 if __name__ == "__main__":
 
@@ -157,18 +234,20 @@ if __name__ == "__main__":
     # View some of the trajectory data
     xs, us = load_data(system)
 
-    plot_data(xs, us, system)
+    train_n_models(xs, us)
 
-    neurons_per_layer = [10, 5]
-    # model = create_model(neurons_per_layer)
-    model = create_and_train_model(
-        neurons_per_layer,
-        xs,
-        us,
-        verbose=True
-        )
+    # plot_data(xs, us, system)
 
-    save_model(model, dir=dir_path+"/../../models/double_integrator_debug/")
+    # neurons_per_layer = [10, 5]
+    # # model = create_model(neurons_per_layer)
+    # model = create_and_train_model(
+    #     neurons_per_layer,
+    #     xs,
+    #     us,
+    #     verbose=True
+    #     )
+
+    # save_model(model, dir=dir_path+"/../../models/double_integrator_debug/")
 
     # Generate the NNs of various numbers of layers...
     # create_and_save_deep_models()

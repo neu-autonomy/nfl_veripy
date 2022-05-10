@@ -50,6 +50,12 @@ class TestSum(unittest.TestCase):
     def test_iss(self):
         self.check_if_cmd_runs("../journal_figures/iss")
 
+    def test_crownnstep_double_integrator(self):
+        self.check_if_cmd_runs("../newer/crownnstep_double_integrator")
+
+    def test_crownnstep_quadrotor(self):
+        self.check_if_cmd_runs("../newer/crownnstep_quadrotor")
+
         # # Check that plot was generated
         # plot_filename = os.path.dirname(os.path.realpath(__file__)) + '/../results/analyzer/'
         # self.assertTrue(os.path.isfile(plot_filename))

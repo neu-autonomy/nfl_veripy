@@ -26,14 +26,15 @@ def control_mpc(x0s, A, b, c, Q, R, P, u_min, u_max, n_mpc=10, debug=False):
             constrs.append(u[step] <= u_max)
             constrs.append(u[step] >= -u_max)
 
-            # State constraints
-            constrs.append(x[step + 1, 0] >= -5)
-            constrs.append(x[step + 1, 0] <= 5)
-            constrs.append(x[step + 1, 1] >= -1)
-            constrs.append(x[step + 1, 1] <= 1)
+            # # State constraints
+            # constrs.append(x[step + 1, 0] >= -5)
+            # constrs.append(x[step + 1, 0] <= 5)
+            # constrs.append(x[step + 1, 1] >= -1)
+            # constrs.append(x[step + 1, 1] <= 1)
 
             # Control cost
-            cost += cp.square(u[step]) * R
+            cost += cp.quad_form(u[step, :], R)
+            # cost += cp.square(u[step]) @ R
 
             # State stage cost
             cost += cp.quad_form(x[step, :], Q)
