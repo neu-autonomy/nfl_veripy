@@ -111,7 +111,7 @@ def main(args):
         if args.init_state_range is None:
             init_state_range = np.array(
                 [  # (num_inputs, 2)
-                    [-5-0.25, -5+0.25],  # x0min, x0max
+                    [-7-0.25, -7+0.25],  # x0min, x0max
                     [-0.25, 0.25],  # x1min, x1max
                     [0.95, 0.99],
                     [-0.01, 0.01]
@@ -445,9 +445,9 @@ def main(args):
         analyzer.visualize(
             input_constraint,
             output_constraint,
-            target_constraint = None,
-            show_samples=True,
-            show_trajectories=False,
+            target_constraint = back_output_constraint,
+            show_samples=False,
+            show_trajectories=True,
             show=args.show_plot,
             labels=args.plot_labels,
             aspect=args.plot_aspect,
@@ -569,12 +569,13 @@ def main(args):
             back_output_constraint,
             back_analyzer_info_list,
             show_samples=False,
+            show_trajectories=True,
             show=args.show_plot,
             labels=args.plot_labels,
             aspect=args.plot_aspect,
             inputs_to_highlight=inputs_to_highlight,
             plot_lims=args.plot_lims,
-            initial_constraint=None,
+            initial_constraint=[input_constraint],
         )
 
 

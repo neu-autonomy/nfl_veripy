@@ -177,8 +177,10 @@ class ClosedLoopPartitioner(partitioners.Partitioner):
             aspect = "auto"
 
         self.animate_fig, self.animate_axes = plt.subplots(1, 1, subplot_kw=dict(projection=projection))
-        # from nn_closed_loop.utils.controller_generation import display_ground_robot_control_field
-        # display_ground_robot_control_field(name='complex_potential_field',ax=self.animate_axes)
+        from nn_closed_loop.utils.controller_generation import display_ground_robot_control_field
+        display_ground_robot_control_field(name='complex_potential_field',ax=self.animate_axes)
+        # from nn_closed_loop.utils.controller_generation import display_ground_robot_DI_control_field
+        # display_ground_robot_DI_control_field(ax=self.animate_axes)
 
         self.animate_axes.set_aspect(aspect)
 
@@ -245,7 +247,18 @@ class ClosedLoopPartitioner(partitioners.Partitioner):
         self.animate_axes.lines = self.default_lines.copy()
 
         # Actually draw the reachable sets and partitions
-        self.plot_reachable_sets(output_constraint, self.input_dims, reachable_set_color=reachable_set_color, reachable_set_zorder=reachable_set_zorder, reachable_set_ls=reachable_set_ls)
+        # import pdb; pdb.set_trace()
+        from colour import Color
+        orange = Color("orange")
+        colors = list(orange.range_to(Color("purple"),len(output_constraint.range)))
+        for i, set in enumerate(output_constraint.range):
+            constraint = constraints.LpConstraint(set)
+            self.plot_reachable_sets(constraint, self.input_dims, reachable_set_color=colors[i].hex_l, reachable_set_zorder=reachable_set_zorder, reachable_set_ls=reachable_set_ls)
+
+        # self.plot_reachable_sets(output_constraint, self.input_dims, reachable_set_color=reachable_set_color, reachable_set_zorder=reachable_set_zorder, reachable_set_ls=reachable_set_ls)
+
+
+
         # self.plot_partitions(M, output_constraint, self.input_dims)
 
         from nn_closed_loop.utils.utils import range_to_polytope

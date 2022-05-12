@@ -133,6 +133,23 @@ def display_ground_robot_control_field(name = 'avoid_origin_controller_simple', 
     else:
         ax.quiver(x,y,us[:,0].reshape(len(x),len(y)),us[:,1].reshape(len(x),len(y)))
 
+def display_ground_robot_DI_control_field(name = 'ground_robot_DI_avoid_origin_maneuver', ax=None):
+    controller = load_controller(system='GroundRobotDI', model_name=name, model_type='keras')
+    x,y = np.meshgrid(np.linspace(-7.5,4,20), np.linspace(-7.2,7.2,20))
+    # import pdb; pdb.set_trace()
+    inputs = np.hstack((x.reshape(len(x)*len(x[0]),1), y.reshape(len(y)*len(y[0]),1), np.zeros((len(x)*len(x[0]),1)), np.zeros((len(y)*len(y[0]),1))))
+    us = controller.predict(inputs)
+    
+    if ax is None:
+        # import pdb; pdb.set_trace()
+        plt.quiver(x,y,us[:,0].reshape(len(x),len(y)),us[:,1].reshape(len(x),len(y)),color='k')
+        plt.xlabel('x')
+        plt.ylabel('y')
+        plt.rc('font', size=12)
+        plt.show()
+    else:
+        ax.quiver(x,y,us[:,0].reshape(len(x),len(y)),us[:,1].reshape(len(x),len(y)))
+
 def tree_trunks_vs_quad():
     neurons_per_layer = [50,50]
     state_range = np.array(
@@ -329,7 +346,7 @@ def ground_robotDI_obstacle_2D():
     model = create_and_train_model(neurons_per_layer, xs, us, epochs=15, verbose=True)
     save_model(model, name="model", dir=dir_path+"/controllers/ground_robot_DI_obstacle_simple_2D_slant/")
 
-def ground_robotDI_avoid_origin_2D():
+def ground_robotDI_avoid_origin_2D_limited():
     neurons_per_layer = [20,20]
     state_range = np.array(
         [
@@ -342,14 +359,72 @@ def ground_robotDI_avoid_origin_2D():
     xs = np.random.uniform(low=state_range[:, 0], high=state_range[:, 1], size=(1000000, 4))
     us = np.zeros((len(xs),2))
     for i,pos in enumerate(xs):
-        ax = 4*np.sign(pos[0])
-        ay = 4*np.sign(pos[1])
+        if np.abs(pos[0]) < 2 and np.abs(pos[0]) < 2:
+            ax = 4*np.sign(pos[0])
+            ay = 4*np.sign(pos[1])
+        else:
+            ax = 0
+            ay = 0
         us[i] = np.array([ax,ay])
         if np.mod(i,1000000)==0:
             print('yeayea')
     print('ok')
     model = create_and_train_model(neurons_per_layer, xs, us, epochs=15, verbose=True)
-    save_model(model, name="model", dir=dir_path+"/controllers/ground_robot_DI_avoid_origin/")
+    save_model(model, name="model", dir=dir_path+"/controllers/ground_robot_DI_avoid_origin_limited/")
+
+def ground_robotDI_avoid_origin_2D_maneuver():
+    neurons_per_layer = [20,20]
+    state_range = np.array(
+        [
+            [-20, 20],
+            [-20, 20],
+            [-3, 3],
+            [-3, 3],
+        ]
+    )
+    xs = np.random.uniform(low=state_range[:, 0], high=state_range[:, 1], size=(1000000, 4))
+    us = np.zeros((len(xs),2))
+    for i,pos in enumerate(xs):
+        if np.abs(pos[0]) < 2 and np.abs(pos[1]) < 2:
+            ax = 4*np.sign(pos[0])
+            ay = 4*np.sign(pos[1])
+        else:
+            ax = 0
+            ay_ = -0.2*pos[1]+4/pos[1]
+            ay = max(min(ay_, 2), -2)
+        us[i] = np.array([ax,ay])
+        if np.mod(i,1000000)==0:
+            print('yeayea')
+    print('ok')
+    model = create_and_train_model(neurons_per_layer, xs, us, epochs=15, verbose=True)
+    save_model(model, name="model", dir=dir_path+"/controllers/ground_robot_DI_avoid_origin_maneuver/")
+
+def ground_robotDI_avoid_origin_2D_maneuver_velocity():
+    neurons_per_layer = [20,20]
+    state_range = np.array(
+        [
+            [-20, 20],
+            [-20, 20],
+            [-3, 3],
+            [-3, 3],
+        ]
+    )
+    xs = np.random.uniform(low=state_range[:, 0], high=state_range[:, 1], size=(1000000, 4))
+    us = np.zeros((len(xs),2))
+    for i,pos in enumerate(xs):
+        if np.abs(pos[0]) < 2 and np.abs(pos[1]) < 2:
+            ax = 4*np.sign(pos[0])
+            ay = 4*np.sign(pos[1])
+        else:
+            ax = 0
+            ay_ = -0.2*pos[1]+4/pos[1]-3*pos[3]
+            ay = max(min(ay_, 2), -2)
+        us[i] = np.array([ax,ay])
+        if np.mod(i,1000000)==0:
+            print('yeayea')
+    print('ok')
+    model = create_and_train_model(neurons_per_layer, xs, us, epochs=15, verbose=True)
+    save_model(model, name="model", dir=dir_path+"/controllers/ground_robot_DI_avoid_origin_maneuver_velocity/")
 
 def ground_robotDI_obstacle_2D_circle():
     neurons_per_layer = [20,20]
@@ -482,10 +557,10 @@ def main():
     # tree_trunks_vs_quad()
     # simple_quad()
     # ground_robotDI_obstacle_2D()
-    # ground_robotDI_avoid_origin_2D()
+    ground_robotDI_avoid_origin_2D_maneuver_velocity()
     # double_integratorx4()
     # ground_robotDI_sine()
-    corner_policy()
+    # corner_policy()
 
 if __name__ == "__main__":
     main()

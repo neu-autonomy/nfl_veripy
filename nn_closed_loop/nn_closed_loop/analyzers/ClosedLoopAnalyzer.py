@@ -105,6 +105,13 @@ class ClosedLoopAnalyzer(analyzers.Analyzer):
             reachable_set_zorder=self.reachable_set_zorder,
             # plot_lims=plot_lims
         )
+        # import pdb; pdb.set_trace()
+        # from colour import Color
+        # orange = Color("orange")
+        # colors = list(orange.range_to(Color("purple"),len(output_constraint.range)))
+        # for j,ic in enumerate(output_constraint[0:]):
+        #     rect = ic.plot(self.partitioner.animate_axes, self.partitioner.input_dims, colors[j].hex_l, zorder=self.estimated_backprojection_set_zorder, linewidth=self.partitioner.linewidth, plot_2d=self.partitioner.plot_2d)
+        #     self.partitioner.default_patches += rect
 
         # self.partitioner.animate_axes.legend(
         #     bbox_to_anchor=(0, 1.02, 1, 0.2),
@@ -119,7 +126,7 @@ class ClosedLoopAnalyzer(analyzers.Analyzer):
         x0 = np.array(
             [  # (num_inputs, 2)
                 [-5.5, -4.5],  # x0min, x0max
-                [1-0.5, 1+0.5],  # x1min, x1max
+                [-0.5, 0.5],  # x1min, x1max
             ]
         )
         # x0 = np.array( # tree_trunks_vs_quadrotor_12__
@@ -136,17 +143,18 @@ class ClosedLoopAnalyzer(analyzers.Analyzer):
         #         [1.24,1.26]
         #     ]
         # )
-        # x0_constraint = constraints.LpConstraint(
-        #     range=x0, p=np.inf
-        # )
-        # input_dims = [x["dim"] for x in inputs_to_highlight]
-        # self.dynamics.show_trajectories(
-        #     output_constraint.get_t_max() * self.dynamics.dt,
-        #     x0_constraint,
-        #     input_dims=input_dims,
-        #     ax=self.partitioner.animate_axes,
-        #     controller=self.propagator.network,
-        # ) 
+        x0_constraint = constraints.LpConstraint(
+            range=x0, p=np.inf
+        )
+        input_dims = [x["dim"] for x in inputs_to_highlight]
+        if show_trajectories:
+            self.dynamics.show_trajectories(
+                output_constraint.get_t_max() * self.dynamics.dt,
+                input_constraint,
+                input_dims=input_dims,
+                ax=self.partitioner.animate_axes,
+                controller=self.propagator.network,
+            ) 
 
         # initial_constraint = constraints.LpConstraint(x0)
         # self.partitioner.plot_reachable_sets(

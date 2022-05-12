@@ -387,6 +387,7 @@ class Dynamics:
         xs=None,
         colors=None,
     ):
+        # import pdb; pdb.set_trace()
         if ax is None:
             if len(input_dims) == 2:
                 projection = None
@@ -635,10 +636,10 @@ class ContinuousTimeDynamics(Dynamics):
     def dynamics_step(self, xs, us):
         xs_t1 = xs + self.dt * self.dynamics(xs, us)
         
-        if self.x_limits is not None and isinstance(xs,np.ndarray):
-            # import pdb; pdb.set_trace()
-            xs_t1 = np.minimum(xs_t1, self.x_limits[..., 1])
-            xs_t1 = np.maximum(xs_t1, self.x_limits[..., 0])
+        # if self.x_limits is not None and isinstance(xs,np.ndarray):
+        #     # import pdb; pdb.set_trace()
+        #     xs_t1 = np.minimum(xs_t1, self.x_limits[..., 1])
+        #     xs_t1 = np.maximum(xs_t1, self.x_limits[..., 0])
         
         return xs_t1
 
@@ -672,9 +673,9 @@ class DiscreteTimeDynamics(Dynamics):
         else: # For solving LP
             xs_t1 = self.At@xs + self.bt@us + self.ct
 
-        if self.x_limits is not None and isinstance(xs,np.ndarray):
-            xs_t1 = np.minimum(xs_t1, self.x_limits[..., 1])
-            xs_t1 = np.maximum(xs_t1, self.x_limits[..., 0])
+        # if self.x_limits is not None and isinstance(xs,np.ndarray):
+        #     xs_t1 = np.minimum(xs_t1, self.x_limits[..., 1])
+        #     xs_t1 = np.maximum(xs_t1, self.x_limits[..., 0])
 
         return xs_t1
 

@@ -125,7 +125,9 @@ class ClosedLoopBackwardAnalyzer(analyzers.Analyzer):
             self.visualize_single_set(
                 input_constraint_list[i],
                 output_constraint_list[i],
+                initial_constraint=initial_constraint,
                 show_samples=True,
+                show_trajectories=show_trajectories,
                 show=show,
                 labels=labels,
                 aspect=aspect,
@@ -158,6 +160,7 @@ class ClosedLoopBackwardAnalyzer(analyzers.Analyzer):
         self,
         input_constraints,
         output_constraint,
+        initial_constraint=None,
         show=True,
         show_samples=False,
         show_trajectories=False,
@@ -220,14 +223,39 @@ class ClosedLoopBackwardAnalyzer(analyzers.Analyzer):
         # divider = make_axes_locatable(plt.gca())
         # ax_cb = divider.new_horizontal(size="5%", pad=0.05)
         # cmap = mpl.colors.LinearSegmentedColormap.from_list("", [color.hex for color in colors])
-        # cb1 = mpl.colorbar.ColorbarBase(ax_cb, cmap=cmap, orientation='vertical', label='t (s)', values=range(len(input_constraints)))
+        # from mpl_toolkits.axes_grid1.inset_locator import inset_axes
+        # axins = inset_axes(self.partitioner.animate_axes,
+        #             width="5%",  
+        #             height="100%",
+        #             loc='right',
+        #             borderpad=0.15
+        #            )
+
+        # cb1 = mpl.colorbar.ColorbarBase(axins, cmap=cmap, orientation='vertical', label='t (s)', values=range(len(input_constraints)))
         
         # plt.gcf().add_axes(ax_cb)
 
+        from colour import Color
+        orange = Color("orange")
+        colors = list(orange.range_to(Color("purple"),len(input_constraints)))
+        import matplotlib as mpl
+        from mpl_toolkits.axes_grid1 import make_axes_locatable
+        divider = make_axes_locatable(plt.gca())
+        ax_cb = divider.append_axes("right", size="5%", pad=0.05)
+        # cax = self.partitioner.animate_fig.add_axes([0.9, 0, 0.05, 1])
+        cmap = mpl.colors.LinearSegmentedColormap.from_list("", [color.hex for color in colors])
+        cb1 = mpl.colorbar.ColorbarBase(ax_cb, cmap=cmap, orientation='vertical', label='t (s)', values=range(len(input_constraints)))
+        
+        plt.gcf().add_axes(ax_cb)
+
+        # import pdb; pdb.set_trace()
+
+
 
         # Plot all our input constraints (i.e., our backprojection set estimates)
-        for ic in input_constraints[0:]:
-            rect = ic.plot(self.partitioner.animate_axes, self.partitioner.input_dims, self.estimated_backprojection_set_color, zorder=self.estimated_backprojection_set_zorder, linewidth=self.partitioner.linewidth, plot_2d=self.partitioner.plot_2d)
+        for j,ic in enumerate(input_constraints[0:]):
+            rect = ic.plot(self.partitioner.animate_axes, self.partitioner.input_dims, colors[j].hex_l, zorder=self.estimated_backprojection_set_zorder, linewidth=self.partitioner.linewidth, plot_2d=self.partitioner.plot_2d)
+            # rect = ic.plot(self.partitioner.animate_axes, self.partitioner.input_dims, self.estimated_backprojection_set_color, zorder=self.estimated_backprojection_set_zorder, linewidth=self.partitioner.linewidth, plot_2d=self.partitioner.plot_2d)
             self.partitioner.default_patches += rect
 
         # Show the target set
@@ -258,29 +286,39 @@ class ClosedLoopBackwardAnalyzer(analyzers.Analyzer):
 
         # If they exist, plot all our loose input constraints (i.e., our one-step backprojection set estimates)
         # TODO: Make plotting these optional via a flag
-        for info in kwargs.get('per_timestep', []):
-            ic = info.get('one_step_backprojection_overapprox', None)
-            if ic is None: continue
-            rect = ic.plot(self.partitioner.animate_axes, self.partitioner.input_dims, self.estimated_one_step_backprojection_set_color, zorder=self.estimated_one_step_backprojection_set_zorder, linewidth=self.partitioner.linewidth, plot_2d=self.partitioner.plot_2d)
-            self.partitioner.default_patches += rect
+        # for info in kwargs.get('per_timestep', []):
+        #     ic = info.get('one_step_backprojection_overapprox', None)
+        #     if ic is None: continue
+        #     rect = ic.plot(self.partitioner.animate_axes, self.partitioner.input_dims, self.estimated_one_step_backprojection_set_color, zorder=self.estimated_one_step_backprojection_set_zorder, linewidth=self.partitioner.linewidth, plot_2d=self.partitioner.plot_2d)
+        #     self.partitioner.default_patches += rect
 
         # Sketchy workaround to trajectories not showing up
-        # import nn_closed_loop.constraints as constraints
+        import numpy as np
+        import nn_closed_loop.constraints as constraints
         # x0 = np.array(
         #     [  # (num_inputs, 2)
         #         [-5.5, -5.0],  # x0min, x0max
         #         [-0.5, 0.5],  # x1min, x1max
         #     ]
         # )
-        # x0_constraint = constraints.LpConstraint(
-        #     range=x0, p=np.inf
-        # )
-        # self.dynamics.show_trajectories(
-        #     t_max * self.dynamics.dt,
-        #     x0_constraint,
-        #     ax=self.partitioner.animate_axes,
-        #     controller=self.propagator.network,
-        # ) 
+        x0 = np.array(
+            [  # (num_inputs, 2)
+                [-5.5, -5.0],  # x0min, x0max
+                [-0.5, 0.5],  # x1min, x1max
+            ]
+        )
+        # import pdb; pdb.set_trace()
+        x0_constraint = constraints.LpConstraint(
+            range=x0, p=np.inf
+        )
+        # import pdb; pdb.set_trace()
+        if show_trajectories and initial_constraint is not None:
+            self.dynamics.show_trajectories(
+                t_max * self.dynamics.dt,
+                initial_constraint[0],
+                ax=self.partitioner.animate_axes,
+                controller=self.propagator.network,
+            ) 
 
         import numpy as np
         import nn_closed_loop.constraints as constraints
@@ -361,6 +399,8 @@ class ClosedLoopBackwardAnalyzer(analyzers.Analyzer):
         #     plt.show()
         # else:
         #     plt.close()
+        # self.partitioner.animate_axes.set_xlim([-17.2, 3])
+        # self.partitioner.animate_axes.set_ylim([-7.2, 7.2])
 
     def get_sampled_outputs(self, input_range, N=1000):
         return get_sampled_outputs(input_range, self.propagator, N=N)

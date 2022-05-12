@@ -31,21 +31,22 @@ class GroundRobotDI(DiscreteTimeDynamics):
         # u_limits = None
         u_limits = 1*np.array(
             [
-                [-1, 1],
-                [-1, 1]
+                [-4, 4],
+                [-4, 4]
             ]
         )
 
-        # x_limits = np.array(
-        #     [
-        #         [-1e2, 1e2],
-        #         [-1e2, 1e2],
-        #         [-0.5, 0.5],
-        #         [-0.5, 0.5],
-        #     ]
-        # )
+        x_limits = np.array(
+            [
+                [-1e2, 1e2],
+                [-1e2, 1e2],
+                [-1, 1],
+                [-1, 1],
+            ]
+        )
+        x_limits = {2: [-1,1], 3: [-1,1]}
 
-        x_limits=None
+        # x_limits=None
 
 
         dt = 1

@@ -1,7 +1,3 @@
-from gc import collect
-from http.client import ImproperConnectionState
-import imp
-from operator import imod
 from .ClosedLoopPropagator import ClosedLoopPropagator
 import numpy as np
 import pypoman
@@ -248,14 +244,19 @@ class ClosedLoopCROWNIBPCodebasePropagator(ClosedLoopPropagator):
         constrs += [ut <= u_max]
 
         # Included state limits to reduce size of backreachable sets by eliminating states that are not physically possible (e.g., maximum velocities)
+        # if self.dynamics.x_limits is not None:
+            # x_llim = self.dynamics.x_limits[:, 0]
+            # x_ulim = self.dynamics.x_limits[:, 1]
+            # constrs += [x_llim <= xt]
+            # constrs += [xt <= x_ulim]
+            # # Also constrain the future state to be within the state limits
+            # constrs += [self.dynamics.dynamics_step(xt,ut) <= x_ulim]
+            # constrs += [self.dynamics.dynamics_step(xt,ut) >= x_llim]
+        
         if self.dynamics.x_limits is not None:
-            x_llim = self.dynamics.x_limits[:, 0]
-            x_ulim = self.dynamics.x_limits[:, 1]
-            constrs += [x_llim <= xt]
-            constrs += [xt <= x_ulim]
-            # Also constrain the future state to be within the state limits
-            constrs += [self.dynamics.dynamics_step(xt,ut) <= x_ulim]
-            constrs += [self.dynamics.dynamics_step(xt,ut) >= x_llim]
+            for state in self.dynamics.x_limits:
+                constrs += [self.dynamics.x_limits[state][0] <= xt[state]]
+                constrs += [xt[state] <= self.dynamics.x_limits[state][1]]
 
 
 
@@ -826,7 +827,8 @@ class ClosedLoopCROWNPropagator(ClosedLoopCROWNIBPCodebasePropagator):
             self, input_shape=input_shape, dynamics=dynamics
         )
         self.method_opt = "full_backward_range"
-        self.params = {"same-slope": False, "zero-lb": True}
+        # self.params = {"same-slope": False, "zero-lb": True}
+        self.params = {"same-slope": False}
 
 
 class ClosedLoopCROWNLPPropagator(ClosedLoopCROWNPropagator):
@@ -1057,9 +1059,9 @@ class ClosedLoopCROWNNStepPropagator(ClosedLoopCROWNPropagator):
             constrs += [xt_min <= xt[:, 0]]
             constrs += [xt[:, 0] <= xt_max]
 
-            if self.dynamics.x_limits is not None:
-                x_llim = self.dynamics.x_limits[:, 0]
-                x_ulim = self.dynamics.x_limits[:, 1]
+            # if self.dynamics.x_limits is not None:
+            #     x_llim = self.dynamics.x_limits[:, 0]
+            #     x_ulim = self.dynamics.x_limits[:, 1]
             
 
             # # Each xt must be in a backprojection overapprox
@@ -1101,11 +1103,11 @@ class ClosedLoopCROWNNStepPropagator(ClosedLoopCROWNPropagator):
             for t in range(num_steps):
                 constrs += [self.dynamics.dynamics_step(xt[:, t], ut[:, t]) == xt[:, t+1]]
 
-                if self.dynamics.x_limits is not None:
-                    x_llim = self.dynamics.x_limits[:, 0]
-                    x_ulim = self.dynamics.x_limits[:, 1]
-                    constrs += [self.dynamics.dynamics_step(xt[:, t], ut[:, t]) <= x_ulim]
-                    constrs += [self.dynamics.dynamics_step(xt[:, t], ut[:, t]) >= x_llim]
+                # if self.dynamics.x_limits is not None:
+                #     x_llim = self.dynamics.x_limits[:, 0]
+                #     x_ulim = self.dynamics.x_limits[:, 1]
+                #     constrs += [self.dynamics.dynamics_step(xt[:, t], ut[:, t]) <= x_ulim]
+                #     constrs += [self.dynamics.dynamics_step(xt[:, t], ut[:, t]) >= x_llim]
 
             # u_t satisfies control limits (TODO: Necessary? CROWN should account for these)
             # for t in range(num_steps):
