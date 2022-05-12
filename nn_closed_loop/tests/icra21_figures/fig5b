@@ -3,7 +3,7 @@ python -m nn_closed_loop.example \
 	--propagator CROWN \
 	--system quadrotor \
 	--output_feedback \
-	--t_max 1.2 \
+	--t_max 0.2 \
 	--save_plot --skip_show_plot \
 	--boundaries lp \
 	--plot_aspect equal

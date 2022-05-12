@@ -58,6 +58,7 @@ class SimGuidedPartitioner(Partitioner):
         output_range_sim, sampled_outputs, sampled_inputs = self.sample(
             input_range, propagator
         )
+
         if self.adaptive_flag:
             (
                 M,

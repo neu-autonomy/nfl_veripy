@@ -9,6 +9,7 @@ import os
 
 
 def main(args):
+
     np.random.seed(seed=0)
     stats = {}
 
@@ -349,7 +350,6 @@ def setup_parser():
         "--estimate_runtime", dest="estimate_runtime", action="store_true"
     )
     parser.set_defaults(estimate_runtime=False)
-
 
     return parser
 

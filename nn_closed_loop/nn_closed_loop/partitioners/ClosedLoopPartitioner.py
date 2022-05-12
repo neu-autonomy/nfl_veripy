@@ -108,10 +108,10 @@ class ClosedLoopPartitioner(partitioners.Partitioner):
             for t in range(num_steps):
                 # true_verts = pypoman.polygon.compute_polygon_hull(output_constraint.A, output_bs_exact[t])
                 true_hull = ConvexHull(true_verts[:, t+1, :])
-                true_area = true_hull.area
+                true_area = true_hull.volume
                 estimated_verts = pypoman.polygon.compute_polygon_hull(output_constraint.A, output_constraint.b[t])
                 estimated_hull = ConvexHull(estimated_verts)
-                estimated_area = estimated_hull.area
+                estimated_area = estimated_hull.volume
                 errors.append((estimated_area - true_area) / true_area)
         final_error = errors[-1]
         avg_error = np.mean(errors)

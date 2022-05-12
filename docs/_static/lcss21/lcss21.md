@@ -1,3 +1,16 @@
+# `nn_partition`
+
+This code is based on ideas from the following paper:
+* Michael Everett, Golnaz Habibi, Jonathan P. How, ["Robustness Analysis of Neural Networks via Efficient Partitioning with Applications in Control Systems"](https://doi.org/10.1109/LCSYS.2020.3045323), IEEE LCSS 2020 & ACC 2021.
+
+## About
+
+We introduce the concepts of `Analyzer`, `Propagator`, and `Partitioner` in our LCSS/ACC '21 paper and implement several instances of each concept as a starting point.
+This modular view on NN robustness analysis essentially defines an API that decouples each component.
+This decoupling enables improvements in either `Propagator` or `Partitioner` algorithms to have a wide impact across many analysis/verification problems.
+
+![nn_partition](/docs/_static/lcss21/animations/GreedySimGuidedPartitioner.gif)
+
 ## Reproduce Figures from LCSS/ACC 2021 Paper
 
 ### Figure 4

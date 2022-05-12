@@ -3,6 +3,8 @@ from nn_partition.utils.utils import get_sampled_outputs, samples_to_range
 import nn_partition.partitioners as partitioners
 import nn_partition.propagators as propagators
 import inspect
+from scipy.spatial import ConvexHull
+import time
 
 plt.rcParams["mathtext.fontset"] = "stix"
 plt.rcParams["font.family"] = "STIXGeneral"
@@ -159,14 +161,12 @@ class Analyzer:
     def samples_to_range(self, sampled_outputs):
         return samples_to_range(sampled_outputs)
 
-    def get_exact_output_range(self, input_range):
-        sampled_outputs = self.get_sampled_outputs(input_range)
+    def get_exact_output_range(self, input_range, N=int(1e4)):
+        sampled_outputs = self.get_sampled_outputs(input_range, N=N)
         output_range = self.samples_to_range(sampled_outputs)
         return output_range
 
-    def get_exact_hull(self, input_range, N=int(1e7)):
-        from scipy.spatial import ConvexHull
-
+    def get_exact_hull(self, input_range, N=int(1e4)):
         sampled_outputs = self.get_sampled_outputs(input_range, N=N)
         return ConvexHull(sampled_outputs)
 

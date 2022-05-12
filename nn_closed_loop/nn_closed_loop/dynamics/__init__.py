@@ -10,3 +10,4 @@ from .Unity import Unity
 from .GroundRobotSI import GroundRobotSI
 from .GroundRobotDI import GroundRobotDI
 from .DoubleIntegratorx4 import DoubleIntegratorx4
+from .Unicycle import Unicycle

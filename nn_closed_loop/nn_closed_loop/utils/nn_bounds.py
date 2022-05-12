@@ -85,7 +85,7 @@ class BoundClosedLoopController(BoundSequential):
         """
 
         # Determine which control inputs should use max vs. min for biggest next state
-        flip = torch.matmul(A_out, torch.Tensor([dynamics.bt])) < 0
+        flip = torch.matmul(A_out, torch.Tensor(np.array([dynamics.bt]))) < 0
         flip_A = flip.repeat(1, dynamics.num_states, 1).transpose(2, 1)
         flip_b = flip.squeeze(1)
 
@@ -98,7 +98,7 @@ class BoundClosedLoopController(BoundSequential):
         # Fill in best/worst-case process noise realizations
         if dynamics.process_noise is None:
             process_noise_low = process_noise_high = torch.zeros_like(
-                torch.Tensor([dynamics.ct])
+                torch.Tensor(np.array([dynamics.ct]))
             )
         else:
             flip_process_noise = A_out < 0
@@ -116,14 +116,14 @@ class BoundClosedLoopController(BoundSequential):
         # Fill in best/worst-case sensor noise realizations
         if dynamics.sensor_noise is None:
             sensor_noise_low = sensor_noise_high = torch.zeros_like(
-                torch.Tensor([dynamics.ct])
+                torch.Tensor(np.array([dynamics.ct]))
             ).unsqueeze(-1)
         else:
             flip_sensor_noise_low = (
-                torch.matmul(A_out, torch.Tensor([dynamics.bt])).bmm(xi) < 0
+                torch.matmul(A_out, torch.Tensor(np.array([dynamics.bt]))).bmm(xi) < 0
             )
             flip_sensor_noise_high = (
-                torch.matmul(A_out, torch.Tensor([dynamics.bt])).bmm(upsilon)
+                torch.matmul(A_out, torch.Tensor(np.array([dynamics.bt]))).bmm(upsilon)
                 < 0
             )
             sensor_noise_low = torch.where(
@@ -145,8 +145,8 @@ class BoundClosedLoopController(BoundSequential):
                 torch.eye(dynamics.num_states).unsqueeze(0)
                 + dynamics.dt
                 * (
-                    torch.Tensor([dynamics.At])
-                    + torch.Tensor([dynamics.bt]).bmm(xi)
+                    torch.Tensor(np.array([dynamics.At]))
+                    + torch.Tensor(np.array([dynamics.bt])).bmm(xi)
                 ),
             )
             upper_A_with_dyn = torch.matmul(
@@ -154,28 +154,28 @@ class BoundClosedLoopController(BoundSequential):
                 torch.eye(dynamics.num_states).unsqueeze(0)
                 + dynamics.dt
                 * (
-                    torch.Tensor([dynamics.At])
-                    + torch.Tensor([dynamics.bt]).bmm(upsilon)
+                    torch.Tensor(np.array([dynamics.At]))
+                    + torch.Tensor(np.array([dynamics.bt])).bmm(upsilon)
                 ),
             )
             lower_sum_b_with_dyn = torch.matmul(
                 A_out,
                 dynamics.dt
                 * (
-                    torch.Tensor([dynamics.bt]).bmm(gamma.unsqueeze(-1))
-                    + torch.Tensor([dynamics.ct]).unsqueeze(-1)
+                    torch.Tensor(np.array([dynamics.bt])).bmm(gamma.unsqueeze(-1))
+                    + torch.Tensor(np.array([dynamics.ct])).unsqueeze(-1)
                     + process_noise_low.unsqueeze(-1)
-                    + torch.Tensor([dynamics.bt]).bmm(xi).bmm(sensor_noise_low)
+                    + torch.Tensor(np.array([dynamics.bt])).bmm(xi).bmm(sensor_noise_low)
                 ),
             )
             upper_sum_b_with_dyn = torch.matmul(
                 A_out,
                 dynamics.dt
                 * (
-                    torch.Tensor([dynamics.bt]).bmm(psi.unsqueeze(-1))
-                    + torch.Tensor([dynamics.ct]).unsqueeze(-1)
+                    torch.Tensor(np.array([dynamics.bt])).bmm(psi.unsqueeze(-1))
+                    + torch.Tensor(np.array([dynamics.ct])).unsqueeze(-1)
                     + process_noise_high.unsqueeze(-1)
-                    + torch.Tensor([dynamics.bt])
+                    + torch.Tensor(np.array([dynamics.bt]))
                     .bmm(upsilon)
                     .bmm(sensor_noise_high)
                 ),
@@ -184,27 +184,27 @@ class BoundClosedLoopController(BoundSequential):
             # x_{t+1} = Ax+bu+c <= (A+bY)x+bG
             lower_A_with_dyn = torch.matmul(
                 A_out,
-                torch.Tensor([dynamics.At])
-                + torch.Tensor([dynamics.bt]).bmm(xi),
+                torch.Tensor(np.array([dynamics.At]))
+                + torch.Tensor(np.array([dynamics.bt])).bmm(xi),
             )
             upper_A_with_dyn = torch.matmul(
                 A_out,
-                torch.Tensor([dynamics.At])
-                + torch.Tensor([dynamics.bt]).bmm(upsilon),
+                torch.Tensor(np.array([dynamics.At]))
+                + torch.Tensor(np.array([dynamics.bt])).bmm(upsilon),
             )
             lower_sum_b_with_dyn = torch.matmul(
                 A_out,
-                torch.Tensor([dynamics.bt]).bmm(gamma.unsqueeze(-1))
-                + torch.Tensor([dynamics.ct]).unsqueeze(-1)
+                torch.Tensor(np.array([dynamics.bt])).bmm(gamma.unsqueeze(-1))
+                + torch.Tensor(np.array([dynamics.ct])).unsqueeze(-1)
                 + process_noise_low.unsqueeze(-1)
-                + torch.Tensor([dynamics.bt]).bmm(xi).bmm(sensor_noise_low),
+                + torch.Tensor(np.array([dynamics.bt])).bmm(xi).bmm(sensor_noise_low),
             )
             upper_sum_b_with_dyn = torch.matmul(
                 A_out,
-                torch.Tensor([dynamics.bt]).bmm(psi.unsqueeze(-1))
-                + torch.Tensor([dynamics.ct]).unsqueeze(-1)
+                torch.Tensor(np.array([dynamics.bt])).bmm(psi.unsqueeze(-1))
+                + torch.Tensor(np.array([dynamics.ct])).unsqueeze(-1)
                 + process_noise_high.unsqueeze(-1)
-                + torch.Tensor([dynamics.bt])
+                + torch.Tensor(np.array([dynamics.bt]))
                 .bmm(upsilon)
                 .bmm(sensor_noise_high),
             )

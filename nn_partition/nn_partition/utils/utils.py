@@ -1,4 +1,5 @@
 import numpy as np
+import time
 
 
 def bisect(input_range):
@@ -33,7 +34,9 @@ def get_sampled_outputs(input_range, propagator, N=1000):
     sampled_inputs = np.random.uniform(
         input_range[..., 0], input_range[..., 1], (N,) + input_shape
     )
+
     sampled_outputs = propagator.forward_pass(sampled_inputs)
+
     return sampled_outputs
 
 

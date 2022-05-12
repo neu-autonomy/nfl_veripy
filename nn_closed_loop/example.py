@@ -16,6 +16,7 @@ dir_path = os.path.dirname(os.path.realpath(__file__))
 def main(args):
     np.random.seed(seed=0)
     stats = {}
+    controller = None
 
     # Dynamics
     if args.system == "double_integrator":
@@ -132,13 +133,29 @@ def main(args):
                     [-1, 1]
                 ]
             )
+    elif args.system == "unicycle":
+        inputs_to_highlight = [
+            {"dim": [0], "name": "$x_0$"},
+            {"dim": [1], "name": "$x_1$"},
+        ]
+        if args.state_feedback:
+            dyn = dynamics.Unicycle()
+        else:
+            raise NotImplementedError
+        if args.init_state_range is None:
+            init_state_range = np.array(
+                [  # (num_inputs, 2)
+                    [-0.25, 0.25],  # x0min, x0max
+                    [-3.0, -2.5],  # x1min, x1max
+                    [-np.pi/100, np.pi/100]
+                ]
+            )
         else:
             import ast
 
             init_state_range = np.array(
                 ast.literal_eval(args.init_state_range)
             )
-
     elif args.system == "quadrotor":
         inputs_to_highlight = [
             {"dim": [0], "name": "$x$"},
@@ -420,7 +437,7 @@ def main(args):
         )
         analyzer_info["save_name"] = (
             save_dir
-            + args.system
+            + dyn.name
             + pars
             + "_"
             + partitioner_hyperparams["type"]
@@ -640,7 +657,7 @@ def setup_parser():
     parser.add_argument(
         "--propagator",
         default="IBP",
-        choices=["IBP", "CROWN", "CROWNNStep", "FastLin", "SDP", "CROWNLP", "SeparableCROWN", "SeparableIBP", "SeparableSGIBP"],
+        choices=["IBP", "CROWN", "CROWNNStep", "FastLin", "SDP", "CROWNLP", "SeparableCROWN", "SeparableIBP", "SeparableSGIBP", "OVERT"],
         help="which propagator to use (default: IBP)",
     )
 

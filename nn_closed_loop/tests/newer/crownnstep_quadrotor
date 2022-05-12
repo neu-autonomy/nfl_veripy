@@ -3,5 +3,5 @@ python -m nn_closed_loop.example \
 	--propagator CROWNNStep \
 	--system quadrotor \
 	--state_feedback \
-	--t_max 0.5 \
+	--t_max 0.2 \
 	--save_plot --skip_show_plot

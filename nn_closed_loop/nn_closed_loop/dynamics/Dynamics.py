@@ -1,9 +1,16 @@
 from nn_closed_loop.utils.utils import range_to_polytope
 import numpy as np
+<<<<<<< HEAD
 import matplotlib
 from sys import platform
 if platform == 'darwin':
     matplotlib.use('MacOSX')
+=======
+import platform
+if platform.system() == "Darwin":
+    import matplotlib
+    matplotlib.use('MACOSX')
+>>>>>>> master
 import matplotlib.pyplot as plt
 from matplotlib import cm
 
@@ -54,6 +61,8 @@ class Dynamics:
         self.x_limits = x_limits
         # import pdb; pdb.set_trace()
         self.dt = dt
+
+        self.name = self.__class__.__name__
 
     def control_nn(self, x, model):
         if x.ndim == 1:

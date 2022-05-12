@@ -1,4 +1,24 @@
-## Reproduce Figures from journal paper (extending ICRA 21)
+# `nn_closed_loop`
+
+## About
+
+* Michael Everett, Golnaz Habibi, Chuangchuang Sun, Jonathan P. How, ["Reachability Analysis of Neural Feedback Loops"](https://arxiv.org/pdf/2108.04140.pdf), in review.
+* Michael Everett, Golnaz Habibi, Jonathan P. How, ["Efficient Reachability Analysis for Closed-Loop Systems with Neural Network Controllers"](https://arxiv.org/pdf/2101.01815.pdf), ICRA 2021.
+
+Since NNs are rarely deployed in isolation, we developed a framework for analyzing closed-loop systems that employ NN control policies.
+The `nn_closed_loop` codebase follows a similar API as the `nn_partition` package, leveraging analogous `ClosedLoopAnalyzer`, `ClosedLoopPropagator` and `ClosedLoopPartitioner` concepts.
+The typical problem statement is: given a known initial state set (and a known dynamics model), compute bounds on the reachable sets for N steps into the future.
+These bounds provide a safety guarantee for autonomous systems employing NN controllers, as they guarantee that the system will never enter parts of the state space outside of the reachable set bounds.
+
+Reach-LP-Partition | Reach-LP w/ Polytopes
+----- | -----
+![nn_partition_polytope](/docs/_static/icra21/other/double_integrator_Uniform_CROWN_tmax_5.0_lp_8.png) | ![nn_partition_polytope](/docs/_static/icra21/other/double_integrator_None_CROWN_tmax_4.0_polytope_35.png)
+
+
+![nn_closed_loop](/docs/_static/access21/partitions/ClosedLoopGreedySimGuidedPartitioner4.gif)
+
+
+## Reproduce Figures from IEEE Access '21 paper (extending ICRA '21 paper)
 
 ### Backprojection
 
@@ -20,7 +40,7 @@ You can change `--num_partitions` to get the various fidelities.
 
 2x2 | 4x4 | 8x8 | 16x16
 ------------ | ------------- | ------------- | -------------
-![2x2](/docs/_static/journal/backreach/double_integrator_None_CROWN_polytope_8_partitions_2_2.png) | ![4x4](/docs/_static/journal/backreach/double_integrator_None_CROWN_polytope_8_partitions_4_4.png) | ![8x8](/docs/_static/journal/backreach/double_integrator_None_CROWN_polytope_8_partitions_8_8.png) | ![16x16](/docs/_static/journal/backreach/double_integrator_None_CROWN_polytope_8_partitions_16_16.png)
+![2x2](/docs/_static/access21/backreach/double_integrator_None_CROWN_polytope_8_partitions_2_2.png) | ![4x4](/docs/_static/access21/backreach/double_integrator_None_CROWN_polytope_8_partitions_4_4.png) | ![8x8](/docs/_static/access21/backreach/double_integrator_None_CROWN_polytope_8_partitions_8_8.png) | ![16x16](/docs/_static/access21/backreach/double_integrator_None_CROWN_polytope_8_partitions_16_16.png)
 
 
 
@@ -44,11 +64,11 @@ You can change `--num_partitions` to get the various fidelities.
 
 State Feedback | Output Feedback
 ------------ | -------------
-![2x2](/docs/_static/journal/3d_quadrotor/quadrotor_None_CROWN_tmax_1.2_lp_8_state_feedback.png) | ![4x4](/docs/_static/journal/3d_quadrotor/quadrotor_None_CROWN_tmax_1.2_lp_8_output_feedback.png)
+![2x2](/docs/_static/access21/3d_quadrotor/quadrotor_None_CROWN_tmax_1.2_lp_8_state_feedback.png) | ![4x4](/docs/_static/access21/3d_quadrotor/quadrotor_None_CROWN_tmax_1.2_lp_8_output_feedback.png)
 
 If you want to get an animated 3D plot, add the `--make_animation` flag:
 
-![animation](/docs/_static/journal/3d_quadrotor/ClosedLoopNoPartitioner.gif)
+![animation](/docs/_static/access21/3d_quadrotor/ClosedLoopNoPartitioner.gif)
 
 ### Partitioner Comparison
 
@@ -68,7 +88,7 @@ You can change which timestep GSG optimizes for by going into `ClosedLoopGreedyS
 
 UnGuided | SimGuided | GreedySimGuided-0 | GreedySimGuided-4
 ------------ | ------------- | ------------ | -------------
-![UnGuided](/docs/_static/journal/partitions/ClosedLoopUnGuidedPartitioner.gif) | ![SimGuided](/docs/_static/journal/partitions/ClosedLoopSimGuidedPartitioner.gif) | ![GreedySimGuided-0](/docs/_static/journal/partitions/ClosedLoopGreedySimGuidedPartitioner0.gif) | ![GreedySimGuided-4](/docs/_static/journal/partitions/ClosedLoopGreedySimGuidedPartitioner4.gif)
+![UnGuided](/docs/_static/access21/partitions/ClosedLoopUnGuidedPartitioner.gif) | ![SimGuided](/docs/_static/access21/partitions/ClosedLoopSimGuidedPartitioner.gif) | ![GreedySimGuided-0](/docs/_static/access21/partitions/ClosedLoopGreedySimGuidedPartitioner0.gif) | ![GreedySimGuided-4](/docs/_static/access21/partitions/ClosedLoopGreedySimGuidedPartitioner4.gif)
 
 ### Compare Reach-LP and Reach-SDP
 
@@ -98,7 +118,7 @@ Reach-LP-Partition            $0.263 \pm 0.001$         34
 
 Reachable Sets | Error per Timestep
 ------------ | -------------
-![reachable](/docs/_static/journal/reachlp_vs_reachsdp/runtime_vs_error_2021_07_21__12_33_20_reachable.png) | ![SimGuided](/docs/_static/journal/reachlp_vs_reachsdp/runtime_vs_error_2021_07_21__12_33_20_timestep.png)
+![reachable](/docs/_static/access21/reachlp_vs_reachsdp/runtime_vs_error_2021_07_21__12_33_20_reachable.png) | ![SimGuided](/docs/_static/access21/reachlp_vs_reachsdp/runtime_vs_error_2021_07_21__12_33_20_timestep.png)
 
 
 ### Compare Linear Program and Closed-Form solution timings
@@ -131,11 +151,11 @@ You can change `system="quadrotor"` to see the corresponding table for the 6D qu
 python -m nn_closed_loop.example --partitioner None --propagator CROWN --system duffing --state_feedback --t_max 0.3
 ```
 will output this plot:
-![duffing](/docs/_static/journal/systems/duffing_None_CROWN_tmax_0.3_lp_8.png)
+![duffing](/docs/_static/access21/systems/duffing_None_CROWN_tmax_0.3_lp_8.png)
 
 #### ISS
 ```bash
 python -m nn_closed_loop.example --partitioner None --propagator CROWN --system iss --state_feedback --t_max 0.21
 ```
 will output this plot:
-![iss](/docs/_static/journal/systems/iss_None_CROWN_tmax_0.2_lp_8.png)
+![iss](/docs/_static/access21/systems/iss_None_CROWN_tmax_0.2_lp_8.png)
