@@ -1,16 +1,9 @@
 from nn_closed_loop.utils.utils import range_to_polytope
 import numpy as np
-<<<<<<< HEAD
-import matplotlib
-from sys import platform
-if platform == 'darwin':
-    matplotlib.use('MacOSX')
-=======
 import platform
 if platform.system() == "Darwin":
     import matplotlib
     matplotlib.use('MACOSX')
->>>>>>> master
 import matplotlib.pyplot as plt
 from matplotlib import cm
 

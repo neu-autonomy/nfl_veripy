@@ -93,10 +93,13 @@ class ClosedLoopBackwardAnalyzer(analyzers.Analyzer):
         show=True,
         show_samples=False,
         show_trajectories=False,
+        show_convex_hulls=False,
         aspect="auto",
         labels={},
         plot_lims=None,
         inputs_to_highlight=None,
+        controller_name=None,
+        show_BReach=False,
     ):
         # sampled_outputs = self.get_sampled_outputs(input_range)
         # output_range_exact = self.samples_to_range(sampled_outputs)
@@ -118,7 +121,7 @@ class ClosedLoopBackwardAnalyzer(analyzers.Analyzer):
             extra_constraint = initial_constraint,
             extra_set_color=self.initial_set_color,
             extra_set_zorder=self.initial_set_zorder,
-            
+            controller_name=controller_name
         )
 
         for i in range(len(output_constraint_list)):
@@ -126,13 +129,15 @@ class ClosedLoopBackwardAnalyzer(analyzers.Analyzer):
                 input_constraint_list[i],
                 output_constraint_list[i],
                 initial_constraint=initial_constraint,
-                show_samples=True,
+                show_samples=show_samples,
                 show_trajectories=show_trajectories,
+                show_convex_hulls=show_convex_hulls,
                 show=show,
                 labels=labels,
                 aspect=aspect,
                 plot_lims=plot_lims,
                 inputs_to_highlight=inputs_to_highlight,
+                show_BReach=show_BReach,
                 **info_list[i]
             )
         self.partitioner.animate_fig.tight_layout()
@@ -164,10 +169,12 @@ class ClosedLoopBackwardAnalyzer(analyzers.Analyzer):
         show=True,
         show_samples=False,
         show_trajectories=False,
+        show_convex_hulls=False,
         aspect="auto",
         labels={},
         plot_lims=None,
         inputs_to_highlight=None,
+        show_BReach=False,
         **kwargs
     ):
         
@@ -235,18 +242,18 @@ class ClosedLoopBackwardAnalyzer(analyzers.Analyzer):
         
         # plt.gcf().add_axes(ax_cb)
 
-        from colour import Color
-        orange = Color("orange")
-        colors = list(orange.range_to(Color("purple"),len(input_constraints)))
-        import matplotlib as mpl
-        from mpl_toolkits.axes_grid1 import make_axes_locatable
-        divider = make_axes_locatable(plt.gca())
-        ax_cb = divider.append_axes("right", size="5%", pad=0.05)
-        # cax = self.partitioner.animate_fig.add_axes([0.9, 0, 0.05, 1])
-        cmap = mpl.colors.LinearSegmentedColormap.from_list("", [color.hex for color in colors])
-        cb1 = mpl.colorbar.ColorbarBase(ax_cb, cmap=cmap, orientation='vertical', label='t (s)', values=range(len(input_constraints)))
+        # from colour import Color
+        # orange = Color("orange")
+        # colors = list(orange.range_to(Color("purple"),len(input_constraints)))
+        # import matplotlib as mpl
+        # from mpl_toolkits.axes_grid1 import make_axes_locatable
+        # divider = make_axes_locatable(plt.gca())
+        # ax_cb = divider.append_axes("right", size="5%", pad=0.05)
+        # # cax = self.partitioner.animate_fig.add_axes([0.9, 0, 0.05, 1])
+        # cmap = mpl.colors.LinearSegmentedColormap.from_list("", [color.hex for color in colors])
+        # cb1 = mpl.colorbar.ColorbarBase(ax_cb, cmap=cmap, orientation='vertical', label='t (s)', values=range(len(input_constraints)))
         
-        plt.gcf().add_axes(ax_cb)
+        # plt.gcf().add_axes(ax_cb)
 
         # import pdb; pdb.set_trace()
 
@@ -254,8 +261,8 @@ class ClosedLoopBackwardAnalyzer(analyzers.Analyzer):
 
         # Plot all our input constraints (i.e., our backprojection set estimates)
         for j,ic in enumerate(input_constraints[0:]):
-            rect = ic.plot(self.partitioner.animate_axes, self.partitioner.input_dims, colors[j].hex_l, zorder=self.estimated_backprojection_set_zorder, linewidth=self.partitioner.linewidth, plot_2d=self.partitioner.plot_2d)
-            # rect = ic.plot(self.partitioner.animate_axes, self.partitioner.input_dims, self.estimated_backprojection_set_color, zorder=self.estimated_backprojection_set_zorder, linewidth=self.partitioner.linewidth, plot_2d=self.partitioner.plot_2d)
+            # rect = ic.plot(self.partitioner.animate_axes, self.partitioner.input_dims, colors[j].hex_l, zorder=self.estimated_backprojection_set_zorder, linewidth=self.partitioner.linewidth, plot_2d=self.partitioner.plot_2d)
+            rect = ic.plot(self.partitioner.animate_axes, self.partitioner.input_dims, self.estimated_backprojection_set_color, zorder=self.estimated_backprojection_set_zorder, linewidth=self.partitioner.linewidth, plot_2d=self.partitioner.plot_2d)
             self.partitioner.default_patches += rect
 
         # Show the target set
@@ -270,27 +277,29 @@ class ClosedLoopBackwardAnalyzer(analyzers.Analyzer):
         backreachable_set = kwargs['per_timestep'][-1]['backreachable_set']
         target_set = output_constraint
         t_max = len(kwargs['per_timestep'])
-        try:
-            self.plot_true_backprojection_sets(
-                input_constraints[-1],
-                # backreachable_set, 
-                target_set,
-                t_max=t_max,
-                color=self.true_backprojection_set_color,
-                zorder=self.true_backprojection_set_zorder,
-                linestyle=self.true_backprojection_set_linestyle,
-                show_samples=False,
-            )
-        except:
-            pass
+        if show_convex_hulls:
+            try:
+                self.plot_true_backprojection_sets(
+                    input_constraints[-1],
+                    # backreachable_set, 
+                    target_set,
+                    t_max=t_max,
+                    color=self.true_backprojection_set_color,
+                    zorder=self.true_backprojection_set_zorder,
+                    linestyle=self.true_backprojection_set_linestyle,
+                    show_samples=False,
+                )
+            except:
+                pass
 
         # If they exist, plot all our loose input constraints (i.e., our one-step backprojection set estimates)
         # TODO: Make plotting these optional via a flag
-        # for info in kwargs.get('per_timestep', []):
-        #     ic = info.get('one_step_backprojection_overapprox', None)
-        #     if ic is None: continue
-        #     rect = ic.plot(self.partitioner.animate_axes, self.partitioner.input_dims, self.estimated_one_step_backprojection_set_color, zorder=self.estimated_one_step_backprojection_set_zorder, linewidth=self.partitioner.linewidth, plot_2d=self.partitioner.plot_2d)
-        #     self.partitioner.default_patches += rect
+        if show_BReach:
+            for info in kwargs.get('per_timestep', []):
+                ic = info.get('one_step_backprojection_overapprox', None)
+                if ic is None: continue
+                rect = ic.plot(self.partitioner.animate_axes, self.partitioner.input_dims, self.estimated_one_step_backprojection_set_color, zorder=self.estimated_one_step_backprojection_set_zorder, linewidth=self.partitioner.linewidth, plot_2d=self.partitioner.plot_2d)
+                self.partitioner.default_patches += rect
 
         # Sketchy workaround to trajectories not showing up
         import numpy as np

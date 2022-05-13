@@ -127,8 +127,8 @@ def main(args):
         if args.final_state_range is None:
             final_state_range = np.array(
                 [  # (num_inputs, 2)
-                    [-0.25, 0.25],  # x0min, x0max
-                    [-0.25, 0.25],  # x1min, x1max
+                    [-0.75, 0.75],  # x0min, x0max
+                    [-0.75, 0.75],  # x1min, x1max
                     [-1, 1],
                     [-1, 1]
                 ]
@@ -457,24 +457,30 @@ def main(args):
                 analyzer_info["save_name"] + "_" + pars2
             )
         analyzer_info["save_name"] = analyzer_info["save_name"] + ".png"
+        
+        controller_name=None
+        if args.show_policy:
+            controller_name = vars(args)['controller']
 
+    # import pdb; pdb.set_trace()
     if args.show_plot or args.save_plot:
         analyzer.visualize(
             input_constraint,
             output_constraint,
             target_constraint = back_output_constraint,
-            show_samples=False,
-            show_trajectories=True,
+            show_samples=args.show_samples,
+            show_trajectories=args.show_trajectories,
             show=args.show_plot,
             labels=args.plot_labels,
             aspect=args.plot_aspect,
             plot_lims=args.plot_lims,
             iteration=None,
             inputs_to_highlight=inputs_to_highlight,
+            controller_name=controller_name,
             **analyzer_info
         )
 
-    if args.check_backward:
+    if args.include_backward:
         # import pdb; pdb.set_trace()
         # final_state_range = output_constraint.range[-1]
         # final_state_range = np.array(
@@ -585,14 +591,16 @@ def main(args):
             back_input_constraint_list,
             back_output_constraint,
             back_analyzer_info_list,
-            show_samples=False,
-            show_trajectories=True,
+            show_samples=args.show_samples,
+            show_trajectories=args.show_trajectories,
             show=args.show_plot,
             labels=args.plot_labels,
             aspect=args.plot_aspect,
             inputs_to_highlight=inputs_to_highlight,
             plot_lims=args.plot_lims,
             initial_constraint=[input_constraint],
+            controller_name=controller_name,
+            show_BReach=args.show_BReach
         )
 
 
@@ -771,11 +779,44 @@ def setup_parser():
         help="number of control inputs - only used for scalability expt (default: 2)",
     )
     parser.add_argument(
-        "--check_backward",
-        dest="check_backward",
+        "--include_backward",
+        dest="include_backward",
         action="store_true",
         help="Check final reachable set to see what parts backproject to initial state"
     )
+    parser.add_argument(
+        "--show_policy",
+        dest="show_policy",
+        action="store_true",
+        help="Displays policy as a function of state (only valid for ground_robot and ground_robot_DI)"
+    )
+    parser.add_argument(
+        "--show_trajectories",
+        dest="show_trajectories",
+        action="store_true",
+        help="Show trajectories starting from initial condition"
+    )
+    parser.add_argument(
+        "--show_samples",
+        dest="show_samples",
+        action="store_true",
+        help="Show samples starting from initial condition"
+    )
+    parser.add_argument(
+        "--show_convex_hulls",
+        dest="show_convex_hulls",
+        action="store_true",
+        help="Show convex hulls of true backprojection sets"
+    )
+    parser.add_argument(
+        "--show_BReach",
+        dest="show_BReach",
+        action="store_true",
+        help="whether to show results of BReach-LP when using ReBReach-LP",
+    )
+    parser.set_defaults(show_BReach=False)
+
+
 
     return parser
 

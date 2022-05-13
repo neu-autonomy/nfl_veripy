@@ -67,6 +67,7 @@ class ClosedLoopAnalyzer(analyzers.Analyzer):
         labels={},
         inputs_to_highlight=None,
         dont_close=True,
+        controller_name=None,
         **kwargs
     ):
         # sampled_outputs = self.get_sampled_outputs(input_range)
@@ -92,7 +93,8 @@ class ClosedLoopAnalyzer(analyzers.Analyzer):
             extra_set_zorder=self.target_set_zorder,
             sample_zorder=self.sample_zorder,
             extra_constraint=target_constraint,
-            plot_lims=plot_lims
+            plot_lims=plot_lims,
+            controller_name=controller_name
         )
         self.partitioner.visualize(
             kwargs.get(

@@ -1,3 +1,4 @@
+from nn_closed_loop.constraints.ClosedLoopConstraints import LpConstraint
 import numpy as np
 import nn_closed_loop.dynamics as dynamics
 import nn_closed_loop.analyzers as analyzers
@@ -45,6 +46,12 @@ def main(args):
                     [-1., 1.],  # x1min, x1max
                 ]
             )
+        else:
+            import ast
+
+            final_state_range = np.array(
+                ast.literal_eval(args.final_state_range)
+            )
     elif args.system == "ground_robot_DI":
         if args.state_feedback:
             dyn = dynamics.GroundRobotDI()
@@ -58,6 +65,12 @@ def main(args):
                     [-0.01, 0.01],
                     [-0.01, 0.01],
                 ]
+            )
+        else:
+            import ast
+
+            final_state_range = np.array(
+                ast.literal_eval(args.final_state_range)
             )
     elif args.system == "4_double_integrators":
         if args.state_feedback:
@@ -77,6 +90,12 @@ def main(args):
                     [-0.01, 0.01],
                 ]
             )
+        else:
+            import ast
+
+            final_state_range = np.array(
+                ast.literal_eval(args.final_state_range)
+            )
     elif args.system == "quadrotor":
         inputs_to_highlight = [
             {"dim": [0], "name": "$x$"},
@@ -94,6 +113,12 @@ def main(args):
                     [-5+0.25, 0.25, 2.5, 0.01, 0.01, 0.01],
                 ]
             ).T
+        else:
+            import ast
+
+            final_state_range = np.array(
+                ast.literal_eval(args.final_state_range)
+            )
     else:
             raise NotImplementedError
             import ast
@@ -106,6 +131,16 @@ def main(args):
         num_partitions = np.array(
             ast.literal_eval(args.num_partitions)
         )
+
+    if args.init_state_range is None:
+        init_constraint = None
+    else:
+        import ast
+        init_state_range = np.array(
+            ast.literal_eval(args.init_state_range)
+        )
+        init_constraint = LpConstraint(init_state_range)
+
 
     partitioner_hyperparams = {
         "type": args.partitioner,
@@ -121,6 +156,10 @@ def main(args):
         system=dyn.__class__.__name__,
         model_name=args.controller,
     )
+
+    controller_name=None
+    if args.show_policy:
+        controller_name = vars(args)['controller']
 
     # Set up analyzer (+ partitioner + propagator)
     analyzer = analyzers.ClosedLoopBackwardAnalyzer(controller, dyn)
@@ -203,8 +242,9 @@ def main(args):
             output_constraint, input_constraint, t_max=args.t_max, num_partitions=num_partitions, overapprox=args.overapprox, refined=args.refined
         )
         
-        
-
+    controller_name=None
+    if args.show_policy:
+            controller_name = vars(args)['controller']
     # print(input_constraint.A, input_constraint.b)
     # error, avg_error = analyzer.get_error(input_constraint,output_constraint, t_max=args.t_max)
     # print('Final step approximation error:{:.2f}\nAverage approximation error: {:.2f}'.format(error, avg_error))
@@ -272,11 +312,16 @@ def main(args):
             input_constraint_list,
             output_constraint,
             analyzer_info_list,
-            show_samples=True,
+            show_samples=args.show_samples,
+            show_trajectories=args.show_trajectories,
+            show_convex_hulls=args.show_convex_hulls,
             show=args.show_plot,
             labels=args.plot_labels,
             aspect=args.plot_aspect,
             plot_lims=args.plot_lims,
+            initial_constraint=[init_constraint],
+            controller_name=controller_name,
+            show_BReach=args.show_BReach
         )
 
     return stats, analyzer_info_list
@@ -297,6 +342,11 @@ def setup_parser():
         "--controller",
         default="default",
         help="which NN controller to load (e.g., sine_wave_controller for ground_robot) (default: default)",
+    )
+    parser.add_argument(
+        "--init_state_range",
+        default=None,
+        help="2*num_states values (default: None)",
     )
     parser.add_argument(
         "--final_state_range",
@@ -416,6 +466,37 @@ def setup_parser():
         help="whether to use extended set of constraints for BReach-LP",
     )
     parser.set_defaults(refined=False)
+    parser.add_argument(
+        "--show_BReach",
+        dest="show_BReach",
+        action="store_true",
+        help="whether to show results of BReach-LP when using ReBReach-LP",
+    )
+    parser.set_defaults(show_BReach=False)
+    parser.add_argument(
+        "--show_policy",
+        dest="show_policy",
+        action="store_true",
+        help="Displays policy as a function of state (only valid for ground_robot and ground_robot_DI)"
+    )
+    parser.add_argument(
+        "--show_trajectories",
+        dest="show_trajectories",
+        action="store_true",
+        help="Show trajectories starting from initial condition"
+    )
+    parser.add_argument(
+        "--show_samples",
+        dest="show_samples",
+        action="store_true",
+        help="Show samples starting from initial condition"
+    )
+    parser.add_argument(
+        "--show_convex_hulls",
+        dest="show_convex_hulls",
+        action="store_true",
+        help="Show convex hulls of true backprojection sets"
+    )
     return parser
 
 

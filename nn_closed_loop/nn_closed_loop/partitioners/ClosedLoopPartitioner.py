@@ -148,7 +148,8 @@ class ClosedLoopPartitioner(partitioners.Partitioner):
         sample_zorder=None,
         sample_colors=None,
         extra_constraint=None,
-        plot_lims=None
+        plot_lims=None,
+        controller_name=None
     ):
 
         self.default_patches = []
@@ -177,8 +178,9 @@ class ClosedLoopPartitioner(partitioners.Partitioner):
             aspect = "auto"
 
         self.animate_fig, self.animate_axes = plt.subplots(1, 1, subplot_kw=dict(projection=projection))
-        from nn_closed_loop.utils.controller_generation import display_ground_robot_control_field
-        display_ground_robot_control_field(name='complex_potential_field',ax=self.animate_axes)
+        if controller_name is not None:
+            from nn_closed_loop.utils.controller_generation import display_ground_robot_control_field
+            display_ground_robot_control_field(name=controller_name,ax=self.animate_axes)
         # from nn_closed_loop.utils.controller_generation import display_ground_robot_DI_control_field
         # display_ground_robot_DI_control_field(ax=self.animate_axes)
 
@@ -218,9 +220,10 @@ class ClosedLoopPartitioner(partitioners.Partitioner):
         rect = input_constraint.plot(self.animate_axes, input_dims, initial_set_color, zorder=initial_set_zorder, linewidth=self.linewidth, plot_2d=self.plot_2d)
         self.default_patches += rect
 
+        # import pdb; pdb.set_trace()
         if extra_set_color is None:
             extra_set_color = "tab:red"
-        if extra_constraint is not None:
+        if extra_constraint[0] is not None:
             for i in range(len(extra_constraint)):
                 rect = extra_constraint[i].plot(self.animate_axes, input_dims, extra_set_color, zorder=extra_set_zorder, linewidth=self.linewidth, plot_2d=self.plot_2d)
                 self.default_patches += rect
@@ -247,15 +250,16 @@ class ClosedLoopPartitioner(partitioners.Partitioner):
         self.animate_axes.lines = self.default_lines.copy()
 
         # Actually draw the reachable sets and partitions
-        # import pdb; pdb.set_trace()
-        from colour import Color
-        orange = Color("orange")
-        colors = list(orange.range_to(Color("purple"),len(output_constraint.range)))
-        for i, set in enumerate(output_constraint.range):
-            constraint = constraints.LpConstraint(set)
-            self.plot_reachable_sets(constraint, self.input_dims, reachable_set_color=colors[i].hex_l, reachable_set_zorder=reachable_set_zorder, reachable_set_ls=reachable_set_ls)
+        # 
+        # Draws reachable sets in colors corresponding to trajectories
+        # from colour import Color
+        # orange = Color("orange")
+        # colors = list(orange.range_to(Color("purple"),len(output_constraint.range)))
+        # for i, set in enumerate(output_constraint.range):
+        #     constraint = constraints.LpConstraint(set)
+            # self.plot_reachable_sets(constraint, self.input_dims, reachable_set_color=colors[i].hex_l, reachable_set_zorder=reachable_set_zorder, reachable_set_ls=reachable_set_ls)
 
-        # self.plot_reachable_sets(output_constraint, self.input_dims, reachable_set_color=reachable_set_color, reachable_set_zorder=reachable_set_zorder, reachable_set_ls=reachable_set_ls)
+        self.plot_reachable_sets(output_constraint, self.input_dims, reachable_set_color=reachable_set_color, reachable_set_zorder=reachable_set_zorder, reachable_set_ls=reachable_set_ls)
 
 
 
