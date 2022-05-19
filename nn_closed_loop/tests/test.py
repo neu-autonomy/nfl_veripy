@@ -23,38 +23,38 @@ class TestSum(unittest.TestCase):
     # def test_fig3_reach_lp(self):
     #     self.check_if_cmd_runs("fig3_reach_lp")
 
-    # def test_fig3_reach_lp_partition(self):
-    #     self.check_if_cmd_runs("fig3_reach_lp_partition")
+    def test_fig3_reach_lp_partition(self):
+        self.check_if_cmd_runs("fig3_reach_lp_partition")
 
-    # def test_fig4b(self):
-    #     self.check_if_cmd_runs("fig4b")
+    def test_fig4b(self):
+        self.check_if_cmd_runs("fig4b")
 
-    # def test_fig5a(self):
-    #     self.check_if_cmd_runs("fig5a")
+    def test_fig5a(self):
+        self.check_if_cmd_runs("fig5a")
 
-    # def test_fig5b(self):
-    #     self.check_if_cmd_runs("fig5b")
+    def test_fig5b(self):
+        self.check_if_cmd_runs("fig5b")
 
-    # def test_sg(self):
-    #     self.check_if_cmd_runs("../journal_figures/simguided")
+    def test_sg(self):
+        self.check_if_cmd_runs("../journal_figures/simguided")
 
-    # def test_gsg(self):
-    #     self.check_if_cmd_runs("../journal_figures/greedysimguided")
+    def test_gsg(self):
+        self.check_if_cmd_runs("../journal_figures/greedysimguided")
 
-    # def test_backreach(self):
-    #     self.check_if_cmd_runs("../journal_figures/backreach")
+    def test_backreach(self):
+        self.check_if_cmd_runs("../journal_figures/backreach")
 
-    # def test_duffing(self):
-    #     self.check_if_cmd_runs("../journal_figures/duffing")
+    def test_duffing(self):
+        self.check_if_cmd_runs("../journal_figures/duffing")
 
-    # def test_iss(self):
-    #     self.check_if_cmd_runs("../journal_figures/iss")
+    def test_iss(self):
+        self.check_if_cmd_runs("../journal_figures/iss")
 
-    # def test_crownnstep_double_integrator(self):
-    #     self.check_if_cmd_runs("../newer/crownnstep_double_integrator")
+    def test_crownnstep_double_integrator(self):
+        self.check_if_cmd_runs("../newer/crownnstep_double_integrator")
 
-    # def test_crownnstep_quadrotor(self):
-    #     self.check_if_cmd_runs("../newer/crownnstep_quadrotor")
+    def test_crownnstep_quadrotor(self):
+        self.check_if_cmd_runs("../newer/crownnstep_quadrotor")
 
     def test_cdc_fig3a(self):
         self.check_if_cmd_runs("../cdc22_figures/fig3a")

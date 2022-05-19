@@ -45,7 +45,7 @@ class Quadrotor(ContinuousTimeDynamics):
         # 
         x_limits=None   
 
-        dt = 0.125
+        dt = 0.1
 
         super().__init__(At=At, bt=bt, ct=ct, u_limits=u_limits, dt=dt, x_limits=x_limits)
         Q_ = np.zeros((6,6))

@@ -133,6 +133,12 @@ def main(args):
                     [-1, 1]
                 ]
             )
+        else:
+            import ast
+
+            final_state_range = np.array(
+                ast.literal_eval(args.final_state_range)
+            )
     elif args.system == "unicycle":
         inputs_to_highlight = [
             {"dim": [0], "name": "$x_0$"},
@@ -336,14 +342,17 @@ def main(args):
             A_inputs, b_inputs
         )
         output_constraint = constraints.PolytopeConstraint(A_out)
+        back_output_constraint = [None]
     elif args.boundaries == "lp":
         input_constraint = constraints.LpConstraint(
             range=init_state_range, p=np.inf
         )
         output_constraint = constraints.LpConstraint(p=np.inf)
-
-        back_input_constraint = constraints.LpConstraint(p=np.inf)
-        back_output_constraint = [constraints.LpConstraint(range=final_state_range, p=np.inf)]
+        if args.include_backward:
+            back_input_constraint = constraints.LpConstraint(p=np.inf)
+            back_output_constraint = [constraints.LpConstraint(range=final_state_range, p=np.inf)]
+        else:
+            back_output_constraint = [None]
     else:
         raise NotImplementedError
     
