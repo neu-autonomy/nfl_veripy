@@ -401,6 +401,7 @@ class ClosedLoopCROWNIBPCodebasePropagator(ClosedLoopPropagator):
                     )
 
             else:
+                # import pdb; pdb.set_trace()
                 input_constraint = self.get_one_step_backprojection_set_underapprox(
                     ranges,
                     upper_A,
@@ -412,29 +413,31 @@ class ClosedLoopCROWNIBPCodebasePropagator(ClosedLoopPropagator):
                     input_constraint
                 )
 
-        # input_constraint should contain [A] and [b]
-        # TODO: Store the detailed partitions in info
-        x_overapprox = np.vstack((xt_range_min, xt_range_max)).T
-        A_overapprox, b_overapprox = range_to_polytope(x_overapprox)
-        input_constraint.A = [A_overapprox]
-        input_constraint.b = [b_overapprox]
+        # import pdb; pdb.set_trace()
+        if overapprox:
+            # input_constraint should contain [A] and [b]
+            # TODO: Store the detailed partitions in info
+            x_overapprox = np.vstack((xt_range_min, xt_range_max)).T
+            A_overapprox, b_overapprox = range_to_polytope(x_overapprox)
+            input_constraint.A = [A_overapprox]
+            input_constraint.b = [b_overapprox]
 
-        lower_A_range, upper_A_range, lower_sum_b_range, upper_sum_b_range = self.network(
-                method_opt=self.method_opt,
-                norm=norm,
-                x_U=torch.Tensor([xt_range_max]),
-                x_L=torch.Tensor([xt_range_min]),
-                upper=True,
-                lower=True,
-                C=C,
-                return_matrices=True,
-            )
+            lower_A_range, upper_A_range, lower_sum_b_range, upper_sum_b_range = self.network(
+                    method_opt=self.method_opt,
+                    norm=norm,
+                    x_U=torch.Tensor([xt_range_max]),
+                    x_L=torch.Tensor([xt_range_min]),
+                    upper=True,
+                    lower=True,
+                    C=C,
+                    return_matrices=True,
+                )
 
-        info['u_range'] = np.vstack((ut_min, ut_max)).T
-        info['upper_A'] = upper_A_range.detach().numpy()[0]
-        info['lower_A'] = lower_A_range.detach().numpy()[0]
-        info['upper_sum_b'] = upper_sum_b_range.detach().numpy()[0]
-        info['lower_sum_b'] = lower_sum_b_range.detach().numpy()[0]
+            info['u_range'] = np.vstack((ut_min, ut_max)).T
+            info['upper_A'] = upper_A_range.detach().numpy()[0]
+            info['lower_A'] = lower_A_range.detach().numpy()[0]
+            info['upper_sum_b'] = upper_sum_b_range.detach().numpy()[0]
+            info['lower_sum_b'] = lower_sum_b_range.detach().numpy()[0]
         
         return input_constraint, info
 
