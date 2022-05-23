@@ -1,4 +1,3 @@
-from turtle import color
 import numpy as np
 import scipy.io
 from nn_closed_loop.utils.nn import create_and_train_model, save_model, load_controller, create_model

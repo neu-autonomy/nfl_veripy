@@ -425,8 +425,8 @@ class ClosedLoopCROWNIBPCodebasePropagator(ClosedLoopPropagator):
             lower_A_range, upper_A_range, lower_sum_b_range, upper_sum_b_range = self.network(
                     method_opt=self.method_opt,
                     norm=norm,
-                    x_U=torch.Tensor([xt_range_max]),
-                    x_L=torch.Tensor([xt_range_min]),
+                    x_U=torch.Tensor(np.array([xt_range_max])),
+                    x_L=torch.Tensor(np.array([xt_range_min])),
                     upper=True,
                     lower=True,
                     C=C,
@@ -789,8 +789,8 @@ class ClosedLoopCROWNIBPCodebasePropagator(ClosedLoopPropagator):
         return input_constraint, xt_range_min, xt_range_max, ut_min, ut_max
 
     def get_crown_matrices(self, xt_min, xt_max, num_control_inputs):
-        nn_input_max = torch.Tensor([xt_max])
-        nn_input_min = torch.Tensor([xt_min])
+        nn_input_max = torch.Tensor(np.array([xt_max]))
+        nn_input_min = torch.Tensor(np.array([xt_min]))
 
         # Compute the NN output matrices (for this xt partition)
         C = torch.eye(num_control_inputs).unsqueeze(0)
@@ -1321,8 +1321,8 @@ class ClosedLoopCROWNNStepPropagator(ClosedLoopCROWNPropagator):
         return output_constraint, infos
 
     def get_crown_matrices(self, xt_min, xt_max, num_control_inputs):
-        nn_input_max = torch.Tensor([xt_max])
-        nn_input_min = torch.Tensor([xt_min])
+        nn_input_max = torch.Tensor(np.array([xt_max]))
+        nn_input_min = torch.Tensor(np.array([xt_min]))
 
         # Compute the NN output matrices (for this xt partition)
         C = torch.eye(num_control_inputs).unsqueeze(0)

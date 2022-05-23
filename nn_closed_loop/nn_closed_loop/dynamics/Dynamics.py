@@ -12,6 +12,8 @@ import nn_closed_loop.constraints as constraints
 import torch
 import os
 import pickle
+from colour import Color
+
 
 dir_path = os.path.dirname(os.path.realpath(__file__))
 
@@ -420,8 +422,6 @@ class Dynamics:
         #         zorder=zorder,
         #     )
         
-
-        from colour import Color
         orange = Color("orange")
         colors = list(orange.range_to(Color("purple"),num_timesteps))
         # import pdb; pdb.set_trace()
