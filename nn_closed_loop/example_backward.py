@@ -212,20 +212,14 @@ def main(args):
             t_end = time.time()
             t = t_end - t_start
             times[num] = t
+            backprojection_sets = input_constraint_list[0]
+            target_set = output_constraint[0]
+            final_error, avg_error, all_error = analyzer.get_backprojection_error(target_set, backprojection_sets, t_max=args.t_max)
 
-            # import pdb; pdb.set_trace()
-            # if 'tightened_overapprox' in analyzer_info[0]['per_timestep'][-1]:
-            #     backprojection_sets = [i['tightened_overapprox'] for i in analyzer_info[0]['per_timestep']]
-            # else:
-            #     backprojection_sets = [i['backproj_overapprox'] for i in analyzer_info[0]['per_timestep']]
-            # backprojection_sets = input_constraint_list[0]
-            # target_set = output_constraint[0]
-            # final_error, avg_error, all_error = analyzer.get_backprojection_error(target_set, backprojection_sets, t_max=args.t_max)
-
-            # final_errors[num] = final_error
-            # avg_errors[num] = avg_error
-            # all_errors[num] = all_error
-            # output_constraints[num] = output_constraint
+            final_errors[num] = final_error
+            avg_errors[num] = avg_error
+            all_errors[num] = all_error
+            output_constraints[num] = output_constraint
 
         stats['runtimes'] = times
         stats['final_step_errors'] = final_errors
@@ -245,9 +239,6 @@ def main(args):
     controller_name=None
     if args.show_policy:
             controller_name = vars(args)['controller']
-    # print(input_constraint.A, input_constraint.b)
-    # error, avg_error = analyzer.get_error(input_constraint,output_constraint, t_max=args.t_max)
-    # print('Final step approximation error:{:.2f}\nAverage approximation error: {:.2f}'.format(error, avg_error))
 
     if args.save_plot:
         save_dir = "{}/results/examples_backward/".format(

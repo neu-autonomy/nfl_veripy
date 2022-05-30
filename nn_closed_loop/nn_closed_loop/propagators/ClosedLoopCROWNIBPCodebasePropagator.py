@@ -174,10 +174,7 @@ class ClosedLoopCROWNIBPCodebasePropagator(ClosedLoopPropagator):
         # Given an output_constraint, compute the input_constraint
         # that ensures that starting from within the input_constraint
         # will lead to a state within the output_constraint
-        # import pdb; pdb.set_trace()
         info = {}
-        # if collected_input_constraints is None:
-        #     collected_input_constraints = [input_constraint]
 
         # Extract elementwise bounds on xt1 from the lp-ball or polytope constraint
         if isinstance(output_constraint, constraints.PolytopeConstraint):
@@ -243,16 +240,8 @@ class ClosedLoopCROWNIBPCodebasePropagator(ClosedLoopPropagator):
         constrs += [u_min <= ut]
         constrs += [ut <= u_max]
 
+        # Note: state limits are not included in CDC 2022 paper results/discussion
         # Included state limits to reduce size of backreachable sets by eliminating states that are not physically possible (e.g., maximum velocities)
-        # if self.dynamics.x_limits is not None:
-            # x_llim = self.dynamics.x_limits[:, 0]
-            # x_ulim = self.dynamics.x_limits[:, 1]
-            # constrs += [x_llim <= xt]
-            # constrs += [xt <= x_ulim]
-            # # Also constrain the future state to be within the state limits
-            # constrs += [self.dynamics.dynamics_step(xt,ut) <= x_ulim]
-            # constrs += [self.dynamics.dynamics_step(xt,ut) >= x_llim]
-        
         if self.dynamics.x_limits is not None:
             for state in self.dynamics.x_limits:
                 constrs += [self.dynamics.x_limits[state][0] <= xt[state]]
@@ -260,8 +249,6 @@ class ClosedLoopCROWNIBPCodebasePropagator(ClosedLoopPropagator):
 
 
 
-        # constrs += [self.dynamics.At@xt + self.dt*self.dynamics.bt@ut + self.dt*self.dynamics.ct <= xt1_max]
-        # constrs += [self.dynamics.At@xt + self.dt*self.dynamics.bt@ut + self.dt*self.dynamics.ct >= xt1_min]
 
         constrs += [self.dynamics.dynamics_step(xt,ut) <= xt1_max]
         constrs += [self.dynamics.dynamics_step(xt,ut) >= xt1_min]
@@ -311,8 +298,6 @@ class ClosedLoopCROWNIBPCodebasePropagator(ClosedLoopPropagator):
         ut_min = np.inf*np.ones(num_control_inputs)
         xt_range_max = -np.inf*np.ones(xt1_min.shape)
         xt_range_min = np.inf*np.ones(xt1_min.shape)
-        # upper_A_max, lower_A_min = -np.inf*np.ones((num_control_inputs, num_states)), np.inf*np.ones((num_control_inputs, num_states))
-        # upper_sum_b_max, lower_sum_b_min = -np.inf*np.ones(num_control_inputs), np.inf*np.ones(num_control_inputs)
 
         # Iterate through each partition
         for element in product(
@@ -396,12 +381,9 @@ class ClosedLoopCROWNIBPCodebasePropagator(ClosedLoopPropagator):
                         ut_min,
                         ut_max,
                         input_constraint,
-                        collected_input_constraints,
-                        infos,
                     )
 
             else:
-                # import pdb; pdb.set_trace()
                 input_constraint = self.get_one_step_backprojection_set_underapprox(
                     ranges,
                     upper_A,
@@ -413,7 +395,6 @@ class ClosedLoopCROWNIBPCodebasePropagator(ClosedLoopPropagator):
                     input_constraint
                 )
 
-        # import pdb; pdb.set_trace()
         if overapprox:
             # input_constraint should contain [A] and [b]
             # TODO: Store the detailed partitions in info
@@ -497,11 +478,12 @@ class ClosedLoopCROWNIBPCodebasePropagator(ClosedLoopPropagator):
         ranges: section of backreachable set
         upper_A, lower_A, upper_sum_b, lower_sum_b: CROWN variables defining upper and lower affine bounds
         xt1max, xt1min: target set max values
+        A_t: matrix describing in which directions to optimize
         input_constraint: empty constraint object
         xt_range_min, xt_range_max: min and max x values current overall BP set estimate (expanded as new partitions are analyzed)
         ut_min, ut_max: min and max u values current overall BP set estimate (expanded as new partitions are analyzed)
     Outputs: 
-        input_constraint: one step BP set under-approximation
+        input_constraint: one step BP set over-approximation
         xt_range_min, xt_range_max: min and max x values current overall BP set estimate (expanded as new partitions are analyzed)
         ut_min, ut_max: min and max u values current overall BP set estimate (expanded as new partitions are analyzed)
     '''
@@ -520,8 +502,6 @@ class ClosedLoopCROWNIBPCodebasePropagator(ClosedLoopPropagator):
         ut_min,
         ut_max,
         input_constraint,
-        collected_input_constraints,
-        infos
     ):
         xt_min = ranges[..., 0]
         xt_max = ranges[..., 1]
@@ -551,15 +531,6 @@ class ClosedLoopCROWNIBPCodebasePropagator(ClosedLoopPropagator):
         # Constraints to ensure xt reaches the target set given ut
         constrs += [self.dynamics.dynamics_step(xt, ut) <= xt1_max]
         constrs += [self.dynamics.dynamics_step(xt, ut) >= xt1_min]
-
-        # TODO: check that this is valid
-        # Constraints to ensure xt does not reach an infeasible region of the state space
-        # if self.dynamics.x_limits is not None:
-        #     x_llim = self.dynamics.x_limits[:, 0]
-        #     x_ulim = self.dynamics.x_limits[:, 1]
-        #     constrs += [self.dynamics.dynamics_step(xt,ut) <= x_ulim]
-        #     constrs += [self.dynamics.dynamics_step(xt,ut) >= x_llim]
-
 
         # Solve optimization problem (min and max) for each state
         A_t_ = np.vstack([A_t, -A_t])
@@ -625,7 +596,26 @@ class ClosedLoopCROWNIBPCodebasePropagator(ClosedLoopPropagator):
         return input_constraint, xt_range_min, xt_range_max, ut_min, ut_max
 
 
+    '''
+    NOT USED in CDC 2022 Paper
 
+    Essentially combines uses N-step (ReBReach-LP) constraints directly into original (BReach-LP) algorithm
+
+    Inputs: 
+        ranges: section of backreachable set
+        upper_A, lower_A, upper_sum_b, lower_sum_b: CROWN variables defining upper and lower affine bounds
+        xt1max, xt1min: target set max values
+        A_t: matrix describing in which directions to optimize
+        input_constraint: empty constraint object
+        xt_range_min, xt_range_max: min and max x values current overall BP set estimate (expanded as new partitions are analyzed)
+        ut_min, ut_max: min and max u values current overall BP set estimate (expanded as new partitions are analyzed)
+        collected_input_constraints: BP over-approximations from previously calculated timesteps
+        infos: dict containing crown bounds from previously calculated timesteps
+    Outputs: 
+        input_constraint: one step BP set over-approximation
+        xt_range_min, xt_range_max: min and max x values current overall BP set estimate (expanded as new partitions are analyzed)
+        ut_min, ut_max: min and max u values current overall BP set estimate (expanded as new partitions are analyzed)
+    '''
     def get_refined_one_step_backprojection_set_overapprox(
         self,
         ranges,
@@ -669,15 +659,6 @@ class ClosedLoopCROWNIBPCodebasePropagator(ClosedLoopPropagator):
         constrs += [xt_min <= xt[:, 0]]
         constrs += [xt[:, 0] <= xt_max]
 
-        # if self.dynamics.x_limits is not None:
-        #     x_llim = self.dynamics.x_limits[:, 0]
-        #     x_ulim = self.dynamics.x_limits[:, 1]
-        
-
-        # # Each xt must be in a backprojection overapprox
-        # for t in range(num_steps - 1):
-        #     A, b = input_constraints[t].A[0], input_constraints[t].b[0]
-        #     constrs += [A@xt[:, t+1] <= b]
 
         # x_{t=T} must be in target set
         if isinstance(collected_input_constraints[0], constraints.LpConstraint):
@@ -687,14 +668,12 @@ class ClosedLoopCROWNIBPCodebasePropagator(ClosedLoopPropagator):
         constrs += [goal_set_A@xt[:, -1] <= goal_set_b]
 
         # Each ut must not exceed CROWN bounds
-        # import pdb; pdb.set_trace()
         for t in range(num_steps):
             # if t == 0:
             #     lower_A, upper_A, lower_sum_b, upper_sum_b = self.get_crown_matrices(xt_min, xt_max, num_control_inputs)
             # else:
             # Gather CROWN bounds for full backprojection overapprox
             if t > 0:
-                # import pdb; pdb.set_trace()
                 upper_A = infos[-t]['upper_A']
                 lower_A = infos[-t]['lower_A']
                 upper_sum_b = infos[-t]['upper_sum_b']
@@ -704,7 +683,7 @@ class ClosedLoopCROWNIBPCodebasePropagator(ClosedLoopPropagator):
             constrs += [lower_A@xt[:, t]+lower_sum_b <= ut[:, t]]
             constrs += [ut[:, t] <= upper_A@xt[:, t]+upper_sum_b]
 
-        # import pdb; pdb.set_trace()
+
         # Each xt must fall in the original backprojection
         for t in range(1,num_steps):
             constrs += [collected_input_constraints[-t].range[:,0] <= xt[:,t]]
@@ -715,16 +694,6 @@ class ClosedLoopCROWNIBPCodebasePropagator(ClosedLoopPropagator):
         for t in range(num_steps):
             constrs += [self.dynamics.dynamics_step(xt[:, t], ut[:, t]) == xt[:, t+1]]
 
-            # if self.dynamics.x_limits is not None:
-            #     x_llim = self.dynamics.x_limits[:, 0]
-            #     x_ulim = self.dynamics.x_limits[:, 1]
-            #     constrs += [self.dynamics.dynamics_step(xt[:, t], ut[:, t]) <= x_ulim]
-            #     constrs += [self.dynamics.dynamics_step(xt[:, t], ut[:, t]) >= x_llim]
-
-        # u_t satisfies control limits (TODO: Necessary? CROWN should account for these)
-        # for t in range(num_steps):
-        #     constrs += [-1 <= ut[:, t]]
-        #     constrs += [1 >= ut[:, t]]
         A_facets = np.vstack([A_t, -A_t])
         A_facets_i = cp.Parameter(num_states)
         obj = A_facets_i@xt[:, 0]
@@ -734,8 +703,6 @@ class ClosedLoopCROWNIBPCodebasePropagator(ClosedLoopPropagator):
         for i in range(num_facets):
             A_facets_i.value = A_facets[i, :]
             prob.solve()
-
-            # prob.solve(solver=cp.SCIPY, scipy_options={"method": "highs"})
             b_[i] = prob.value
 
         # This cell of the backprojection set is upper-bounded by the
@@ -919,7 +886,6 @@ class ClosedLoopCROWNNStepPropagator(ClosedLoopCROWNPropagator):
             overapprox=overapprox,
             refined=refined
         )
-        # import pdb; pdb.set_trace()
         for i in range(len(output_constraint_list)):
             tightened_input_constraints, tightened_infos = self.get_single_target_N_step_backprojection_set(output_constraint_list[i], input_constraints[i], infos[i], t_max=t_max, num_partitions=num_partitions, overapprox=overapprox)
 
@@ -1004,7 +970,6 @@ class ClosedLoopCROWNNStepPropagator(ClosedLoopCROWNPropagator):
         infos,
         num_partitions=None,
     ):
-        # import pdb; pdb.set_trace()
         # Get range of "earliest" backprojection overapprox
         vertices = np.array(
             pypoman.duality.compute_polytope_vertices(
@@ -1062,16 +1027,6 @@ class ClosedLoopCROWNNStepPropagator(ClosedLoopCROWNPropagator):
             constrs += [xt_min <= xt[:, 0]]
             constrs += [xt[:, 0] <= xt_max]
 
-            # if self.dynamics.x_limits is not None:
-            #     x_llim = self.dynamics.x_limits[:, 0]
-            #     x_ulim = self.dynamics.x_limits[:, 1]
-            
-
-            # # Each xt must be in a backprojection overapprox
-            # for t in range(num_steps - 1):
-            #     A, b = input_constraints[t].A[0], input_constraints[t].b[0]
-            #     constrs += [A@xt[:, t+1] <= b]
-
             # x_{t=T} must be in target set
             if isinstance(output_constraint, constraints.LpConstraint):
                 goal_set_A, goal_set_b = range_to_polytope(output_constraint.range)
@@ -1106,16 +1061,6 @@ class ClosedLoopCROWNNStepPropagator(ClosedLoopCROWNPropagator):
             for t in range(num_steps):
                 constrs += [self.dynamics.dynamics_step(xt[:, t], ut[:, t]) == xt[:, t+1]]
 
-                # if self.dynamics.x_limits is not None:
-                #     x_llim = self.dynamics.x_limits[:, 0]
-                #     x_ulim = self.dynamics.x_limits[:, 1]
-                #     constrs += [self.dynamics.dynamics_step(xt[:, t], ut[:, t]) <= x_ulim]
-                #     constrs += [self.dynamics.dynamics_step(xt[:, t], ut[:, t]) >= x_llim]
-
-            # u_t satisfies control limits (TODO: Necessary? CROWN should account for these)
-            # for t in range(num_steps):
-            #     constrs += [-1 <= ut[:, t]]
-            #     constrs += [1 >= ut[:, t]]
 
             A_facets_i = cp.Parameter(num_states)
             obj = A_facets_i@xt[:, 0]
@@ -1149,10 +1094,6 @@ class ClosedLoopCROWNNStepPropagator(ClosedLoopCROWNPropagator):
             elif isinstance(output_constraint, constraints.PolytopeConstraint):
                 vertices = np.array(pypoman.duality.compute_polytope_vertices(A_stack,b_stack))
                 if len(vertices) > 0:
-                    # import pdb; pdb.set_trace()
-                    # pypoman.polygon.compute_polygon_hull(A_stack, b_stack+1e-10)
-                    # vertices = np.array(pypoman.duality.compute_polytope_vertices(A_stack,b_stack))
-                    
                     xt_max_candidate = np.max(vertices, axis=0)
                     xt_min_candidate = np.min(vertices, axis=0)
                     xt_range_max = np.maximum(xt_range_max, xt_max_candidate)
@@ -1170,9 +1111,6 @@ class ClosedLoopCROWNNStepPropagator(ClosedLoopCROWNPropagator):
         elif isinstance(output_constraint, constraints.PolytopeConstraint):
             x_overapprox = np.vstack((xt_range_min, xt_range_max)).T
             A_overapprox, b_overapprox = range_to_polytope(x_overapprox)
-
-            # infos[-1]['tightened_constraint'] = tightened_constraint
-            # infos[-1]['tightened_overapprox'] = constraints.PolytopeConstraint(A_overapprox, b_overapprox)
             
             input_constraint = deepcopy(input_constraints[-1])
             input_constraint.A = [A_overapprox]

@@ -51,36 +51,12 @@ def main(args):
         else:
             raise NotImplementedError
         if args.init_state_range is None:
-            # init_state_range = np.array(
-            #     [  # (num_inputs, 2)
-            #         [-12.5, -12.0],  # x0min, x0max
-            #         [-0.25, 0.25],  # x1min, x1max
-            #     ]
-            # )
             init_state_range = np.array(
                 [  # (num_inputs, 2)
                     [-1.5, -0.5],  # x0min, x0max
                     [-0.5, 0.5],  # x1min, x1max
                 ]
             )
-            # init_state_range = np.array(
-            #     [  # (num_inputs, 2)
-            #         [-6.75, -5.5],  # x0min, x0max
-            #         [0, 1.5],  # x1min, x1max
-            #     ]
-            # )
-            # init_state_range = np.array(
-            #     [  # (num_inputs, 2)
-            #         [-6.75, -5.5],  # x0min, x0max
-            #         [0, 1.5],  # x1min, x1max
-            #     ]
-            # )
-            # init_state_range = np.array(
-            #     [  # (num_inputs, 2)
-            #         [-6.28125, -6.125],  # x0min, x0max
-            #         [0, 0.1875],  # x1min, x1max
-            #     ]
-            # )
         else:
             import ast
 
@@ -179,24 +155,6 @@ def main(args):
                     [4.75, 4.75, 3.05, 0.96, 0.01, 0.01],
                 ]
             ).T
-            # init_state_range = np.array( # tree_trunks_vs_quadrotor_12__
-            #     [  # (num_inputs, 2)
-            #         [-6.5, 0.25-0.25, 2, .95, -0.01, -0.01],
-            #         [-6, 0.25+0.25, 2.5, 1.0, 0.01, 0.01],
-            #     ]
-            # ).T
-            # init_state_range = np.array(
-            #     [  # (num_inputs, 2)
-            #         [-4.5, -0.25, 2, 0.95, -0.01, -0.01],
-            #         [-4.5, 0.25, 2.5, 1.05, 0.01, 0.01],
-            #     ]
-            # ).T
-            # init_state_range = np.array( # tree_trunks_vs_quadrotor_12__
-            #     [  # (num_inputs, 2)
-            #         [-6.5,-0.25, 2, 1.95, -0.01, -0.01],
-            #         [-6, 0.25, 2.5, 2.0, 0.01, 0.01],
-            #     ]
-            # ).T
         else:
             import ast
 
@@ -348,21 +306,13 @@ def main(args):
             range=init_state_range, p=np.inf
         )
         output_constraint = constraints.LpConstraint(p=np.inf)
-        if args.include_backward:
+        if args.show_obs:
             back_input_constraint = constraints.LpConstraint(p=np.inf)
             back_output_constraint = [constraints.LpConstraint(range=final_state_range, p=np.inf)]
         else:
             back_output_constraint = [None]
     else:
         raise NotImplementedError
-    
-
-    # dyn.show_trajectories(
-    #     args.t_max * dyn.dt,
-    #     input_constraint,
-    #     ax=None,
-    #     controller=analyzer.propagator.network,
-    # )
 
     if args.estimate_runtime:
         # Run the analyzer N times to compute an estimated runtime
@@ -471,7 +421,6 @@ def main(args):
         if args.show_policy:
             controller_name = vars(args)['controller']
 
-    # import pdb; pdb.set_trace()
     if args.show_plot or args.save_plot:
         analyzer.visualize(
             input_constraint,
@@ -488,134 +437,6 @@ def main(args):
             controller_name=controller_name,
             **analyzer_info
         )
-
-    if args.include_backward:
-        # import pdb; pdb.set_trace()
-        # final_state_range = output_constraint.range[-1]
-        # final_state_range = np.array(
-        #     [
-        #         [-7, -6.5],
-        #         [-0.5, 0.5]
-        #     ]
-        # )
-        # final_state_range = np.array(
-        #     [
-        #         [-1, 1],
-        #         [-1, 1]
-        #     ]
-        # )
-        # final_state_range = np.array(
-        #         [  # (num_inputs, 2)
-        #             [4.5, 5.0],  # x0min, x0max
-        #             [-0.25, 0.25],  # x1min, x1max
-        #         ]
-        #     )
-        # final_state_range = np.array(
-        #         [
-        #             [ 4.91619968,  4.53423548,  2.36018491, -0.11017013, -1.06671727, -3.92222357],
-        #             [ 5.02522087,  4.64494753,  2.46865058, -0.08676434, -1.03767562, -3.89723158]
-        #         ]
-        #     ).T
-        # final_state_range = np.array(
-        #         [  # (num_inputs, 2)
-        #             [4.65, 4.65, 2.95, 0.94, -0.01, -0.01],
-        #             [4.75, 4.75, 3.05, 0.96, 0.01, 0.01],
-        #         ]
-        #     ).T
-        # final_state_range = np.array(
-        #         [  # (num_inputs, 2)
-        #             [5.58999968, 4.63999987, 2.94000006, 0.70083475, -0.31463686, -9.74409199],
-        #             [5.70999956, 4.75999975, 3.05999994, 0.75489312, -0.20422009, -9.71696091],
-        #         ]
-        #     ).T
-        # final_state_range = np.array(
-        #     [
-        #         [ 4.74399948,  4.84599972],
-        #         [ 4.64899969,  4.75099993],
-        #         [ 2.94900012,  3.05099988],
-        #         [ 0.91608346,  0.93948931],
-        #         [-0.04046369, -0.01142201],
-        #         [-0.98340923, -0.96269608],
-        #     ]
-        # )
-        # final_state_range = np.array(
-        #     [  # (num_inputs, 2)
-        #         [-0.25, 0.5-0.25, 1, -0.2, -0.2, -0.2],
-        #         [0.25, 0.5+0.25, 4, 0.2, 0.2, 0.2],
-        #     ]
-        # ).T
-
-        # final_state_range = np.array(
-        #     [  # (num_inputs, 2)
-        #         [-0.25, -0.25, 2, -0.01, -0.01, -0.01],
-        #         [0.25, 0.25, 2.5, 0.01, 0.01, 0.01],
-        #     ]
-        # ).T
-
-        # final_state_range = np.array(
-        #     [  # (num_inputs, 2)
-        #         [-0.25, 0.25],  # x0min, x0max
-        #         [-0.25, 0.25],  # x1min, x1max
-        #         [0.99,1.01],
-        #         [1.254,1.260]
-        #     ]
-        # )
-        # final_state_range = np.array(
-        #     [  # (num_inputs, 2)
-        #         [-0.25, 0.25],  # x0min, x0max
-        #         [-0.25, 0.25],  # x1min, x1max
-        #         [-0.5, 0.5],
-        #         [-0.01, 0.01]
-        #     ]
-        # )
-        # num_partitions = 1*np.array([1, 1, 1, 1, 1, 1])
-        # num_partitions = 1*np.array([4,4])
-        # num_partitions = 1*np.array([1, 1, 1, 1])
-        
-        back_analyzer = analyzers.ClosedLoopBackwardAnalyzer(controller, dyn)
-        back_analyzer.partitioner = partitioner_hyperparams
-        # import pdb; pdb.set_trace()
-        back_analyzer.propagator = propagator_hyperparams
-        
-        # A_out, b_out = range_to_polytope(final_state_range)
-        # back_output_constraint = constraints.PolytopeConstraint(
-        #     A=A_out, b=[b_out]
-        # )
-        # back_input_constraint = constraints.PolytopeConstraint(None, None)
-
-        import time
-        # back_output_constraint = [constraints.LpConstraint(range=final_state_range, p=np.inf)]
-        # back_input_constraint = constraints.LpConstraint(p=np.inf)
-        t_start = time.time()
-        back_input_constraint_list, back_analyzer_info_list = back_analyzer.get_backprojection_set(
-            back_output_constraint, back_input_constraint, t_max=args.t_max, num_partitions=num_partitions, overapprox=True
-        )
-        t_end = time.time()
-        print(t_end - t_start)
-        # import pdb; pdb.set_trace()
-        # print(back_analyzer_info[])
-        # args.plot_lims = np.array([[-6, 1],[-4, 4]])
-        # import pdb; pdb.set_trace()
-        back_analyzer.visualize(
-            back_input_constraint_list,
-            back_output_constraint,
-            back_analyzer_info_list,
-            show_samples=args.show_samples,
-            show_trajectories=args.show_trajectories,
-            show=args.show_plot,
-            labels=args.plot_labels,
-            aspect=args.plot_aspect,
-            inputs_to_highlight=inputs_to_highlight,
-            plot_lims=args.plot_lims,
-            initial_constraint=[input_constraint],
-            controller_name=controller_name,
-            show_BReach=args.show_BReach
-        )
-
-
-        # back_stats, back_analyzer_info = os.system(
-        #     "python -m example_backward --partitioner None --propagator CROWN --system ground_robot --controller linear_controller30x2 --state_feedback --show_plot --boundaries polytope --overapprox --t_max {} --final_state_range{}".format(args.t_max, final_state_tuple)
-        # )
 
     return stats, analyzer_info
 
@@ -788,8 +609,8 @@ def setup_parser():
         help="number of control inputs - only used for scalability expt (default: 2)",
     )
     parser.add_argument(
-        "--include_backward",
-        dest="include_backward",
+        "--show_obs",
+        dest="show_obs",
         action="store_true",
         help="Check final reachable set to see what parts backproject to initial state"
     )

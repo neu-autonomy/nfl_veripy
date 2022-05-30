@@ -220,6 +220,7 @@ class CompareRuntimeVsErrorTable(Experiment):
                 
 
                 all_errors = group['all_errors'].iloc[0]
+                import pdb; pdb.set_trace()
                 t_max = all_errors.shape[0]
                 label = self.info[prop_part_tuple]['name']
 
