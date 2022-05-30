@@ -70,15 +70,12 @@ class ClosedLoopAnalyzer(analyzers.Analyzer):
         controller_name=None,
         **kwargs
     ):
-        # sampled_outputs = self.get_sampled_outputs(input_range)
-        # output_range_exact = self.samples_to_range(sampled_outputs)
 
         if inputs_to_highlight is None:
             inputs_to_highlight = [
                 {"dim": [0], "name": "$x_0$"},
                 {"dim": [1], "name": "$x_1$"},
             ]
-        # import pdb; pdb.set_trace()
         self.partitioner.setup_visualization(
             input_constraint,
             output_constraint.get_t_max(),
@@ -105,23 +102,7 @@ class ClosedLoopAnalyzer(analyzers.Analyzer):
             kwargs.get("iteration", None),
             reachable_set_color=self.reachable_set_color,
             reachable_set_zorder=self.reachable_set_zorder,
-            # plot_lims=plot_lims
         )
-        # import pdb; pdb.set_trace()
-        # from colour import Color
-        # orange = Color("orange")
-        # colors = list(orange.range_to(Color("purple"),len(output_constraint.range)))
-        # for j,ic in enumerate(output_constraint[0:]):
-        #     rect = ic.plot(self.partitioner.animate_axes, self.partitioner.input_dims, colors[j].hex_l, zorder=self.estimated_backprojection_set_zorder, linewidth=self.partitioner.linewidth, plot_2d=self.partitioner.plot_2d)
-        #     self.partitioner.default_patches += rect
-
-        # self.partitioner.animate_axes.legend(
-        #     bbox_to_anchor=(0, 1.02, 1, 0.2),
-        #     loc="lower left",
-        #     mode="expand",
-        #     borderaxespad=0,
-        #     ncol=1,
-        # )
 
         import numpy as np
         import nn_closed_loop.constraints as constraints
@@ -131,20 +112,6 @@ class ClosedLoopAnalyzer(analyzers.Analyzer):
                 [-0.5, 0.5],  # x1min, x1max
             ]
         )
-        # x0 = np.array( # tree_trunks_vs_quadrotor_12__
-        #         [  # (num_inputs, 2)
-        #             [-6.5,-0.25, 2, 1.95, -0.01, -0.01],
-        #             [-6, 0.25, 2.5, 2.0, 0.01, 0.01],
-        #         ]
-        #     ).T
-        # x0 = np.array(
-        #     [  # (num_inputs, 2)
-        #         [-0.25, 0.25],  # x0min, x0max
-        #         [-0.25, 0.25],  # x1min, x1max
-        #         [0.99,1.01],
-        #         [1.24,1.26]
-        #     ]
-        # )
         x0_constraint = constraints.LpConstraint(
             range=x0, p=np.inf
         )
@@ -156,32 +123,7 @@ class ClosedLoopAnalyzer(analyzers.Analyzer):
                 input_dims=input_dims,
                 ax=self.partitioner.animate_axes,
                 controller=self.propagator.network,
-            ) 
-
-        # initial_constraint = constraints.LpConstraint(x0)
-        # self.partitioner.plot_reachable_sets(
-        #     initial_constraint,
-        #     input_dims,
-        #     reachable_set_color='k',
-        #     reachable_set_zorder=10,
-        #     reachable_set_ls='-'
-        # )
-        # xf = np.array(
-        #     [  # (num_inputs, 2)
-        #         [-1, 1],  # x0min, x0max
-        #         [-1, 1],  # x1min, x1max
-        #     ]
-        # )
-        # xf_constraint = constraints.LpConstraint(
-        #     range=xf, p=np.inf
-        # )
-        # self.partitioner.plot_reachable_sets(
-        #     xf_constraint,
-        #     input_dims,
-        #     reachable_set_color='tab:red',
-        #     reachable_set_zorder=10,
-        #     reachable_set_ls='-'
-        # )
+            )
 
         self.partitioner.animate_fig.tight_layout()
 
