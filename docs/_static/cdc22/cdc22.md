@@ -18,7 +18,7 @@ python -m nn_closed_loop.example_backward \
     --propagator CROWNNStep \
     --partitioner None \
     --state_feedback \
-    --skip_show_plot \
+    --show_plot \
     --overapprox \
     --show_BReach \
     --system double_integrator \
@@ -51,7 +51,7 @@ python -m nn_closed_loop.example \
     --propagator CROWN \
     --partitioner Uniform \
     --state_feedback \
-    --skip_show_plot \
+    --show_plot \
     --system ground_robot \
     --controller complex_potential_field \
     --t_max 9 \
@@ -71,7 +71,7 @@ python -m nn_closed_loop.example \
     --propagator CROWN \
     --partitioner Uniform \
     --state_feedback \
-    --skip_show_plot \
+    --show_plot \
     --system ground_robot \
     --controller complex_potential_field \
     --t_max 9 \
@@ -90,7 +90,7 @@ python -m nn_closed_loop.example_backward \
     --propagator CROWN \
     --partitioner None \
     --state_feedback \
-    --skip_show_plot \
+    --show_plot \
     --overapprox \
     --system ground_robot \
     --controller complex_potential_field \
@@ -114,7 +114,7 @@ python -m nn_closed_loop.example_backward \
     --propagator CROWNNStep \
     --partitioner None \
     --state_feedback \
-    --skip_show_plot \
+    --show_plot \
     --overapprox \
     --system ground_robot \
     --controller buggy_complex_potential_field \
