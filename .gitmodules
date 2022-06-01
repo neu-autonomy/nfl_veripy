@@ -7,3 +7,6 @@
 [submodule "auto_LiRPA"]
 	path = auto_LiRPA
 	url = https://github.com/KaidiXu/auto_LiRPA.git
+[submodule "alpha-beta-CROWN"]
+	path = alpha-beta-CROWN
+	url = https://github.com/huanzhang12/alpha-beta-CROWN
