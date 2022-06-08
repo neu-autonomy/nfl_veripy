@@ -5,6 +5,7 @@ import pypoman
 from itertools import product
 from copy import deepcopy
 from nn_closed_loop.utils.utils import range_to_polytope
+import torch
 
 
 class ClosedLoopUniformPartitioner(ClosedLoopPartitioner):
@@ -165,3 +166,91 @@ class ClosedLoopUniformPartitioner(ClosedLoopPartitioner):
         info["num_partitions"] = np.product(num_partitions)
 
         return output_constraint, info
+
+    def get_one_step_backprojection_set(
+        self, target_set, dummy_backprojection_set, propagator, num_partitions=None, overapprox=False, refined=False
+    ):
+
+        backreachable_set, info = self.get_one_step_backreachable_set(target_set)
+
+        '''
+        Partition the backreachable set (xt).
+        For each cell in the partition:
+        - relax the NN (use CROWN to compute matrices for affine bounds)
+        - use the relaxed NN to compute bounds on xt1
+        - use those bounds to define constraints on xt, and if valid, add
+            to input_constraint
+        '''
+
+        # Setup the partitions
+        if num_partitions is None:
+            num_partitions = np.array([10, 10])
+
+        input_range = backreachable_set.range
+        input_shape = input_range.shape[:-1]
+        slope = np.divide(
+            (input_range[..., 1] - input_range[..., 0]), num_partitions
+        )
+
+        # Set an empty Constraint that will get filled in
+        if isinstance(target_set, constraints.PolytopeConstraint):
+            backprojection_set = constraints.PolytopeConstraint(A=[], b=[])
+        elif isinstance(target_set, constraints.LpConstraint):
+            backprojection_set = constraints.LpConstraint(p=np.inf)
+        xt_max = -np.inf*np.ones(propagator.dynamics.num_states)
+        xt_min = np.inf*np.ones(propagator.dynamics.num_states)
+
+        # Iterate through each partition
+        for element in product(
+            *[range(int(num)) for num in num_partitions.flatten()]
+        ):
+            # Compute this partition's min/max xt values
+            element = np.array(element).reshape(input_shape)
+            backreachable_set_this_cell = np.empty_like(input_range)
+            backreachable_set_this_cell[..., 0] = input_range[..., 0] + np.multiply(
+                element, slope
+            )
+            backreachable_set_this_cell[..., 1] = input_range[..., 0] + np.multiply(
+                element + 1, slope
+            )
+
+            # Because there might be sensor noise, the NN could see a different
+            # set of states than the system is actually in
+            xt_min_this_cell = backreachable_set_this_cell[..., 0]
+            xt_max_this_cell = backreachable_set_this_cell[..., 1]
+            nn_input_max_this_cell = torch.Tensor(np.array([xt_max_this_cell]))
+            nn_input_min_this_cell = torch.Tensor(np.array([xt_min_this_cell]))
+            if self.dynamics.sensor_noise is not None:
+                raise NotImplementedError
+                # nn_input_max += torch.Tensor([self.dynamics.sensor_noise[:, 1]])
+                # nn_input_min += torch.Tensor([self.dynamics.sensor_noise[:, 0]])
+
+            backprojection_set_this_cell, this_info = propagator.get_one_step_backprojection_set(
+                target_set,
+                dummy_backprojection_set,
+                num_partitions=num_partitions,
+                overapprox=overapprox,
+                collected_input_constraints=None,
+                # collected_input_constraints=[output_constraint]+input_constraints,
+                refined=refined,
+                nn_input_max=nn_input_max_this_cell,
+                nn_input_min=nn_input_min_this_cell,
+                backreachable_set=backreachable_set_this_cell,
+            )
+
+            if backprojection_set_this_cell is None:
+                continue
+            else:
+                xt_min = np.minimum(backprojection_set_this_cell.range[..., 0], xt_min)
+                xt_max = np.maximum(backprojection_set_this_cell.range[..., 1], xt_max)
+
+        if overapprox:
+            # backprojection_set should contain [A] and [b]
+            # TODO: Store the detailed partitions in info
+            x_overapprox = np.vstack((xt_min, xt_max)).T
+            backprojection_set.range = x_overapprox
+            # A_overapprox, b_overapprox = range_to_polytope(x_overapprox)
+            # backprojection_set.A = [A_overapprox]
+            # backprojection_set.b = [b_overapprox]
+
+        return backprojection_set, info

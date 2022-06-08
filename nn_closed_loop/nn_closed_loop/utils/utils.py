@@ -1,6 +1,7 @@
 import pickle
 import numpy as np
 import os
+import nn_closed_loop.constraints as constraints
 
 dir_path = os.path.dirname(os.path.realpath(__file__))
 
@@ -56,11 +57,30 @@ def plot_polytope_facets(A, b, ls='-', show=True):
     if show:
         plt.show()
 
+
 def get_polytope_verts(A, b):
     import pypoman
     # vertices = pypoman.duality.compute_polytope_vertices(A, b)
     vertices = pypoman.polygon.compute_polygon_hull(A, b)
     print(vertices)
+
+
+def over_approximate_constraint(constraint):
+
+    if isinstance(constraint, constraints.LpConstraint):
+        return constraint
+    elif isinstance(constraint, constraints.PolytopeConstraint):
+
+        # Note: this is a super sketchy implementation that only works under certain cases
+        # specifically when all the contraints have the same A matrix
+
+        # TODO: Add an assert
+        # TODO: implement a more general version
+
+        constraint.A = constraint.A[0]
+        constraint.b = [np.max(np.array(constraint.b), axis=0)]
+
+        return constraint
 
 
 if __name__ == "__main__":

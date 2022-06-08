@@ -124,7 +124,7 @@ def main(args):
             import ast
 
     if args.num_partitions is None:
-        num_partitions = np.array([1, 1, 1, 1])
+        num_partitions = np.array([10, 10])
     else:
         import ast
 
@@ -168,28 +168,18 @@ def main(args):
 
     # Set up initial state set (and placeholder for reachable sets)
     if args.boundaries == "polytope":
-        A_out, b_out = range_to_polytope(final_state_range)
-        output_constraint1 = constraints.PolytopeConstraint(
-            A=A_out, b=[b_out]
-        )
-        input_constraint = constraints.PolytopeConstraint(None, None)
-        output_constraint = [output_constraint1]
+        raise NotImplementedError
+        # A_out, b_out = range_to_polytope(final_state_range)
+        # output_constraint1 = constraints.PolytopeConstraint(
+        #     A=A_out, b=[b_out]
+        # )
+        # input_constraint = constraints.PolytopeConstraint(None, None)
+        # output_constraint = [output_constraint1]
     elif args.boundaries == "lp":
-        output_constraint1 = constraints.LpConstraint(
+        target_set = constraints.LpConstraint(
             range=final_state_range, p=np.inf
         )
-        input_constraint = constraints.LpConstraint(p=np.inf, range=None)
-        final_state_range2 = np.array(
-                [  # (num_inputs, 2)
-                    [6.5, 7.0],  # x0min, x0max
-                    [-0.25, 0.25],  # x1min, x1max
-                ]
-            )
-        output_constraint2 = constraints.LpConstraint(
-            range=final_state_range2, p=np.inf
-        )
-        # output_constraint = [output_constraint2,output_constraint1]
-        output_constraint = [output_constraint1]
+        dummy_backprojection_set = constraints.LpConstraint(p=np.inf, range=None)
     else:
         raise NotImplementedError
 
@@ -202,12 +192,12 @@ def main(args):
         final_errors = np.empty(num_calls)
         avg_errors = np.empty(num_calls, dtype=np.ndarray)
         all_errors = np.empty(num_calls, dtype=np.ndarray)
-        output_constraints = np.empty(num_calls, dtype=object)
+        all_backprojection_sets = np.empty(num_calls, dtype=object)
         for num in range(num_calls):
             print('call: {}'.format(num))
             t_start = time.time()
-            input_constraint_list, analyzer_info_list = analyzer.get_backprojection_set(
-                output_constraint, input_constraint, t_max=args.t_max, num_partitions=num_partitions, overapprox=args.overapprox, refined=args.refined
+            backprojection_sets, analyzer_info = analyzer.get_backprojection_set(
+                target_set, dummy_backprojection_set, t_max=args.t_max, num_partitions=num_partitions, overapprox=args.overapprox, refined=args.refined
             )
             t_end = time.time()
             t = t_end - t_start
@@ -225,21 +215,21 @@ def main(args):
             # final_errors[num] = final_error
             # avg_errors[num] = avg_error
             # all_errors[num] = all_error
-            # output_constraints[num] = output_constraint
+            # all_backprojection_sets[num] = output_constraint
 
         stats['runtimes'] = times
         stats['final_step_errors'] = final_errors
         stats['avg_errors'] = avg_errors
         stats['all_errors'] = all_errors
-        stats['output_constraints'] = output_constraints
+        stats['all_backprojection_sets'] = all_backprojection_sets
 
         print("All times: {}".format(times))
         print("Avg time: {} +/- {}".format(times.mean(), times.std()))
     else:
         # Run analysis once
         # Run analysis & generate a plot
-        input_constraint_list, analyzer_info_list = analyzer.get_backprojection_set(
-            output_constraint, input_constraint, t_max=args.t_max, num_partitions=num_partitions, overapprox=args.overapprox, refined=args.refined
+        backprojection_sets, analyzer_info = analyzer.get_backprojection_set(
+            target_set, dummy_backprojection_set, t_max=args.t_max, num_partitions=num_partitions, overapprox=args.overapprox, refined=args.refined
         )
         
     controller_name=None
@@ -249,7 +239,8 @@ def main(args):
     # error, avg_error = analyzer.get_error(input_constraint,output_constraint, t_max=args.t_max)
     # print('Final step approximation error:{:.2f}\nAverage approximation error: {:.2f}'.format(error, avg_error))
 
-    if args.save_plot:
+    if False:
+    # if args.save_plot:
         save_dir = "{}/results/examples_backward/".format(
             os.path.dirname(os.path.abspath(__file__))
         )
@@ -280,7 +271,7 @@ def main(args):
                 if key not in ["input_shape", "type"]
             ]
         )
-        analyzer_info_list[0]["save_name"] = (
+        analyzer_info["save_name"] = (
             save_dir
             + args.system
             + pars
@@ -307,11 +298,13 @@ def main(args):
             )
         analyzer_info_list[0]["save_name"] = analyzer_info_list[0]["save_name"] + ".png"
     # import pdb; pdb.set_trace()
+    print('examples_backward:', args.show_convex_hulls)
+
     if args.show_plot or args.save_plot:
         analyzer.visualize(
-            input_constraint_list,
-            output_constraint,
-            analyzer_info_list,
+            backprojection_sets,
+            target_set,
+            analyzer_info,
             show_samples=args.show_samples,
             show_trajectories=args.show_trajectories,
             show_convex_hulls=args.show_convex_hulls,
@@ -324,7 +317,7 @@ def main(args):
             show_BReach=args.show_BReach
         )
 
-    return stats, analyzer_info_list
+    return stats, analyzer_info
 
 
 def setup_parser():
@@ -368,7 +361,7 @@ def setup_parser():
     parser.add_argument(
         "--partitioner",
         default="None",
-        choices=["None"],
+        choices=["None", "Uniform"],
         help="which partitioner to use (work in progress for backward...)",
     )
     parser.add_argument(
@@ -497,6 +490,8 @@ def setup_parser():
         action="store_true",
         help="Show convex hulls of true backprojection sets"
     )
+    parser.set_defaults(show_convex_hulls=True)
+
     return parser
 
 

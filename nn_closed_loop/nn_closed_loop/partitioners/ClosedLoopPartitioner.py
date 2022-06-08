@@ -9,6 +9,10 @@ import nn_closed_loop.constraints as constraints
 from nn_closed_loop.utils.utils import range_to_polytope
 from copy import deepcopy
 import os
+import cvxpy as cp
+from nn_closed_loop.utils.utils import over_approximate_constraint
+import torch
+from itertools import product
 
 from nn_closed_loop.constraints.ClosedLoopConstraints import PolytopeConstraint
 
@@ -166,7 +170,6 @@ class ClosedLoopPartitioner(partitioners.Partitioner):
             input_names = [x["name"] for x in inputs_to_highlight]
         self.input_dims = input_dims
 
-        # import pdb; pdb.set_trace()
         if len(input_dims) == 2:
             projection = None
             self.plot_2d = True
@@ -185,7 +188,6 @@ class ClosedLoopPartitioner(partitioners.Partitioner):
         # display_ground_robot_DI_control_field(ax=self.animate_axes)
 
         self.animate_axes.set_aspect(aspect)
-
 
         if show_samples:
             self.dynamics.show_samples(
@@ -220,7 +222,6 @@ class ClosedLoopPartitioner(partitioners.Partitioner):
         rect = input_constraint.plot(self.animate_axes, input_dims, initial_set_color, zorder=initial_set_zorder, linewidth=self.linewidth, plot_2d=self.plot_2d)
         self.default_patches += rect
 
-        # import pdb; pdb.set_trace()
         if extra_set_color is None:
             extra_set_color = "tab:red"
         if extra_constraint[0] is not None:
@@ -231,7 +232,8 @@ class ClosedLoopPartitioner(partitioners.Partitioner):
         # # Reachable sets
         # self.plot_reachable_sets(output_constraint, input_dims)
 
-    def visualize(self,
+    def visualize(
+        self,
         M,
         interior_M,
         output_constraint,
@@ -242,7 +244,7 @@ class ClosedLoopPartitioner(partitioners.Partitioner):
         reachable_set_ls=None,
         dont_tighten_layout=False,
         plot_lims=None,
-        ):
+    ):
 
         # Bring forward whatever default items should be in the plot
         # (e.g., MC samples, initial state set boundaries)
@@ -361,23 +363,206 @@ class ClosedLoopPartitioner(partitioners.Partitioner):
             # Initial state constraint of that cell
             self.plot_partition(input_constraint, dims, "tab:red")
 
+    def get_one_step_backreachable_set(self, target_set):
+        # Given a target_set, compute the backreachable_set
+        # that ensures that starting from within the backreachable_set
+        # will lead to a state within the target_set
+        # import pdb; pdb.set_trace()
+        info = {}
+        # if collected_input_constraints is None:
+        #     collected_input_constraints = [input_constraint]
+
+        # Extract elementwise bounds on xt1 from the lp-ball or polytope constraint
+        if isinstance(target_set, constraints.PolytopeConstraint):
+            A_t1 = target_set.A
+            b_t1 = target_set.b[0]
+
+            # Get bounds on each state from A_t1, b_t1
+            try:
+                vertices = np.stack(
+                    pypoman.compute_polytope_vertices(A_t1, b_t1)
+                )
+            except:
+                # Sometimes get arithmetic error... this may fix it
+                vertices = np.stack(
+                    pypoman.compute_polytope_vertices(
+                        A_t1, b_t1 + 1e-6
+                    )
+                )
+            xt1_max = np.max(vertices, 0)
+            xt1_min = np.min(vertices, 0)
+            norm = np.inf
+        elif isinstance(target_set, constraints.LpConstraint):
+            xt1_min = target_set.range[..., 0]
+            xt1_max = target_set.range[..., 1]
+            norm = target_set.p
+            A_t1 = None
+            b_t1 = None
+        else:
+            raise NotImplementedError
+
+        '''
+        Step 1: 
+        Find backreachable set: all the xt for which there is
+        some u in U that leads to a state xt1 in output_constraint
+        '''
+
+        if self.dynamics.u_limits is None:
+            print(
+                "self.dynamics.u_limits is None ==> \
+                The backreachable set is probably the whole state space. \
+                Giving up."
+                )
+            raise NotImplementedError
+        else:
+            u_min = self.dynamics.u_limits[:, 0]
+            u_max = self.dynamics.u_limits[:, 1]
+
+        num_states = xt1_min.shape[0]
+        num_control_inputs = self.dynamics.bt.shape[1]
+        
+        xt = cp.Variable(xt1_min.shape+(2,))
+        ut = cp.Variable(num_control_inputs)
+
+        A_t = np.eye(xt1_min.shape[0])
+        num_facets = A_t.shape[0]
+        coords = np.empty((2*num_states, num_states))
+
+        # For each dimension of the output constraint (facet/lp-dimension):
+        # compute a bound of the NN output using the pre-computed matrices
+        xt = cp.Variable(xt1_min.shape)
+        ut = cp.Variable(num_control_inputs)
+        constrs = []
+        constrs += [u_min <= ut]
+        constrs += [ut <= u_max]
+
+        # Included state limits to reduce size of backreachable sets by eliminating states that are not physically possible (e.g., maximum velocities)
+        # if self.dynamics.x_limits is not None:
+        #     x_llim = self.dynamics.x_limits[:, 0]
+        #     x_ulim = self.dynamics.x_limits[:, 1]
+        #     constrs += [x_llim <= xt]
+        #     constrs += [xt <= x_ulim]
+        #     # Also constrain the future state to be within the state limits
+        #     constrs += [self.dynamics.dynamics_step(xt,ut) <= x_ulim]
+        #     constrs += [self.dynamics.dynamics_step(xt,ut) >= x_llim]
+        
+        if self.dynamics.x_limits is not None:
+            for state in self.dynamics.x_limits:
+                constrs += [self.dynamics.x_limits[state][0] <= xt[state]]
+                constrs += [xt[state] <= self.dynamics.x_limits[state][1]]
+
+        # constrs += [self.dynamics.At@xt + self.dt*self.dynamics.bt@ut + self.dt*self.dynamics.ct <= xt1_max]
+        # constrs += [self.dynamics.At@xt + self.dt*self.dynamics.bt@ut + self.dt*self.dynamics.ct >= xt1_min]
+
+        constrs += [self.dynamics.dynamics_step(xt, ut) <= xt1_max]
+        constrs += [self.dynamics.dynamics_step(xt, ut) >= xt1_min]
+        A_t_i = cp.Parameter(num_states)
+        obj = A_t_i@xt
+        min_prob = cp.Problem(cp.Minimize(obj), constrs)
+        max_prob = cp.Problem(cp.Maximize(obj), constrs)
+        for i in range(num_facets):
+            A_t_i.value = A_t[i, :]
+            min_prob.solve()
+            coords[2*i, :] = xt.value
+            max_prob.solve()
+            coords[2*i+1, :] = xt.value
+
+        # min/max of each element of xt in the backreachable set
+        ranges = np.vstack([coords.min(axis=0), coords.max(axis=0)]).T
+
+        backreachable_set = constraints.LpConstraint(range=ranges)
+        info['backreachable_set'] = backreachable_set
+        info['target_set'] = deepcopy(target_set)
+
+        return backreachable_set, info
+
     def get_one_step_backprojection_set(
-        self, output_constraint, input_constraint, propagator, num_partitions=None, overapprox=False, refined=False
+        self, target_set, dummy_backprojection_set, propagator, num_partitions=None, overapprox=False, refined=False
     ):
-        input_constraint, info = propagator.get_one_step_backprojection_set(
-            output_constraint, deepcopy(input_constraint), num_partitions=num_partitions, overapprox=overapprox, refined=refined
-        )
-        return input_constraint, info
 
+        backreachable_set, info = self.get_one_step_backreachable_set(target_set)
+
+        # Because there might be sensor noise, the NN could see a different
+        # set of states than the system is actually in
+        xt_min = backreachable_set[..., 0]
+        xt_max = backreachable_set[..., 1]
+        nn_input_max = torch.Tensor(np.array([xt_max]))
+        nn_input_min = torch.Tensor(np.array([xt_min]))
+        if self.dynamics.sensor_noise is not None:
+            raise NotImplementedError
+
+        backprojection_set, this_info = propagator.get_one_step_backprojection_set(
+            target_set,
+            dummy_backprojection_set,
+            num_partitions=num_partitions,
+            overapprox=overapprox,
+            collected_input_constraints=None,
+            # collected_input_constraints=[output_constraint]+input_constraints,
+            refined=refined,
+            nn_input_max=nn_input_max,
+            nn_input_min=nn_input_min,
+            backreachable_set=backreachable_set,
+        )
+
+        return backprojection_set, info
+
+    '''
+    Inputs:
+    - output_constraint: describes goal/avoid set at t=t_max
+    - ... TODO
+    
+    Returns:
+    - input_constraints: [BP_{-1}, ..., BP_{-t_max}]
+          i.e., [ set of states that will get to goal/avoid set in 1 step,
+                  ...,
+                  set of states that will get to goal/avoid set in t_max steps
+                ]
+    - ... TODO
+    '''
     def get_backprojection_set(
-        self, output_constraint, input_constraint, propagator, t_max, num_partitions=None, overapprox=False, refined=False
+        self, target_set, dummy_backprojection_set, propagator, t_max, num_partitions=None, overapprox=False, refined=False
     ):
-        input_constraint_, info = propagator.get_backprojection_set(
-            output_constraint, deepcopy(input_constraint), t_max, num_partitions=num_partitions, overapprox=overapprox, refined=refined
-        )
-        input_constraint = input_constraint_.copy()
 
-        return input_constraint, info
+        # Initialize data structures to hold results
+        backprojection_sets = []
+        info = {'per_timestep': []}
+
+        # Run one step of backprojection analysis
+        backprojection_set_this_timestep, info_this_timestep = self.get_one_step_backprojection_set(
+            target_set,
+            dummy_backprojection_set,
+            propagator,
+            num_partitions=num_partitions,
+            overapprox=overapprox,
+            refined=refined,
+        )
+        
+        # Store that step's results
+        backprojection_sets.append(deepcopy(backprojection_set_this_timestep))
+        info['per_timestep'].append(info_this_timestep)
+
+        if overapprox:
+            for i in np.arange(0 + propagator.dynamics.dt + 1e-10, t_max, propagator.dynamics.dt):
+                next_target_set = over_approximate_constraint(deepcopy(backprojection_set_this_timestep))
+
+                # Run one step of backprojection analysis
+                backprojection_set_this_timestep, info_this_timestep = self.get_one_step_backprojection_set(
+                    next_target_set,
+                    dummy_backprojection_set,
+                    propagator,
+                    num_partitions=num_partitions,
+                    overapprox=overapprox,
+                    refined=refined,
+                )
+
+                backprojection_sets.append(deepcopy(backprojection_set_this_timestep))
+                info['per_timestep'].append(info_this_timestep)
+        else:
+            for i in np.arange(0 + propagator.dynamics.dt + 1e-10, t_max, propagator.dynamics.dt):
+                # TODO: Support N-step backprojection in the under-approximation case
+                raise NotImplementedError
+
+        return backprojection_sets, info
 
     def get_backprojection_error(
         self, target_set, backprojection_sets, propagator, t_max
@@ -463,10 +648,7 @@ class ClosedLoopPartitioner(partitioners.Partitioner):
                 estimated_hull = ConvexHull(estimated_verts)
                 estimated_area = estimated_hull.volume
                 
-
-
                 errors.append((estimated_area - true_area) / true_area)
-            import pdb; pdb.set_trace()
         
         final_error = errors[-1]
         avg_error = np.mean(errors)

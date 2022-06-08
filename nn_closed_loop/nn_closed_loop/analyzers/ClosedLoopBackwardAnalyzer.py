@@ -4,6 +4,9 @@ import nn_closed_loop.propagators as propagators
 from nn_partition.utils.utils import samples_to_range, get_sampled_outputs
 import matplotlib.pyplot as plt
 import numpy as np
+import nn_closed_loop.constraints as constraints
+import ast
+
 
 # plt.rcParams['mathtext.fontset'] = 'stix'
 # plt.rcParams['font.family'] = 'STIXGeneral'
@@ -84,11 +87,16 @@ class ClosedLoopBackwardAnalyzer(analyzers.Analyzer):
             target_set, backprojection_sets, self.propagator, t_max
         )
 
+    '''
+    - backprojection_sets: [LpConstraint, ..., LpConstraint]: [BP_{-1}, ..., BP_{-N}]
+    - target_set: LpConstraint: target set
+
+    '''
     def visualize(
         self,
-        input_constraint_list,
-        output_constraint_list,
-        info_list,
+        backprojection_sets,
+        target_set,
+        info,
         initial_constraint=None,
         show=True,
         show_samples=False,
@@ -108,9 +116,10 @@ class ClosedLoopBackwardAnalyzer(analyzers.Analyzer):
                 {"dim": [0], "name": "$x$"},
                 {"dim": [1], "name": "$\dot{x}$"},
             ]
+
         self.partitioner.setup_visualization(
-            input_constraint_list[0][0],
-            output_constraint_list[0].get_t_max(),
+            backprojection_sets[-1],
+            len(backprojection_sets),
             self.propagator,
             show_samples=False,
             # show_samples=show_samples,
@@ -124,47 +133,45 @@ class ClosedLoopBackwardAnalyzer(analyzers.Analyzer):
             controller_name=controller_name
         )
 
-        for i in range(len(output_constraint_list)):
-            self.visualize_single_set(
-                input_constraint_list[i],
-                output_constraint_list[i],
-                initial_constraint=initial_constraint,
-                show_samples=show_samples,
-                show_trajectories=show_trajectories,
-                show_convex_hulls=show_convex_hulls,
-                show=show,
-                labels=labels,
-                aspect=aspect,
-                plot_lims=plot_lims,
-                inputs_to_highlight=inputs_to_highlight,
-                show_BReach=show_BReach,
-                **info_list[i]
-            )
+        # for i in range(len(output_constraint_list)):
+        self.visualize_single_set(
+            backprojection_sets,
+            target_set,
+            initial_constraint=initial_constraint,
+            show_samples=show_samples,
+            show_trajectories=show_trajectories,
+            show_convex_hulls=show_convex_hulls,
+            show=show,
+            labels=labels,
+            aspect=aspect,
+            plot_lims=plot_lims,
+            inputs_to_highlight=inputs_to_highlight,
+            show_BReach=show_BReach,
+            **info
+        )
         self.partitioner.animate_fig.tight_layout()
 
         if plot_lims is not None:
-            import ast
             plot_lims_arr = np.array(
                 ast.literal_eval(plot_lims)
             )
             plt.xlim(plot_lims_arr[0])
             plt.ylim(plot_lims_arr[1])
 
-        if "save_name" in info_list[0] and info_list[0]["save_name"] is not None:
-            plt.savefig(info_list[0]["save_name"])
+        # if "save_name" in info_list[0] and info_list[0]["save_name"] is not None:
+        #     plt.savefig(info_list[0]["save_name"])
+
+        plt.gca().autoscale()
 
         if show:
             plt.show()
         else:
             plt.close()
     
-    
-    
-    
     def visualize_single_set(
         self,
-        input_constraints,
-        output_constraint,
+        backprojection_sets,
+        target_set,
         initial_constraint=None,
         show=True,
         show_samples=False,
@@ -178,7 +185,6 @@ class ClosedLoopBackwardAnalyzer(analyzers.Analyzer):
         **kwargs
     ):
         
-
         # import nn_closed_loop.constraints as constraints
         # from nn_closed_loop.utils.utils import range_to_polytope
         # target_range = np.array(
@@ -255,46 +261,38 @@ class ClosedLoopBackwardAnalyzer(analyzers.Analyzer):
         
         # plt.gcf().add_axes(ax_cb)
 
-        # import pdb; pdb.set_trace()
-
-
-
         # Plot all our input constraints (i.e., our backprojection set estimates)
-        for j,ic in enumerate(input_constraints[0:]):
-            # rect = ic.plot(self.partitioner.animate_axes, self.partitioner.input_dims, colors[j].hex_l, zorder=self.estimated_backprojection_set_zorder, linewidth=self.partitioner.linewidth, plot_2d=self.partitioner.plot_2d)
-            rect = ic.plot(self.partitioner.animate_axes, self.partitioner.input_dims, self.estimated_backprojection_set_color, zorder=self.estimated_backprojection_set_zorder, linewidth=self.partitioner.linewidth, plot_2d=self.partitioner.plot_2d)
+        for backprojection_set in backprojection_sets:
+            rect = backprojection_set.plot(self.partitioner.animate_axes, self.partitioner.input_dims, self.estimated_backprojection_set_color, zorder=self.estimated_backprojection_set_zorder, linewidth=self.partitioner.linewidth, plot_2d=self.partitioner.plot_2d)
             self.partitioner.default_patches += rect
 
         # Show the target set
         self.plot_target_set(
-            output_constraint,
+            target_set,
             color=self.target_set_color,
             zorder=self.target_set_zorder,
             linestyle=self.target_set_linestyle,
         )
 
         # Show the "true" N-Step backprojection set as a convex hull
-        backreachable_set = kwargs['per_timestep'][-1]['backreachable_set']
-        target_set = output_constraint
-        t_max = len(kwargs['per_timestep'])
+        # backreachable_set = kwargs['per_timestep'][-1]['backreachable_set']
+        t_max = len(kwargs)
+        print(show_convex_hulls)
         if show_convex_hulls:
-            try:
-                self.plot_true_backprojection_sets(
-                    input_constraints[-1],
-                    # backreachable_set, 
-                    target_set,
-                    t_max=t_max,
-                    color=self.true_backprojection_set_color,
-                    zorder=self.true_backprojection_set_zorder,
-                    linestyle=self.true_backprojection_set_linestyle,
-                    show_samples=False,
-                )
-            except:
-                pass
+            self.plot_true_backprojection_sets(
+                backprojection_sets[-1],
+                target_set,
+                t_max=t_max,
+                color=self.true_backprojection_set_color,
+                zorder=self.true_backprojection_set_zorder,
+                linestyle=self.true_backprojection_set_linestyle,
+                show_samples=False,
+            )
 
         # If they exist, plot all our loose input constraints (i.e., our one-step backprojection set estimates)
         # TODO: Make plotting these optional via a flag
         if show_BReach:
+            raise NotImplementedError
             for info in kwargs.get('per_timestep', []):
                 ic = info.get('one_step_backprojection_overapprox', None)
                 if ic is None: continue
@@ -302,25 +300,6 @@ class ClosedLoopBackwardAnalyzer(analyzers.Analyzer):
                 self.partitioner.default_patches += rect
 
         # Sketchy workaround to trajectories not showing up
-        import numpy as np
-        import nn_closed_loop.constraints as constraints
-        # x0 = np.array(
-        #     [  # (num_inputs, 2)
-        #         [-5.5, -5.0],  # x0min, x0max
-        #         [-0.5, 0.5],  # x1min, x1max
-        #     ]
-        # )
-        x0 = np.array(
-            [  # (num_inputs, 2)
-                [-5.5, -5.0],  # x0min, x0max
-                [-0.5, 0.5],  # x1min, x1max
-            ]
-        )
-        # import pdb; pdb.set_trace()
-        x0_constraint = constraints.LpConstraint(
-            range=x0, p=np.inf
-        )
-        # import pdb; pdb.set_trace()
         if show_trajectories and initial_constraint is not None:
             self.dynamics.show_trajectories(
                 t_max * self.dynamics.dt,
@@ -328,88 +307,6 @@ class ClosedLoopBackwardAnalyzer(analyzers.Analyzer):
                 ax=self.partitioner.animate_axes,
                 controller=self.propagator.network,
             ) 
-
-        import numpy as np
-        import nn_closed_loop.constraints as constraints
-        x0 = np.array(
-            [  # (num_inputs, 2)
-                [-5.5, -4.5],  # x0min, x0max
-                [-0.5, 0.5],  # x1min, x1max
-            ]
-        )
-        # x0 = np.array( # tree_trunks_vs_quadrotor_12__
-        #         [  # (num_inputs, 2)
-        #             [-6.5,-0.25, 2, 1.95, -0.01, -0.01],
-        #             [-6, 0.25, 2.5, 2.0, 0.01, 0.01],
-        #         ]
-        #     ).T
-        # x0 = np.array(
-        #     [  # (num_inputs, 2)
-        #         [-0.5, 0.5],
-        #         [-0.5, 0.5],
-        #         [-0.01, 0.01],
-        #         [-0.01, 0.01],
-        #     ]
-        # )
-        # x0 = np.array(
-        #         [  # (num_inputs, 2)
-        #             [-2-0.25, -4+0.25],  # x0min, x0max
-        #             [-3., 3.],  # x1min, x1max
-        #             [0.49, 0.50],
-        #             [-0.01, 0.01]
-        #         ]
-        #     )
-        # x0_constraint = constraints.LpConstraint(
-        #     range=x0, p=np.inf
-        # )
-        # input_dims = [x["dim"] for x in inputs_to_highlight]
-        # self.dynamics.show_trajectories(
-        #     len(input_constraints) * self.dynamics.dt,
-        #     x0_constraint,
-        #     input_dims=input_dims,
-        #     ax=self.partitioner.animate_axes,
-        #     controller=self.propagator.network,
-        #     zorder=10
-        # ) 
-
-        # # initial_range = np.array( # tree_trunks_vs_quadrotor_12__
-        # #     [  # (num_inputs, 2)
-        # #         [-6.5, 0.25-0.25, 2, .95, -0.01, -0.01],
-        # #         [-6, 0.25+0.25, 2.5, 1.0, 0.01, 0.01],
-        # #     ]
-        # # ).T
-
-        # initial_constraint = constraints.LpConstraint(x0)
-        # self.partitioner.plot_reachable_sets(
-        #     initial_constraint,
-        #     input_dims,
-        #     reachable_set_color='k',
-        #     reachable_set_zorder=11,
-        #     reachable_set_ls='-'
-        # )
-
-            
-
-
-        # self.partitioner.animate_axes.legend(
-        #     bbox_to_anchor=(0, 1.02, 1, 0.2),
-        #     loc="lower left",
-        #     mode="expand",
-        #     borderaxespad=0,
-        #     ncol=1,
-        # )
-
-        # self.partitioner.animate_fig.tight_layout()
-
-        # if "save_name" in kwargs and kwargs["save_name"] is not None:
-        #     plt.savefig(kwargs["save_name"])
-
-        # if show:
-        #     plt.show()
-        # else:
-        #     plt.close()
-        # self.partitioner.animate_axes.set_xlim([-17.2, 3])
-        # self.partitioner.animate_axes.set_ylim([-7.2, 7.2])
 
     def get_sampled_outputs(self, input_range, N=1000):
         return get_sampled_outputs(input_range, self.propagator, N=N)
@@ -537,6 +434,8 @@ class ClosedLoopBackwardAnalyzer(analyzers.Analyzer):
 
     def plot_true_backprojection_sets(self, backreachable_set, target_set, t_max, show_samples=False, color='g', zorder=None, linestyle='-'):
 
+
+        import pdb; pdb.set_trace()
         # Sample a bunch of pts from our "true" backreachable set
         # (it's actually the tightest axis-aligned rectangle around the backreachable set)
         # and run them forward t_max steps in time under the NN policy
