@@ -45,6 +45,8 @@ class Element():
 
         
         def split(self, target_set=None, dynamics=None, heuristic=None, full_samples=None):
+
+            ############################# Ignore this one #############################
             if heuristic is 'split_most':
                 max_samples = -np.inf
                 split_dim = 0
@@ -61,7 +63,8 @@ class Element():
                             split_samples = split_samples_candidate
 
                 cut = (self.ranges[split_dim,0]+self.ranges[split_dim,1])/2
-                
+            
+            ############################# Ignore this one #############################
             elif heuristic is 'box_out':
                 buffer = 0
                 xtreme = np.array(
@@ -88,8 +91,9 @@ class Element():
                         cut = xtreme[idx] + buffer
 
             
-            
+            ############################# This one has promise #############################
             elif heuristic is 'guided':
+                # Grab bounds of MC samples in backreachable set (not necessarily in current element)
                 if len(full_samples) > 0: 
                     xtreme = np.array(
                         [
@@ -100,15 +104,20 @@ class Element():
                 elif target_set is not None:
                     xtreme = target_set.range.T
                 
+                # Choose where to cut element and along which direction
                 if len(self.samples) == 0:
                     # # Possible idea of choosing dimension based on crown bounds
                     # if not hasattr(self, 'crown_bounds'):
                     #     split_dim = np.argmax(np.ptp(self.ranges, axis=1))
                     # else: 
                     #     split_dim = np.argmax(np.abs(self.crown_bounds['upper_A']-self.crown_bounds['lower_A']))
+
+                    # No samples in element -> bisect it hamburger style
                     split_dim = np.argmax(np.ptp(self.ranges, axis=1))
                     cut = (self.ranges[split_dim,0]+self.ranges[split_dim,1])/2
                 else:
+
+                    # samples in element -> split element near border of samples such that we maximize volume of new element without samples and minimize volume of element containing samples
                     buffer = 0.02
                     diff_magnitude = np.abs(self.ranges.T - xtreme)
                     flat_idx = np.argmax(diff_magnitude)
@@ -129,6 +138,7 @@ class Element():
             elif heuristic is None:
                 raise NotImplementedError
 
+            # split samples into regions contained by new elements
             split_samples = self.samples[self.samples[:,split_dim] < cut], self.samples[self.samples[:,split_dim] > cut]
 
             
@@ -139,12 +149,16 @@ class Element():
             new_ranges[0][split_dim] = lower_split_range
             new_ranges[1][split_dim] = upper_split_range
             
+            # Generate new elements
             elements = Element(new_ranges[0], split_samples[0], heuristic=heuristic, policy=self.policy), Element(new_ranges[1], split_samples[1], heuristic=heuristic, policy=self.policy)
+
+            # Assign value to new elements (used to sort list of elements to be partitioned)
             if heuristic is 'box_out':
                 for el in elements:
                     # import pdb; pdb.set_trace()
                     if len(set(el.ranges.flatten()).intersection(set(np.hstack((xtreme.flatten(), xtreme.flatten()+buffer, xtreme.flatten()-buffer))))) == 0:
                         el.prop = el.prop*0
+
             elif heuristic is 'guided':
                 if len(full_samples) > 0:
                     sample_center = np.mean(full_samples, axis=0)
@@ -219,9 +233,13 @@ class Element():
                     # print("lp status for feasibility: {}".format(element_feasibility))
                     
                     
+                    # If the element is not feasible (or is element bounding samples), assign value to zero
                     if el.flag == 'infeasible' or is_terminal_cell:
                         el.prop = 0
+                    
+                    # Else, value is determined by (distance of furthest corner from sample center) * (volume of cell)
                     else:
+
                         element_center = np.mean(el.ranges, axis=1)
                         # import pdb; pdb.set_trace()
                         # dist = np.linalg.norm(element_center-sample_center, 1)
@@ -389,24 +407,32 @@ class ClosedLoopCROWNIBPCodebasePropagator(ClosedLoopPropagator):
 
         return output_constraint, {'nn_matrices': nn_matrices}
 
-    def partition(self, br_set_element, policy=None, target_set=None, dynamics=None, x_samples_inside_backprojection_set=None, partition_budget=1, heuristic='split_most'):
+
+    '''
+    Inputs: 
+        br_set_element: element object representing the whole backreachable set
+        target_set: target set for current problem (i.e. can be previously calculated BP set)
+        dynamics: system dynamics
+        partition_budget: number of slices allowed to make
+        heuristic: method used to decide which element to split next
+
+    Outputs: 
+        element_list: list of partitioned elements to analyze
+    '''
+    def partition(self, br_set_element, target_set=None, dynamics=None, partition_budget=1, heuristic='split_most'):
         i = 0
         element_list = [br_set_element]
-        # import pdb; pdb.set_trace()
+
+        # if the heuristic isn't uniform, we iteratively select cells to bisect
         if heuristic is not 'uniform':
             while i < partition_budget and element_list[-1].prop > 0:
                 element_to_split = element_list.pop()
-                # print('splitting: {}'.format(element_to_split.ranges))
-                # print('with prop {}'.format(element_to_split.prop))
-                
+
                 new_elements = element_to_split.split(dynamics=dynamics, target_set=target_set, heuristic=heuristic, full_samples=br_set_element.samples)
-                # print(new_elements[0].ranges)
-                # print(new_elements[1].ranges)
+
                 import bisect
                 bisect.insort(element_list, new_elements[0])
                 bisect.insort(element_list, new_elements[1])
-                # print(element_list[-1].prop)
-                # import pdb; pdb.set_trace()
                 i+=1
         else:
             element_list = []
@@ -467,8 +493,6 @@ class ClosedLoopCROWNIBPCodebasePropagator(ClosedLoopPropagator):
         info['other'] = []
         t_start = time.time()
         
-        # if collected_input_constraints is None:
-        #     collected_input_constraints = [input_constraint]
 
         # Extract elementwise bounds on xt1 from the lp-ball or polytope constraint
         if isinstance(output_constraint, constraints.PolytopeConstraint):
@@ -535,25 +559,13 @@ class ClosedLoopCROWNIBPCodebasePropagator(ClosedLoopPropagator):
         constrs += [ut <= u_max]
 
         # Included state limits to reduce size of backreachable sets by eliminating states that are not physically possible (e.g., maximum velocities)
-        # if self.dynamics.x_limits is not None:
-            # x_llim = self.dynamics.x_limits[:, 0]
-            # x_ulim = self.dynamics.x_limits[:, 1]
-            # constrs += [x_llim <= xt]
-            # constrs += [xt <= x_ulim]
-            # # Also constrain the future state to be within the state limits
-            # constrs += [self.dynamics.dynamics_step(xt,ut) <= x_ulim]
-            # constrs += [self.dynamics.dynamics_step(xt,ut) >= x_llim]
-        
         if self.dynamics.x_limits is not None:
             for state in self.dynamics.x_limits:
                 constrs += [self.dynamics.x_limits[state][0] <= xt[state]]
                 constrs += [xt[state] <= self.dynamics.x_limits[state][1]]
 
 
-
-        # constrs += [self.dynamics.At@xt + self.dt*self.dynamics.bt@ut + self.dt*self.dynamics.ct <= xt1_max]
-        # constrs += [self.dynamics.At@xt + self.dt*self.dynamics.bt@ut + self.dt*self.dynamics.ct >= xt1_min]
-
+        # Dynamics must be satisfied
         constrs += [self.dynamics.dynamics_step(xt,ut) <= xt1_max]
         constrs += [self.dynamics.dynamics_step(xt,ut) >= xt1_min]
         A_t_i = cp.Parameter(num_states)
@@ -594,14 +606,20 @@ class ClosedLoopCROWNIBPCodebasePropagator(ClosedLoopPropagator):
         - use those bounds to define constraints on xt, and if valid, add
             to input_constraint
         '''
+
+        ###### Partitioning parameters ##############
         partition_budget=5
+        heuristic='guided'
+        # heuristic = 'uniform'
+        #############################################
+
+        # if using the refined flag, we want to use samples that actually reach the target set
         if refined:
             x_samples_inside_backprojection_set = self.dynamics.get_true_backprojection_set(backreachable_set, collected_input_constraints[0], t_max=len(collected_input_constraints), controller=self.network)
+        # otherwise, find samples that reach the previously calculated BP set
         else:
             x_samples_inside_backprojection_set = self.dynamics.get_true_backprojection_set(backreachable_set, output_constraint, t_max=1, controller=self.network)
 
-        heuristic='guided'
-        # heuristic = 'uniform'
         br_set_element = Element(ranges, x_samples_inside_backprojection_set[:,0,:], heuristic=heuristic, policy=self.network)
         element_list = self.partition(
             br_set_element, 
@@ -613,17 +631,6 @@ class ClosedLoopCROWNIBPCodebasePropagator(ClosedLoopPropagator):
             heuristic=heuristic
         )
         info['br_set_partitions'] = [constraints.LpConstraint(range=element.ranges) for element in element_list]
-        # import pdb; pdb.set_trace()
-
-        # Setup the partitions
-        # if num_partitions is None:
-        #     num_partitions = np.array([10, 10])
-        # input_range = ranges
-        # input_shape = input_range.shape[:-1]
-        # slope = np.divide(
-        #     (input_range[..., 1] - input_range[..., 0]), num_partitions
-        # )
-        # info['br_set_partitions'] = []
 
         # Set an empty Constraint that will get filled in
         if isinstance(output_constraint, constraints.PolytopeConstraint):
@@ -634,33 +641,16 @@ class ClosedLoopCROWNIBPCodebasePropagator(ClosedLoopPropagator):
         ut_min = np.inf*np.ones(num_control_inputs)
         xt_range_max = -np.inf*np.ones(xt1_min.shape)
         xt_range_min = np.inf*np.ones(xt1_min.shape)
-        # upper_A_max, lower_A_min = -np.inf*np.ones((num_control_inputs, num_states)), np.inf*np.ones((num_control_inputs, num_states))
-        # upper_sum_b_max, lower_sum_b_min = -np.inf*np.ones(num_control_inputs), np.inf*np.ones(num_control_inputs)
+
 
         t_end = time.time()
         info['other'].append(t_end-t_start)
-        # Iterate through each partition
-        # for element in product(
-        #     *[range(int(num)) for num in num_partitions.flatten()]
-        # ):
+
         for element in element_list:
             if element.flag is not 'infeasible':
-                # import pdb; pdb.set_trace()
                 t_start = time.time()
-                # Compute this partition's min/max xt values
-                # element_ = np.array(element).reshape(input_shape)
-                # input_range_ = np.empty_like(input_range)
-                # input_range_[..., 0] = input_range[..., 0] + np.multiply(
-                #     element_, slope
-                # )
-                # input_range_[..., 1] = input_range[..., 0] + np.multiply(
-                #     element_ + 1, slope
-                # )
-                # ranges = input_range_
-                # info['br_set_partitions'].append(constraints.LpConstraint(range=ranges))
-                # import pdb; pdb.set_trace()
                 ranges = element.ranges
-                # print(ranges)
+
 
                 # Because there might sensor noise, the NN could see a different
                 # set of states than the system is actually in
@@ -892,24 +882,12 @@ class ClosedLoopCROWNIBPCodebasePropagator(ClosedLoopPropagator):
         constrs += [xt <= xt_max]
 
         # Constraints to ensure that ut satisfies the affine bounds
-        # ut_max_candidate = np.maximum(upper_A@xt_max+upper_sum_b, upper_A@xt_min+upper_sum_b)
-        # ut_min_candidate = np.minimum(lower_A@xt_max+lower_sum_b, lower_A@xt_min+lower_sum_b)
-        # constrs += [ut_min_candidate <= ut]
-        # constrs += [ut <= ut_max_candidate]
         constrs += [lower_A@xt+lower_sum_b <= ut]
         constrs += [ut <= upper_A@xt+upper_sum_b]
 
         # Constraints to ensure xt reaches the target set given ut
         constrs += [self.dynamics.dynamics_step(xt, ut) <= xt1_max]
         constrs += [self.dynamics.dynamics_step(xt, ut) >= xt1_min]
-
-        # feas_obj = 0
-        # feas_prob = cp.Problem(cp.Maximize(feas_obj), constrs)
-        # feas_prob.solve()
-        # if feas_flag != feas_prob.status:
-        #     print('what the heck')
-        #     print(feas_flag)
-        #     print(feas_prob.status)
 
         # Solve optimization problem (min and max) for each state
         A_t_ = np.vstack([A_t, -A_t])
@@ -949,8 +927,7 @@ class ClosedLoopCROWNIBPCodebasePropagator(ClosedLoopPropagator):
         A_NN, b_NN = range_to_polytope(ranges)
         A_stack = np.vstack([A_, A_NN])
         b_stack = np.hstack([b_, b_NN])
-        # if b_[2] > -5:
-        #     import pdb; pdb.set_trace()
+
         # Add newly calculated BP region from partioned backreachable set to overall BP set estimate
         if isinstance(input_constraint, constraints.LpConstraint):
             b_max = b_[0:int(len(b_)/2)]
@@ -975,9 +952,6 @@ class ClosedLoopCROWNIBPCodebasePropagator(ClosedLoopPropagator):
             # Only add that polytope to the list if it's non-empty
             vertices = np.array(pypoman.duality.compute_polytope_vertices(A_stack,b_stack))
             if len(vertices) > 0:
-                # pypoman.polygon.compute_polygon_hull(A_stack, b_stack+1e-10)
-                # vertices = np.array(pypoman.duality.compute_polytope_vertices(A_stack,b_stack))
-                
                 xt_max_candidate = np.max(vertices, axis=0)
                 xt_min_candidate = np.min(vertices, axis=0)
                 temp_max = xt_range_max
@@ -1670,25 +1644,6 @@ class ClosedLoopCROWNNStepPropagator(ClosedLoopCROWNPropagator):
 
         # xt1 connected to xt via dynamics
         for t in range(num_steps):
-
-            # Don't need to consider each state individually if we have Bt >= 0
-
-            # upper_A = infos[t]['nn_matrices']['upper_A']
-            # lower_A = infos[t]['nn_matrices']['lower_A']
-            # upper_sum_b = infos[t]['nn_matrices']['upper_sum_b']
-            # lower_sum_b = infos[t]['nn_matrices']['lower_sum_b']
-
-            # if self.dynamics.continuous_time:
-            #     constraints += [
-            #         xs[t+1] <= xs[t] + self.dynamics.dt * (self.dynamics.At@xs[t]+self.dynamics.bt@(upper_A@xs[t]+upper_sum_b)+self.dynamics.ct),
-            #         xs[t+1] >= xs[t] + self.dynamics.dt * (self.dynamics.At@xs[t]+self.dynamics.bt@(lower_A@xs[t]+lower_sum_b)+self.dynamics.ct),
-            #     ]
-            # else:
-            #     constraints += [
-            #         xs[t+1] <= self.dynamics.At@xs[t]+self.dynamics.bt@(upper_A@xs[t]+upper_sum_b)+self.dynamics.ct,
-            #         xs[t+1] >= self.dynamics.At@xs[t]+self.dynamics.bt@(lower_A@xs[t]+lower_sum_b)+self.dynamics.ct,
-            #     ]
-
             # Handle case of Bt ! >= 0 by adding a constraint per state
             for j in range(num_states):
 
