@@ -173,8 +173,6 @@ class ClosedLoopUniformPartitioner(ClosedLoopPartitioner):
 
         backreachable_set, info = self.get_one_step_backreachable_set(target_set)
 
-        print(backreachable_set.range)
-
         '''
         Partition the backreachable set (xt).
         For each cell in the partition:

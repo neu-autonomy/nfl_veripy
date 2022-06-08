@@ -239,8 +239,7 @@ def main(args):
     # error, avg_error = analyzer.get_error(input_constraint,output_constraint, t_max=args.t_max)
     # print('Final step approximation error:{:.2f}\nAverage approximation error: {:.2f}'.format(error, avg_error))
 
-    if False:
-    # if args.save_plot:
+    if args.save_plot:
         save_dir = "{}/results/examples_backward/".format(
             os.path.dirname(os.path.abspath(__file__))
         )
@@ -293,12 +292,11 @@ def main(args):
             + np.array2string(num_partitions, separator='_')[1:-1]
         )
         if len(pars2) > 0:
-            analyzer_info_list[0]["save_name"] = (
-                analyzer_info_list[0]["save_name"] + "_" + pars2
+            analyzer_info["save_name"] = (
+                analyzer_info["save_name"] + "_" + pars2
             )
-        analyzer_info_list[0]["save_name"] = analyzer_info_list[0]["save_name"] + ".png"
+        analyzer_info["save_name"] = analyzer_info["save_name"] + ".png"
     # import pdb; pdb.set_trace()
-    print('examples_backward:', args.show_convex_hulls)
 
     if args.show_plot or args.save_plot:
         analyzer.visualize(

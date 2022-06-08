@@ -375,8 +375,6 @@ class ClosedLoopCROWNIBPCodebasePropagator(ClosedLoopPropagator):
             prob.solve()
             b[i] = prob.value
 
-        print("b:", b)
-            
         # This cell of the backprojection set is upper-bounded by the
         # cell of the backreachable set that we used in the NN relaxation
         # ==> the polytope is the intersection (i.e., concatenation)

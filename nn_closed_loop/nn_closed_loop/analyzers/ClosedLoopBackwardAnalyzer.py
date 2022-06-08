@@ -158,8 +158,8 @@ class ClosedLoopBackwardAnalyzer(analyzers.Analyzer):
             plt.xlim(plot_lims_arr[0])
             plt.ylim(plot_lims_arr[1])
 
-        # if "save_name" in info_list[0] and info_list[0]["save_name"] is not None:
-        #     plt.savefig(info_list[0]["save_name"])
+        if info.get("save_name", None) is not None:
+            plt.savefig(info["save_name"])
 
         plt.gca().autoscale()
 
@@ -433,7 +433,6 @@ class ClosedLoopBackwardAnalyzer(analyzers.Analyzer):
 
     def plot_true_backprojection_sets(self, backreachable_set, target_set, t_max, show_samples=False, color='g', zorder=None, linestyle='-'):
 
-        import pdb; pdb.set_trace()
         # Sample a bunch of pts from our "true" backreachable set
         # (it's actually the tightest axis-aligned rectangle around the backreachable set)
         # and run them forward t_max steps in time under the NN policy
