@@ -60,8 +60,8 @@ def main(args):
         if args.final_state_range is None:
             final_state_range = np.array(
                 [  # (num_inputs, 2)
-                    [-2., -1.],  # x0min, x0max
-                    [-2., -1.],  # x1min, x1max
+                    [-1, 1],  # x0min, x0max
+                    [-1, 1],  # x1min, x1max
                     [-0.01, 0.01],
                     [-0.01, 0.01],
                 ]
@@ -214,18 +214,18 @@ def main(args):
             times[num] = t
             backprojection_sets = input_constraint_list[0]
             target_set = output_constraint[0]
-            final_error, avg_error, all_error = analyzer.get_backprojection_error(target_set, backprojection_sets, t_max=args.t_max)
+            # final_error, avg_error, all_error = analyzer.get_backprojection_error(target_set, backprojection_sets, t_max=args.t_max)
 
-            final_errors[num] = final_error
-            avg_errors[num] = avg_error
-            all_errors[num] = all_error
+            # final_errors[num] = final_error
+            # avg_errors[num] = avg_error
+            # all_errors[num] = all_error
             output_constraints[num] = output_constraint
 
         stats['runtimes'] = times
-        stats['final_step_errors'] = final_errors
-        stats['avg_errors'] = avg_errors
-        stats['all_errors'] = all_errors
-        stats['output_constraints'] = output_constraints
+        # stats['final_step_errors'] = final_errors
+        # stats['avg_errors'] = avg_errors
+        # stats['all_errors'] = all_errors
+        # stats['output_constraints'] = output_constraints
 
         print("All times: {}".format(times))
         print("Avg time: {} +/- {}".format(times.mean(), times.std()))

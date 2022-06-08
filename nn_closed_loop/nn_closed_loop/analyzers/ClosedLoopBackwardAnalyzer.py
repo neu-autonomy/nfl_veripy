@@ -19,13 +19,15 @@ class ClosedLoopBackwardAnalyzer(analyzers.Analyzer):
         self.estimated_backprojection_set_color = 'tab:blue'
         self.estimated_one_step_backprojection_set_color = 'tab:orange'
         self.estimated_backprojection_partitioned_set_color = 'tab:gray'
+        self.backreachable_set_color = 'tab:cyan'
         self.target_set_color = 'tab:red'
         self.initial_set_color = 'k'
         
         self.true_backprojection_set_zorder = 3
         self.estimated_backprojection_set_zorder = 2
         self.estimated_one_step_backprojection_set_zorder = -1
-        self.estimated_backprojection_partitioned_set_zorder = -1
+        self.estimated_backprojection_partitioned_set_zorder = 5
+        self.backreachable_set_zorder = -1
         self.target_set_zorder = 1
         self.initial_set_zorder = 1
 
@@ -34,6 +36,7 @@ class ClosedLoopBackwardAnalyzer(analyzers.Analyzer):
         self.estimated_backprojection_set_linestyle = '-'
         self.estimated_one_step_backprojection_set_linestyle = '-'
         self.estimated_backprojection_partitioned_set_linestyle = '-'
+        self.backreachable_set_linestyle = '--'
         self.target_set_linestyle = '-'
         
         
@@ -280,14 +283,14 @@ class ClosedLoopBackwardAnalyzer(analyzers.Analyzer):
         if show_convex_hulls:
             try:
                 self.plot_true_backprojection_sets(
-                    input_constraints[-1],
-                    # backreachable_set, 
+                    # input_constraints[-1],
+                    backreachable_set, 
                     target_set,
                     t_max=t_max,
                     color=self.true_backprojection_set_color,
-                    zorder=self.true_backprojection_set_zorder,
+                    zorder=10,#self.true_backprojection_set_zorder,
                     linestyle=self.true_backprojection_set_linestyle,
-                    show_samples=False,
+                    show_samples=True,
                 )
             except:
                 pass
@@ -300,6 +303,33 @@ class ClosedLoopBackwardAnalyzer(analyzers.Analyzer):
                 if ic is None: continue
                 rect = ic.plot(self.partitioner.animate_axes, self.partitioner.input_dims, self.estimated_one_step_backprojection_set_color, zorder=self.estimated_one_step_backprojection_set_zorder, linewidth=self.partitioner.linewidth, plot_2d=self.partitioner.plot_2d)
                 self.partitioner.default_patches += rect
+
+
+        show_backreachable_set = True
+        if show_backreachable_set:
+            for info in kwargs.get('per_timestep', []):
+                ic = info.get('backreachable_set', None)
+                if ic is None: continue
+                rect = ic.plot(self.partitioner.animate_axes, self.partitioner.input_dims, self.backreachable_set_color, zorder=self.backreachable_set_zorder, linewidth=self.partitioner.linewidth, plot_2d=self.partitioner.plot_2d)
+                self.partitioner.default_patches += rect
+
+        show_backreachable_set_partitions = True
+        if show_backreachable_set_partitions:
+            for info in kwargs.get('per_timestep', []):
+                for partition in info.get('br_set_partitions', None):
+                    ic = partition
+                    if ic is None: continue
+                    rect = ic.plot(self.partitioner.animate_axes, self.partitioner.input_dims, self.estimated_backprojection_partitioned_set_color, zorder=self.estimated_backprojection_partitioned_set_zorder, linewidth=self.partitioner.linewidth*0.9, plot_2d=self.partitioner.plot_2d)
+                    self.partitioner.default_patches += rect
+        
+        show_backprojection_set_partitions = True
+        if show_backprojection_set_partitions:
+            for info in kwargs.get('per_timestep', []):
+                for partition in info.get('bp_set_partitions', None):
+                    ic = partition
+                    if ic is None: continue
+                    rect = ic.plot(self.partitioner.animate_axes, self.partitioner.input_dims, 'm', zorder=10, linewidth=self.partitioner.linewidth*0.75, plot_2d=self.partitioner.plot_2d)
+                    self.partitioner.default_patches += rect
 
         # Sketchy workaround to trajectories not showing up
         import numpy as np

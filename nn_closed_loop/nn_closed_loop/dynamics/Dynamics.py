@@ -183,7 +183,7 @@ class Dynamics:
             xs, us = self.collect_data(
                 t_max,
                 input_constraint,
-                num_samples=10000,
+                num_samples=1000000,
                 controller=controller,
                 merge_cols=False,
             )

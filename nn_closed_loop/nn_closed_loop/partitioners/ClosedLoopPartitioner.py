@@ -172,9 +172,13 @@ class ClosedLoopPartitioner(partitioners.Partitioner):
             aspect = "auto"
 
         self.animate_fig, self.animate_axes = plt.subplots(1, 1, subplot_kw=dict(projection=projection))
+        # if controller_name is not None:
+        #     from nn_closed_loop.utils.controller_generation import display_ground_robot_control_field
+        #     display_ground_robot_control_field(name=controller_name,ax=self.animate_axes)
+
         if controller_name is not None:
-            from nn_closed_loop.utils.controller_generation import display_ground_robot_control_field
-            display_ground_robot_control_field(name=controller_name,ax=self.animate_axes)
+            from nn_closed_loop.utils.controller_generation import display_ground_robot_DI_control_field
+            display_ground_robot_DI_control_field(name=controller_name,ax=self.animate_axes)
 
         self.animate_axes.set_aspect(aspect)
 
