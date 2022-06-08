@@ -374,6 +374,8 @@ class ClosedLoopCROWNIBPCodebasePropagator(ClosedLoopPropagator):
             A_i.value = A[i, :]
             prob.solve()
             b[i] = prob.value
+
+        print("b:", b)
             
         # This cell of the backprojection set is upper-bounded by the
         # cell of the backreachable set that we used in the NN relaxation
@@ -386,8 +388,8 @@ class ClosedLoopCROWNIBPCodebasePropagator(ClosedLoopPropagator):
         xt_max_cvxpy = b[:int(len(b)/2)]
         xt_min_cvxpy = -b[int(len(b)/2):]
 
-        xt_max = np.maximum(xt_max_cvxpy, xt_max)
-        xt_min = np.minimum(xt_min_cvxpy, xt_min)
+        xt_max = np.minimum(xt_max_cvxpy, xt_max)
+        xt_min = np.maximum(xt_min_cvxpy, xt_min)
 
         backprojection_set = deepcopy(dummy_backprojection_set)
         backprojection_set.range = np.vstack([xt_min, xt_max]).T

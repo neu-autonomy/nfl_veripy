@@ -276,8 +276,7 @@ class ClosedLoopBackwardAnalyzer(analyzers.Analyzer):
 
         # Show the "true" N-Step backprojection set as a convex hull
         # backreachable_set = kwargs['per_timestep'][-1]['backreachable_set']
-        t_max = len(kwargs)
-        print(show_convex_hulls)
+        t_max = len(backprojection_sets)
         if show_convex_hulls:
             self.plot_true_backprojection_sets(
                 backprojection_sets[-1],
@@ -433,7 +432,6 @@ class ClosedLoopBackwardAnalyzer(analyzers.Analyzer):
         # self.default_lines[self.output_axis].append(conv_hull_line[0])
 
     def plot_true_backprojection_sets(self, backreachable_set, target_set, t_max, show_samples=False, color='g', zorder=None, linestyle='-'):
-
 
         import pdb; pdb.set_trace()
         # Sample a bunch of pts from our "true" backreachable set
