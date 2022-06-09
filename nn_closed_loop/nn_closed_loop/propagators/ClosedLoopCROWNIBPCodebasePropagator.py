@@ -608,7 +608,7 @@ class ClosedLoopCROWNIBPCodebasePropagator(ClosedLoopPropagator):
         '''
 
         ###### Partitioning parameters ##############
-        partition_budget=5
+        partition_budget=2
         heuristic='guided'
         # heuristic = 'uniform'
         #############################################
@@ -623,10 +623,8 @@ class ClosedLoopCROWNIBPCodebasePropagator(ClosedLoopPropagator):
         br_set_element = Element(ranges, x_samples_inside_backprojection_set[:,0,:], heuristic=heuristic, policy=self.network)
         element_list = self.partition(
             br_set_element, 
-            policy=self.network, 
             target_set=output_constraint, 
             dynamics=self.dynamics, 
-            x_samples_inside_backprojection_set=x_samples_inside_backprojection_set, 
             partition_budget=partition_budget, 
             heuristic=heuristic
         )
@@ -672,10 +670,8 @@ class ClosedLoopCROWNIBPCodebasePropagator(ClosedLoopPropagator):
                 t_end = time.time()
                 info['other'].append(t_end-t_start)
                 t_start = time.time()
-                # import pdb; pdb.set_trace()
                 if hasattr(element, 'crown_bounds'):
                     lower_A, lower_sum_b, upper_A, upper_sum_b = element.crown_bounds['lower_A'], element.crown_bounds['lower_sum_b'], element.crown_bounds['upper_A'], element.crown_bounds['upper_sum_b']
-                    # print('we did it joe')
                 else:
                     lower_A, upper_A, lower_sum_b, upper_sum_b = self.network(
                         method_opt=self.method_opt,
