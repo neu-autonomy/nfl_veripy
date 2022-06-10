@@ -232,9 +232,13 @@ def main(args):
     else:
         # Run analysis once
         # Run analysis & generate a plot
+        import time
+        t_start = time.time()
         input_constraint_list, analyzer_info_list = analyzer.get_backprojection_set(
             output_constraint, input_constraint, t_max=args.t_max, num_partitions=num_partitions, overapprox=args.overapprox, refined=args.refined
         )
+        t_end = time.time()
+        print(t_end-t_start)
         
     controller_name=None
     if args.show_policy:

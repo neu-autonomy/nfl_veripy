@@ -305,31 +305,31 @@ class ClosedLoopBackwardAnalyzer(analyzers.Analyzer):
                 self.partitioner.default_patches += rect
 
 
-        show_backreachable_set = True
-        if show_backreachable_set:
-            for info in kwargs.get('per_timestep', []):
-                ic = info.get('backreachable_set', None)
-                if ic is None: continue
-                rect = ic.plot(self.partitioner.animate_axes, self.partitioner.input_dims, self.backreachable_set_color, zorder=self.backreachable_set_zorder, linewidth=self.partitioner.linewidth, plot_2d=self.partitioner.plot_2d)
-                self.partitioner.default_patches += rect
+        # show_backreachable_set = True
+        # if show_backreachable_set:
+        #     for info in kwargs.get('per_timestep', []):
+        #         ic = info.get('backreachable_set', None)
+        #         if ic is None: continue
+        #         rect = ic.plot(self.partitioner.animate_axes, self.partitioner.input_dims, self.backreachable_set_color, zorder=self.backreachable_set_zorder, linewidth=self.partitioner.linewidth, plot_2d=self.partitioner.plot_2d)
+        #         self.partitioner.default_patches += rect
 
-        show_backreachable_set_partitions = True
-        if show_backreachable_set_partitions:
-            for info in kwargs.get('per_timestep', []):
-                for partition in info.get('br_set_partitions', None):
-                    ic = partition
-                    if ic is None: continue
-                    rect = ic.plot(self.partitioner.animate_axes, self.partitioner.input_dims, self.estimated_backprojection_partitioned_set_color, zorder=self.estimated_backprojection_partitioned_set_zorder, linewidth=self.partitioner.linewidth*0.9, plot_2d=self.partitioner.plot_2d)
-                    self.partitioner.default_patches += rect
+        # show_backreachable_set_partitions = True
+        # if show_backreachable_set_partitions:
+        #     for info in kwargs.get('per_timestep', []):
+        #         for partition in info.get('br_set_partitions', None):
+        #             ic = partition
+        #             if ic is None: continue
+        #             rect = ic.plot(self.partitioner.animate_axes, self.partitioner.input_dims, self.estimated_backprojection_partitioned_set_color, zorder=self.estimated_backprojection_partitioned_set_zorder, linewidth=self.partitioner.linewidth*0.9, plot_2d=self.partitioner.plot_2d)
+        #             self.partitioner.default_patches += rect
         
-        show_backprojection_set_partitions = True
-        if show_backprojection_set_partitions:
-            for info in kwargs.get('per_timestep', []):
-                for partition in info.get('bp_set_partitions', None):
-                    ic = partition
-                    if ic is None: continue
-                    rect = ic.plot(self.partitioner.animate_axes, self.partitioner.input_dims, 'm', zorder=10, linewidth=self.partitioner.linewidth*0.75, plot_2d=self.partitioner.plot_2d)
-                    self.partitioner.default_patches += rect
+        # show_backprojection_set_partitions = True
+        # if show_backprojection_set_partitions:
+        #     for info in kwargs.get('per_timestep', []):
+        #         for partition in info.get('bp_set_partitions', None):
+        #             ic = partition
+        #             if ic is None: continue
+        #             rect = ic.plot(self.partitioner.animate_axes, self.partitioner.input_dims, 'm', zorder=10, linewidth=self.partitioner.linewidth*0.75, plot_2d=self.partitioner.plot_2d)
+        #             self.partitioner.default_patches += rect
 
         # Sketchy workaround to trajectories not showing up
         import numpy as np
