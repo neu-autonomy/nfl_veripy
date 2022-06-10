@@ -168,7 +168,7 @@ class ClosedLoopUniformPartitioner(ClosedLoopPartitioner):
         return output_constraint, info
 
     def get_one_step_backprojection_set(
-        self, target_set, dummy_backprojection_set, propagator, num_partitions=None, overapprox=False, refined=False
+        self, target_set, propagator, num_partitions=None, overapprox=False
     ):
 
         backreachable_set, info = self.get_one_step_backreachable_set(target_set)
@@ -206,51 +206,32 @@ class ClosedLoopUniformPartitioner(ClosedLoopPartitioner):
         ):
             # Compute this partition's min/max xt values
             element = np.array(element).reshape(input_shape)
-            backreachable_set_this_cell = np.empty_like(input_range)
-            backreachable_set_this_cell[..., 0] = input_range[..., 0] + np.multiply(
+            backreachable_set_this_cell = constraints.LpConstraint(
+                range=np.empty_like(input_range), p=np.inf
+            )
+            backreachable_set_this_cell.range[:, 0] = input_range[:, 0] + np.multiply(
                 element, slope
             )
-            backreachable_set_this_cell[..., 1] = input_range[..., 0] + np.multiply(
+            backreachable_set_this_cell.range[:, 1] = input_range[:, 0] + np.multiply(
                 element + 1, slope
             )
 
-            # Because there might be sensor noise, the NN could see a different
-            # set of states than the system is actually in
-            xt_min_this_cell = backreachable_set_this_cell[..., 0]
-            xt_max_this_cell = backreachable_set_this_cell[..., 1]
-            nn_input_max_this_cell = torch.Tensor(np.array([xt_max_this_cell]))
-            nn_input_min_this_cell = torch.Tensor(np.array([xt_min_this_cell]))
-            if self.dynamics.sensor_noise is not None:
-                raise NotImplementedError
-                # nn_input_max += torch.Tensor([self.dynamics.sensor_noise[:, 1]])
-                # nn_input_min += torch.Tensor([self.dynamics.sensor_noise[:, 0]])
-
             backprojection_set_this_cell, this_info = propagator.get_one_step_backprojection_set(
+                backreachable_set_this_cell,
                 target_set,
-                dummy_backprojection_set,
-                num_partitions=num_partitions,
                 overapprox=overapprox,
-                collected_input_constraints=None,
-                # collected_input_constraints=[output_constraint]+input_constraints,
-                refined=refined,
-                nn_input_max=nn_input_max_this_cell,
-                nn_input_min=nn_input_min_this_cell,
-                backreachable_set=backreachable_set_this_cell,
             )
 
             if backprojection_set_this_cell is None:
                 continue
             else:
-                xt_min = np.minimum(backprojection_set_this_cell.range[..., 0], xt_min)
-                xt_max = np.maximum(backprojection_set_this_cell.range[..., 1], xt_max)
+                xt_min = np.minimum(backprojection_set_this_cell.range[:, 0], xt_min)
+                xt_max = np.maximum(backprojection_set_this_cell.range[:, 1], xt_max)
+
+            # TODO: Store the detailed partitions in info
 
         if overapprox:
-            # backprojection_set should contain [A] and [b]
-            # TODO: Store the detailed partitions in info
             x_overapprox = np.vstack((xt_min, xt_max)).T
             backprojection_set.range = x_overapprox
-            # A_overapprox, b_overapprox = range_to_polytope(x_overapprox)
-            # backprojection_set.A = [A_overapprox]
-            # backprojection_set.b = [b_overapprox]
 
         return backprojection_set, info

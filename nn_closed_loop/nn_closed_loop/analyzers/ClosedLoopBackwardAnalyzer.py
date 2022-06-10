@@ -70,15 +70,15 @@ class ClosedLoopBackwardAnalyzer(analyzers.Analyzer):
         )
         return backprojection_set, info
 
-    def get_backprojection_set(self, output_constraint, input_constraint, t_max, num_partitions=None, overapprox=False, refined=False):
+    def get_backprojection_set(self, target_set, t_max, num_partitions=None, overapprox=False):
         backprojection_set, info = self.partitioner.get_backprojection_set(
-            output_constraint, input_constraint, self.propagator, t_max, num_partitions=num_partitions, overapprox=overapprox, refined=refined
+            target_set, self.propagator, t_max, num_partitions=num_partitions, overapprox=overapprox
         )
         return backprojection_set, info
     
-    def get_N_step_backprojection_set(self, output_constraint, input_constraint, t_max, num_partitions=None, overapprox=False, refined=False):
+    def get_N_step_backprojection_set(self, output_constraint, t_max, num_partitions=None, overapprox=False):
         backprojection_set, info = self.partitioner.get_N_step_backprojection_set(
-            output_constraint, input_constraint, self.propagator, t_max, num_partitions=num_partitions, overapprox=overapprox, refined=refined
+            output_constraint, self.propagator, t_max, num_partitions=num_partitions, overapprox=overapprox
         )
         return backprojection_set, info
 

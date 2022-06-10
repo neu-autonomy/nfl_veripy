@@ -477,7 +477,7 @@ class ClosedLoopPartitioner(partitioners.Partitioner):
         return backreachable_set, info
 
     def get_one_step_backprojection_set(
-        self, target_set, dummy_backprojection_set, propagator, num_partitions=None, overapprox=False, refined=False
+        self, target_set, propagator, num_partitions=None, overapprox=False
     ):
 
         backreachable_set, info = self.get_one_step_backreachable_set(target_set)
@@ -493,12 +493,10 @@ class ClosedLoopPartitioner(partitioners.Partitioner):
 
         backprojection_set, this_info = propagator.get_one_step_backprojection_set(
             target_set,
-            dummy_backprojection_set,
             num_partitions=num_partitions,
             overapprox=overapprox,
             collected_input_constraints=None,
             # collected_input_constraints=[output_constraint]+input_constraints,
-            refined=refined,
             nn_input_max=nn_input_max,
             nn_input_min=nn_input_min,
             backreachable_set=backreachable_set,
@@ -520,7 +518,7 @@ class ClosedLoopPartitioner(partitioners.Partitioner):
     - ... TODO
     '''
     def get_backprojection_set(
-        self, target_set, dummy_backprojection_set, propagator, t_max, num_partitions=None, overapprox=False, refined=False
+        self, target_set, propagator, t_max, num_partitions=None, overapprox=False
     ):
 
         # Initialize data structures to hold results
@@ -530,11 +528,9 @@ class ClosedLoopPartitioner(partitioners.Partitioner):
         # Run one step of backprojection analysis
         backprojection_set_this_timestep, info_this_timestep = self.get_one_step_backprojection_set(
             target_set,
-            dummy_backprojection_set,
             propagator,
             num_partitions=num_partitions,
             overapprox=overapprox,
-            refined=refined,
         )
         
         # Store that step's results
@@ -548,11 +544,9 @@ class ClosedLoopPartitioner(partitioners.Partitioner):
                 # Run one step of backprojection analysis
                 backprojection_set_this_timestep, info_this_timestep = self.get_one_step_backprojection_set(
                     next_target_set,
-                    dummy_backprojection_set,
                     propagator,
                     num_partitions=num_partitions,
                     overapprox=overapprox,
-                    refined=refined,
                 )
 
                 backprojection_sets.append(deepcopy(backprojection_set_this_timestep))

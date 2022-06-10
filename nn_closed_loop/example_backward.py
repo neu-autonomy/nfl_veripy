@@ -179,7 +179,6 @@ def main(args):
         target_set = constraints.LpConstraint(
             range=final_state_range, p=np.inf
         )
-        dummy_backprojection_set = constraints.LpConstraint(p=np.inf, range=None)
     else:
         raise NotImplementedError
 
@@ -197,7 +196,7 @@ def main(args):
             print('call: {}'.format(num))
             t_start = time.time()
             backprojection_sets, analyzer_info = analyzer.get_backprojection_set(
-                target_set, dummy_backprojection_set, t_max=args.t_max, num_partitions=num_partitions, overapprox=args.overapprox, refined=args.refined
+                target_set, t_max=args.t_max, num_partitions=num_partitions, overapprox=args.overapprox
             )
             t_end = time.time()
             t = t_end - t_start
@@ -229,7 +228,7 @@ def main(args):
         # Run analysis once
         # Run analysis & generate a plot
         backprojection_sets, analyzer_info = analyzer.get_backprojection_set(
-            target_set, dummy_backprojection_set, t_max=args.t_max, num_partitions=num_partitions, overapprox=args.overapprox, refined=args.refined
+            target_set, t_max=args.t_max, num_partitions=num_partitions, overapprox=args.overapprox
         )
         
     controller_name=None
@@ -364,9 +363,9 @@ def setup_parser():
     )
     parser.add_argument(
         "--propagator",
-        default="IBP",
-        choices=["IBP", "CROWN", "FastLin", "SDP", "CROWNLP", "CROWNNStep"],
-        help="which propagator to use (default: IBP)",
+        default="CROWN",
+        choices=["CROWN", "CROWNNStep", "CROWNRefined"],
+        help="which propagator to use (default: CROWN)",
     )
 
     parser.add_argument(
@@ -450,13 +449,6 @@ def setup_parser():
         "--underapprox", dest="overapprox", action="store_false"
     )
     parser.set_defaults(overapprox=False)
-    parser.add_argument(
-        "--refined",
-        dest="refined",
-        action="store_true",
-        help="whether to use extended set of constraints for BReach-LP",
-    )
-    parser.set_defaults(refined=False)
     parser.add_argument(
         "--show_BReach",
         dest="show_BReach",
