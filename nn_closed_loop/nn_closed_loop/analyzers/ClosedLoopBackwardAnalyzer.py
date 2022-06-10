@@ -275,11 +275,11 @@ class ClosedLoopBackwardAnalyzer(analyzers.Analyzer):
         )
 
         # Show the "true" N-Step backprojection set as a convex hull
-        # backreachable_set = kwargs['per_timestep'][-1]['backreachable_set']
+        backreachable_set = kwargs['per_timestep'][-1]['backreachable_set']
         t_max = len(backprojection_sets)
         if show_convex_hulls:
             self.plot_true_backprojection_sets(
-                backprojection_sets[-1],
+                backreachable_set,
                 target_set,
                 t_max=t_max,
                 color=self.true_backprojection_set_color,

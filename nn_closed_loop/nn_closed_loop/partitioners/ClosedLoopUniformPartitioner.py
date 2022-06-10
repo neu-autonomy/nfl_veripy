@@ -171,6 +171,21 @@ class ClosedLoopUniformPartitioner(ClosedLoopPartitioner):
     ):
 
         backreachable_set, info = self.get_one_step_backreachable_set(target_sets[-1])
+        info['backreachable_set'] = backreachable_set
+
+        if overapprox:
+            # Set an empty Constraint that will get filled in
+            backprojection_set = constraints.LpConstraint(
+                range=np.vstack(
+                    (
+                        np.inf*np.ones(propagator.dynamics.num_states),
+                        -np.inf*np.ones(propagator.dynamics.num_states)
+                    )
+                ).T,
+                p=np.inf
+            )
+        else:
+            backprojection_set = constraints.PolytopeConstraint(A=[], b=[])
 
         '''
         Partition the backreachable set (xt).
@@ -178,7 +193,7 @@ class ClosedLoopUniformPartitioner(ClosedLoopPartitioner):
         - relax the NN (use CROWN to compute matrices for affine bounds)
         - use the relaxed NN to compute bounds on xt1
         - use those bounds to define constraints on xt, and if valid, add
-            to input_constraint
+            to backprojection_set
         '''
 
         # Setup the partitions
@@ -190,10 +205,6 @@ class ClosedLoopUniformPartitioner(ClosedLoopPartitioner):
         slope = np.divide(
             (input_range[..., 1] - input_range[..., 0]), num_partitions
         )
-
-        # Set an empty Constraint that will get filled in
-        xt_max = -np.inf*np.ones(propagator.dynamics.num_states)
-        xt_min = np.inf*np.ones(propagator.dynamics.num_states)
 
         # Iterate through each partition
         for element in product(
@@ -220,17 +231,16 @@ class ClosedLoopUniformPartitioner(ClosedLoopPartitioner):
             if backprojection_set_this_cell is None:
                 continue
             else:
-                xt_min = np.minimum(backprojection_set_this_cell.range[:, 0], xt_min)
-                xt_max = np.maximum(backprojection_set_this_cell.range[:, 1], xt_max)
+                if overapprox:
+                    backprojection_set.range[:, 0] = np.minimum(backprojection_set_this_cell.range[:, 0], backprojection_set.range[:, 0])
+                    backprojection_set.range[:, 1] = np.maximum(backprojection_set_this_cell.range[:, 1], backprojection_set.range[:, 1])
+                else:
+                    backprojection_set.A.append(backprojection_set_this_cell.A)
+                    backprojection_set.b.append(backprojection_set_this_cell.b)
 
             # TODO: Store the detailed partitions in info
 
         if overapprox:
-
-            backprojection_set = constraints.LpConstraint(
-                range=np.vstack((xt_min, xt_max)).T,
-                p=np.inf
-            )
 
             # These will be used to further backproject this set in time
             backprojection_set.crown_matrices = get_crown_matrices(

@@ -189,16 +189,9 @@ class ClosedLoopCROWNIBPCodebasePropagator(ClosedLoopPropagator):
             )
         else:
             # TODO: get this part working again with the new partitioning method
-            raise NotImplementedError
-            # import pdb; pdb.set_trace()
-            input_constraint = self.get_one_step_backprojection_set_underapprox(
-                upper_A,
-                lower_A,
-                upper_sum_b,
-                lower_sum_b,
-                xt1_max,
-                xt1_min,
-                input_constraint
+            backprojection_set = self.get_one_step_backprojection_set_underapprox(
+                backreachable_set,
+                target_sets
             )
 
         return backprojection_set, {}
@@ -214,43 +207,39 @@ class ClosedLoopCROWNIBPCodebasePropagator(ClosedLoopPropagator):
     '''
     def get_one_step_backprojection_set_underapprox(
         self,
-        ranges,
-        upper_A,
-        lower_A,
-        upper_sum_b,
-        lower_sum_b,
-        xt1_max,
-        xt1_min,
-        input_constraint
+        backreachable_set,
+        target_sets
     ):
         # For our under-approximation, refer to the Access21 paper.
+
+        upper_A, lower_A, upper_sum_b, lower_sum_b = backreachable_set.crown_matrices.to_numpy()
 
         # The NN matrices define three types of constraints:
         # - NN's resulting lower bnds on xt1 >= lower bnds on xt1
         # - NN's resulting upper bnds on xt1 <= upper bnds on xt1
         # - NN matrices are only valid within the partition
-        A_NN, b_NN = range_to_polytope(ranges)
-        A_ = np.vstack([
+        A_NN, b_NN = range_to_polytope(backreachable_set.range)
+        A = np.vstack([
                 (self.dynamics.At+self.dynamics.bt@upper_A),
                 -(self.dynamics.At+self.dynamics.bt@lower_A),
                 A_NN
             ])
-        b_ = np.hstack([
-                xt1_max - self.dynamics.bt@upper_sum_b,
-                -xt1_min + self.dynamics.bt@lower_sum_b,
+        b = np.hstack([
+                target_sets[0].range[:, 1] - self.dynamics.bt@upper_sum_b,
+                -target_sets[0].range[:, 0] + self.dynamics.bt@lower_sum_b,
                 b_NN
                 ])
 
         # If those constraints to a non-empty set, then add it to
         # the list of input_constraints. Otherwise, skip it.
         try:
-            pypoman.polygon.compute_polygon_hull(A_, b_+1e-10)
-            input_constraint.A.append(A_)
-            input_constraint.b.append(b_)
+            pypoman.polygon.compute_polygon_hull(A, b+1e-10)
         except:
-            pass
+            return None
 
-        return input_constraint
+        backprojection_set = constraints.PolytopeConstraint(A=A, b=b)
+
+        return backprojection_set
 
     '''
     CDC 2022 Paper Alg 1
