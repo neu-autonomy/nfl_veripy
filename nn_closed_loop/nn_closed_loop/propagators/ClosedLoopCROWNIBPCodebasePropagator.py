@@ -165,7 +165,7 @@ class ClosedLoopCROWNIBPCodebasePropagator(ClosedLoopPropagator):
     def get_one_step_backprojection_set(
         self,
         backreachable_set,
-        target_set,
+        target_sets,
         overapprox=False,
         infos=None,
     ):
@@ -200,7 +200,7 @@ class ClosedLoopCROWNIBPCodebasePropagator(ClosedLoopPropagator):
             backprojection_set = self.get_one_step_backprojection_set_overapprox(
                 crown_matrices,
                 backreachable_set,
-                target_set
+                target_sets
             )
         else:
             # TODO: get this part working again with the new partitioning method
@@ -272,21 +272,18 @@ class ClosedLoopCROWNIBPCodebasePropagator(ClosedLoopPropagator):
 
     Inputs: 
         ranges: section of backreachable set
-        upper_A, lower_A, upper_sum_b, lower_sum_b: CROWN variables defining upper and lower affine bounds
-        xt1max, xt1min: target set max values
-        input_constraint: empty constraint object
-        xt_range_min, xt_range_max: min and max x values current overall BP set estimate (expanded as new partitions are analyzed)
-        ut_min, ut_max: min and max u values current overall BP set estimate (expanded as new partitions are analyzed)
+        crown_matrices: CROWNMatrices: CROWN variables defining upper and lower affine bounds
+        target_sets: [target_set, BP_{-1}, ..., BP{-T}]
+            * Note: only target_set is used for this algorithm! (BPs are discarded)
+        backreachable_set: 
     Outputs: 
-        input_constraint: one step BP set under-approximation
-        xt_range_min, xt_range_max: min and max x values current overall BP set estimate (expanded as new partitions are analyzed)
-        ut_min, ut_max: min and max u values current overall BP set estimate (expanded as new partitions are analyzed)
+        backprojection_set:
     '''
     def get_one_step_backprojection_set_overapprox(
         self,
         crown_matrices,
         backreachable_set,
-        target_set
+        target_sets
     ):
 
         num_states, num_control_inputs = self.dynamics.bt.shape
@@ -307,9 +304,11 @@ class ClosedLoopCROWNIBPCodebasePropagator(ClosedLoopPropagator):
         constrs += [crown_matrices.lower_A_numpy@xt+crown_matrices.lower_sum_b_numpy <= ut]
         constrs += [ut <= crown_matrices.upper_A_numpy@xt+crown_matrices.upper_sum_b_numpy]
 
-        # Constraints to ensure xt reaches the target set given ut
-        constrs += [self.dynamics.dynamics_step(xt, ut) <= target_set.range[:, 1]]
-        constrs += [self.dynamics.dynamics_step(xt, ut) >= target_set.range[:, 0]]
+        # Constraints to ensure xt reaches the "target set" given ut
+        # ... where target set = our best bounds on the next state set
+        # (i.e., either the true target set or a backprojection set)
+        constrs += [self.dynamics.dynamics_step(xt, ut) <= target_sets[-1].range[:, 1]]
+        constrs += [self.dynamics.dynamics_step(xt, ut) >= target_sets[-1].range[:, 0]]
 
         b, status = optimize_over_all_states(num_states, xt, constrs)
 
@@ -906,7 +905,7 @@ class ClosedLoopCROWNRefinedPropagator(ClosedLoopCROWNPropagator):
             constrs += [ut[:, t] <= crown_matrices.upper_A_numpy@xt[:, t]+crown_matrices.upper_sum_b_numpy]
 
         # Each xt must fall in the backprojections/target set
-        for t in range(1, num_steps):
+        for t in range(1, num_steps+1):
             constrs += [target_sets[-t].range[:, 0] <= xt[:, t]]
             constrs += [xt[:, t] <= target_sets[-t].range[:, 1]]
 

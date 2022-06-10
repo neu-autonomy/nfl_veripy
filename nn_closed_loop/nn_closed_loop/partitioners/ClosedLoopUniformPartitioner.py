@@ -168,10 +168,10 @@ class ClosedLoopUniformPartitioner(ClosedLoopPartitioner):
         return output_constraint, info
 
     def get_one_step_backprojection_set(
-        self, target_set, propagator, num_partitions=None, overapprox=False
+        self, target_sets, propagator, num_partitions=None, overapprox=False
     ):
 
-        backreachable_set, info = self.get_one_step_backreachable_set(target_set)
+        backreachable_set, info = self.get_one_step_backreachable_set(target_sets[-1])
 
         '''
         Partition the backreachable set (xt).
@@ -193,10 +193,6 @@ class ClosedLoopUniformPartitioner(ClosedLoopPartitioner):
         )
 
         # Set an empty Constraint that will get filled in
-        if isinstance(target_set, constraints.PolytopeConstraint):
-            backprojection_set = constraints.PolytopeConstraint(A=[], b=[])
-        elif isinstance(target_set, constraints.LpConstraint):
-            backprojection_set = constraints.LpConstraint(p=np.inf)
         xt_max = -np.inf*np.ones(propagator.dynamics.num_states)
         xt_min = np.inf*np.ones(propagator.dynamics.num_states)
 
@@ -218,7 +214,7 @@ class ClosedLoopUniformPartitioner(ClosedLoopPartitioner):
 
             backprojection_set_this_cell, this_info = propagator.get_one_step_backprojection_set(
                 backreachable_set_this_cell,
-                target_set,
+                target_sets,
                 overapprox=overapprox,
             )
 
@@ -231,7 +227,9 @@ class ClosedLoopUniformPartitioner(ClosedLoopPartitioner):
             # TODO: Store the detailed partitions in info
 
         if overapprox:
-            x_overapprox = np.vstack((xt_min, xt_max)).T
-            backprojection_set.range = x_overapprox
+            backprojection_set = constraints.LpConstraint(
+                range=np.vstack((xt_min, xt_max)).T,
+                p=np.inf
+            )
 
         return backprojection_set, info

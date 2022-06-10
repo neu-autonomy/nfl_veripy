@@ -477,10 +477,10 @@ class ClosedLoopPartitioner(partitioners.Partitioner):
         return backreachable_set, info
 
     def get_one_step_backprojection_set(
-        self, target_set, propagator, num_partitions=None, overapprox=False
+        self, target_sets, propagator, num_partitions=None, overapprox=False
     ):
 
-        backreachable_set, info = self.get_one_step_backreachable_set(target_set)
+        backreachable_set, info = self.get_one_step_backreachable_set(target_sets[0])
 
         # Because there might be sensor noise, the NN could see a different
         # set of states than the system is actually in
@@ -492,11 +492,9 @@ class ClosedLoopPartitioner(partitioners.Partitioner):
             raise NotImplementedError
 
         backprojection_set, this_info = propagator.get_one_step_backprojection_set(
-            target_set,
+            target_sets,
             num_partitions=num_partitions,
             overapprox=overapprox,
-            collected_input_constraints=None,
-            # collected_input_constraints=[output_constraint]+input_constraints,
             nn_input_max=nn_input_max,
             nn_input_min=nn_input_min,
             backreachable_set=backreachable_set,
@@ -506,16 +504,21 @@ class ClosedLoopPartitioner(partitioners.Partitioner):
 
     '''
     Inputs:
-    - output_constraint: describes goal/avoid set at t=t_max
-    - ... TODO
+    - target_set: describes goal/avoid set at t=t_max
+    - propagator: 
+    - t_max: how many timesteps to backproject
+    - num_partitions: number of splits per dimension in each backreachable set
+    - overapprox: bool
+        True = compute outer bounds of BP sets (for collision avoidance)
+        False = computer inner bounds of BP sets (for goal arrival)
     
     Returns:
-    - input_constraints: [BP_{-1}, ..., BP_{-t_max}]
+    - backprojection_sets: [BP_{-1}, ..., BP_{-t_max}]
           i.e., [ set of states that will get to goal/avoid set in 1 step,
                   ...,
                   set of states that will get to goal/avoid set in t_max steps
                 ]
-    - ... TODO
+    - info: TODO
     '''
     def get_backprojection_set(
         self, target_set, propagator, t_max, num_partitions=None, overapprox=False
@@ -527,7 +530,7 @@ class ClosedLoopPartitioner(partitioners.Partitioner):
 
         # Run one step of backprojection analysis
         backprojection_set_this_timestep, info_this_timestep = self.get_one_step_backprojection_set(
-            target_set,
+            [target_set]+backprojection_sets,
             propagator,
             num_partitions=num_partitions,
             overapprox=overapprox,
@@ -539,11 +542,10 @@ class ClosedLoopPartitioner(partitioners.Partitioner):
 
         if overapprox:
             for i in np.arange(0 + propagator.dynamics.dt + 1e-10, t_max, propagator.dynamics.dt):
-                next_target_set = over_approximate_constraint(deepcopy(backprojection_set_this_timestep))
 
                 # Run one step of backprojection analysis
                 backprojection_set_this_timestep, info_this_timestep = self.get_one_step_backprojection_set(
-                    next_target_set,
+                    [target_set]+backprojection_sets,
                     propagator,
                     num_partitions=num_partitions,
                     overapprox=overapprox,
