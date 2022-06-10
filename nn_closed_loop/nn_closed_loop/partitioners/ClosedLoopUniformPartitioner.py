@@ -4,8 +4,7 @@ import numpy as np
 import pypoman
 from itertools import product
 from copy import deepcopy
-from nn_closed_loop.utils.utils import range_to_polytope
-import torch
+from nn_closed_loop.utils.utils import range_to_polytope, get_crown_matrices
 
 
 class ClosedLoopUniformPartitioner(ClosedLoopPartitioner):
@@ -227,9 +226,18 @@ class ClosedLoopUniformPartitioner(ClosedLoopPartitioner):
             # TODO: Store the detailed partitions in info
 
         if overapprox:
+
             backprojection_set = constraints.LpConstraint(
                 range=np.vstack((xt_min, xt_max)).T,
                 p=np.inf
+            )
+
+            # These will be used to further backproject this set in time
+            backprojection_set.crown_matrices = get_crown_matrices(
+                propagator,
+                backprojection_set,
+                self.dynamics.num_inputs,
+                self.dynamics.sensor_noise
             )
 
         return backprojection_set, info

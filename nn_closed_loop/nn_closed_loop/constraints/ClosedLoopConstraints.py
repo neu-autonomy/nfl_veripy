@@ -73,10 +73,11 @@ class PolytopeConstraint(Constraint):
 
 
 class LpConstraint(Constraint):
-    def __init__(self, range=None, p=np.inf):
+    def __init__(self, range=None, p=np.inf, crown_matrices=None):
         Constraint.__init__(self)
         self.range = range
         self.p = p
+        self.crown_matrices = crown_matrices
 
     def plot(self, ax, dims, color, fc_color="None", linewidth=3, zorder=2, plot_2d=True, ls='-'):
         if not plot_2d:

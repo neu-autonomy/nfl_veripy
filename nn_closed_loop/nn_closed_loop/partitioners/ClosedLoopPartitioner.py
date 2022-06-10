@@ -472,7 +472,7 @@ class ClosedLoopPartitioner(partitioners.Partitioner):
 
         backreachable_set = constraints.LpConstraint(range=ranges)
         info['backreachable_set'] = backreachable_set
-        info['target_set'] = deepcopy(target_set)
+        info['target_set'] = target_set
 
         return backreachable_set, info
 
@@ -537,7 +537,7 @@ class ClosedLoopPartitioner(partitioners.Partitioner):
         )
         
         # Store that step's results
-        backprojection_sets.append(deepcopy(backprojection_set_this_timestep))
+        backprojection_sets.append(backprojection_set_this_timestep)
         info['per_timestep'].append(info_this_timestep)
 
         if overapprox:
@@ -551,7 +551,7 @@ class ClosedLoopPartitioner(partitioners.Partitioner):
                     overapprox=overapprox,
                 )
 
-                backprojection_sets.append(deepcopy(backprojection_set_this_timestep))
+                backprojection_sets.append(backprojection_set_this_timestep)
                 info['per_timestep'].append(info_this_timestep)
         else:
             for i in np.arange(0 + propagator.dynamics.dt + 1e-10, t_max, propagator.dynamics.dt):

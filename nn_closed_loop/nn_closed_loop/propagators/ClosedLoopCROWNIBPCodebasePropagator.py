@@ -3,7 +3,12 @@ import numpy as np
 import pypoman
 import nn_closed_loop.constraints as constraints
 import torch
-from nn_closed_loop.utils.utils import range_to_polytope
+from nn_closed_loop.utils.utils import (
+    range_to_polytope,
+    optimize_over_all_states,
+    optimization_results_to_backprojection_set,
+    get_crown_matrices
+)
 import cvxpy as cp
 from itertools import product
 from copy import deepcopy
@@ -170,35 +175,15 @@ class ClosedLoopCROWNIBPCodebasePropagator(ClosedLoopPropagator):
         infos=None,
     ):
 
-        norm = np.inf
-
-        # Because there might be sensor noise, the NN could see a different
-        # set of states than the system is actually in
-        nn_input_max = torch.Tensor(np.expand_dims(backreachable_set.range[..., 0], axis=0))
-        nn_input_min = torch.Tensor(np.expand_dims(backreachable_set.range[..., 1], axis=0))
-        if self.dynamics.sensor_noise is not None:
-            raise NotImplementedError
-            # nn_input_max += torch.Tensor([self.dynamics.sensor_noise[:, 1]])
-            # nn_input_min += torch.Tensor([self.dynamics.sensor_noise[:, 0]])
-
-        # Compute the NN output matrices (for this backreachable_set)
-        C = torch.eye(self.dynamics.num_inputs).unsqueeze(0)
-        crown_matrices = CROWNMatrices(
-            *self.network(
-                method_opt=self.method_opt,
-                norm=norm,
-                x_U=nn_input_max,
-                x_L=nn_input_min,
-                upper=True,
-                lower=True,
-                C=C,
-                return_matrices=True,
-            )
+        backreachable_set.crown_matrices = get_crown_matrices(
+            self,
+            backreachable_set,
+            self.dynamics.num_inputs,
+            self.dynamics.sensor_noise
         )
 
         if overapprox:
             backprojection_set = self.get_one_step_backprojection_set_overapprox(
-                crown_matrices,
                 backreachable_set,
                 target_sets
             )
@@ -281,7 +266,6 @@ class ClosedLoopCROWNIBPCodebasePropagator(ClosedLoopPropagator):
     '''
     def get_one_step_backprojection_set_overapprox(
         self,
-        crown_matrices,
         backreachable_set,
         target_sets
     ):
@@ -301,8 +285,8 @@ class ClosedLoopCROWNIBPCodebasePropagator(ClosedLoopPropagator):
         constrs += [xt <= backreachable_set.range[:, 1]]
 
         # Constraints to ensure that ut satisfies the affine bounds
-        constrs += [crown_matrices.lower_A_numpy@xt+crown_matrices.lower_sum_b_numpy <= ut]
-        constrs += [ut <= crown_matrices.upper_A_numpy@xt+crown_matrices.upper_sum_b_numpy]
+        constrs += [backreachable_set.crown_matrices.lower_A_numpy@xt+backreachable_set.crown_matrices.lower_sum_b_numpy <= ut]
+        constrs += [ut <= backreachable_set.crown_matrices.upper_A_numpy@xt+backreachable_set.crown_matrices.upper_sum_b_numpy]
 
         # Constraints to ensure xt reaches the "target set" given ut
         # ... where target set = our best bounds on the next state set
@@ -316,29 +300,6 @@ class ClosedLoopCROWNIBPCodebasePropagator(ClosedLoopPropagator):
             status, b, backreachable_set
         )
         return backprojection_set
-
-    def get_crown_matrices(self, xt_min, xt_max, num_control_inputs):
-        nn_input_max = torch.Tensor(np.array([xt_max]))
-        nn_input_min = torch.Tensor(np.array([xt_min]))
-
-        # Compute the NN output matrices (for this xt partition)
-        C = torch.eye(num_control_inputs).unsqueeze(0)
-        lower_A, upper_A, lower_sum_b, upper_sum_b = self.network(
-            method_opt=self.method_opt,
-            norm=np.inf,
-            x_U=nn_input_max,
-            x_L=nn_input_min,
-            upper=True,
-            lower=True,
-            C=C,
-            return_matrices=True,
-        )
-        upper_A = upper_A.detach().numpy()[0]
-        lower_A = lower_A.detach().numpy()[0]
-        upper_sum_b = upper_sum_b.detach().numpy()[0]
-        lower_sum_b = lower_sum_b.detach().numpy()[0]
-
-        return lower_A, upper_A, lower_sum_b, upper_sum_b
 
 
 class ClosedLoopIBPPropagator(ClosedLoopCROWNIBPCodebasePropagator):
@@ -867,7 +828,6 @@ class ClosedLoopCROWNRefinedPropagator(ClosedLoopCROWNPropagator):
     '''
     def get_one_step_backprojection_set_overapprox(
         self,
-        crown_matrices,
         backreachable_set,
         target_sets,
     ):
@@ -889,20 +849,13 @@ class ClosedLoopCROWNRefinedPropagator(ClosedLoopCROWNPropagator):
 
         # Each ut must not exceed CROWN bounds
         for t in range(num_steps):
-            # if t == 0:
-            #     lower_A, upper_A, lower_sum_b, upper_sum_b = self.get_crown_matrices(xt_min, xt_max, num_control_inputs)
-            # else:
-            # Gather CROWN bounds for full backprojection overapprox
-            if t > 0:
-                upper_A = infos[-t]['upper_A']
-                lower_A = infos[-t]['lower_A']
-                upper_sum_b = infos[-t]['upper_sum_b']
-                lower_sum_b = infos[-t]['lower_sum_b']
+            if t == 0:
+                upper_A, lower_A, upper_sum_b, lower_sum_b = backreachable_set.crown_matrices.to_numpy()
+            else:
+                upper_A, lower_A, upper_sum_b, lower_sum_b = target_sets[-t].crown_matrices.to_numpy()
 
-            # u_t bounded by CROWN bounds
-            raise NotImplementedError
-            constrs += [crown_matrices.lower_A_numpy@xt[:, t]+crown_matrices.lower_sum_b_numpy <= ut[:, t]]
-            constrs += [ut[:, t] <= crown_matrices.upper_A_numpy@xt[:, t]+crown_matrices.upper_sum_b_numpy]
+            constrs += [lower_A@xt[:, t]+lower_sum_b <= ut[:, t]]
+            constrs += [ut[:, t] <= upper_A@xt[:, t]+upper_sum_b]
 
         # Each xt must fall in the backprojections/target set
         for t in range(1, num_steps+1):
@@ -919,87 +872,3 @@ class ClosedLoopCROWNRefinedPropagator(ClosedLoopCROWNPropagator):
             status, b, backreachable_set
         )
         return backprojection_set
-
-
-def optimization_results_to_backprojection_set(
-    status, b, backreachable_set
-):
-
-    # It appears there are no states in that backreachable_set
-    # that could lead to the target_set using that relaxed NN
-    if status == 'infeasible':
-        return None
-
-    # xt_min/max_cvxpy holds the results of the optimization
-    xt_max_cvxpy = b[:int(len(b)/2)]
-    xt_min_cvxpy = -b[int(len(b)/2):]
-
-    # make sure we don't return a state beyond where we relaxed the NN
-    # i.e., backprojection set \subseteq backreachable_set
-    xt_max = np.minimum(xt_max_cvxpy, backreachable_set.range[:, 1])
-    xt_min = np.maximum(xt_min_cvxpy, backreachable_set.range[:, 0])
-
-    # Note: Probably need to do above 2 lines slightly differently
-    # if we're using a PolytopeConstraint
-    # From before...This cell of the backprojection set is upper-bounded by
-    # cell of the backreachable set that we used in the NN relaxation
-    # ==> the polytope is the intersection (i.e., concatenation)
-    # of the polytope used for relaxing the NN and the soln to the LP
-
-    # dump those results into an LpConstraint
-    backprojection_set = constraints.LpConstraint(
-        range=np.vstack([xt_min, xt_max]).T,
-        p=np.inf
-    )
-
-    return backprojection_set
-
-
-def optimize_over_all_states(num_states, xt, constrs):
-
-    # Solve optimization problem (min and max) for each state
-    # We define A and solve for b, according to:
-    # --> b = min A[i, :] @ xt s.t. dynamics, NN control, target set, etc.
-    A = np.vstack([np.eye(num_states), -np.eye(num_states)])
-    num_facets = A.shape[0]
-    A_i = cp.Parameter(num_states)
-    obj = A_i@xt
-    prob = cp.Problem(cp.Maximize(obj), constrs)
-    b = np.empty(num_facets)
-    for i in range(num_facets):
-        A_i.value = A[i, :]
-        prob.solve()
-        b[i] = prob.value
-
-    return b, prob.status
-
-
-class CROWNMatrices:
-    def __init__(self, upper_A, lower_A, upper_sum_b, lower_sum_b):
-        self.upper_A = upper_A
-        self.lower_A = lower_A
-        self.upper_sum_b = upper_sum_b
-        self.lower_sum_b = lower_sum_b
-
-    def to_numpy(self):
-        upper_A = self.upper_A.detach().numpy()[0]
-        lower_A = self.lower_A.detach().numpy()[0]
-        upper_sum_b = self.upper_sum_b.detach().numpy()[0]
-        lower_sum_b = self.lower_sum_b.detach().numpy()[0]
-        return upper_A, lower_A, upper_sum_b, lower_sum_b
-
-    @property
-    def lower_A_numpy(self):
-        return self.lower_A.detach().numpy()[0]
-
-    @property
-    def upper_A_numpy(self):
-        return self.upper_A.detach().numpy()[0]
-
-    @property
-    def lower_sum_b_numpy(self):
-        return self.lower_sum_b.detach().numpy()[0]
-
-    @property
-    def upper_sum_b_numpy(self):
-        return self.upper_sum_b.detach().numpy()[0]
