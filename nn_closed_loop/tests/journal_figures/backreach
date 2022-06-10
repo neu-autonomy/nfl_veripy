@@ -1,5 +1,5 @@
 python -m nn_closed_loop.example_backward \
-	--partitioner None \
+	--partitioner Uniform \
 	--propagator CROWN \
 	--system double_integrator \
 	--state_feedback \

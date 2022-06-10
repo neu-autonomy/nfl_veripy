@@ -10,9 +10,7 @@ from nn_closed_loop.utils.utils import range_to_polytope
 from copy import deepcopy
 import os
 import cvxpy as cp
-from nn_closed_loop.utils.utils import over_approximate_constraint
-import torch
-from itertools import product
+from nn_closed_loop.utils.utils import get_crown_matrices
 
 from nn_closed_loop.constraints.ClosedLoopConstraints import PolytopeConstraint
 
@@ -481,24 +479,22 @@ class ClosedLoopPartitioner(partitioners.Partitioner):
     ):
 
         backreachable_set, info = self.get_one_step_backreachable_set(target_sets[0])
+        info['backreachable_set'] = backreachable_set
 
-        # Because there might be sensor noise, the NN could see a different
-        # set of states than the system is actually in
-        xt_min = backreachable_set[..., 0]
-        xt_max = backreachable_set[..., 1]
-        nn_input_max = torch.Tensor(np.array([xt_max]))
-        nn_input_min = torch.Tensor(np.array([xt_min]))
-        if self.dynamics.sensor_noise is not None:
-            raise NotImplementedError
-
-        backprojection_set, this_info = propagator.get_one_step_backprojection_set(
+        backprojection_set, _ = propagator.get_one_step_backprojection_set(
+            backreachable_set,
             target_sets,
-            num_partitions=num_partitions,
             overapprox=overapprox,
-            nn_input_max=nn_input_max,
-            nn_input_min=nn_input_min,
-            backreachable_set=backreachable_set,
         )
+
+        if overapprox:
+            # These will be used to further backproject this set in time
+            backprojection_set.crown_matrices = get_crown_matrices(
+                propagator,
+                backprojection_set,
+                self.dynamics.num_inputs,
+                self.dynamics.sensor_noise
+            )
 
         return backprojection_set, info
 
