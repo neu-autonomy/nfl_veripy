@@ -259,6 +259,81 @@ def simple_quad():
     save_model(model, name="model", dir=dir_path+"/controllers/simple_quad/")
 
 
+def discrete_quad_avoid_origin_maneuver():
+    neurons_per_layer = [20,20]
+    state_range = np.array(
+        [
+            [-8, 5],
+            [-12, 12],
+            [1, 4],
+            [-2, 2],
+            [-2, 2],
+            [-2, 2]
+        ]
+    )
+    xs = np.random.uniform(low=state_range[:, 0], high=state_range[:, 1], size=(10000000, 6))
+    us = np.zeros((len(xs),3))
+    for i,pos in enumerate(xs):
+        if np.abs(pos[0]) < 0.25 and np.abs(pos[1]) < 0.25:
+            ax = 16*pos[0]
+            ay = 16*pos[1]
+            az = 16*(pos[2]-2.5)
+        elif np.abs(pos[0]) < 2.25 and np.abs(pos[1]) < 2.25:
+            ax = 4*np.sign(pos[0])
+            ay = 4*np.sign(pos[1])
+            az = 4*np.sign(pos[2]-2.5)
+        else:
+            az = 0
+            ax = 0
+            ay_ = -0.25*pos[1]+4/pos[1]-3*pos[4]
+            ay = max(min(ay_, 2), -2)
+        us[i] = np.array([ax, ay, az])
+        if np.mod(i,1000000)==0:
+            print('yeayea')
+    print('ok')
+    model = create_and_train_model(neurons_per_layer, xs, us, epochs=6, verbose=True)
+    # save_model(model, name="model", dir=dir_path+"/controllers/ground_robot_DI_avoid_origin_maneuver_velocity_update/")
+    save_model(model, system='Quadrotor', model_name='quad_avoid_origin_maneuver_2')
+
+
+def quad_avoid_origin_maneuver():
+    neurons_per_layer = [20,20]
+    g = 9.8
+    state_range = np.array(
+        [
+            [-8, 5],
+            [-12, 12],
+            [1, 4],
+            [-2, 2],
+            [-2, 2],
+            [-2, 2]
+        ]
+    )
+    xs = np.random.uniform(low=state_range[:, 0], high=state_range[:, 1], size=(10000000, 6))
+    us = np.zeros((len(xs),3))
+    for i,pos in enumerate(xs):
+        if np.abs(pos[0]) < 0.25 and np.abs(pos[1]) < 0.25:
+            ax = 16*pos[0]
+            ay = 16*pos[1]
+            az = 16*(pos[2]-2.5)
+        elif np.abs(pos[0]) < 2.25 and np.abs(pos[1]) < 2.25:
+            ax = 4*np.sign(pos[0])
+            ay = 4*np.sign(pos[1])
+            az = g + g*np.sign(pos[2]-2.5)
+        else:
+            az = g
+            ax = 0
+            ay_ = -0.25*pos[1]+4/pos[1]-3*pos[4]
+            ay = max(min(ay_, 2), -2)
+        us[i] = np.array([ax, ay, az])
+        if np.mod(i,1000000)==0:
+            print('yeayea')
+    print('ok')
+    model = create_and_train_model(neurons_per_layer, xs, us, epochs=6, verbose=True)
+    # save_model(model, name="model", dir=dir_path+"/controllers/ground_robot_DI_avoid_origin_maneuver_velocity_update/")
+    save_model(model, system='DiscreteQuadrotor', model_name='discrete_quad_avoid_origin_maneuver_2')
+
+
 def ground_robotDI():
     neurons_per_layer = [20,20]
     state_range = np.array(
@@ -396,7 +471,8 @@ def ground_robotDI_avoid_origin_2D_maneuver():
             print('yeayea')
     print('ok')
     model = create_and_train_model(neurons_per_layer, xs, us, epochs=15, verbose=True)
-    save_model(model, name="model", dir=dir_path+"/controllers/ground_robot_DI_avoid_origin_maneuver/")
+    # save_model(model, name="model", dir=dir_path+"/controllers/ground_robot_DI_avoid_origin_maneuver/")
+    save_model(model, system='GroundRobotDI', model_name='ground_robot_DI_avoid_origin_maneuver')
 
 def ground_robotDI_avoid_origin_2D_maneuver_velocity():
     neurons_per_layer = [20,20]
@@ -424,6 +500,39 @@ def ground_robotDI_avoid_origin_2D_maneuver_velocity():
     print('ok')
     model = create_and_train_model(neurons_per_layer, xs, us, epochs=15, verbose=True)
     save_model(model, name="model", dir=dir_path+"/controllers/ground_robot_DI_avoid_origin_maneuver_velocity/")
+
+
+def ground_robotDI_avoid_origin_2D_maneuver_velocity2():
+    neurons_per_layer = [20,20]
+    state_range = np.array(
+        [
+            [-20, 20],
+            [-20, 20],
+            [-3, 3],
+            [-3, 3],
+        ]
+    )
+    xs = np.random.uniform(low=state_range[:, 0], high=state_range[:, 1], size=(1000000, 4))
+    us = np.zeros((len(xs),2))
+    for i,pos in enumerate(xs):
+        if np.abs(pos[0]) < 0.25 and np.abs(pos[1]) < 0.25:
+            ax = 16*pos[0]
+            ay = 16*pos[1]
+        elif np.abs(pos[0]) < 2.25 and np.abs(pos[1]) < 2.25:
+            ax = 4*np.sign(pos[0])
+            ay = 4*np.sign(pos[1])
+        else:
+            ax = 0
+            ay_ = -0.25*pos[1]+4/pos[1]-3*pos[3]
+            ay = max(min(ay_, 2), -2)
+        us[i] = np.array([ax,ay])
+        if np.mod(i,1000000)==0:
+            print('yeayea')
+    print('ok')
+    model = create_and_train_model(neurons_per_layer, xs, us, epochs=10, verbose=True)
+    # save_model(model, name="model", dir=dir_path+"/controllers/ground_robot_DI_avoid_origin_maneuver_velocity_update/")
+    save_model(model, system='GroundRobotDI', model_name='ground_robot_DI_avoid_origin_maneuver_velocity_update')
+
 
 def ground_robotDI_obstacle_2D_circle():
     neurons_per_layer = [20,20]
@@ -556,7 +665,8 @@ def main():
     # tree_trunks_vs_quad()
     # simple_quad()
     # ground_robotDI_obstacle_2D()
-    ground_robotDI_avoid_origin_2D_maneuver_velocity()
+    # ground_robotDI_avoid_origin_2D_maneuver_velocity2()
+    discrete_quad_avoid_origin_maneuver()
     # double_integratorx4()
     # ground_robotDI_sine()
     # corner_policy()

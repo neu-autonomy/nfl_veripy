@@ -18,6 +18,31 @@ class Element():
     def get_volume(self):
         width = self.ranges[:,1] - self.ranges[:,0]
         return np.prod(width, axis=0)
+
+    # def split(self, target_set, dynamics, full_samples=None):
+    #     element_list = []
+    #         dim = len(self.ranges[0])
+    #         if not isinstance(partition_budget, list):
+    #             num_partitions = np.array([partition_budget for i in range(dim)])
+    #             # import pdb; pdb.set_trace()
+    #         else:
+    #             num_partitions = partition_budget
+    #         input_shape = br_set_element.ranges.shape[:-1]
+    #         slope = np.divide(
+    #             (br_set_element.ranges[..., 1] - br_set_element.ranges[..., 0]), num_partitions
+    #         )
+    #         for el in product(*[range(int(num)) for num in num_partitions.flatten()]):
+    #             element_ = np.array(el).reshape(input_shape)
+    #             input_range_ = np.empty_like(br_set_element.ranges)
+    #             input_range_[..., 0] = br_set_element.ranges[..., 0] + np.multiply(
+    #                 element_, slope
+    #             )
+    #             input_range_[..., 1] = br_set_element.ranges[..., 0] + np.multiply(
+    #                 element_ + 1, slope
+    #             )
+    #             element_list.append(elements.Element(input_range_))
+        
+
   
     # def split(self, target_set=None, dynamics=None, heuristic=None, full_samples=None):
 

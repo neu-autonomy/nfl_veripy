@@ -355,6 +355,7 @@ class ClosedLoopBackwardAnalyzer(analyzers.Analyzer):
             self.dynamics.show_trajectories(
                 t_max * self.dynamics.dt,
                 initial_constraint[0],
+                input_dims=inputs_to_highlight,
                 ax=self.partitioner.animate_axes,
                 controller=self.propagator.network,
             ) 

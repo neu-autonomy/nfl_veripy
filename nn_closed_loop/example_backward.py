@@ -4,7 +4,7 @@ import nn_closed_loop.dynamics as dynamics
 import nn_closed_loop.analyzers as analyzers
 import nn_closed_loop.constraints as constraints
 from nn_closed_loop.utils.nn import load_controller
-from nn_closed_loop.utils.utils import range_to_polytope
+from nn_closed_loop.utils.utils import range_to_polytope, plot_time_data
 import os
 import argparse
 
@@ -12,6 +12,7 @@ import argparse
 def main(args):
     np.random.seed(seed=0)
     stats = {}
+    inputs_to_highlight=None
 
     # Dynamics
     if args.system == "double_integrator":
@@ -64,6 +65,33 @@ def main(args):
                     [-1, 1],  # x1min, x1max
                     [-0.01, 0.01],
                     [-0.01, 0.01],
+                ]
+            )
+        else:
+            import ast
+
+            final_state_range = np.array(
+                ast.literal_eval(args.final_state_range)
+            )
+    elif args.system == "discrete_quadrotor":
+        inputs_to_highlight = [
+            {"dim": [0], "name": "$x$"},
+            {"dim": [1], "name": "$y$"},
+            {"dim": [2], "name": "$z$"},
+        ]
+        if args.state_feedback:
+            dyn = dynamics.DiscreteQuadrotor()
+        else:
+            raise NotImplementedError
+        if args.final_state_range is None:
+            final_state_range = np.array(
+                [  # (num_inputs, 2)
+                    [-1, 1],  # x0min, x0max
+                    [-1, 1],  # x1min, x1max
+                    [1.5, 3.5],
+                    [-1, 1],
+                    [-1, 1],
+                    [-1, 1],
                 ]
             )
         else:
@@ -225,10 +253,11 @@ def main(args):
         # stats['final_step_errors'] = final_errors
         # stats['avg_errors'] = avg_errors
         # stats['all_errors'] = all_errors
-        # stats['output_constraints'] = output_constraints
+        stats['output_constraints'] = output_constraints
 
         print("All times: {}".format(times))
         print("Avg time: {} +/- {}".format(times.mean(), times.std()))
+        # print("Final Error: {}".format(final_errors[-1]))
     else:
         # Run analysis once
         # Run analysis & generate a plot
@@ -239,6 +268,8 @@ def main(args):
         )
         t_end = time.time()
         print(t_end-t_start)
+        
+        # plot_time_data(analyzer_info_list[0])
         
     controller_name=None
     if args.show_policy:
@@ -310,6 +341,7 @@ def main(args):
             show_samples=args.show_samples,
             show_trajectories=args.show_trajectories,
             show_convex_hulls=args.show_convex_hulls,
+            inputs_to_highlight=inputs_to_highlight,
             show=args.show_plot,
             labels=args.plot_labels,
             aspect=args.plot_aspect,
@@ -330,7 +362,7 @@ def setup_parser():
     parser.add_argument(
         "--system",
         default="double_integrator",
-        choices=["double_integrator", "quadrotor", "ground_robot", "ground_robot_DI", "4_double_integrators"],
+        choices=["double_integrator", "quadrotor", "ground_robot", "ground_robot_DI", "4_double_integrators", "discrete_quadrotor"],
         help="which system to analyze (default: double_integrator_mpc)",
     )
     parser.add_argument(

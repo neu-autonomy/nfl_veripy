@@ -435,7 +435,7 @@ class ClosedLoopCROWNIBPCodebasePropagator(ClosedLoopPropagator):
     Outputs: 
         element_list: list of partitioned elements to analyze
     '''
-    def partition(self, br_set_element, target_set=None, dynamics=None, partition_budget=1, heuristic='split_most'):
+    def partition(self, br_set_element, target_set=None, dynamics=None, partition_budget=1, heuristic='guided'):
         i = 0
         element_list = [br_set_element]
 
@@ -453,7 +453,7 @@ class ClosedLoopCROWNIBPCodebasePropagator(ClosedLoopPropagator):
                 i+=1
         else:
             element_list = []
-            dim = len(br_set_element.ranges[0])
+            dim = br_set_element.ranges.shape[0]
             if not isinstance(partition_budget, list):
                 num_partitions = np.array([partition_budget for i in range(dim)])
                 # import pdb; pdb.set_trace()
@@ -472,7 +472,29 @@ class ClosedLoopCROWNIBPCodebasePropagator(ClosedLoopPropagator):
                 input_range_[..., 1] = br_set_element.ranges[..., 0] + np.multiply(
                     element_ + 1, slope
                 )
-                element_list.append(elements.Element(input_range_))
+                element = elements.Element(input_range_)
+                
+
+                num_control_inputs = self.dynamics.bt.shape[1]
+                C = torch.eye(num_control_inputs).unsqueeze(0)
+                nn_input_max = torch.Tensor(np.array([element.ranges[:,1]]))
+                nn_input_min = torch.Tensor(np.array([element.ranges[:,0]]))
+                norm = np.inf
+                element.crown_bounds = {}
+                element.crown_bounds['lower_A'], element.crown_bounds['upper_A'], element.crown_bounds['lower_sum_b'], element.crown_bounds['upper_sum_b'] = self.network(
+                    method_opt='full_backward_range',
+                    norm=norm,
+                    x_U=nn_input_max,
+                    x_L=nn_input_min,
+                    upper=True,
+                    lower=True,
+                    C=C,
+                    return_matrices=True,
+                )
+                element.crown_bounds['lower_A'], element.crown_bounds['upper_A'], element.crown_bounds['lower_sum_b'], element.crown_bounds['upper_sum_b'] = element.crown_bounds['lower_A'].detach().numpy()[0], element.crown_bounds['upper_A'].detach().numpy()[0], element.crown_bounds['lower_sum_b'].detach().numpy()[0], element.crown_bounds['upper_sum_b'].detach().numpy()[0]
+
+
+                element_list.append(element)
         
         return element_list
 
@@ -625,7 +647,7 @@ class ClosedLoopCROWNIBPCodebasePropagator(ClosedLoopPropagator):
         '''
 
         ###### Partitioning parameters ##############
-        partition_budget=500
+        partition_budget=1000
         heuristic='guided'
         # heuristic = 'uniform'
         #############################################
@@ -712,6 +734,7 @@ class ClosedLoopCROWNIBPCodebasePropagator(ClosedLoopPropagator):
                 if overapprox:
                     if refined:
                         input_constraint, xt_range_min, xt_range_max, ut_min, ut_max = self.get_refined_one_step_backprojection_set_overapprox(
+                            element,
                             ranges,
                             upper_A,
                             lower_A,
@@ -900,16 +923,26 @@ class ClosedLoopCROWNIBPCodebasePropagator(ClosedLoopPropagator):
 
         # Solve optimization problem (min and max) for each state
         A_t_ = np.vstack([A_t, -A_t])
+
+        # Check for which states the optimization can possibly make the BP set more conservative
         min_idx = xt_min < xt_range_min
         max_idx = xt_max > xt_range_max
         idx1 = np.hstack((max_idx, min_idx))
+        
+        # Flag to use naive partitioning
+        use_old_method = False
+        if use_old_method:
+            idx1 = np.ones(num_states)
+
+        # Check which state (if any) was already optimized during the BR set calculation
         idx2 = np.invert((A_t_ == element.A_t_br).all(axis=1))
         idx = np.vstack((idx1, idx2)).all(axis=0)
 
-        # import pdb; pdb.set_trace()
-        if self.dynamics.x_limits is not None:
-            # TODO: set up idx to be false for states with x limits
-            pass
+        # Only optimize over states without constraints; doesn't have an effect with guided partitioner
+        # if self.dynamics.x_limits is not None:
+        #     for key in self.dynamics.x_limits:
+        #         idx[key] = False
+        #         idx[key+num_states] = False
 
         num_facets = 2*num_states
         A_t_i = cp.Parameter(num_states)
@@ -917,39 +950,17 @@ class ClosedLoopCROWNIBPCodebasePropagator(ClosedLoopPropagator):
         prob = cp.Problem(cp.Maximize(obj), constrs)
         A_ = A_t_
         b_ = b_NN
-        # import pdb; pdb.set_trace()
         t_end = time.time()
         info['other'].append(t_end-t_start)
 
         for i, row in enumerate(A_t_):
-            if True:# idx[i]:     
+            if idx[i]:     
                 A_t_i.value = A_t_[i, :]
                 t_start = time.time()
                 prob.solve()
                 t_end = time.time()
                 info['bp_lp'].append(t_end-t_start)
                 b_[i] = prob.value
-
-
-        # for i in range(num_facets):
-        #     index = int(np.where(A_t_[i,:] != 0)[0][0])
-        #     if self.dynamics.x_limits is not None and index not in self.dynamics.x_limits: # If there are state constraints and they do not apply to the current state
-        #         A_t_i.value = A_t_[i, :]
-        #         t_start = time.time()
-        #         prob.solve()
-        #         t_end = time.time()
-        #         info['bp_lp'].append(t_end-t_start)
-        #         b_[i] = prob.value
-        #     elif self.dynamics.x_limits is not None:                                       # If there are state constraints that apply to the current state
-        #         extrema_index = int(i/(num_states)) 
-        #         b_[i] = A_t_[i,index]*self.dynamics.x_limits[index][1-extrema_index]
-        #     else:                                                                          # No state constraints
-        #         A_t_i.value = A_t_[i, :]
-        #         t_start = time.time()
-        #         prob.solve()
-        #         t_end = time.time()
-        #         info['bp_lp'].append(t_end-t_start)
-        #         b_[i] = prob.value
             
         t_start = time.time()
 
@@ -991,9 +1002,6 @@ class ClosedLoopCROWNIBPCodebasePropagator(ClosedLoopPropagator):
                 xt_range_max = np.maximum(xt_range_max, xt_max_candidate)
                 xt_range_min = np.minimum(xt_range_min, xt_min_candidate)
 
-                if feas_prob.status == 'infeasible' and (temp_max != xt_range_max or temp_min != xt_range_min):
-                    print('what the heck')
-
                 ut_max_candidate = np.maximum(upper_A@xt_max+upper_sum_b, upper_A@xt_min+upper_sum_b)
                 ut_min_candidate = np.minimum(lower_A@xt_max+lower_sum_b, lower_A@xt_min+lower_sum_b)
 
@@ -1013,6 +1021,7 @@ class ClosedLoopCROWNIBPCodebasePropagator(ClosedLoopPropagator):
 
     def get_refined_one_step_backprojection_set_overapprox(
         self,
+        element,
         ranges,
         upper_A,
         lower_A,
@@ -1030,6 +1039,8 @@ class ClosedLoopCROWNIBPCodebasePropagator(ClosedLoopPropagator):
         infos,
         info
     ):  
+        ranges = element.ranges
+        lower_A, lower_sum_b, upper_A, upper_sum_b = element.crown_bounds['lower_A'], element.crown_bounds['lower_sum_b'], element.crown_bounds['upper_A'], element.crown_bounds['upper_sum_b']
         # infos = None
         # import pdb; pdb.set_trace()
         t_start = time.time()
@@ -1050,6 +1061,8 @@ class ClosedLoopCROWNIBPCodebasePropagator(ClosedLoopPropagator):
         num_facets = 2*num_states
         num_steps = len(collected_input_constraints)
         
+        A_NN, b_NN = range_to_polytope(ranges)
+
         xt = cp.Variable((num_states, num_steps+1))
         ut = cp.Variable((num_control_inputs, num_steps))
         constrs = []
@@ -1114,29 +1127,73 @@ class ClosedLoopCROWNIBPCodebasePropagator(ClosedLoopPropagator):
         # for t in range(num_steps):
         #     constrs += [-1 <= ut[:, t]]
         #     constrs += [1 >= ut[:, t]]
-        A_facets = np.vstack([A_t, -A_t])
-        A_facets_i = cp.Parameter(num_states)
-        obj = A_facets_i@xt[:, 0]
+
+
+        # Solve optimization problem (min and max) for each state
+        A_t_ = np.vstack([A_t, -A_t])
+        
+        min_idx = xt_min < xt_range_min
+        max_idx = xt_max > xt_range_max
+        idx1 = np.hstack((max_idx, min_idx))
+        
+        # Flag to use naive partitioning
+        use_old_method = False
+        if use_old_method:
+            idx1 = np.ones(num_states)
+
+        # Check which state (if any) was already optimized during the BR set calculation
+        idx2 = np.invert((A_t_ == element.A_t_br).all(axis=1))
+        idx = np.vstack((idx1, idx2)).all(axis=0)
+
+        # Only optimize over states without constraints; doesn't have an effect with guided partitioner
+        # if self.dynamics.x_limits is not None:
+        #     for key in self.dynamics.x_limits:
+        #         idx[key] = False
+        #         idx[key+num_states] = False
+
+        num_facets = 2*num_states
+        A_t_i = cp.Parameter(num_states)
+        obj = A_t_i@xt[:, 0]
         prob = cp.Problem(cp.Maximize(obj), constrs)
-        A_ = A_facets
-        b_ = np.empty(num_facets)
+        A_ = A_t_
+        b_ = b_NN
         t_end = time.time()
         info['other'].append(t_end-t_start)
-        for i in range(num_facets):
-            t_start = time.time()
-            A_facets_i.value = A_facets[i, :]
-            prob.solve()
-            t_end = time.time()
-            info['bp_lp'].append(t_end-t_start)
-            # prob.solve(solver=cp.SCIPY, scipy_options={"method": "highs"})
-            b_[i] = prob.value
+
+        for i, row in enumerate(A_t_):
+            if idx[i]:     
+                A_t_i.value = A_t_[i, :]
+                t_start = time.time()
+                prob.solve()
+                t_end = time.time()
+                info['bp_lp'].append(t_end-t_start)
+                b_[i] = prob.value
+
+
+
+
+        # A_facets = np.vstack([A_t, -A_t])
+        # A_facets_i = cp.Parameter(num_states)
+        # obj = A_facets_i@xt[:, 0]
+        # prob = cp.Problem(cp.Maximize(obj), constrs)
+        # A_ = A_facets
+        # b_ = np.empty(num_facets)
+        # t_end = time.time()
+        # info['other'].append(t_end-t_start)
+        # for i in range(num_facets):
+        #     t_start = time.time()
+        #     A_facets_i.value = A_facets[i, :]
+        #     prob.solve()
+        #     t_end = time.time()
+        #     info['bp_lp'].append(t_end-t_start)
+        #     # prob.solve(solver=cp.SCIPY, scipy_options={"method": "highs"})
+        #     b_[i] = prob.value
 
         # This cell of the backprojection set is upper-bounded by the
         # cell of the backreachable set that we used in the NN relaxation
         # ==> the polytope is the intersection (i.e., concatenation)
         # of the polytope used for relaxing the NN and the soln to the LP
         t_start = time.time()
-        A_NN, b_NN = range_to_polytope(ranges)
         A_stack = np.vstack([A_, A_NN])
         b_stack = np.hstack([b_, b_NN])
 

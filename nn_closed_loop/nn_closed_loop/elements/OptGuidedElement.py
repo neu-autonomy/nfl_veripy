@@ -134,7 +134,6 @@ class OptGuidedElement(GuidedElement):
                 A_t_i[idx[1]] = 1.
                 el.A_t_br = A_t_i
                 obj = A_t_i@xt
-                # obj = 0
 
                 if idx[0] == 0:
                     prob = cp.Problem(cp.Minimize(obj), constrs)
