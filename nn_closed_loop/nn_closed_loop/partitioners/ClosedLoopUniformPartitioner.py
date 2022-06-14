@@ -40,22 +40,7 @@ class ClosedLoopUniformPartitioner(ClosedLoopPartitioner):
         num_partitions=None,
     ):
 
-        if isinstance(input_constraint, constraints.PolytopeConstraint):
-            A_inputs = input_constraint.A
-            b_inputs = input_constraint.b
-
-            # only used to compute slope in non-closedloop manner...
-            input_polytope_verts = pypoman.duality.compute_polytope_vertices(
-                A_inputs, b_inputs
-            )
-            input_range = np.empty((A_inputs.shape[1], 2))
-            input_range[:, 0] = np.min(np.stack(input_polytope_verts), axis=0)
-            input_range[:, 1] = np.max(np.stack(input_polytope_verts), axis=0)
-
-        elif isinstance(input_constraint, constraints.LpConstraint):
-            input_range = input_constraint.range
-        else:
-            raise NotImplementedError
+        input_range = input_constraint.to_range()
 
         info = {}
         num_propagator_calls = 0
@@ -83,82 +68,24 @@ class ClosedLoopUniformPartitioner(ClosedLoopPartitioner):
             *[range(num) for num in num_partitions.flatten()]
         ):
             element_ = np.array(element).reshape(input_shape)
-            input_range_ = np.empty_like(input_range)
-            input_range_[..., 0] = input_range[..., 0] + np.multiply(
+            input_range_this_cell = np.empty_like(input_range)
+            input_range_this_cell[..., 0] = input_range[..., 0] + np.multiply(
                 element_, slope
             )
-            input_range_[..., 1] = input_range[..., 0] + np.multiply(
+            input_range_this_cell[..., 1] = input_range[..., 0] + np.multiply(
                 element_ + 1, slope
             )
 
-            if isinstance(
-                input_constraint, constraints.PolytopeConstraint
-            ):
-                # This is a disaster hack to partition polytopes
-                A_rect, b_rect = range_to_polytope(input_range_)
-                rectangle_verts = pypoman.polygon.compute_polygon_hull(
-                    A_rect, b_rect
-                )
-                input_polytope_verts = pypoman.polygon.compute_polygon_hull(
-                    A_inputs, b_inputs
-                )
-                partition_verts = pypoman.intersection.intersect_polygons(
-                    input_polytope_verts, rectangle_verts
-                )
-                (
-                    A_inputs_,
-                    b_inputs_,
-                ) = pypoman.duality.compute_polytope_halfspaces(
-                    partition_verts
-                )
-                input_constraint_ = input_constraint.__class__(
-                    A_inputs_, b_inputs_
-                )
-            elif isinstance(input_constraint, constraints.LpConstraint):
-                input_constraint_ = input_constraint.__class__(
-                    range=input_range_, p=input_constraint.p
-                )
-            else:
-                raise NotImplementedError
+            input_constraint_this_cell = input_constraint.get_cell(input_range_this_cell)
 
-            output_constraint_, info_ = propagator.get_reachable_set(
-                input_constraint_, deepcopy(output_constraint), t_max
+            output_constraint_this_cell, info_this_cell = propagator.get_reachable_set(
+                input_constraint_this_cell, deepcopy(output_constraint), t_max
             )
             num_propagator_calls += t_max
-            info['nn_matrices'] = info_
+            info['nn_matrices'] = info_this_cell
 
-            if isinstance(
-                output_constraint, constraints.PolytopeConstraint
-            ):
-                reachable_set_ = [o.b for o in output_constraint_]
-                if output_constraint.b is None:
-                    output_constraint.b = np.stack(reachable_set_)
-
-                tmp = np.dstack(
-                    [output_constraint.b, np.stack(reachable_set_)]
-                )
-                output_constraint.b = np.max(tmp, axis=-1)
-
-                ranges.append((input_range_, reachable_set_))
-            elif isinstance(output_constraint, constraints.LpConstraint):
-                reachable_set_ = [o.range for o in output_constraint_]
-                if output_constraint.range is None:
-                    output_constraint.range = np.stack(reachable_set_)
-
-                tmp = np.stack(
-                    [output_constraint.range, np.stack(reachable_set_)],
-                    axis=-1,
-                )
-
-                output_constraint.range[..., 0] = np.min(
-                    tmp[..., 0, :], axis=-1
-                )
-                output_constraint.range[..., 1] = np.max(
-                    tmp[..., 1, :], axis=-1
-                )
-                ranges.append((input_range_, np.stack(reachable_set_)))
-            else:
-                raise NotImplementedError
+            reachable_set_this_cell = output_constraint.add_cell(output_constraint_this_cell)
+            ranges.append((input_range_this_cell, reachable_set_this_cell))
 
         info["all_partitions"] = ranges
         info["num_propagator_calls"] = num_propagator_calls

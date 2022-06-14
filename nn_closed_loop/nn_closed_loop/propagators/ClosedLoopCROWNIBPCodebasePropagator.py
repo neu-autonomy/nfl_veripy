@@ -5,9 +5,11 @@ import nn_closed_loop.constraints as constraints
 import torch
 from nn_closed_loop.utils.utils import (
     range_to_polytope,
+    get_crown_matrices
+)
+from nn_closed_loop.utils.optimization_utils import (
     optimize_over_all_states,
     optimization_results_to_backprojection_set,
-    get_crown_matrices
 )
 import cvxpy as cp
 from itertools import product

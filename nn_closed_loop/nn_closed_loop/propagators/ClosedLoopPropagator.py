@@ -2,7 +2,6 @@ import numpy as np
 import nn_partition.propagators as propagators
 from copy import deepcopy
 import nn_closed_loop.constraints as constraints
-from nn_closed_loop.utils.utils import over_approximate_constraint
 
 
 class ClosedLoopPropagator(propagators.Propagator):

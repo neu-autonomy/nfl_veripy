@@ -1,8 +1,6 @@
 import pickle
 import numpy as np
 import os
-import nn_closed_loop.constraints as constraints
-import cvxpy as cp
 import torch
 
 dir_path = os.path.dirname(os.path.realpath(__file__))
@@ -65,77 +63,6 @@ def get_polytope_verts(A, b):
     # vertices = pypoman.duality.compute_polytope_vertices(A, b)
     vertices = pypoman.polygon.compute_polygon_hull(A, b)
     print(vertices)
-
-
-def over_approximate_constraint(constraint):
-
-    if isinstance(constraint, constraints.LpConstraint):
-        return constraint
-    elif isinstance(constraint, constraints.PolytopeConstraint):
-
-        # Note: this is a super sketchy implementation that only works under certain cases
-        # specifically when all the contraints have the same A matrix
-
-        # TODO: Add an assert
-        # TODO: implement a more general version
-
-        constraint.A = constraint.A[0]
-        constraint.b = [np.max(np.array(constraint.b), axis=0)]
-
-        return constraint
-
-
-def optimize_over_all_states(num_states, xt, constrs):
-
-    # Solve optimization problem (min and max) for each state
-    # We define A and solve for b, according to:
-    # --> b = min A[i, :] @ xt s.t. dynamics, NN control, target set, etc.
-    A = np.vstack([np.eye(num_states), -np.eye(num_states)])
-    num_facets = A.shape[0]
-    A_i = cp.Parameter(num_states)
-    obj = A_i@xt
-    prob = cp.Problem(cp.Maximize(obj), constrs)
-    b = np.empty(num_facets)
-    for i in range(num_facets):
-        A_i.value = A[i, :]
-        prob.solve()
-        b[i] = prob.value
-
-    return b, prob.status
-
-
-def optimization_results_to_backprojection_set(
-    status, b, backreachable_set
-):
-
-    # It appears there are no states in that backreachable_set
-    # that could lead to the target_set using that relaxed NN
-    if status == 'infeasible':
-        return None
-
-    # xt_min/max_cvxpy holds the results of the optimization
-    xt_max_cvxpy = b[:int(len(b)/2)]
-    xt_min_cvxpy = -b[int(len(b)/2):]
-
-    # make sure we don't return a state beyond where we relaxed the NN
-    # i.e., backprojection set \subseteq backreachable_set
-    xt_max = np.minimum(xt_max_cvxpy, backreachable_set.range[:, 1])
-    xt_min = np.maximum(xt_min_cvxpy, backreachable_set.range[:, 0])
-
-    # Note: Probably need to do above 2 lines slightly differently
-    # if we're using a PolytopeConstraint
-    # From before...This cell of the backprojection set is upper-bounded by
-    # cell of the backreachable set that we used in the NN relaxation
-    # ==> the polytope is the intersection (i.e., concatenation)
-    # of the polytope used for relaxing the NN and the soln to the LP
-
-    # dump those results into an LpConstraint
-    backprojection_set = constraints.LpConstraint(
-        range=np.vstack([xt_min, xt_max]).T,
-        p=np.inf
-    )
-
-    return backprojection_set
 
 
 def get_crown_matrices(propagator, state_set, num_control_inputs, sensor_noise):

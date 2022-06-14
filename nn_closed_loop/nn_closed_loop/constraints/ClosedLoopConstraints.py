@@ -2,6 +2,8 @@ import numpy as np
 import pypoman
 from matplotlib.patches import Rectangle
 from nn_closed_loop.utils.plot_rect_prism import rect_prism
+from nn_closed_loop.utils.utils import range_to_polytope
+
 
 class Constraint:
     def __init__(self):
@@ -25,6 +27,51 @@ class PolytopeConstraint(Constraint):
             return
         self.A.append(x.A)
         self.b.append(x.b)
+
+    def add_cell(self, output_constraint):
+        reachable_set_this_cell = [o.b for o in output_constraint]
+        if self.b is None:
+            self.b = np.stack(reachable_set_this_cell)
+
+        tmp = np.dstack(
+            [self.b, np.stack(reachable_set_this_cell)]
+        )
+        self.b = np.max(tmp, axis=-1)
+        return reachable_set_this_cell
+
+    def get_cell(self, input_range):
+        # This is a disaster hack to partition polytopes
+        A_rect, b_rect = range_to_polytope(input_range)
+        rectangle_verts = pypoman.polygon.compute_polygon_hull(
+            A_rect, b_rect
+        )
+        input_polytope_verts = pypoman.polygon.compute_polygon_hull(
+            self.A, self.b
+        )
+        partition_verts = pypoman.intersection.intersect_polygons(
+            input_polytope_verts, rectangle_verts
+        )
+        (
+            A_inputs_,
+            b_inputs_,
+        ) = pypoman.duality.compute_polytope_halfspaces(
+            partition_verts
+        )
+        constraint = self.__class__(
+            A_inputs_, b_inputs_
+        )
+        return constraint
+
+    def to_range(self):
+
+        # only used to compute slope in non-closedloop manner...
+        input_polytope_verts = pypoman.duality.compute_polytope_vertices(
+            self.A, self.b
+        )
+        input_range = np.empty((self.A.shape[1], 2))
+        input_range[:, 0] = np.min(np.stack(input_polytope_verts), axis=0)
+        input_range[:, 1] = np.max(np.stack(input_polytope_verts), axis=0)
+        return input_range
 
     def set_bound(self, i, max_value, min_value):
         self.b[i] = max_value
@@ -132,6 +179,32 @@ class LpConstraint(Constraint):
     def set_bound(self, i, max_value, min_value):
         self.range[i, 0] = min_value
         self.range[i, 1] = max_value
+
+    def to_range(self):
+        input_range = self.range
+        return input_range
+
+    def get_cell(self, input_range):
+        return self.__class__(range=input_range, p=self.p)
+
+    def add_cell(self, output_constraint):
+        reachable_set_this_cell = [o.range for o in output_constraint]
+        if self.range is None:
+            self.range = np.stack(reachable_set_this_cell)
+
+        tmp = np.stack(
+            [self.range, np.stack(reachable_set_this_cell)],
+            axis=-1,
+        )
+
+        self.range[..., 0] = np.min(
+            tmp[..., 0, :], axis=-1
+        )
+        self.range[..., 1] = np.max(
+            tmp[..., 1, :], axis=-1
+        )
+
+        return np.stack(reachable_set_this_cell)
 
     def to_fwd_reachable_input_objects(self):
         x_min = self.range[..., 0]
