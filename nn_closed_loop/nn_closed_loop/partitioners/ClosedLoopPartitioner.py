@@ -41,34 +41,13 @@ class ClosedLoopPartitioner(partitioners.Partitioner):
     def get_reachable_set(
         self, input_constraint, output_constraint, propagator, t_max
     ):
-        output_constraint_, info = propagator.get_reachable_set(
+        output_constraint_this_cell, info = propagator.get_reachable_set(
             input_constraint, deepcopy(output_constraint), t_max
         )
 
-        # TODO: this is repeated from UniformPartitioner... make more universal
-        if isinstance(output_constraint, constraints.PolytopeConstraint):
-            reachable_set_ = [o.b for o in output_constraint_]
-            if output_constraint.b is None:
-                output_constraint.b = np.stack(reachable_set_)
-
-            tmp = np.dstack([output_constraint.b, np.stack(reachable_set_)])
-            output_constraint.b = np.max(tmp, axis=-1)
-
-            # ranges.append((input_range_, reachable_set_))
-        elif isinstance(output_constraint, constraints.LpConstraint):
-            reachable_set_ = [o.range for o in output_constraint_]
-            if output_constraint.range is None:
-                output_constraint.range = np.stack(reachable_set_)
-
-            tmp = np.stack(
-                [output_constraint.range, np.stack(reachable_set_)], axis=-1
-            )
-            output_constraint.range[..., 0] = np.min(tmp[..., 0, :], axis=-1)
-            output_constraint.range[..., 1] = np.max(tmp[..., 1, :], axis=-1)
-
-            # ranges.append((input_range_, np.stack(reachable_set_)))
-        else:
-            raise NotImplementedError
+        # TODO: this is repeated from UniformPartitioner...
+        # might be more efficient to directly return from propagator?
+        _ = output_constraint.add_cell(output_constraint_this_cell)
 
         return output_constraint, info
 

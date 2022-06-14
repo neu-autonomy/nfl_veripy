@@ -197,12 +197,8 @@ class LpConstraint(Constraint):
             axis=-1,
         )
 
-        self.range[..., 0] = np.min(
-            tmp[..., 0, :], axis=-1
-        )
-        self.range[..., 1] = np.max(
-            tmp[..., 1, :], axis=-1
-        )
+        self.range[..., 0] = np.min(tmp[..., 0, :], axis=-1)
+        self.range[..., 1] = np.max(tmp[..., 1, :], axis=-1)
 
         return np.stack(reachable_set_this_cell)
 
