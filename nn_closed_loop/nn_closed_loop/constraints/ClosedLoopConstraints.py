@@ -7,11 +7,54 @@ class Constraint:
     def __init__(self):
         pass
 
+    def to_fwd_reachable_input_objects(self):
+        raise NotImplementedError
+
+    def to_fwd_reachable_output_objects(self, num_states):
+        raise NotImplementedError
+
+
 class PolytopeConstraint(Constraint):
     def __init__(self, A=None, b=None):
         Constraint.__init__(self)
         self.A = A
         self.b = b
+
+    def __add__(self, x):
+        if x is None:
+            return
+        self.A.append(x.A)
+        self.b.append(x.b)
+
+    def set_bound(self, i, max_value, min_value):
+        self.b[i] = max_value
+
+    def to_fwd_reachable_input_objects(self):
+        A_inputs = self.A
+        b_inputs = self.b
+
+        # Get bounds on each state from A_inputs, b_inputs
+        try:
+            vertices = np.stack(
+                pypoman.compute_polytope_vertices(A_inputs, b_inputs)
+            )
+        except:
+            # Sometimes get arithmetic error... this may fix it
+            vertices = np.stack(
+                pypoman.compute_polytope_vertices(
+                    A_inputs, b_inputs + 1e-6
+                )
+            )
+        x_max = np.max(vertices, 0)
+        x_min = np.min(vertices, 0)
+        norm = np.inf
+        return A_inputs, b_inputs, x_max, x_min, norm
+
+    def to_fwd_reachable_output_objects(self, num_states):
+        A_out = self.A
+        num_facets = A_out.shape[0]
+        self.b = np.zeros((num_facets))
+        return A_out, num_facets
 
     def to_linf(self):
         if isinstance(self.A, list):
@@ -78,6 +121,31 @@ class LpConstraint(Constraint):
         self.range = range
         self.p = p
         self.crown_matrices = crown_matrices
+
+    def __add__(self, other):
+        if other is None:
+            return self
+        self.range[:, 0] = np.minimum(other.range[:, 0], self.range[:, 0])
+        self.range[:, 1] = np.maximum(other.range[:, 1], self.range[:, 1])
+        return self
+
+    def set_bound(self, i, max_value, min_value):
+        self.range[i, 0] = min_value
+        self.range[i, 1] = max_value
+
+    def to_fwd_reachable_input_objects(self):
+        x_min = self.range[..., 0]
+        x_max = self.range[..., 1]
+        norm = self.p
+        A_inputs = None
+        b_inputs = None
+        return A_inputs, b_inputs, x_max, x_min, norm
+
+    def to_fwd_reachable_output_objects(self, num_states):
+        A_out = np.eye(num_states)
+        num_facets = A_out.shape[0]
+        self.range = np.zeros((num_facets, 2))
+        return A_out, num_facets
 
     def plot(self, ax, dims, color, fc_color="None", linewidth=3, zorder=2, plot_2d=True, ls='-'):
         if not plot_2d:

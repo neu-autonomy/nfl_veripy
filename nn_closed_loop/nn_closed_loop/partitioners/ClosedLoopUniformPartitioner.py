@@ -228,15 +228,7 @@ class ClosedLoopUniformPartitioner(ClosedLoopPartitioner):
                 overapprox=overapprox,
             )
 
-            if backprojection_set_this_cell is None:
-                continue
-            else:
-                if overapprox:
-                    backprojection_set.range[:, 0] = np.minimum(backprojection_set_this_cell.range[:, 0], backprojection_set.range[:, 0])
-                    backprojection_set.range[:, 1] = np.maximum(backprojection_set_this_cell.range[:, 1], backprojection_set.range[:, 1])
-                else:
-                    backprojection_set.A.append(backprojection_set_this_cell.A)
-                    backprojection_set.b.append(backprojection_set_this_cell.b)
+            backprojection_set += backprojection_set_this_cell
 
             # TODO: Store the detailed partitions in info
 

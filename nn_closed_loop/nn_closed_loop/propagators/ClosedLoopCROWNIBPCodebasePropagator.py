@@ -35,44 +35,8 @@ class ClosedLoopCROWNIBPCodebasePropagator(ClosedLoopPropagator):
 
     def get_one_step_reachable_set(self, input_constraint, output_constraint):
 
-        if isinstance(input_constraint, constraints.PolytopeConstraint):
-            A_inputs = input_constraint.A
-            b_inputs = input_constraint.b
-
-            # Get bounds on each state from A_inputs, b_inputs
-            try:
-                vertices = np.stack(
-                    pypoman.compute_polytope_vertices(A_inputs, b_inputs)
-                )
-            except:
-                # Sometimes get arithmetic error... this may fix it
-                vertices = np.stack(
-                    pypoman.compute_polytope_vertices(
-                        A_inputs, b_inputs + 1e-6
-                    )
-                )
-            x_max = np.max(vertices, 0)
-            x_min = np.min(vertices, 0)
-            norm = np.inf
-        elif isinstance(input_constraint, constraints.LpConstraint):
-            x_min = input_constraint.range[..., 0]
-            x_max = input_constraint.range[..., 1]
-            norm = input_constraint.p
-            A_inputs = None
-            b_inputs = None
-        else:
-            raise NotImplementedError
-
-        if isinstance(output_constraint, constraints.PolytopeConstraint):
-            A_out = output_constraint.A
-            num_facets = A_out.shape[0]
-            bs = np.zeros((num_facets))
-        elif isinstance(output_constraint, constraints.LpConstraint):
-            A_out = np.eye(x_min.shape[0])
-            num_facets = A_out.shape[0]
-            ranges = np.zeros((num_facets, 2))
-        else:
-            raise NotImplementedError
+        A_inputs, b_inputs, x_max, x_min, norm = input_constraint.to_fwd_reachable_input_objects()
+        A_out, num_facets = output_constraint.to_fwd_reachable_output_objects(self.dynamics.num_states)
 
         # Because there might sensor noise, the NN could see a different set of
         # states than the system is actually in
@@ -87,7 +51,6 @@ class ClosedLoopCROWNIBPCodebasePropagator(ClosedLoopPropagator):
         # Compute the NN output matrices (for the input constraints)
         num_control_inputs = self.dynamics.bt.shape[1]
         C = torch.eye(num_control_inputs).unsqueeze(0)
-        # import pdb; pdb.set_trace()
         lower_A, upper_A, lower_sum_b, upper_sum_b = self.network(
             method_opt=self.method_opt,
             norm=norm,
@@ -98,7 +61,6 @@ class ClosedLoopCROWNIBPCodebasePropagator(ClosedLoopPropagator):
             C=C,
             return_matrices=True,
         )
-
 
         for i in range(num_facets):
             # For each dimension of the output constraint (facet/lp-dimension):
@@ -125,25 +87,8 @@ class ClosedLoopCROWNIBPCodebasePropagator(ClosedLoopPropagator):
                 A_in=A_inputs,
                 b_in=b_inputs,
             )
-            # if self.dynamics.x_limits is not None:
-            #     A_out_xt1_max = np.clip(A_out_xt1_max, self.dynamics.x_limits[i,0], self.dynamics.x_limits[i,1])
-            #     A_out_xt1_min = np.clip(A_out_xt1_min, self.dynamics.x_limits[i,0], self.dynamics.x_limits[i,1])
-            if isinstance(
-                output_constraint, constraints.PolytopeConstraint
-            ):
-                bs[i] = A_out_xt1_max
-            elif isinstance(output_constraint, constraints.LpConstraint):
-                ranges[i, 0] = A_out_xt1_min
-                ranges[i, 1] = A_out_xt1_max
-            else:
-                raise NotImplementedError
 
-        if isinstance(output_constraint, constraints.PolytopeConstraint):
-            output_constraint.b = bs
-        elif isinstance(output_constraint, constraints.LpConstraint):
-            output_constraint.range = ranges
-        else:
-            raise NotImplementedError
+            output_constraint.set_bound(i, A_out_xt1_max, A_out_xt1_min)
 
         # Auxiliary info
         nn_matrices = {
@@ -188,7 +133,6 @@ class ClosedLoopCROWNIBPCodebasePropagator(ClosedLoopPropagator):
                 target_sets
             )
         else:
-            # TODO: get this part working again with the new partitioning method
             backprojection_set = self.get_one_step_backprojection_set_underapprox(
                 backreachable_set,
                 target_sets
