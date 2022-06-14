@@ -37,7 +37,7 @@ class ClosedLoopCROWNIBPCodebasePropagator(ClosedLoopPropagator):
 
     def get_one_step_reachable_set(self, input_constraint, output_constraint):
 
-        A_inputs, b_inputs, x_max, x_min, norm = input_constraint.to_fwd_reachable_input_objects()
+        A_inputs, b_inputs, x_max, x_min, norm = input_constraint.to_reachable_input_objects()
         A_out, num_facets = output_constraint.to_fwd_reachable_output_objects(self.dynamics.num_states)
 
         # Because there might sensor noise, the NN could see a different set of

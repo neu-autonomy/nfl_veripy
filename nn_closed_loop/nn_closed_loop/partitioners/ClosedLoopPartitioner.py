@@ -350,33 +350,7 @@ class ClosedLoopPartitioner(partitioners.Partitioner):
         #     collected_input_constraints = [input_constraint]
 
         # Extract elementwise bounds on xt1 from the lp-ball or polytope constraint
-        if isinstance(target_set, constraints.PolytopeConstraint):
-            A_t1 = target_set.A
-            b_t1 = target_set.b[0]
-
-            # Get bounds on each state from A_t1, b_t1
-            try:
-                vertices = np.stack(
-                    pypoman.compute_polytope_vertices(A_t1, b_t1)
-                )
-            except:
-                # Sometimes get arithmetic error... this may fix it
-                vertices = np.stack(
-                    pypoman.compute_polytope_vertices(
-                        A_t1, b_t1 + 1e-6
-                    )
-                )
-            xt1_max = np.max(vertices, 0)
-            xt1_min = np.min(vertices, 0)
-            norm = np.inf
-        elif isinstance(target_set, constraints.LpConstraint):
-            xt1_min = target_set.range[..., 0]
-            xt1_max = target_set.range[..., 1]
-            norm = target_set.p
-            A_t1 = None
-            b_t1 = None
-        else:
-            raise NotImplementedError
+        A_t1, b_t1, xt1_max, xt1_min, norm = target_set.to_reachable_input_objects()
 
         '''
         Step 1: 

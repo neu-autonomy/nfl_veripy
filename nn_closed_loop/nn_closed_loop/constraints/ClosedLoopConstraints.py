@@ -9,7 +9,7 @@ class Constraint:
     def __init__(self):
         pass
 
-    def to_fwd_reachable_input_objects(self):
+    def to_reachable_input_objects(self):
         raise NotImplementedError
 
     def to_fwd_reachable_output_objects(self, num_states):
@@ -76,7 +76,7 @@ class PolytopeConstraint(Constraint):
     def set_bound(self, i, max_value, min_value):
         self.b[i] = max_value
 
-    def to_fwd_reachable_input_objects(self):
+    def to_reachable_input_objects(self):
         A_inputs = self.A
         b_inputs = self.b
 
@@ -202,7 +202,7 @@ class LpConstraint(Constraint):
 
         return np.stack(reachable_set_this_cell)
 
-    def to_fwd_reachable_input_objects(self):
+    def to_reachable_input_objects(self):
         x_min = self.range[..., 0]
         x_max = self.range[..., 1]
         norm = self.p
