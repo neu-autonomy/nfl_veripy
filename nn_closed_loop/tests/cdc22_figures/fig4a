@@ -1,0 +1,15 @@
+python -m nn_closed_loop.example \
+    --propagator CROWN \
+    --partitioner Uniform \
+    --state_feedback \
+    --skip_show_plot \
+    --system ground_robot \
+    --controller complex_potential_field \
+    --t_max 9 \
+    --plot_lims [[-7.2,3],[-7.2,7.2]] \
+    --num_partitions [4,4] \
+    --init_state_range [[-5.5,-4.5],[.5,1.5]] \
+    --final_state_range [[-1,1],[-1,1]] \
+    --show_policy \
+    --show_trajectories \ 
+    --show_obs

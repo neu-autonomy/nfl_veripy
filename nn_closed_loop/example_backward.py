@@ -1,3 +1,4 @@
+from nn_closed_loop.constraints.ClosedLoopConstraints import LpConstraint
 import numpy as np
 import nn_closed_loop.dynamics as dynamics
 import nn_closed_loop.analyzers as analyzers
@@ -22,7 +23,7 @@ def main(args):
         if args.final_state_range is None:
             final_state_range = np.array(
                 [  # (num_inputs, 2)
-                    [2.5, 3.0],  # x0min, x0max
+                    [4.5, 5.0],  # x0min, x0max
                     [-0.25, 0.25],  # x1min, x1max
                 ]
             )
@@ -33,17 +34,113 @@ def main(args):
             init_state_range = np.array(
                 ast.literal_eval(args.init_state_range)
             )
+    elif args.system == "ground_robot":
+        if args.state_feedback:
+            dyn = dynamics.GroundRobotSI()
+        else:
+            raise NotImplementedError
+        if args.final_state_range is None:
+            final_state_range = np.array(
+                [  # (num_inputs, 2)
+                    [-1., 1.],  # x0min, x0max
+                    [-1., 1.],  # x1min, x1max
+                ]
+            )
+        else:
+            import ast
+
+            final_state_range = np.array(
+                ast.literal_eval(args.final_state_range)
+            )
+    elif args.system == "ground_robot_DI":
+        if args.state_feedback:
+            dyn = dynamics.GroundRobotDI()
+        else:
+            raise NotImplementedError
+        if args.final_state_range is None:
+            final_state_range = np.array(
+                [  # (num_inputs, 2)
+                    [-2., -1.],  # x0min, x0max
+                    [-2., -1.],  # x1min, x1max
+                    [-0.01, 0.01],
+                    [-0.01, 0.01],
+                ]
+            )
+        else:
+            import ast
+
+            final_state_range = np.array(
+                ast.literal_eval(args.final_state_range)
+            )
+    elif args.system == "4_double_integrators":
+        if args.state_feedback:
+            dyn = dynamics.DoubleIntegratorx4()
+        else:
+            raise NotImplementedError
+        if args.final_state_range is None:
+            final_state_range = np.array(
+                [  # (num_inputs, 2)
+                    [-0.5, 0.5],  # x0min, x0max
+                    [-0.5, 0.5],  # x1min, x1max
+                    [-0.5, 0.5],  # x2min, x2max
+                    [-0.5, 0.5],  # x3min, x3max
+                    [-0.01, 0.01],
+                    [-0.01, 0.01],
+                    [-0.01, 0.01],
+                    [-0.01, 0.01],
+                ]
+            )
+        else:
+            import ast
+
+            final_state_range = np.array(
+                ast.literal_eval(args.final_state_range)
+            )
+    elif args.system == "quadrotor":
+        inputs_to_highlight = [
+            {"dim": [0], "name": "$x$"},
+            {"dim": [1], "name": "$y$"},
+            {"dim": [2], "name": "$z$"},
+        ]
+        if args.state_feedback:
+            dyn = dynamics.Quadrotor()
+        else:
+            dyn = dynamics.QuadrotorOutputFeedback()
+        if args.final_state_range is None:
+            final_state_range = np.array(
+                [  # (num_inputs, 2)
+                    [-5-0.25, -0.25, 2, -0.01, -0.01, -0.01],
+                    [-5+0.25, 0.25, 2.5, 0.01, 0.01, 0.01],
+                ]
+            ).T
+        else:
+            import ast
+
+            final_state_range = np.array(
+                ast.literal_eval(args.final_state_range)
+            )
     else:
-        raise NotImplementedError
+            raise NotImplementedError
+            import ast
 
     if args.num_partitions is None:
-        num_partitions = np.array([2, 2])
+        num_partitions = np.array([1, 1, 1, 1])
     else:
         import ast
 
         num_partitions = np.array(
             ast.literal_eval(args.num_partitions)
         )
+
+    if args.init_state_range is None:
+        init_constraint = None
+    else:
+        import ast
+        init_state_range = np.array(
+            ast.literal_eval(args.init_state_range)
+        )
+        init_constraint = LpConstraint(init_state_range)
+
 
     partitioner_hyperparams = {
         "type": args.partitioner,
@@ -60,6 +157,10 @@ def main(args):
         model_name=args.controller,
     )
 
+    controller_name=None
+    if args.show_policy:
+        controller_name = vars(args)['controller']
+
     # Set up analyzer (+ partitioner + propagator)
     analyzer = analyzers.ClosedLoopBackwardAnalyzer(controller, dyn)
     analyzer.partitioner = partitioner_hyperparams
@@ -68,15 +169,27 @@ def main(args):
     # Set up initial state set (and placeholder for reachable sets)
     if args.boundaries == "polytope":
         A_out, b_out = range_to_polytope(final_state_range)
-        output_constraint = constraints.PolytopeConstraint(
+        output_constraint1 = constraints.PolytopeConstraint(
             A=A_out, b=[b_out]
         )
         input_constraint = constraints.PolytopeConstraint(None, None)
+        output_constraint = [output_constraint1]
     elif args.boundaries == "lp":
-        output_constraint = constraints.LpConstraint(
+        output_constraint1 = constraints.LpConstraint(
             range=final_state_range, p=np.inf
         )
         input_constraint = constraints.LpConstraint(p=np.inf, range=None)
+        final_state_range2 = np.array(
+                [  # (num_inputs, 2)
+                    [6.5, 7.0],  # x0min, x0max
+                    [-0.25, 0.25],  # x1min, x1max
+                ]
+            )
+        output_constraint2 = constraints.LpConstraint(
+            range=final_state_range2, p=np.inf
+        )
+        # output_constraint = [output_constraint2,output_constraint1]
+        output_constraint = [output_constraint1]
     else:
         raise NotImplementedError
 
@@ -93,27 +206,39 @@ def main(args):
         for num in range(num_calls):
             print('call: {}'.format(num))
             t_start = time.time()
-            input_constraint, analyzer_info = analyzer.get_backprojection_set(
-                output_constraint, input_constraint, t_max=None, num_partitions=num_partitions
+            input_constraint_list, analyzer_info_list = analyzer.get_backprojection_set(
+                output_constraint, input_constraint, t_max=args.t_max, num_partitions=num_partitions, overapprox=args.overapprox, refined=args.refined
             )
             t_end = time.time()
             t = t_end - t_start
             times[num] = t
+            backprojection_sets = input_constraint_list[0]
+            target_set = output_constraint[0]
+            final_error, avg_error, all_error = analyzer.get_backprojection_error(target_set, backprojection_sets, t_max=args.t_max)
+
+            final_errors[num] = final_error
+            avg_errors[num] = avg_error
+            all_errors[num] = all_error
+            output_constraints[num] = output_constraint
 
         stats['runtimes'] = times
+        stats['final_step_errors'] = final_errors
+        stats['avg_errors'] = avg_errors
+        stats['all_errors'] = all_errors
+        stats['output_constraints'] = output_constraints
 
         print("All times: {}".format(times))
         print("Avg time: {} +/- {}".format(times.mean(), times.std()))
     else:
         # Run analysis once
         # Run analysis & generate a plot
-        input_constraint, analyzer_info = analyzer.get_backprojection_set(
-            output_constraint, input_constraint, t_max=None, num_partitions=num_partitions
+        input_constraint_list, analyzer_info_list = analyzer.get_backprojection_set(
+            output_constraint, input_constraint, t_max=args.t_max, num_partitions=num_partitions, overapprox=args.overapprox, refined=args.refined
         )
-
-    # print(input_constraint.A, input_constraint.b)
-    # error, avg_error = analyzer.get_error(input_constraint,output_constraint, t_max=args.t_max)
-    # print('Final step approximation error:{:.2f}\nAverage approximation error: {:.2f}'.format(error, avg_error))
+        
+    controller_name=None
+    if args.show_policy:
+            controller_name = vars(args)['controller']
 
     if args.save_plot:
         save_dir = "{}/results/examples_backward/".format(
@@ -146,7 +271,7 @@ def main(args):
                 if key not in ["input_shape", "type"]
             ]
         )
-        analyzer_info["save_name"] = (
+        analyzer_info_list[0]["save_name"] = (
             save_dir
             + args.system
             + pars
@@ -168,24 +293,29 @@ def main(args):
             + np.array2string(num_partitions, separator='_')[1:-1]
         )
         if len(pars2) > 0:
-            analyzer_info["save_name"] = (
-                analyzer_info["save_name"] + "_" + pars2
+            analyzer_info_list[0]["save_name"] = (
+                analyzer_info_list[0]["save_name"] + "_" + pars2
             )
-        analyzer_info["save_name"] = analyzer_info["save_name"] + ".png"
-
+        analyzer_info_list[0]["save_name"] = analyzer_info_list[0]["save_name"] + ".png"
+    # import pdb; pdb.set_trace()
     if args.show_plot or args.save_plot:
         analyzer.visualize(
-            input_constraint[0],
+            input_constraint_list,
             output_constraint,
-            show_samples=True,
+            analyzer_info_list,
+            show_samples=args.show_samples,
+            show_trajectories=args.show_trajectories,
+            show_convex_hulls=args.show_convex_hulls,
             show=args.show_plot,
             labels=args.plot_labels,
             aspect=args.plot_aspect,
             plot_lims=args.plot_lims,
-            **analyzer_info
+            initial_constraint=[init_constraint],
+            controller_name=controller_name,
+            show_BReach=args.show_BReach
         )
 
-    return stats
+    return stats, analyzer_info_list
 
 
 def setup_parser():
@@ -196,13 +326,18 @@ def setup_parser():
     parser.add_argument(
         "--system",
         default="double_integrator",
-        choices=["double_integrator", "quadrotor"],
+        choices=["double_integrator", "quadrotor", "ground_robot", "ground_robot_DI", "4_double_integrators"],
         help="which system to analyze (default: double_integrator_mpc)",
     )
     parser.add_argument(
         "--controller",
         default="default",
         help="which NN controller to load (e.g., sine_wave_controller for ground_robot) (default: default)",
+    )
+    parser.add_argument(
+        "--init_state_range",
+        default=None,
+        help="2*num_states values (default: None)",
     )
     parser.add_argument(
         "--final_state_range",
@@ -230,7 +365,7 @@ def setup_parser():
     parser.add_argument(
         "--propagator",
         default="IBP",
-        choices=["IBP", "CROWN", "FastLin", "SDP", "CROWNLP"],
+        choices=["IBP", "CROWN", "FastLin", "SDP", "CROWNLP", "CROWNNStep"],
         help="which propagator to use (default: IBP)",
     )
 
@@ -251,12 +386,12 @@ def setup_parser():
         type=int,
         help="how many facets on constraint polytopes (default: 8)",
     )
-    # parser.add_argument(
-    #     "--t_max",
-    #     default=2.0,
-    #     type=float,
-    #     help="seconds into future to compute reachable sets (default: 2.)",
-    # )
+    parser.add_argument(
+        "--t_max",
+        default=1.,
+        type=float,
+        help="seconds into future to compute reachable sets (default: 2.)",
+    )
 
     parser.add_argument(
         "--estimate_runtime", dest="estimate_runtime", action="store_true"
@@ -305,6 +440,54 @@ def setup_parser():
         help='x and y lims on plot (default: None)',
     )
 
+    parser.add_argument(
+        "--overapprox",
+        dest="overapprox",
+        action="store_true",
+        help="whether compute an overapproximation or underapproximation",
+    )
+    parser.add_argument(
+        "--underapprox", dest="overapprox", action="store_false"
+    )
+    parser.set_defaults(overapprox=False)
+    parser.add_argument(
+        "--refined",
+        dest="refined",
+        action="store_true",
+        help="whether to use extended set of constraints for BReach-LP",
+    )
+    parser.set_defaults(refined=False)
+    parser.add_argument(
+        "--show_BReach",
+        dest="show_BReach",
+        action="store_true",
+        help="whether to show results of BReach-LP when using ReBReach-LP",
+    )
+    parser.set_defaults(show_BReach=False)
+    parser.add_argument(
+        "--show_policy",
+        dest="show_policy",
+        action="store_true",
+        help="Displays policy as a function of state (only valid for ground_robot and ground_robot_DI)"
+    )
+    parser.add_argument(
+        "--show_trajectories",
+        dest="show_trajectories",
+        action="store_true",
+        help="Show trajectories starting from initial condition"
+    )
+    parser.add_argument(
+        "--show_samples",
+        dest="show_samples",
+        action="store_true",
+        help="Show samples starting from initial condition"
+    )
+    parser.add_argument(
+        "--show_convex_hulls",
+        dest="show_convex_hulls",
+        action="store_true",
+        help="Show convex hulls of true backprojection sets"
+    )
     return parser
 
 

@@ -1,12 +1,16 @@
 import numpy as np
 import nn_partition.partitioners as partitioners
+from pandas.core.indexing import convert_to_index_sliceable
 import pypoman
 import matplotlib.pyplot as plt
 from matplotlib import cm
 from matplotlib.patches import Rectangle
 import nn_closed_loop.constraints as constraints
+from nn_closed_loop.utils.utils import range_to_polytope
 from copy import deepcopy
 import os
+
+from nn_closed_loop.constraints.ClosedLoopConstraints import PolytopeConstraint
 
 
 class ClosedLoopPartitioner(partitioners.Partitioner):
@@ -48,7 +52,6 @@ class ClosedLoopPartitioner(partitioners.Partitioner):
             tmp = np.dstack([output_constraint.b, np.stack(reachable_set_)])
             output_constraint.b = np.max(tmp, axis=-1)
 
-            # ranges.append((input_range_, reachable_set_))
         elif isinstance(output_constraint, constraints.LpConstraint):
             reachable_set_ = [o.range for o in output_constraint_]
             if output_constraint.range is None:
@@ -60,7 +63,6 @@ class ClosedLoopPartitioner(partitioners.Partitioner):
             output_constraint.range[..., 0] = np.min(tmp[..., 0, :], axis=-1)
             output_constraint.range[..., 1] = np.max(tmp[..., 1, :], axis=-1)
 
-            # ranges.append((input_range_, np.stack(reachable_set_)))
         else:
             raise NotImplementedError
 
@@ -95,10 +97,7 @@ class ClosedLoopPartitioner(partitioners.Partitioner):
                 input_constraint, propagator, t_max, num_samples=1000,
                 output_constraint=output_constraint
             )
-            # output_bs_exact = self.get_sampled_out_range(
-            #     input_constraint, propagator, t_max, num_samples=1000,
-            #     output_constraint=output_constraint
-            # )
+
             num_steps = len(output_constraint.b)
             from scipy.spatial import ConvexHull
             for t in range(num_steps):
@@ -134,11 +133,18 @@ class ClosedLoopPartitioner(partitioners.Partitioner):
         t_max,
         propagator,
         show_samples=True,
+        show_trajectories=False,
         inputs_to_highlight=None,
         aspect="auto",
         initial_set_color=None,
         initial_set_zorder=None,
+        extra_set_color=None,
+        extra_set_zorder=None,
         sample_zorder=None,
+        sample_colors=None,
+        extra_constraint=None,
+        plot_lims=None,
+        controller_name=None
     ):
 
         self.default_patches = []
@@ -158,7 +164,7 @@ class ClosedLoopPartitioner(partitioners.Partitioner):
         if len(input_dims) == 2:
             projection = None
             self.plot_2d = True
-            self.linewidth = 3
+            self.linewidth = 2
         elif len(input_dims) == 3:
             projection = '3d'
             self.plot_2d = False
@@ -166,8 +172,12 @@ class ClosedLoopPartitioner(partitioners.Partitioner):
             aspect = "auto"
 
         self.animate_fig, self.animate_axes = plt.subplots(1, 1, subplot_kw=dict(projection=projection))
+        if controller_name is not None:
+            from nn_closed_loop.utils.controller_generation import display_ground_robot_control_field
+            display_ground_robot_control_field(name=controller_name,ax=self.animate_axes)
 
         self.animate_axes.set_aspect(aspect)
+
 
         if show_samples:
             self.dynamics.show_samples(
@@ -177,6 +187,18 @@ class ClosedLoopPartitioner(partitioners.Partitioner):
                 controller=propagator.network,
                 input_dims=input_dims,
                 zorder=sample_zorder,
+                colors=sample_colors,
+            )
+        
+        if show_trajectories:
+            self.dynamics.show_trajectories(
+                t_max * self.dynamics.dt,
+                input_constraint,
+                ax=self.animate_axes,
+                controller=propagator.network,
+                input_dims=input_dims,
+                zorder=sample_zorder,
+                colors=sample_colors,
             )
 
         self.animate_axes.set_xlabel(input_names[0])
@@ -190,8 +212,12 @@ class ClosedLoopPartitioner(partitioners.Partitioner):
         rect = input_constraint.plot(self.animate_axes, input_dims, initial_set_color, zorder=initial_set_zorder, linewidth=self.linewidth, plot_2d=self.plot_2d)
         self.default_patches += rect
 
-        # # Reachable sets
-        # self.plot_reachable_sets(output_constraint, input_dims)
+        if extra_set_color is None:
+            extra_set_color = "tab:red"
+        if extra_constraint[0] is not None:
+            for i in range(len(extra_constraint)):
+                rect = extra_constraint[i].plot(self.animate_axes, input_dims, extra_set_color, zorder=extra_set_zorder, linewidth=self.linewidth, plot_2d=self.plot_2d)
+                self.default_patches += rect
 
     def visualize(self,
         M,
@@ -211,9 +237,7 @@ class ClosedLoopPartitioner(partitioners.Partitioner):
         self.animate_axes.patches = self.default_patches.copy()
         self.animate_axes.lines = self.default_lines.copy()
 
-        # Actually draw the reachable sets and partitions
         self.plot_reachable_sets(output_constraint, self.input_dims, reachable_set_color=reachable_set_color, reachable_set_zorder=reachable_set_zorder, reachable_set_ls=reachable_set_ls)
-        self.plot_partitions(M, output_constraint, self.input_dims)
 
         if plot_lims is not None:
             import ast
@@ -247,13 +271,15 @@ class ClosedLoopPartitioner(partitioners.Partitioner):
                 plt.savefig(filename)
             self.compile_animation(i, delete_files=True, duration=0.2)
 
-    def plot_reachable_sets(self, constraint, dims, reachable_set_color=None, reachable_set_zorder=None, reachable_set_ls=None):
+    def plot_reachable_sets(self, constraint, dims, reachable_set_color=None, reachable_set_zorder=None, reachable_set_ls=None, reachable_set_lw=None):
         if reachable_set_color is None:
             reachable_set_color = "tab:blue"
         if reachable_set_ls is None:
             reachable_set_ls = "-"
+        if reachable_set_lw is None:
+            reachable_set_lw = self.linewidth
         fc_color = "None"
-        constraint.plot(self.animate_axes, dims, reachable_set_color, fc_color=fc_color, zorder=reachable_set_zorder, plot_2d=self.plot_2d, linewidth=self.linewidth, ls=reachable_set_ls)
+        constraint.plot(self.animate_axes, dims, reachable_set_color, fc_color=fc_color, zorder=reachable_set_zorder, plot_2d=self.plot_2d, linewidth=reachable_set_lw, ls=reachable_set_ls)
 
     # def plot_partition(self, constraint, bounds, dims, color):
     def plot_partition(self, constraint, dims, color):
@@ -268,14 +294,6 @@ class ClosedLoopPartitioner(partitioners.Partitioner):
 
         # first = True
         for (input_constraint, output_range) in M:
-            # if first:
-            #     input_label = "Cell of Partition"
-            #     output_label = "One Cell's Estimated Bounds"
-            #     first = False
-            # else:
-            #     input_label = None
-            #     output_label = None
-
             # Next state constraint of that cell
             output_constraint_ = constraints.LpConstraint(range=output_range)
             self.plot_partition(output_constraint_, dims, "grey")
@@ -284,206 +302,95 @@ class ClosedLoopPartitioner(partitioners.Partitioner):
             self.plot_partition(input_constraint, dims, "tab:red")
 
     def get_one_step_backprojection_set(
-        self, output_constraint, input_constraint, propagator, num_partitions=None
+        self, output_constraint, input_constraint, propagator, num_partitions=None, overapprox=False, refined=False
     ):
         input_constraint, info = propagator.get_one_step_backprojection_set(
-            output_constraint, deepcopy(input_constraint), num_partitions=num_partitions
+            output_constraint, deepcopy(input_constraint), num_partitions=num_partitions, overapprox=overapprox, refined=refined
         )
         return input_constraint, info
 
     def get_backprojection_set(
-        self, output_constraint, input_constraint, propagator, t_max, num_partitions=None
+        self, output_constraint, input_constraint, propagator, t_max, num_partitions=None, overapprox=False, refined=False
     ):
         input_constraint_, info = propagator.get_backprojection_set(
-            output_constraint, deepcopy(input_constraint), t_max, num_partitions=num_partitions
+            output_constraint, deepcopy(input_constraint), t_max, num_partitions=num_partitions, overapprox=overapprox, refined=refined
         )
         input_constraint = input_constraint_.copy()
 
         return input_constraint, info
 
-    # def setup_visualization_multiple(
-    #     self,
-    #     input_constraint,
-    #     output_constraint,
-    #     propagator,
-    #     input_dims_,
-    #     prob_list=None,
-    #     show_samples=True,
-    #     outputs_to_highlight=None,
-    #     color="g",
-    #     line_style="-",
-    # ):
-    #     input_dims = input_dims_
-    #     if isinstance(output_constraint, constraints.PolytopeConstraint):
-    #         A_out = output_constraint.A
-    #         b_out = output_constraint.b
-    #         t_max = len(b_out)
-    #     elif isinstance(output_constraint, constraints.LpConstraint):
-    #         output_range = output_constraint.range
-    #         output_p = output_constraint.p
-    #         output_prob = prob_list
-    #         t_max = len(output_range)
-    #     else:
-    #         raise NotImplementedError
-    #     if isinstance(input_constraint, constraints.PolytopeConstraint):
-    #         A_inputs = input_constraint.A
-    #         b_inputs = input_constraint.b
-    #         num_states = A_inputs.shape[-1]
-    #         output_prob = prob_list
+    def get_backprojection_error(
+        self, target_set, backprojection_sets, propagator, t_max
+    ):
+        errors = []
+        from scipy.spatial import ConvexHull
 
-    #     elif isinstance(input_constraint, constraints.LpConstraint):
-    #         input_range = input_constraint.range
-    #         input_p = input_constraint.p
-    #         num_states = input_range.shape[0]
-    #         output_prob = prob_list
-    #     else:
-    #         raise NotImplementedError
+        if isinstance(target_set, constraints.LpConstraint):
+            Ats, bts = range_to_polytope(target_set.range)
+            target_set_poly = PolytopeConstraint(A=Ats, b=bts)
+            true_verts_reversed = self.dynamics.get_true_backprojection_set(
+                backprojection_sets[-1], target_set, 
+                t_max, controller=propagator.network
+            )
+            true_verts = np.flip(true_verts_reversed, axis=1)
+            num_steps = len(backprojection_sets)
 
-    #     # scale = 0.05
-    #     # x_off = max((input_range[input_dims[0]+(1,)] - input_range[input_dims[0]+(0,)])*(scale), 1e-5)
-    #     # y_off = max((input_range[input_dims[1]+(1,)] - input_range[input_dims[1]+(0,)])*(scale), 1e-5)
-    #     # self.animate_axes[0].set_xlim(input_range[input_dims[0]+(0,)] - x_off, input_range[input_dims[0]+(1,)]+x_off)
-    #     # self.animate_axes[0].set_ylim(input_range[input_dims[1]+(0,)] - y_off, input_range[input_dims[1]+(1,)]+y_off)
+            for t in range(num_steps):
+                x_min = np.min(true_verts[:,t+1,:], axis=0)
+                x_max = np.max(true_verts[:,t+1,:], axis=0)
 
-    #     # if show_samples:
-    #     #    self.dynamics.show_samples(t_max*self.dynamics.dt, input_constraint, ax=self.animate_axes, controller=propagator.network, input_dims= input_dims_)
+                x_range = x_max-x_min
+                true_area = np.prod(x_range)
 
-    #     # # Make a rectangle for the Exact boundaries
-    #     # sampled_outputs = self.get_sampled_outputs(input_range, propagator)
-    #     # if show_samples:
-    #     #    self.animate_axes.scatter(sampled_outputs[...,output_dims[0]], sampled_outputs[...,output_dims[1]], c='k', marker='.', zorder=2,
-    #     #        label="Sampled States")
+                # true_hull = ConvexHull(true_verts[:, t+1, :])
+                # true_area = true_hull.volume
 
-    #     linewidth = 2
-    #     if show_samples:
-    #         self.dynamics.show_samples(
-    #             t_max * self.dynamics.dt,
-    #             input_constraint,
-    #             ax=self.animate_axes,
-    #             controller=propagator.network,
-    #             input_dims=input_dims,
-    #         )
+                Abp, bbp = range_to_polytope(backprojection_sets[t].range)
+                estimated_verts = pypoman.polygon.compute_polygon_hull(Abp, bbp)
+                estimated_hull = ConvexHull(estimated_verts)
+                estimated_area = estimated_hull.volume
+                
 
-    #     # Initial state set
-    #     init_state_color = "k"
+                errors.append((estimated_area - true_area) / true_area)
+        else:
+            # This implementation should actually be moved to Lp constraint
 
-    #     if isinstance(input_constraint, constraints.PolytopeConstraint):
-    #         # TODO: this doesn't use the computed input_dims...
-    #         try:
-    #             vertices = pypoman.compute_polygon_hull(A_inputs, b_inputs)
-    #         except:
-    #             print(
-    #                 "[warning] Can't visualize polytopic input constraints for >2 states. Need to implement this to it extracts input_dims."
-    #             )
-    #             raise NotImplementedError
-    #         self.animate_axes.plot(
-    #             [v[0] for v in vertices] + [vertices[0][0]],
-    #             [v[1] for v in vertices] + [vertices[0][1]],
-    #             color=color,
-    #             linewidth=linewidth,
-    #             linestyle=line_style,
-    #             label="Initial States",
-    #         )
-    #     elif isinstance(input_constraint, constraints.LpConstraint):
-    #         rect = Rectangle(
-    #             input_range[input_dims, 0],
-    #             input_range[input_dims[0], 1] - input_range[input_dims[0], 0],
-    #             input_range[input_dims[1], 1] - input_range[input_dims[1], 0],
-    #             fc="none",
-    #             linewidth=linewidth,
-    #             linestyle=line_style,
-    #             edgecolor=init_state_color,
-    #         )
-    #         self.animate_axes.add_patch(rect)
-    #         # self.default_patches[1].append(rect)
-    #     else:
-    #         raise NotImplementedError
 
-    #     linewidth = 1.5
-    #     # Reachable sets
-    #     if prob_list is None:
-    #         fc_color = "none"
-    #     else:
-    #         fc_color = "none"
-    #         alpha = 0.17
-    #     if isinstance(output_constraint, constraints.PolytopeConstraint):
-    #         # TODO: this doesn't use the computed input_dims...
-    #         for i in range(len(b_out)):
-    #             vertices = pypoman.compute_polygon_hull(A_out, b_out[i])
-    #             self.animate_axes.plot(
-    #                 [v[0] for v in vertices] + [vertices[0][0]],
-    #                 [v[1] for v in vertices] + [vertices[0][1]],
-    #                 color=color,
-    #                 label="$\mathcal{R}_" + str(i + 1) + "$",
-    #             )
-    #     elif isinstance(output_constraint, constraints.LpConstraint):
-    #         if prob_list is None:
-    #             for output_range_ in output_range:
-    #                 rect = Rectangle(
-    #                     output_range_[input_dims, 0],
-    #                     output_range_[input_dims[0], 1]
-    #                     - output_range_[input_dims[0], 0],
-    #                     output_range_[input_dims[1], 1]
-    #                     - output_range_[input_dims[1], 0],
-    #                     fc=fc_color,
-    #                     linewidth=linewidth,
-    #                     linestyle=line_style,
-    #                     edgecolor=color,
-    #                 )
-    #                 self.animate_axes.add_patch(rect)
+            # Note: This compares the estimated polytope
+            # with the "best" polytope with those facets.
+            # There could be a much better polytope with lots of facets.
+            true_verts_reversed = self.dynamics.get_true_backprojection_set(
+                backprojection_sets[-1], target_set, 
+                t_max, controller=propagator.network
+            )
+            true_verts = np.flip(true_verts_reversed, axis=1)
+            num_steps = len(backprojection_sets)
+            
+            for t in range(num_steps):
+                x_min = np.min(true_verts[:,t+1,:], axis=0)
+                x_max = np.max(true_verts[:,t+1,:], axis=0)
 
-    #         else:
-    #             for output_range_, prob in zip(output_range, prob_list):
-    #                 fc_color = cm.get_cmap("Greens")(prob)
-    #                 rect = Rectangle(
-    #                     output_range_[input_dims, 0],
-    #                     output_range_[input_dims[0], 1]
-    #                     - output_range_[input_dims[0], 0],
-    #                     output_range_[input_dims[1], 1]
-    #                     - output_range_[input_dims[1], 0],
-    #                     fc=fc_color,
-    #                     alpha=alpha,
-    #                     linewidth=linewidth,
-    #                     linestyle=line_style,
-    #                     edgecolor=None,
-    #                 )
-    #                 self.animate_axes.add_patch(rect)
+                x_range = x_max-x_min
+                true_area = np.prod(x_range)
 
-    #     else:
-    #         raise NotImplementedError
+                estimated_verts = pypoman.polygon.compute_polygon_hull(backprojection_sets[t].A[0], backprojection_sets[t].b[0])
+                estimated_hull = ConvexHull(estimated_verts)
+                estimated_area = estimated_hull.volume
+                
 
-    #     # self.default_patches = [[], []]
-    #     # self.default_lines = [[], []]
-    #     # self.default_patches[0] = [input_rect]
 
-    #     # # Exact output range
-    #     # color = 'black'
-    #     # linewidth = 3
-    #     # if self.interior_condition == "linf":
-    #     #     output_range_exact = self.samples_to_range(sampled_outputs)
-    #     #     output_range_exact_ = output_range_exact[self.output_dims_]
-    #     #     rect = Rectangle(output_range_exact_[:2,0], output_range_exact_[0,1]-output_range_exact_[0,0], output_range_exact_[1,1]-output_range_exact_[1,0],
-    #     #                     fc='none', linewidth=linewidth,edgecolor=color,
-    #     #                     label="True Bounds ({})".format(label_dict[self.interior_condition]))
-    #     #     self.animate_axes[1].add_patch(rect)
-    #     #     self.default_patches[1].append(rect)
-    #     # elif self.interior_condition == "lower_bnds":
-    #     #     output_range_exact = self.samples_to_range(sampled_outputs)
-    #     #     output_range_exact_ = output_range_exact[self.output_dims_]
-    #     #     line1 = self.animate_axes[1].axhline(output_range_exact_[1,0], linewidth=linewidth,color=color,
-    #     #         label="True Bounds ({})".format(label_dict[self.interior_condition]))
-    #     #     line2 = self.animate_axes[1].axvline(output_range_exact_[0,0], linewidth=linewidth,color=color)
-    #     #     self.default_lines[1].append(line1)
-    #     #     self.default_lines[1].append(line2)
-    #     # elif self.interior_condition == "convex_hull":
-    #     #     from scipy.spatial import ConvexHull
-    #     #     self.true_hull = ConvexHull(sampled_outputs)
-    #     #     self.true_hull_ = ConvexHull(sampled_outputs[...,output_dims].squeeze())
-    #     #     line = self.animate_axes[1].plot(
-    #     #         np.append(sampled_outputs[self.true_hull_.vertices][...,output_dims[0]], sampled_outputs[self.true_hull_.vertices[0]][...,output_dims[0]]),
-    #     #         np.append(sampled_outputs[self.true_hull_.vertices][...,output_dims[1]], sampled_outputs[self.true_hull_.vertices[0]][...,output_dims[1]]),
-    #     #         color=color, linewidth=linewidftypeth,
-    #     #         label="True Bounds ({})".format(label_dict[self.interior_condition]))
-    #     #     self.default_lines[1].append(line[0])
-    #     # else:
-    #     #     raise NotImplementedError
+                errors.append((estimated_area - true_area) / true_area)
+        
+        final_error = errors[-1]
+        avg_error = np.mean(errors)
+        return final_error, avg_error, np.array(errors)
+
+    def get_N_step_backprojection_set(
+        self, output_constraint, input_constraint, propagator, t_max, num_partitions=None, overapprox=False
+    ):
+        input_constraint_, info = propagator.get_N_step_backprojection_set(
+            output_constraint, deepcopy(input_constraint), t_max, num_partitions=num_partitions, overapprox=overapprox
+        )
+        input_constraint = input_constraint_.copy()
+
+        return input_constraint, info

@@ -29,12 +29,12 @@ def create_model(
 
 
 def create_and_train_model(
-    neurons_per_layer, xs, us, epochs=20, batch_size=32, verbose=0
+    neurons_per_layer, xs, us, epochs=20, batch_size=32, verbose=0, validation_split=0.0
 ):
     model = create_model(
         neurons_per_layer, input_shape=xs.shape[1:], output_shape=us.shape[1:]
     )
-    model.fit(xs, us, epochs=epochs, batch_size=batch_size, verbose=verbose)
+    model.fit(xs, us, epochs=epochs, batch_size=batch_size, verbose=verbose, validation_split=validation_split)
     return model
 
 
@@ -51,13 +51,15 @@ def save_model(model, system="DoubleIntegrator", model_name="default"):
     print("Saved model to disk")
 
 
-def load_controller(system="DoubleIntegrator", model_name="default"):
+def load_controller(system="DoubleIntegrator", model_name="default", model_type='torch'):
     system = system.replace('OutputFeedback', '')  # remove OutputFeedback suffix if applicable
     path = "{}/../../models/{}/{}".format(dir_path, system, model_name)
     with open(path + "/model.json", "r") as f:
         loaded_model_json = f.read()
     model = model_from_json(loaded_model_json)
     model.load_weights(path + "/model.h5")
+    if model_type == 'keras':
+        return model
     torch_model = keras2torch(model, "torch_model")
     return torch_model
 

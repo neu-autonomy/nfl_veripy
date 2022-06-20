@@ -4,4 +4,6 @@ python -m nn_closed_loop.example_backward \
 	--system double_integrator \
 	--state_feedback \
 	--boundaries polytope \
-	--skip_show_plot
+	--skip_show_plot \\
+	--num_partitions [10,10] \\
+	--underapprox

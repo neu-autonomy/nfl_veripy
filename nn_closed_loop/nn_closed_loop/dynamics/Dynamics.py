@@ -1,3 +1,4 @@
+from nn_closed_loop.utils.utils import range_to_polytope
 import numpy as np
 import platform
 if platform.system() == "Darwin":
@@ -11,6 +12,8 @@ import nn_closed_loop.constraints as constraints
 import torch
 import os
 import pickle
+from colour import Color
+
 
 dir_path = os.path.dirname(os.path.realpath(__file__))
 
@@ -26,6 +29,7 @@ class Dynamics:
         c=None,
         sensor_noise=None,
         process_noise=None,
+        x_limits=None,
     ):
 
         # State dynamics
@@ -44,7 +48,8 @@ class Dynamics:
 
         # Min/max control inputs
         self.u_limits = u_limits
-
+            
+        self.x_limits = x_limits
         self.dt = dt
 
         self.name = self.__class__.__name__
@@ -107,6 +112,53 @@ class Dynamics:
 
         return sampled_range
 
+    def get_state_and_next_state_samples(
+        self, input_constraint, t_max=1, num_samples=1000, controller="mpc",
+        output_constraint=None,
+    ):
+
+        xs, us = self.collect_data(
+            t_max,
+            input_constraint,
+            num_samples,
+            controller=controller,
+            merge_cols=False,
+        )
+
+        return xs[:, 0, :], xs[:, 1, :]
+
+    def get_true_backprojection_set(self, backreachable_set, target_set, t_max=1, controller="mpc"):
+        
+        
+        xs, _ = self.collect_data(
+            t_max,
+            backreachable_set,
+            num_samples=1e6,
+            controller=controller,
+            merge_cols=False,
+        )
+        if isinstance(target_set, constraints.PolytopeConstraint):
+            A, b = target_set.A, target_set.b[0]
+        elif isinstance(target_set, constraints.LpConstraint):
+            A, b = range_to_polytope(target_set.range)
+        else:
+            raise NotImplementedError
+
+        # Find which of the xt+t_max points actually end up in the target set
+        within_constraint_inds = np.where(
+            np.all(
+                (
+                    np.dot(A, xs[:, -1, :].T)
+                    - np.expand_dims(b, axis=-1)
+                )
+                <= 0,
+                axis=0,
+            )
+        )
+        x_samples_inside_backprojection_set = xs[within_constraint_inds]
+
+        return x_samples_inside_backprojection_set
+
     def show_samples(
         self,
         t_max,
@@ -117,6 +169,8 @@ class Dynamics:
         controller="mpc",
         input_dims=[[0], [1]],
         zorder=1,
+        xs=None,
+        colors=None,
     ):
         if ax is None:
             if len(input_dims) == 2:
@@ -125,16 +179,19 @@ class Dynamics:
                 projection = '3d'
             ax = plt.subplot(projection=projection)
 
-        xs, us = self.collect_data(
-            t_max,
-            input_constraint,
-            num_samples=10000,
-            controller=controller,
-            merge_cols=False,
-        )
+        if xs is None:
+            xs, us = self.collect_data(
+                t_max,
+                input_constraint,
+                num_samples=10000,
+                controller=controller,
+                merge_cols=False,
+            )
 
         num_runs, num_timesteps, num_states = xs.shape
-        colors = self.colors(num_timesteps)
+
+        if colors is None:
+            colors = self.colors(num_timesteps)
 
         for t in range(num_timesteps):
             ax.scatter(
@@ -154,6 +211,65 @@ class Dynamics:
 
         if show:
             plt.show()
+
+    def show_trajectories(
+        self,
+        t_max,
+        input_constraint,
+        save_plot=False,
+        ax=None,
+        show=False,
+        controller="mpc",
+        input_dims=[[0], [1]],
+        zorder=1,
+        xs=None,
+        colors=None,
+    ):
+        # import pdb; pdb.set_trace()
+        if ax is None:
+            if len(input_dims) == 2:
+                projection = None
+            elif len(input_dims) == 3:
+                projection = '3d'
+            ax = plt.subplot(projection=projection)
+
+        num_trajectories = 100
+        if xs is None:
+            xs, us = self.collect_data(
+                t_max,
+                input_constraint,
+                num_samples=num_trajectories*(t_max+self.dt)/self.dt,
+                controller=controller,
+                merge_cols=False,
+            )
+
+        num_runs, num_timesteps, num_states = xs.shape
+
+        if colors is None:
+            colors = self.colors(num_timesteps)
+
+        
+        orange = Color("orange")
+        colors = list(orange.range_to(Color("purple"),num_timesteps))
+        # import pdb; pdb.set_trace()
+        for traj in range(num_runs):
+            if len(input_dims) == 2:
+                for seg in range(num_timesteps-1):
+                    ax.plot(
+                        xs[traj, seg:seg+2, 0],
+                        xs[traj, seg:seg+2, 1],
+                        color=colors[seg].hex_l,
+                        zorder=zorder,
+                    )
+            elif len(input_dims) == 3:
+                for seg in range(num_timesteps-1):
+                    ax.plot(
+                        xs[traj, seg:seg+2, 0],
+                        xs[traj, seg:seg+2, 1],
+                        xs[traj, seg:seg+2, 2],
+                        color=colors[seg].hex_l,
+                        zorder=zorder,
+                    )
 
     def collect_data(
         self,
@@ -183,7 +299,7 @@ class Dynamics:
         controller="mpc",
         merge_cols=False,
     ):
-        
+
         np.random.seed(0)
         num_timesteps = int(
             (t_max + self.dt + np.finfo(float).eps) / (self.dt)
@@ -315,23 +431,29 @@ class ContinuousTimeDynamics(Dynamics):
         c=None,
         sensor_noise=None,
         process_noise=None,
+        x_limits=None
     ):
-        super().__init__(At, bt, ct, u_limits, dt, c, sensor_noise, process_noise)
+        super().__init__(At, bt, ct, u_limits, dt, c, sensor_noise, process_noise, x_limits)
         self.continuous_time = True
 
     def dynamics(self, xs, us):
-        xdot = (np.dot(self.At, xs.T) + np.dot(self.bt, us.T)).T + self.ct
-        if self.process_noise is not None:
-            noise = np.random.uniform(
-                low=self.process_noise[:, 0],
-                high=self.process_noise[:, 1],
-                size=xs.shape,
-            )
-            xdot += noise
+        if isinstance(xs,np.ndarray): # For tracking MC samples
+            xdot = (np.dot(self.At, xs.T) + np.dot(self.bt, us.T)).T + self.ct
+            if self.process_noise is not None:
+                noise = np.random.uniform(
+                    low=self.process_noise[:, 0],
+                    high=self.process_noise[:, 1],
+                    size=xs.shape,
+                )
+                xdot += noise
+        else: # For solving LP
+            xdot = self.At@xs + self.bt@us + self.ct
         return xdot
 
     def dynamics_step(self, xs, us):
-        return xs + self.dt * self.dynamics(xs, us)
+        xs_t1 = xs + self.dt * self.dynamics(xs, us)
+        
+        return xs_t1
 
 
 class DiscreteTimeDynamics(Dynamics):
@@ -345,19 +467,24 @@ class DiscreteTimeDynamics(Dynamics):
         c=None,
         sensor_noise=None,
         process_noise=None,
+        x_limits=None,
     ):
-        super().__init__(At, bt, ct, u_limits, dt, c, sensor_noise, process_noise)
+        super().__init__(At, bt, ct, u_limits, dt, c, sensor_noise, process_noise, x_limits)
         self.continuous_time = False
 
     def dynamics_step(self, xs, us):
-        xs_t1 = (np.dot(self.At, xs.T) + np.dot(self.bt, us.T)).T + self.ct
-        if self.process_noise is not None:
-            noise = np.random.uniform(
-                low=self.process_noise[:, 0],
-                high=self.process_noise[:, 1],
-                size=xs.shape,
-            )
-            xs_t1 += noise
+        if isinstance(xs, np.ndarray): # For tracking MC samples
+            xs_t1 = (np.dot(self.At, xs.T) + np.dot(self.bt, us.T)).T + self.ct
+            if self.process_noise is not None:
+                noise = np.random.uniform(
+                    low=self.process_noise[:, 0],
+                    high=self.process_noise[:, 1],
+                    size=xs.shape,
+                )
+                xs_t1 += noise
+        else: # For solving LP
+            xs_t1 = self.At@xs + self.bt@us + self.ct
+
         return xs_t1
 
 

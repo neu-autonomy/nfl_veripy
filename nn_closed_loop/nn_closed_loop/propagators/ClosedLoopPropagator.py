@@ -31,26 +31,58 @@ class ClosedLoopPropagator(propagators.Propagator):
 
         return output_constraints, info
 
-    def get_one_step_backprojection_set(self, output_constraint, intput_constraint):
+    def get_one_step_backprojection_set(self, output_constraint, intput_constraint, overapprox=False,):
         raise NotImplementedError
 
-    def get_backprojection_set(self, output_constraint, input_constraint, t_max, num_partitions=None):
+
+    def get_backprojection_set(self, output_constraints, input_constraint, t_max, num_partitions=None, overapprox=False, refined=False):
+        input_constraint_list = []
+        tightened_infos_list = []
+        if not isinstance(output_constraints, list):
+            output_constraint_list = [deepcopy(output_constraints)]
+        else:
+            output_constraint_list = deepcopy(output_constraints)
+
+        for output_constraint in output_constraint_list:
+            input_constraints, tightened_infos = self.get_single_target_backprojection_set(output_constraint, input_constraint, t_max=t_max, num_partitions=num_partitions, overapprox=overapprox, refined=refined)
+
+            input_constraint_list.append(deepcopy(input_constraints))
+            tightened_infos_list.append(deepcopy(tightened_infos))
+
+        return input_constraint_list, tightened_infos_list
+
+    def get_single_target_backprojection_set(self, output_constraint, input_constraint, t_max, num_partitions=None, overapprox=False, refined=False):
         input_constraints = []
-        input_constraint, _ = self.get_one_step_backprojection_set(
-            output_constraint, input_constraint, num_partitions=num_partitions
+
+        input_constraint, this_info = self.get_one_step_backprojection_set(
+            output_constraint, input_constraint, num_partitions=num_partitions, overapprox=overapprox, collected_input_constraints=[output_constraint]+input_constraints, refined=refined
         )
         input_constraints.append(deepcopy(input_constraint))
+        info = {'per_timestep': []}
+        info['per_timestep'].append(this_info)
 
-        # TODO: Support N-step backprojection
-        # for i in np.arange(0 + self.dynamics.dt, t_max, self.dynamics.dt):
-        #     next_output_constraint = input_constraint.to_output_constraint()
-        #     next_input_constraint = deepcopy(input_constraint)
-        #     input_constraint, _ = self.get_one_step_backprojection_set(
-        #         next_output_constraint, next_input_constraint, num_partitions=num_partitions
-        #     )
-        #     input_constraints.append(deepcopy(input_constraint))
+        if overapprox:
+            for i in np.arange(0 + self.dynamics.dt + 1e-10, t_max, self.dynamics.dt):
+                next_output_constraint = over_approximate_constraint(deepcopy(input_constraint))
+                next_input_constraint = deepcopy(next_output_constraint)
+                input_constraint, this_info = self.get_one_step_backprojection_set(
+                    next_output_constraint, next_input_constraint, num_partitions=num_partitions, overapprox=overapprox, collected_input_constraints=[output_constraint]+input_constraints, infos=info['per_timestep'], refined= refined
+                )
+                input_constraints.append(deepcopy(input_constraint))
+                info['per_timestep'].append(this_info)
+        else:
+            for i in np.arange(0 + self.dynamics.dt + 1e-10, t_max, self.dynamics.dt):
+                # TODO: Support N-step backprojection in the under-approximation case
+                raise NotImplementedError
 
-        return input_constraints, {}
+        # output_constraint: describes goal/avoid set at t=t_max
+        # input_constraints: [BP_{-1}, ..., BP_{-t_max}]
+        #       i.e., [ set of states that will get to goal/avoid set in 1 step,
+        #               ...,
+        #               set of states that will get to goal/avoid set in t_max steps
+        #             ]
+
+        return input_constraints, info
 
     def output_to_constraint(self, bs, output_constraint):
         raise NotImplementedError
@@ -68,3 +100,16 @@ class ClosedLoopPropagator(propagators.Propagator):
         else:
             raise NotImplementedError
         return output_constraint
+
+
+def over_approximate_constraint(constraint):
+    # Note: this is a super sketchy implementation that only works under certain cases
+    # specifically when all the contraints have the same A matrix
+
+    # TODO: Add an assert
+    # TODO: implement a more general version
+
+    constraint.A = constraint.A[0]
+    constraint.b = [np.max(np.array(constraint.b), axis=0)]
+
+    return constraint

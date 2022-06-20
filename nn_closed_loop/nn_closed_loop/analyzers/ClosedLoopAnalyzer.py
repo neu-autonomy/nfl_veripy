@@ -1,3 +1,4 @@
+from matplotlib.pyplot import plot
 import nn_partition.analyzers as analyzers
 import nn_closed_loop.partitioners as partitioners
 import nn_closed_loop.propagators as propagators
@@ -16,9 +17,12 @@ class ClosedLoopAnalyzer(analyzers.Analyzer):
 
         self.reachable_set_color = 'tab:blue'
         self.reachable_set_zorder = 2
-        self.initial_set_color = 'tab:red'
+        self.initial_set_color = 'k'
         self.initial_set_zorder = 2
+        self.target_set_color = 'tab:red'
+        self.target_set_zorder = 2
         self.sample_zorder = 1
+
 
     @property
     def partitioner_dict(self):
@@ -54,33 +58,40 @@ class ClosedLoopAnalyzer(analyzers.Analyzer):
         self,
         input_constraint,
         output_constraint,
+        target_constraint=None,
         show=True,
         show_samples=False,
+        show_trajectories=False,
         aspect="auto",
+        plot_lims=None,
         labels={},
         inputs_to_highlight=None,
         dont_close=True,
+        controller_name=None,
         **kwargs
     ):
-        # sampled_outputs = self.get_sampled_outputs(input_range)
-        # output_range_exact = self.samples_to_range(sampled_outputs)
 
         if inputs_to_highlight is None:
             inputs_to_highlight = [
                 {"dim": [0], "name": "$x_0$"},
                 {"dim": [1], "name": "$x_1$"},
             ]
-
         self.partitioner.setup_visualization(
             input_constraint,
             output_constraint.get_t_max(),
             self.propagator,
             show_samples=show_samples,
+            show_trajectories=show_trajectories,
             inputs_to_highlight=inputs_to_highlight,
             aspect=aspect,
             initial_set_color=self.initial_set_color,
             initial_set_zorder=self.initial_set_zorder,
-            sample_zorder=self.sample_zorder
+            extra_set_color=self.target_set_color,
+            extra_set_zorder=self.target_set_zorder,
+            sample_zorder=self.sample_zorder,
+            extra_constraint=target_constraint,
+            plot_lims=plot_lims,
+            controller_name=controller_name
         )
         self.partitioner.visualize(
             kwargs.get(
@@ -90,18 +101,40 @@ class ClosedLoopAnalyzer(analyzers.Analyzer):
             output_constraint,
             kwargs.get("iteration", None),
             reachable_set_color=self.reachable_set_color,
-            reachable_set_zorder=self.reachable_set_zorder
+            reachable_set_zorder=self.reachable_set_zorder,
         )
 
-        # self.partitioner.animate_axes.legend(
-        #     bbox_to_anchor=(0, 1.02, 1, 0.2),
-        #     loc="lower left",
-        #     mode="expand",
-        #     borderaxespad=0,
-        #     ncol=1,
-        # )
+        import numpy as np
+        import nn_closed_loop.constraints as constraints
+        x0 = np.array(
+            [  # (num_inputs, 2)
+                [-5.5, -4.5],  # x0min, x0max
+                [-0.5, 0.5],  # x1min, x1max
+            ]
+        )
+        x0_constraint = constraints.LpConstraint(
+            range=x0, p=np.inf
+        )
+        input_dims = [x["dim"] for x in inputs_to_highlight]
+        if show_trajectories:
+            self.dynamics.show_trajectories(
+                output_constraint.get_t_max() * self.dynamics.dt,
+                input_constraint,
+                input_dims=input_dims,
+                ax=self.partitioner.animate_axes,
+                controller=self.propagator.network,
+            )
 
         self.partitioner.animate_fig.tight_layout()
+
+        if plot_lims is not None:
+            import ast
+            plot_lims_arr = np.array(
+                ast.literal_eval(plot_lims)
+            )
+            self.partitioner.animate_axes.set_xlim(plot_lims_arr[0])
+            self.partitioner.animate_axes.set_ylim(plot_lims_arr[1])
+
 
         if "save_name" in kwargs and kwargs["save_name"] is not None:
             plt.savefig(kwargs["save_name"])

@@ -21,3 +21,10 @@ python -m nn_closed_loop.example \
     --t_max 5 \
     --show_plot
 ```
+
+### Run tests locally
+
+```bash
+docker build -t nnrob -f docker/Dockerfile .
+docker run -v $PWD:/home/nn_robustness_analysis nnrob:latest python -m nn_closed_loop.tests.test
+```

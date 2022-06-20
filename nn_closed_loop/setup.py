@@ -9,6 +9,7 @@ setup(
         "pandas",
         "nn_partition",
         "tabulate",
+        "colour",
     ],
     packages=find_packages(),
 )

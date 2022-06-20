@@ -1,4 +1,5 @@
 import numpy as np
+import torch as th
 import nn_closed_loop.dynamics as dynamics
 import nn_closed_loop.analyzers as analyzers
 import nn_closed_loop.constraints as constraints
@@ -10,6 +11,7 @@ from nn_closed_loop.utils.utils import (
 import os
 import argparse
 
+dir_path = os.path.dirname(os.path.realpath(__file__))
 
 def main(args):
     np.random.seed(seed=0)
@@ -41,8 +43,8 @@ def main(args):
             )
     elif args.system == "ground_robot":
         inputs_to_highlight = [
-            {"dim": [0], "name": "$x_0$"},
-            {"dim": [1], "name": "$x_1$"},
+            {"dim": [0], "name": "$p_x \ (\mathrm{m})$"},
+            {"dim": [1], "name": "$p_y \ (\mathrm{m})$"},
         ]
         if args.state_feedback:
             dyn = dynamics.GroundRobotSI()
@@ -51,8 +53,8 @@ def main(args):
         if args.init_state_range is None:
             init_state_range = np.array(
                 [  # (num_inputs, 2)
-                    [-12.0, -11.5],  # x0min, x0max
-                    [-0.25, 0.25],  # x1min, x1max
+                    [-1.5, -0.5],  # x0min, x0max
+                    [-0.5, 0.5],  # x1min, x1max
                 ]
             )
         else:
@@ -60,6 +62,58 @@ def main(args):
 
             init_state_range = np.array(
                 ast.literal_eval(args.init_state_range)
+            )
+        if args.final_state_range is None:
+            final_state_range = np.array(
+                [
+                    [-7.0, -6.5],
+                    [-0.5, 0.5]
+                ]
+            )
+        else:
+            import ast
+
+            final_state_range = np.array(
+                ast.literal_eval(args.final_state_range)
+            )
+    elif args.system == "ground_robot_DI":
+        inputs_to_highlight = [
+            {"dim": [0], "name": "$p_x$"},
+            {"dim": [1], "name": "$p_y$"},
+        ]
+        if args.state_feedback:
+            dyn = dynamics.GroundRobotDI()
+        else:
+            raise NotImplementedError
+        if args.init_state_range is None:
+            init_state_range = np.array(
+                [  # (num_inputs, 2)
+                    [-7-0.25, -7+0.25],  # x0min, x0max
+                    [-0.25, 0.25],  # x1min, x1max
+                    [0.95, 0.99],
+                    [-0.01, 0.01]
+                ]
+            )
+        else:
+            import ast
+
+            init_state_range = np.array(
+                ast.literal_eval(args.init_state_range)
+            )
+        if args.final_state_range is None:
+            final_state_range = np.array(
+                [  # (num_inputs, 2)
+                    [-0.75, 0.75],  # x0min, x0max
+                    [-0.75, 0.75],  # x1min, x1max
+                    [-1, 1],
+                    [-1, 1]
+                ]
+            )
+        else:
+            import ast
+
+            final_state_range = np.array(
+                ast.literal_eval(args.final_state_range)
             )
     elif args.system == "unicycle":
         inputs_to_highlight = [
@@ -107,6 +161,55 @@ def main(args):
             init_state_range = np.array(
                 ast.literal_eval(args.init_state_range)
             )
+        if args.final_state_range is None:
+            final_state_range = np.array(
+                [  # (num_inputs, 2)
+                    [-0.25, 0.5-0.25, 1, -0.2, -0.2, -0.2],
+                    [0.25, 0.5+0.25, 4, 0.2, 0.2, 0.2],
+                ]
+            ).T
+        else:
+            import ast
+
+            final_state_range = np.array(
+                ast.literal_eval(args.final_state_range)
+            )
+    elif args.system == "quadrotor_8D":
+        inputs_to_highlight = [
+            {"dim": [0], "name": "$x$"},
+            {"dim": [1], "name": "$y$"},
+            {"dim": [2], "name": "$z$"},
+        ]
+        if args.state_feedback:
+            dyn = dynamics.Quadrotor()
+        else:
+            dyn = dynamics.QuadrotorOutputFeedback()
+        if args.init_state_range is None:
+            init_state_range = np.array(
+                [  # (num_inputs, 2)
+                    [4.65, 4.65, 2.95, 0.94, -0.01, -0.01, 0, 0],
+                    [4.75, 4.75, 3.05, 0.96, 0.01, 0.01, 0, 0],
+                ]
+            ).T
+        else:
+            import ast
+
+            init_state_range = np.array(
+                ast.literal_eval(args.init_state_range)
+            )
+        if args.final_state_range is None:
+            final_state_range = np.array(
+                [  # (num_inputs, 2)
+                    [-0.25, 0.5-0.25, 1, -0.2, -0.2, -0.2],
+                    [0.25, 0.5+0.25, 4, 0.2, 0.2, 0.2],
+                ]
+            ).T
+        else:
+            import ast
+
+            final_state_range = np.array(
+                ast.literal_eval(args.final_state_range)
+            )
     elif args.system == "duffing":
         inputs_to_highlight = [
             {"dim": [0], "name": "$x_0$"},
@@ -147,7 +250,7 @@ def main(args):
         raise NotImplementedError
 
     if args.num_partitions is None:
-        num_partitions = np.array([4, 4])
+        num_partitions = np.ones(dyn.At.shape[0])
     else:
         import ast
 
@@ -169,15 +272,21 @@ def main(args):
         propagator_hyperparams["cvxpy_solver"] = args.cvxpy_solver
 
     # Load NN control policy
-    if controller is None:
+    if args.system is not "Quadrotor_8D":
         controller = load_controller(
             system=dyn.__class__.__name__,
             model_name=args.controller,
         )
+    elif args.system is "Quadrotor_8D":
+        controller = th.load(dir_path+"/models/Quadrotor_8D/intermediate_policy_0.pt")
+        controller.eval()
+    else:
+        raise NotImplementedError
 
     # Set up analyzer (+ parititoner + propagator)
     analyzer = analyzers.ClosedLoopAnalyzer(controller, dyn)
     analyzer.partitioner = partitioner_hyperparams
+    # import pdb; pdb.set_trace()
     analyzer.propagator = propagator_hyperparams
 
     # Set up initial state set (and placeholder for reachable sets)
@@ -191,11 +300,17 @@ def main(args):
             A_inputs, b_inputs
         )
         output_constraint = constraints.PolytopeConstraint(A_out)
+        back_output_constraint = [None]
     elif args.boundaries == "lp":
         input_constraint = constraints.LpConstraint(
             range=init_state_range, p=np.inf
         )
         output_constraint = constraints.LpConstraint(p=np.inf)
+        if args.show_obs:
+            back_input_constraint = constraints.LpConstraint(p=np.inf)
+            back_output_constraint = [constraints.LpConstraint(range=final_state_range, p=np.inf)]
+        else:
+            back_output_constraint = [None]
     else:
         raise NotImplementedError
 
@@ -235,9 +350,14 @@ def main(args):
         print("Avg time: {} +/- {}".format(times.mean(), times.std()))
     else:
         # Run analysis once
+        import time
+        t_start = time.time()
         output_constraint, analyzer_info = analyzer.get_reachable_set(
             input_constraint, output_constraint, t_max=args.t_max
         )
+        t_end = time.time()
+        print(t_end - t_start)
+        # print(output_constraint.range)
 
     if args.estimate_error:
         final_error, avg_error, errors = analyzer.get_error(input_constraint, output_constraint, t_max=args.t_max)
@@ -296,17 +416,25 @@ def main(args):
                 analyzer_info["save_name"] + "_" + pars2
             )
         analyzer_info["save_name"] = analyzer_info["save_name"] + ".png"
+        
+        controller_name=None
+        if args.show_policy:
+            controller_name = vars(args)['controller']
 
     if args.show_plot or args.save_plot:
         analyzer.visualize(
             input_constraint,
             output_constraint,
-            show_samples=True,
+            target_constraint = back_output_constraint,
+            show_samples=args.show_samples,
+            show_trajectories=args.show_trajectories,
             show=args.show_plot,
             labels=args.plot_labels,
             aspect=args.plot_aspect,
+            plot_lims=args.plot_lims,
             iteration=None,
             inputs_to_highlight=inputs_to_highlight,
+            controller_name=controller_name,
             **analyzer_info
         )
 
@@ -321,7 +449,7 @@ def setup_parser():
     parser.add_argument(
         "--system",
         default="double_integrator",
-        choices=["double_integrator", "quadrotor", "duffing", "iss", "ground_robot", "unicycle"],
+        choices=["double_integrator", "quadrotor", "duffing", "iss", "ground_robot", "ground_robot_DI", "quadrotor_8D"],
         help="which system to analyze (default: double_integrator)",
     )
     parser.add_argument(
@@ -331,6 +459,12 @@ def setup_parser():
     )
     parser.add_argument(
         "--init_state_range",
+        default=None,
+        help="2*num_states values (default: None)",
+    )
+
+    parser.add_argument(
+        "--final_state_range",
         default=None,
         help="2*num_states values (default: None)",
     )
@@ -438,6 +572,11 @@ def setup_parser():
         choices=["auto", "equal"],
         help="aspect ratio on input partition plot (default: auto)",
     )
+    parser.add_argument(
+        "--plot_lims",
+        default=None,
+        help='x and y lims on plot (default: None)',
+    )
 
     parser.add_argument(
         "--make_animation",
@@ -469,6 +608,45 @@ def setup_parser():
         default=2,
         help="number of control inputs - only used for scalability expt (default: 2)",
     )
+    parser.add_argument(
+        "--show_obs",
+        dest="show_obs",
+        action="store_true",
+        help="Check final reachable set to see what parts backproject to initial state"
+    )
+    parser.add_argument(
+        "--show_policy",
+        dest="show_policy",
+        action="store_true",
+        help="Displays policy as a function of state (only valid for ground_robot and ground_robot_DI)"
+    )
+    parser.add_argument(
+        "--show_trajectories",
+        dest="show_trajectories",
+        action="store_true",
+        help="Show trajectories starting from initial condition"
+    )
+    parser.add_argument(
+        "--show_samples",
+        dest="show_samples",
+        action="store_true",
+        help="Show samples starting from initial condition"
+    )
+    parser.add_argument(
+        "--show_convex_hulls",
+        dest="show_convex_hulls",
+        action="store_true",
+        help="Show convex hulls of true backprojection sets"
+    )
+    parser.add_argument(
+        "--show_BReach",
+        dest="show_BReach",
+        action="store_true",
+        help="whether to show results of BReach-LP when using ReBReach-LP",
+    )
+    parser.set_defaults(show_BReach=False)
+
+
 
     return parser
 
