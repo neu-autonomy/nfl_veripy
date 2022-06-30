@@ -117,6 +117,7 @@ def plot_time_data(info):
     if num_entries['nstep_bp_lp'] > 0:
         print('Number of LPs solved (ReBReach): {}'.format(num_entries['nstep_bp_lp']))
         print('Time per LP solved (ReBReach): {0:.4f}'.format(summed_vals['nstep_bp_lp'][-1]/num_entries['nstep_bp_lp']))
+    print('Number of CROWN calculations (BReach): {}'.format(num_entries['crown']))
 
     import matplotlib.pyplot as plt
     fig, ax = plt.subplots()
