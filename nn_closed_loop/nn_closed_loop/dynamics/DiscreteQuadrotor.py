@@ -10,11 +10,12 @@ class DiscreteQuadrotor(DiscreteTimeDynamics):
 
         self.continuous_time = False
 
+        dt = 1
         At = np.array(
             [
-                [1, 0, 0, 1, 0, 0],
-                [0, 1, 0, 0, 1, 0],
-                [0, 0, 1, 0, 0, 1],
+                [1, 0, 0, dt, 0, 0],
+                [0, 1, 0, 0, dt, 0],
+                [0, 0, 1, 0, 0, dt],
                 [0, 0, 0, 1, 0, 0],
                 [0, 0, 0, 0, 1, 0],
                 [0, 0, 0, 0, 0, 1]
@@ -22,30 +23,28 @@ class DiscreteQuadrotor(DiscreteTimeDynamics):
         )
         bt = np.array(
             [
-                [0.5, 0, 0],
-                [0, 0.5, 0],
-                [0, 0, 0.5],
-                [1, 0, 0],
-                [0, 1, 0],
-                [0, 0, 1],
+                [0.5*dt, 0, 0],
+                [0, 0.5*dt, 0],
+                [0, 0, 0.5*dt],
+                [dt, 0, 0],
+                [0, dt, 0],
+                [0, 0, dt],
             ]
         )
         ct = np.array([0.0, 0.0, 0.0, 0.0, 0.0, 0.0]).T
 
-        # u_limits = None
-        u_limits = 1*np.array(
+        u_limits = np.array(
             [
                 [-4, 4],
                 [-4, 4],
-                [-4,4]
+                [-4, 4]
             ]
         )
 
-        x_limits = {3: [-1,1], 4: [-1,1], 5: [-1,1]}
+        x_limits = {3: [-1, 1], 4: [-1, 1], 5: [-1, 1]}
 
 
 
-        dt = 1
 
         super().__init__(At=At, bt=bt, ct=ct, u_limits=u_limits, dt=dt, x_limits=x_limits)
 
