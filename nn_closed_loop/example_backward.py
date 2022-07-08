@@ -29,11 +29,11 @@ def main(args):
                 ]
             )
         else:
-            raise NotImplementedError
+            # raise NotImplementedError
             import ast
 
-            init_state_range = np.array(
-                ast.literal_eval(args.init_state_range)
+            final_state_range = np.array(
+                ast.literal_eval(args.final_state_range)
             )
     elif args.system == "ground_robot":
         if args.state_feedback:
@@ -86,12 +86,15 @@ def main(args):
         if args.final_state_range is None:
             final_state_range = np.array(
                 [  # (num_inputs, 2)
-                    [-1, 1],  # x0min, x0max
-                    [-1, 1],  # x1min, x1max
+                    [-1., 1.],  # x0min, x0max
+                    [-1., 1.],  # x1min, x1max
                     [1.5, 3.5],
-                    [-1, 1],
-                    [-1, 1],
-                    [-1, 1],
+                    dyn.x_limits[3],
+                    # [-0.01, 0.01],
+                    # [-0.01, 0.01],
+                    # [-0.01, 0.01],
+                    dyn.x_limits[4],
+                    dyn.x_limits[5],
                 ]
             )
         else:
@@ -135,12 +138,22 @@ def main(args):
         else:
             dyn = dynamics.QuadrotorOutputFeedback()
         if args.final_state_range is None:
+            # final_state_range = np.array(
+            #     [  # (num_inputs, 2)
+            #         [-5-0.25, -0.25, 2, -0.01, -0.01, -0.01],
+            #         [-5+0.25, 0.25, 2.5, 0.01, 0.01, 0.01],
+            #     ]
+            # ).T
             final_state_range = np.array(
                 [  # (num_inputs, 2)
-                    [-5-0.25, -0.25, 2, -0.01, -0.01, -0.01],
-                    [-5+0.25, 0.25, 2.5, 0.01, 0.01, 0.01],
+                    [-1, 1],  # x0min, x0max
+                    [-1, 1],  # x1min, x1max
+                    [1.5, 3.5],
+                    [-1, 1],
+                    [-1, 1],
+                    [-1, 1],
                 ]
-            ).T
+            )
         else:
             import ast
 
@@ -231,32 +244,36 @@ def main(args):
         avg_errors = np.empty(num_calls, dtype=np.ndarray)
         all_errors = np.empty(num_calls, dtype=np.ndarray)
         output_constraints = np.empty(num_calls, dtype=object)
+        print('num partitions: {}'.format(num_partitions))
+        print('partition strategy: {}'.format(args.partition_heuristic))
         for num in range(num_calls):
             print('call: {}'.format(num))
             t_start = time.time()
             input_constraint_list, analyzer_info_list = analyzer.get_backprojection_set(
-                output_constraint, input_constraint, t_max=args.t_max, num_partitions=num_partitions, overapprox=args.overapprox, refined=args.refined
+                output_constraint, input_constraint, t_max=args.t_max, num_partitions=num_partitions, overapprox=args.overapprox, refined=args.refined, heuristic=args.partition_heuristic, old_method=args.old_method
             )
             t_end = time.time()
             t = t_end - t_start
             times[num] = t
             backprojection_sets = input_constraint_list[0]
             target_set = output_constraint[0]
-            # final_error, avg_error, all_error = analyzer.get_backprojection_error(target_set, backprojection_sets, t_max=args.t_max)
+            final_error, avg_error, all_error = analyzer.get_backprojection_error(target_set, backprojection_sets, t_max=args.t_max)
 
-            # final_errors[num] = final_error
-            # avg_errors[num] = avg_error
-            # all_errors[num] = all_error
+            final_errors[num] = final_error
+            avg_errors[num] = avg_error
+            all_errors[num] = all_error
             output_constraints[num] = output_constraint
 
         stats['runtimes'] = times
-        # stats['final_step_errors'] = final_errors
-        # stats['avg_errors'] = avg_errors
-        # stats['all_errors'] = all_errors
+        stats['final_step_errors'] = final_errors
+        stats['avg_errors'] = avg_errors
+        stats['all_errors'] = all_errors
         stats['output_constraints'] = output_constraints
+        stats['avg_runtime'] = times.mean()
 
         print("All times: {}".format(times))
         print("Avg time: {} +/- {}".format(times.mean(), times.std()))
+        print('final error: {}'.format(final_error))
         # print("Final Error: {}".format(final_errors[-1]))
     else:
         # Run analysis once
@@ -264,10 +281,11 @@ def main(args):
         import time
         t_start = time.time()
         input_constraint_list, analyzer_info_list = analyzer.get_backprojection_set(
-            output_constraint, input_constraint, t_max=args.t_max, num_partitions=num_partitions, overapprox=args.overapprox, refined=args.refined
+            output_constraint, input_constraint, t_max=args.t_max, num_partitions=num_partitions, overapprox=args.overapprox, refined=args.refined, heuristic=args.partition_heuristic, old_method=args.old_method
         )
         t_end = time.time()
         print(t_end-t_start)
+        # import pdb; pdb.set_trace()
         
         # plot_time_data(analyzer_info_list[0])
         
@@ -523,6 +541,18 @@ def setup_parser():
         dest="show_convex_hulls",
         action="store_true",
         help="Show convex hulls of true backprojection sets"
+    )
+    parser.add_argument(
+        "--partition_heuristic",
+        default="guided",
+        choices=["guided", "uniform"],
+        help="what type of partitioning strategy do you want?",
+    )
+    parser.add_argument(
+        "--all_lps",
+        dest="old_method",
+        action="store_true",
+        help="Calculate LPs even if they can't change the resulting BP"
     )
     return parser
 
