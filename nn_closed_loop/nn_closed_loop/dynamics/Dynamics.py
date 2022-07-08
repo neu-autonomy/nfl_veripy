@@ -127,13 +127,12 @@ class Dynamics:
 
         return xs[:, 0, :], xs[:, 1, :]
 
-    def get_true_backprojection_set(self, backreachable_set, target_set, t_max=1, controller="mpc"):
-        
+    def get_true_backprojection_set(self, backreachable_set, target_set, t_max=1, controller="mpc", num_samples=1e5):
         
         xs, _ = self.collect_data(
             t_max,
             backreachable_set,
-            num_samples=1e6,
+            num_samples=num_samples,
             controller=controller,
             merge_cols=False,
         )
@@ -183,7 +182,7 @@ class Dynamics:
             xs, us = self.collect_data(
                 t_max,
                 input_constraint,
-                num_samples=1000000,
+                num_samples=10000,
                 controller=controller,
                 merge_cols=False,
             )
@@ -482,8 +481,19 @@ class DiscreteTimeDynamics(Dynamics):
                     size=xs.shape,
                 )
                 xs_t1 += noise
+            # if self.x_limits is not None and isinstance(xs,np.ndarray):
+            #     for key in self.x_limits:
+            #         # import pdb; pdb.set_trace()
+            #         xs_t1[:, key] = np.minimum(xs_t1[:, key], self.x_limits[key][1])
+            #         xs_t1[:, key] = np.maximum(xs_t1[:, key], self.x_limits[key][0])
+
         else: # For solving LP
             xs_t1 = self.At@xs + self.bt@us + self.ct
+            # if self.x_limits is not None and isinstance(xs,np.ndarray):
+            #     for key in self.x_limits:
+            #         # import pdb; pdb.set_trace()
+            #         xs_t1[:, key] = np.minimum(xs_t1[:, key], self.x_limits[key][1])
+            #         xs_t1[:, key] = np.maximum(xs_t1[:, key], self.x_limits[key][0])
 
         return xs_t1
 
