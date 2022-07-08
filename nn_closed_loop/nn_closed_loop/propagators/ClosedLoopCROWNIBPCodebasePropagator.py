@@ -435,17 +435,45 @@ class ClosedLoopCROWNIBPCodebasePropagator(ClosedLoopPropagator):
     Outputs: 
         element_list: list of partitioned elements to analyze
     '''
-    def partition(self, br_set_element, problems, target_set=None, dynamics=None, partition_budget=1, heuristic='guided', nstep=False, infos=None, collected_input_constraints=None, info=None):  
+    def partition(self, br_set_element, problems, target_set=None, dynamics=None, partition_budget=1, heuristic='guided', nstep=False, info=None):
+        min_split_volume=0.00001 # Note: Discrete Quad 30 s
         i = 0
         element_list = [br_set_element]
 
-        # if the heuristic isn't uniform, we iteratively select cells to bisect
-        if heuristic is not 'uniform':
+        # If there are no samples that go to the target set and if the BR set contains the target set, I artificially set the sample set as the target set
+        # This effectively makes it so that we don't partition within the target set (makes sense for obstacle avoidance where if the BP at t = -1 is the target set again, the BPs won't explode)
+        if len(br_set_element.samples) == 0 and (br_set_element.ranges[:, 0] - target_set.range[:, 0] < 1e-6).all() and (br_set_element.ranges[:, 1] - target_set.range[:, 1] > -1e-6).all():
+            br_set_element.samples = np.array([target_set.range[:, 0], target_set.range[:, 1]])
+            
+
+        # if the heuristic isn't uniform, we iteratively select elements to bisect
+        if heuristic != 'uniform':
             while len(element_list) > 0 and i < partition_budget and element_list[-1].prop > 0:
                 element_to_split = element_list.pop()
 
-                new_elements = element_to_split.split(target_set, dynamics, problems, full_samples=br_set_element.samples, br_set_range=br_set_element.ranges, nstep=nstep, infos=infos, input_constraints=collected_input_constraints, time_info=info)#, max_prob=max_prob, min_prob=min_prob, params=params)
+                # Determine if the element should be split (should be extreme element along some dimension)
+                lower_list = []
+                upper_list = []
+                for el in element_list:
+                    lower_list.append(element_to_split.ranges[:, 0] <= el.ranges[:, 0])
+                    upper_list.append(element_to_split.ranges[:, 1] >= el.ranges[:, 1])
+                lower_arr = np.array(lower_list)
+                upper_arr = np.array(upper_list)
+                try:
+                    split_check_low = lower_arr.all(axis=0).any()
+                    split_check_up = upper_arr.all(axis=0).any()
+                except:
+                    split_check_low = True
+                    split_check_up = True
+                
+                # If element should be split, split it
+                if element_to_split.A_edge.any() and (split_check_low or split_check_up):
+                    new_elements = element_to_split.split(target_set, dynamics, problems, full_samples=br_set_element.samples, br_set_range=br_set_element.ranges, nstep=nstep, time_info=info, min_split_volume=min_split_volume)
+                else: # otherwise, cut el.prop in half and put it back into the list
+                    element_to_split.prop = element_to_split.prop*0.5
+                    new_elements = [element_to_split]
 
+                # Add newly generated elements to element_list
                 t_start = time.time()
                 import bisect
                 for el in new_elements:
@@ -455,11 +483,12 @@ class ClosedLoopCROWNIBPCodebasePropagator(ClosedLoopPropagator):
                 t_end = time.time()
                 if info is not None:
                     info['other'].append(t_end-t_start)
-        else:
+                
+        else: # Uniform partitioning strategy; copy and pasted from earlier, but now gives a list of elements containing crown bounds
             t_start = time.time()
             element_list = []
             dim = br_set_element.ranges.shape[0]
-            if not isinstance(partition_budget, list):
+            if not type(partition_budget).__module__ == np.__name__:
                 num_partitions = np.array([partition_budget for i in range(dim)])
                 # import pdb; pdb.set_trace()
             else:
@@ -533,7 +562,9 @@ class ClosedLoopCROWNIBPCodebasePropagator(ClosedLoopPropagator):
         overapprox=False,
         collected_input_constraints=None,
         infos = None,
-        refined = False
+        refined = False,
+        heuristic='guided', 
+        old_method=False
     ):
         # Given an output_constraint, compute the input_constraint
         # that ensures that starting from within the input_constraint
@@ -661,24 +692,14 @@ class ClosedLoopCROWNIBPCodebasePropagator(ClosedLoopPropagator):
             to input_constraint
         '''
 
-        ###### Partitioning parameters ##############
-        partition_budget=8
-        # heuristic='guided'
-        heuristic = 'uniform'
-        #############################################
-        t_sample_start = time.time()
+        # Generate samples to get an initial underpapproximation of the BP set to start with
         # if using the refined flag, we want to use samples that actually reach the target set
         if refined:
             x_samples_inside_backprojection_set = self.dynamics.get_true_backprojection_set(backreachable_set, collected_input_constraints[0], t_max=len(collected_input_constraints)*self.dynamics.dt, controller=self.network)
         # otherwise, find samples that reach the previously calculated BP set
         else:
             x_samples_inside_backprojection_set = self.dynamics.get_true_backprojection_set(backreachable_set, output_constraint, t_max=self.dynamics.dt, controller=self.network)
-        t_sample_end = time.time()
-        # print("sample collection {}".format(t_sample_end-t_sample_start))
 
-        # print(len(x_samples_inside_backprojection_set))
-
-        # import pdb; pdb.set_trace()
         nstep = False
         if refined and len(collected_input_constraints) > 1:
             nstep = True
@@ -688,26 +709,22 @@ class ClosedLoopCROWNIBPCodebasePropagator(ClosedLoopPropagator):
         info['other'].append(t_end-t_start)
 
 
-
+        # Set up backprojection LPs
         problems = self.setup_LPs(nstep, infos, collected_input_constraints)
-
-        # print('--------------- start partitioning ---------------')
+        
+        # Partition BR set
         element_list = self.partition(
             br_set_element, 
             problems,
             target_set=output_constraint, 
             dynamics=self.dynamics, 
-            partition_budget=partition_budget, 
+            partition_budget=num_partitions, 
             heuristic=heuristic,
             nstep=nstep,
-            infos=infos,
-            collected_input_constraints=collected_input_constraints,
             info=info
         )
         t_start = time.time()
         info['br_set_partitions'] = [constraints.LpConstraint(range=element.ranges) for element in element_list]
-        # print('--------------- done partitioning ---------------')
-        # [print(el.prop) for el in element_list]
 
         # Set an empty Constraint that will get filled in
         if isinstance(output_constraint, constraints.PolytopeConstraint):
@@ -795,7 +812,8 @@ class ClosedLoopCROWNIBPCodebasePropagator(ClosedLoopPropagator):
                                 collected_input_constraints,
                                 infos,
                                 info,
-                                problems
+                                problems,
+                                old_method
                             )
                         else:
                             input_constraint, xt_range_min, xt_range_max, ut_min, ut_max = self.get_one_step_backprojection_set_overapprox(
@@ -810,6 +828,8 @@ class ClosedLoopCROWNIBPCodebasePropagator(ClosedLoopPropagator):
                                 input_constraint,
                                 collected_input_constraints,
                                 info,
+                                problems,
+                                old_method
                             )
 
                     else:
@@ -930,11 +950,16 @@ class ClosedLoopCROWNIBPCodebasePropagator(ClosedLoopPropagator):
         ut_max,
         input_constraint,
         collected_input_constraints,
-        info
+        info,
+        problems,
+        old_method
     ):
         t_start = time.time()
         ranges = element.ranges
         lower_A, lower_sum_b, upper_A, upper_sum_b = element.crown_bounds['lower_A'], element.crown_bounds['lower_sum_b'], element.crown_bounds['upper_A'], element.crown_bounds['upper_sum_b']
+
+        prob = problems[0]
+        params = problems[2]
 
         xt_min = ranges[..., 0]
         xt_max = ranges[..., 1]
@@ -952,21 +977,32 @@ class ClosedLoopCROWNIBPCodebasePropagator(ClosedLoopPropagator):
         A_NN, b_NN = range_to_polytope(ranges)
         
 
-        xt = cp.Variable(xt1_min.shape)
-        ut = cp.Variable(num_control_inputs)
-        constrs = []
+        # xt = cp.Variable(xt1_min.shape)
+        # ut = cp.Variable(num_control_inputs)
+        # constrs = []
 
-        # Constraints to ensure that xt stays within the backreachable set
-        constrs += [xt_min <= xt]
-        constrs += [xt <= xt_max]
+        # # Constraints to ensure that xt stays within the backreachable set
+        # constrs += [xt_min <= xt]
+        # constrs += [xt <= xt_max]
 
-        # Constraints to ensure that ut satisfies the affine bounds
-        constrs += [lower_A@xt+lower_sum_b <= ut]
-        constrs += [ut <= upper_A@xt+upper_sum_b]
+        # # Constraints to ensure that ut satisfies the affine bounds
+        # constrs += [lower_A@xt+lower_sum_b <= ut]
+        # constrs += [ut <= upper_A@xt+upper_sum_b]
 
-        # Constraints to ensure xt reaches the target set given ut
-        constrs += [self.dynamics.dynamics_step(xt, ut) <= xt1_max]
-        constrs += [self.dynamics.dynamics_step(xt, ut) >= xt1_min]
+        # # Constraints to ensure xt reaches the target set given ut
+        # constrs += [self.dynamics.dynamics_step(xt, ut) <= xt1_max]
+        # constrs += [self.dynamics.dynamics_step(xt, ut) >= xt1_min]
+
+        params['lower_A'].value = lower_A
+        params['upper_A'].value = upper_A
+        params['lower_sum_b'].value = lower_sum_b
+        params['upper_sum_b'].value = upper_sum_b
+        
+        params['xt_min'].value = element.ranges[:,0]
+        params['xt_max'].value = element.ranges[:,1]
+
+        params['xt1_min'].value = xt1_min
+        params['xt1_max'].value = xt1_max
 
         # Solve optimization problem (min and max) for each state
         A_t_ = np.vstack([A_t, -A_t])
@@ -977,8 +1013,7 @@ class ClosedLoopCROWNIBPCodebasePropagator(ClosedLoopPropagator):
         idx1 = np.hstack((max_idx, min_idx))
         
         # Flag to use naive partitioning
-        use_old_method = False
-        if use_old_method:
+        if old_method:
             idx1 = np.ones(2*num_states)
 
         # Check which state (if any) was already optimized during the BR set calculation
@@ -991,10 +1026,10 @@ class ClosedLoopCROWNIBPCodebasePropagator(ClosedLoopPropagator):
         #         idx[key] = False
         #         idx[key+num_states] = False
 
-        num_facets = 2*num_states
-        A_t_i = cp.Parameter(num_states)
-        obj = A_t_i@xt
-        prob = cp.Problem(cp.Maximize(obj), constrs)
+        # num_facets = 2*num_states
+        # A_t_i = cp.Parameter(num_states)
+        # obj = A_t_i@xt
+        # prob = cp.Problem(cp.Maximize(obj), constrs)
         A_ = A_t_
         b_ = b_NN
         t_end = time.time()
@@ -1002,7 +1037,8 @@ class ClosedLoopCROWNIBPCodebasePropagator(ClosedLoopPropagator):
 
         for i, row in enumerate(A_t_):
             if idx[i]:     
-                A_t_i.value = A_t_[i, :]
+                # A_t_i.value = A_t_[i, :]
+                params['A_t'].value = A_t_[i, :]
                 t_start = time.time()
                 prob.solve()
                 t_end = time.time()
@@ -1087,7 +1123,8 @@ class ClosedLoopCROWNIBPCodebasePropagator(ClosedLoopPropagator):
         collected_input_constraints,
         infos,
         info,
-        problems=None
+        problems,
+        old_method
     ):  
         t_start = time.time()
         ranges = element.ranges
@@ -1199,8 +1236,7 @@ class ClosedLoopCROWNIBPCodebasePropagator(ClosedLoopPropagator):
         idx1 = np.hstack((max_idx, min_idx))
         
         # Flag to use naive partitioning
-        use_old_method = False
-        if use_old_method:
+        if old_method:
             idx1 = np.ones(2*num_states)
 
         # Check which state (if any) was already optimized during the BR set calculation
