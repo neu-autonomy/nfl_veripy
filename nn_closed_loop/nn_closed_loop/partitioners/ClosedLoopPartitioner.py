@@ -306,18 +306,18 @@ class ClosedLoopPartitioner(partitioners.Partitioner):
             self.plot_partition(input_constraint, dims, "tab:red")
 
     def get_one_step_backprojection_set(
-        self, output_constraint, input_constraint, propagator, num_partitions=None, overapprox=False, refined=False
+        self, output_constraint, input_constraint, propagator, num_partitions=None, overapprox=False, refined=False, heuristic='guided', old_method=False
     ):
         input_constraint, info = propagator.get_one_step_backprojection_set(
-            output_constraint, deepcopy(input_constraint), num_partitions=num_partitions, overapprox=overapprox, refined=refined
+            output_constraint, deepcopy(input_constraint), num_partitions=num_partitions, overapprox=overapprox, refined=refined, heuristic=heuristic, old_method=old_method
         )
         return input_constraint, info
 
     def get_backprojection_set(
-        self, output_constraint, input_constraint, propagator, t_max, num_partitions=None, overapprox=False, refined=False
+        self, output_constraint, input_constraint, propagator, t_max, num_partitions=None, overapprox=False, refined=False, heuristic='guided', old_method=False
     ):
         input_constraint_, info = propagator.get_backprojection_set(
-            output_constraint, deepcopy(input_constraint), t_max, num_partitions=num_partitions, overapprox=overapprox, refined=refined
+            output_constraint, deepcopy(input_constraint), t_max, num_partitions=num_partitions, overapprox=overapprox, refined=refined, heuristic=heuristic, old_method=old_method
         )
         input_constraint = input_constraint_.copy()
 
@@ -334,7 +334,8 @@ class ClosedLoopPartitioner(partitioners.Partitioner):
             target_set_poly = PolytopeConstraint(A=Ats, b=bts)
             true_verts_reversed = self.dynamics.get_true_backprojection_set(
                 backprojection_sets[-1], target_set, 
-                t_max, controller=propagator.network
+                t_max, controller=propagator.network,
+                num_samples=1e7
             )
             true_verts = np.flip(true_verts_reversed, axis=1)
             num_steps = len(backprojection_sets)
