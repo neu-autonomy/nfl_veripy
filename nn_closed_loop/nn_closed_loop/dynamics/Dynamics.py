@@ -158,6 +158,65 @@ class Dynamics:
 
         return x_samples_inside_backprojection_set
 
+    def get_relaxed_backprojection_samples(self, start_regions, bp_sets, crown_bounds, target_set):
+        print('###################  #########################')
+        if not isinstance(bp_sets[-1], constraints.LpConstraint):
+            raise NotImplementedError
+        from copy import deepcopy
+        # start_min = start_region[:,0]
+        # start_max = start_region[:,1]
+        start_pts = [np.mean(start_region, axis=1) for start_region in start_regions]
+        points = deepcopy([start_pts])
+        t_max = len(bp_sets)-1
+        # import pdb; pdb.set_trace()
+        for i in range(t_max):
+            upper_A, lower_A, upper_sum_b, lower_sum_b = crown_bounds[i]
+            print(upper_A)
+            print(lower_A)
+            print(upper_sum_b)
+            print(lower_sum_b)
+            while len(points[-1]) <= i+1:
+                pt_sequence = points.pop()
+                pt = pt_sequence[-1]
+                
+                u_max = upper_A@pt+upper_sum_b
+                u_min = lower_A@pt+lower_sum_b
+                us = np.linspace(u_min, u_max, num=12)
+
+                for input in us:
+                    new_pt = self.dynamics_step(pt, input)
+                    new_seq = deepcopy(pt_sequence)
+                    new_seq.append(new_pt)
+
+                    # import pdb; pdb.set_trace()
+                    bp_range = bp_sets[i+1].range
+                    if (new_pt >= bp_range[:,0]).all() and (new_pt <= bp_range[:,1]).all():
+                        points = [new_seq] + points
+                # small_pt = self.dynamics_step(pt, u_min)
+                # big_pt = self.dynamics_step(pt, u_max)
+
+                # small_seq = deepcopy(pt_sequence)
+                # small_seq.append(small_pt)
+                # big_seq = deepcopy(pt_sequence)
+                # big_seq.append(big_pt)
+
+
+
+                # points = [big_seq] + points
+                # points = [small_seq] + points
+                
+                # import pdb; pdb.set_trace()
+            
+
+        return points
+
+
+
+
+        
+
+
+
     def show_samples(
         self,
         t_max,

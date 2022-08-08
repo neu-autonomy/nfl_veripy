@@ -1,3 +1,4 @@
+from copy import deepcopy
 import nn_partition.analyzers as analyzers
 import nn_closed_loop.partitioners as partitioners
 import nn_closed_loop.propagators as propagators
@@ -64,21 +65,21 @@ class ClosedLoopBackwardAnalyzer(analyzers.Analyzer):
             **{**hyperparams, "dynamics": self.dynamics}
         )
 
-    def get_one_step_backprojection_set(self, output_constraint, input_constraint, num_partitions=None, overapprox=False, refined=False, heuristic='guided', old_method=False):
+    def get_one_step_backprojection_set(self, output_constraint, input_constraint, num_partitions=None, overapprox=False, refined=False, heuristic='guided', all_lps=False, slow_cvxpy=False):
         backprojection_set, info = self.partitioner.get_one_step_backprojection_set(
-            output_constraint, input_constraint, self.propagator, num_partitions=num_partitions, overapprox=overapprox, refined=refined, heuristic=heuristic, old_method=old_method
+            output_constraint, input_constraint, self.propagator, num_partitions=num_partitions, overapprox=overapprox, refined=refined, heuristic=heuristic, all_lps=all_lps, slow_cvxpy=slow_cvxpy
         )
         return backprojection_set, info
 
-    def get_backprojection_set(self, output_constraint, input_constraint, t_max, num_partitions=None, overapprox=False, refined=False, heuristic='guided', old_method=False):
+    def get_backprojection_set(self, output_constraint, input_constraint, t_max, num_partitions=None, overapprox=False, refined=False, heuristic='guided', all_lps=False, slow_cvxpy=False):
         backprojection_set, info = self.partitioner.get_backprojection_set(
-            output_constraint, input_constraint, self.propagator, t_max, num_partitions=num_partitions, overapprox=overapprox, refined=refined, heuristic=heuristic, old_method=old_method
+            output_constraint, input_constraint, self.propagator, t_max, num_partitions=num_partitions, overapprox=overapprox, refined=refined, heuristic=heuristic, all_lps=all_lps, slow_cvxpy=slow_cvxpy
         )
         return backprojection_set, info
     
-    def get_N_step_backprojection_set(self, output_constraint, input_constraint, t_max, num_partitions=None, overapprox=False, refined=False, heuristic='guided', old_method=False):
+    def get_N_step_backprojection_set(self, output_constraint, input_constraint, t_max, num_partitions=None, overapprox=False, refined=False, heuristic='guided', all_lps=False, slow_cvxpy=False):
         backprojection_set, info = self.partitioner.get_N_step_backprojection_set(
-            output_constraint, input_constraint, self.propagator, t_max, num_partitions=num_partitions, overapprox=overapprox, refined=refined, heuristic=heuristic, old_method=old_method
+            output_constraint, input_constraint, self.propagator, t_max, num_partitions=num_partitions, overapprox=overapprox, refined=refined, heuristic=heuristic, all_lps=all_lps, slow_cvxpy=slow_cvxpy
         )
         return backprojection_set, info
 
@@ -115,8 +116,8 @@ class ClosedLoopBackwardAnalyzer(analyzers.Analyzer):
             input_constraint_list[0][0],
             output_constraint_list[0].get_t_max(),
             self.propagator,
-            show_samples=False,
-            # show_samples=show_samples,
+            # show_samples=False,
+            show_samples=show_samples,
             inputs_to_highlight=inputs_to_highlight,
             aspect=aspect,
             initial_set_color=self.estimated_backprojection_set_color,
@@ -258,9 +259,36 @@ class ClosedLoopBackwardAnalyzer(analyzers.Analyzer):
         
         # plt.gcf().add_axes(ax_cb)
 
-        # import pdb; pdb.set_trace()
+        # # import pdb; pdb.set_trace()
+        # import numpy as np
+        # # start_region = np.array(
+        # #     [
+        # #         [-2.2200, -2.1542],
+        # #         [0.6297, 0.6935]
+        # #     ]
+        # # )
+        # start_region = np.array(
+        #     [
+        #         [-2.3754, -2.2702],
+        #         [0.5622, 0.6644]
+        #     ]
+        # )
+        # crown_bounds = []
+        # for info in kwargs.get('per_timestep', []):
+        #     crown_bounds.append((info.get('upper_A', None), info.get('lower_A', None), info.get('upper_sum_b', None), info.get('lower_sum_b', None)))
+        # crown_bounds.reverse()
 
+        
+        # self.plot_relaxed_sequence([start_region], input_constraints[0:], crown_bounds, output_constraint, marker="*")
 
+        # start_region = np.array(
+        #     [
+        #         [-1.3212, -1.2161],
+        #         [0.5625, 0.6643]
+        #     ]
+        # )
+
+        # self.plot_relaxed_sequence([start_region], input_constraints[0:], crown_bounds, output_constraint, marker='s')
 
         # Plot all our input constraints (i.e., our backprojection set estimates)
         for j,ic in enumerate(input_constraints[0:]):
@@ -309,7 +337,8 @@ class ClosedLoopBackwardAnalyzer(analyzers.Analyzer):
         # TODO: pass these as flags
         show_backreachable_set = False
         if show_backreachable_set:
-            for info in kwargs.get('per_timestep', []):
+            # import pdb; pdb.set_trace()
+            for info in kwargs.get('per_timestep', []):#[::5]:
                 ic = info.get('backreachable_set', None)
                 if ic is None: continue
                 rect = ic.plot(self.partitioner.animate_axes, self.partitioner.input_dims, self.backreachable_set_color, zorder=self.backreachable_set_zorder, linewidth=self.partitioner.linewidth, plot_2d=self.partitioner.plot_2d)
@@ -317,7 +346,7 @@ class ClosedLoopBackwardAnalyzer(analyzers.Analyzer):
 
         show_backreachable_set_partitions = False
         if show_backreachable_set_partitions:
-            for info in kwargs.get('per_timestep', []):
+            for info in kwargs.get('per_timestep', []):#[::4]:
                 for partition in info.get('br_set_partitions', None):
                     ic = partition
                     if ic is None: continue
@@ -326,7 +355,7 @@ class ClosedLoopBackwardAnalyzer(analyzers.Analyzer):
         
         show_backprojection_set_partitions = False
         if show_backprojection_set_partitions:
-            for info in kwargs.get('per_timestep', []):
+            for info in kwargs.get('per_timestep', []):#[::4]:
                 for partition in info.get('bp_set_partitions', None):
                     ic = partition
                     if ic is None: continue
@@ -628,6 +657,24 @@ class ClosedLoopBackwardAnalyzer(analyzers.Analyzer):
                 axes=self.partitioner.animate_axes,
             )
         # self.default_lines[self.output_axis].append(conv_hull_line[0])
+
+    def plot_relaxed_sequence(self, start_region, bp_sets, crown_bounds, target_set, marker='o'):
+        bp_sets = deepcopy(bp_sets)
+        bp_sets.reverse()
+        bp_sets.append(target_set)
+        sequences = self.partitioner.dynamics.get_relaxed_backprojection_samples(start_region, bp_sets, crown_bounds, target_set)
+
+        ax=self.partitioner.animate_axes,
+        x=[]
+        y=[]
+        for seq in [sequences[0]]:
+            for point in seq:
+                x.append(point[0])
+                y.append(point[1])
+        
+        # import pdb; pdb.set_trace()
+        ax[0].scatter(x, y, s=20, zorder=15, c='k', marker=marker)
+
 
 
 def plot_convex_hull(samples, dims, color, linewidth, linestyle, zorder, label, axes):

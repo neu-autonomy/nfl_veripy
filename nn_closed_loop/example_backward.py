@@ -250,30 +250,30 @@ def main(args):
             print('call: {}'.format(num))
             t_start = time.time()
             input_constraint_list, analyzer_info_list = analyzer.get_backprojection_set(
-                output_constraint, input_constraint, t_max=args.t_max, num_partitions=num_partitions, overapprox=args.overapprox, refined=args.refined, heuristic=args.partition_heuristic, old_method=args.old_method
+                output_constraint, input_constraint, t_max=args.t_max, num_partitions=num_partitions, overapprox=args.overapprox, refined=args.refined, heuristic=args.partition_heuristic, all_lps=args.all_lps, slow_cvxpy=args.slow_cvxpy
             )
             t_end = time.time()
             t = t_end - t_start
             times[num] = t
             backprojection_sets = input_constraint_list[0]
             target_set = output_constraint[0]
-            final_error, avg_error, all_error = analyzer.get_backprojection_error(target_set, backprojection_sets, t_max=args.t_max)
+            # final_error, avg_error, all_error = analyzer.get_backprojection_error(target_set, backprojection_sets, t_max=args.t_max)
 
-            final_errors[num] = final_error
-            avg_errors[num] = avg_error
-            all_errors[num] = all_error
-            output_constraints[num] = output_constraint
+            # final_errors[num] = final_error
+            # avg_errors[num] = avg_error
+            # all_errors[num] = all_error
+            # output_constraints[num] = output_constraint
 
         stats['runtimes'] = times
-        stats['final_step_errors'] = final_errors
-        stats['avg_errors'] = avg_errors
-        stats['all_errors'] = all_errors
-        stats['output_constraints'] = output_constraints
+        # stats['final_step_errors'] = final_errors
+        # stats['avg_errors'] = avg_errors
+        # stats['all_errors'] = all_errors
+        # stats['input_constraints'] = input_constraint_list[0]
         stats['avg_runtime'] = times.mean()
 
         print("All times: {}".format(times))
         print("Avg time: {} +/- {}".format(times.mean(), times.std()))
-        print('final error: {}'.format(final_error))
+        # print('final error: {}'.format(final_error))
         # print("Final Error: {}".format(final_errors[-1]))
     else:
         # Run analysis once
@@ -281,7 +281,7 @@ def main(args):
         import time
         t_start = time.time()
         input_constraint_list, analyzer_info_list = analyzer.get_backprojection_set(
-            output_constraint, input_constraint, t_max=args.t_max, num_partitions=num_partitions, overapprox=args.overapprox, refined=args.refined, heuristic=args.partition_heuristic, old_method=args.old_method
+            output_constraint, input_constraint, t_max=args.t_max, num_partitions=num_partitions, overapprox=args.overapprox, refined=args.refined, heuristic=args.partition_heuristic, all_lps=args.all_lps, slow_cvxpy=args.slow_cvxpy
         )
         t_end = time.time()
         print(t_end-t_start)
@@ -550,9 +550,15 @@ def setup_parser():
     )
     parser.add_argument(
         "--all_lps",
-        dest="old_method",
+        dest="all_lps",
         action="store_true",
         help="Calculate LPs even if they can't change the resulting BP"
+    )
+    parser.add_argument(
+        "--slow_cvxpy",
+        dest="slow_cvxpy",
+        action="store_true",
+        help="Don't use disciplined parametric "
     )
     return parser
 

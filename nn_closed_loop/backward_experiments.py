@@ -23,15 +23,20 @@ os.makedirs(results_dir, exist_ok=True)
 class Experiment:
     def __init__(self):
         # self.info = {
-        #     ('CROWN', 'None'): {
+        #     ('CROWN', False): {
         #         'name': 'BReach-LP',
         #         'color': 'tab:orange',
         #         'ls': '-',
         #     },
-        #     ('CROWNNStep', 'None'): {
+        #     ('CROWNNStep', False): {
         #         'name': 'ReBReach-LP',
         #         'color': 'tab:blue',
         #         'ls': '-',
+        #     },
+        #     ('CROWN', True): {
+        #         'name': 'Hybrid',
+        #         'color': 'navy',
+        #         'ls': '--',
         #     },
         # }
         self.info = {
@@ -362,34 +367,34 @@ class ErrorVsPartitions(Experiment):
 
 
 
-        # for partitioner in ['uniform']:
-        #     prop_part_tuple = (partitioner)
-        #     try:
-        #         group_b = grouped_b.get_group(prop_part_tuple)
-        #     except KeyError:
-        #         continue
+        for partitioner in ['uniform']:
+            prop_part_tuple = (partitioner)
+            try:
+                group_b = grouped_b.get_group(prop_part_tuple)
+            except KeyError:
+                continue
 
             
-        #     ref_errors = [group_b['final_step_error'][0], group_b['final_step_error'][0]]
-        #     all_runtimes = [0.5, 5]
-        #     label = 'Reference'
-        #     # replace citation with the ref number in this plot
-        #     # label = label.replace('~\\cite{hu2020reach}', ' [22]')
+            ref_errors = [group_b['final_step_error'][0], group_b['final_step_error'][0]]
+            all_runtimes = [0.5, 5]
+            label = 'lower bound'
+            # replace citation with the ref number in this plot
+            # label = label.replace('~\\cite{hu2020reach}', ' [22]')
             
         #     # import pdb; pdb.set_trace()
-        #     plt.plot(
-        #         all_runtimes,
-        #         ref_errors, 
-        #         color='k',
-        #         ls='--',
-        #         label=label,
-        #     )
+            plt.plot(
+                all_runtimes,
+                ref_errors, 
+                color='k',
+                ls='--',
+            )
 
         
         plt.legend()
 
         ax.set_yscale('log')
         plt.xlabel('Time (s)')
+        plt.yticks([2, 3, 4, 5, 10, 50],[2, 3, 4, 5, 10, 50], fontsize=16)
         plt.ylabel('Approximation Error')
         plt.tight_layout()
         ax.grid(which='major', color='#CCCCCC', linewidth=0.8)
@@ -485,17 +490,28 @@ class CompareRuntimeVsErrorTable(Experiment):
         args.t_max = 5
         args.estimate_runtime = True
         args.overapprox = True
+        args.partition_heuristic = 'uniform'
+        args.all_lps = True
+        args.slow_cvxpy = True
 
         expts = [
             {
                 'partitioner': 'None',
                 'num_partitions': "[4, 4]",
                 'propagator': 'CROWN',
+                'refined': False
             },
             {
                 'partitioner': 'None',
                 'num_partitions': "[4, 4]",
                 'propagator': 'CROWNNStep',
+                'refined': False
+            },
+            {
+                'partitioner': 'None',
+                'num_partitions': "[4, 4]",
+                'propagator': 'CROWN',
+                'refined': True
             },
         ]
 
@@ -514,7 +530,7 @@ class CompareRuntimeVsErrorTable(Experiment):
                     'runtime': runtime,
                     'final_step_error': stats['final_step_errors'][i],
                     'avg_error': stats['avg_errors'][i],
-                    'output_constraint': stats['output_constraints'][i],
+                    'input_constraint': stats['input_constraints'][i],
                     'all_errors': stats['all_errors'][i],
                     }, ignore_index=True)
         df.to_pickle(self.filename.format(dt=dt))
@@ -526,7 +542,7 @@ class CompareRuntimeVsErrorTable(Experiment):
         df = pd.read_pickle(latest_filename)
 
         # df will have every trial, so group by which prop/part was used
-        groupby = ['propagator', 'partitioner']
+        groupby = ['propagator', 'refined']
         grouped = df.groupby(groupby)
         return grouped, latest_filename
 
@@ -538,7 +554,7 @@ class CompareRuntimeVsErrorTable(Experiment):
         rows.append(["Algorithm", "Runtime [s]", "Final Step Error"])
 
         tuples = []
-        tuples += [('CROWN', 'None'), ('CROWNNStep', 'None')]
+        tuples += [('CROWN', False), ('CROWN', True), ('CROWNNStep', False)]
 
         # Go through each combination of prop/part we want in the table
         for prop_part_tuple in tuples:
@@ -575,32 +591,57 @@ class CompareRuntimeVsErrorTable(Experiment):
         
 
         fig, ax = plt.subplots(1, 1)
+        
+        tuples = [('CROWN', False), ('CROWNNStep', False), ('CROWN', True)]
+
+        for prop_part_tuple in tuples:
+            try:
+                group = grouped.get_group(prop_part_tuple)
+            except KeyError:
+                continue
+
+            
+
+            all_errors = group['all_errors'].iloc[0]
+            t_max = all_errors.shape[0]
+            label = self.info[prop_part_tuple]['name']
+
+            # replace citation with the ref number in this plot
+            label = label.replace('~\\cite{hu2020reach}', ' [22]')
+            
+            plt.plot(
+                np.arange(1, t_max+1),
+                all_errors, 
+                color=self.info[prop_part_tuple]['color'],
+                ls=self.info[prop_part_tuple]['ls'],
+                label=label,
+            )
 
         # Go through each combination of prop/part we want in the table
-        for propagator in ['CROWN', 'CROWNNStep']:
-            for partitioner in ['None']:
-                prop_part_tuple = (propagator, partitioner)
-                try:
-                    group = grouped.get_group(prop_part_tuple)
-                except KeyError:
-                    continue
+        # for propagator in ['CROWN', 'CROWNNStep']:
+        #     for partitioner in ['None']:
+        #         prop_part_tuple = (propagator, partitioner)
+        #         try:
+        #             group = grouped.get_group(prop_part_tuple)
+        #         except KeyError:
+        #             continue
 
                 
 
-                all_errors = group['all_errors'].iloc[0]
-                t_max = all_errors.shape[0]
-                label = self.info[prop_part_tuple]['name']
+        #         all_errors = group['all_errors'].iloc[0]
+        #         t_max = all_errors.shape[0]
+        #         label = self.info[prop_part_tuple]['name']
 
-                # replace citation with the ref number in this plot
-                label = label.replace('~\\cite{hu2020reach}', ' [22]')
+        #         # replace citation with the ref number in this plot
+        #         label = label.replace('~\\cite{hu2020reach}', ' [22]')
                 
-                plt.plot(
-                    np.arange(1, t_max+1),
-                    all_errors, 
-                    color=self.info[prop_part_tuple]['color'],
-                    ls=self.info[prop_part_tuple]['ls'],
-                    label=label,
-                )
+        #         plt.plot(
+        #             np.arange(1, t_max+1),
+        #             all_errors, 
+        #             color=self.info[prop_part_tuple]['color'],
+        #             ls=self.info[prop_part_tuple]['ls'],
+        #             label=label,
+        #         )
         plt.legend()
 
         ax.set_yscale('log')
@@ -619,11 +660,11 @@ class CompareRuntimeVsErrorTable(Experiment):
         grouped, filename = self.grab_latest_groups()
 
         dyn = dynamics.DoubleIntegrator()
-        controller = load_controller(name="double_integrator")
+        controller = load_controller(system="DoubleIntegrator")
 
-        init_state_range = np.array(
+        final_state_range = np.array(
             [  # (num_inputs, 2)
-                [2.5, 3.0],  # x0min, x0max
+                [4.5, 5.0],  # x0min, x0max
                 [-0.25, 0.25],  # x1min, x1max
             ]
         )
@@ -633,95 +674,133 @@ class CompareRuntimeVsErrorTable(Experiment):
         }
         propagator_hyperparams = {
             "type": "CROWN",
-            "input_shape": init_state_range.shape[:-1],
+            "input_shape": final_state_range.shape[:-1],
         }
 
         # Set up analyzer (+ parititoner + propagator)
-        analyzer = analyzers.ClosedLoopAnalyzer(controller, dyn)
+        analyzer = analyzers.ClosedLoopBackwardAnalyzer(controller, dyn)
         analyzer.partitioner = partitioner_hyperparams
         analyzer.propagator = propagator_hyperparams
 
-        input_constraint = constraints.LpConstraint(
-            range=init_state_range, p=np.inf
+        output_constraint = constraints.LpConstraint(
+            range=final_state_range, p=np.inf
         )
 
         inputs_to_highlight = [
-            {"dim": [0], "name": "$\mathbf{x}_0$"},
-            {"dim": [1], "name": "$\mathbf{x}_1$"},
+            {"dim": [0], "name": "$x$"},
+            {"dim": [1], "name": "$\dot{x}$"},
         ]
 
         t_max = 5
 
+        # analyzer.partitioner.setup_visualization(
+        #     input_constraint,
+        #     t_max,
+        #     analyzer.propagator,
+        #     show_samples=True,
+        #     inputs_to_highlight=inputs_to_highlight,
+        #     aspect="auto",
+        #     initial_set_color=analyzer.initial_set_color,
+        #     initial_set_zorder=analyzer.initial_set_zorder,
+        #     # sample_zorder=analyzer.sample_zorder
+        # )
         analyzer.partitioner.setup_visualization(
-            input_constraint,
+            output_constraint,
             t_max,
             analyzer.propagator,
-            show_samples=True,
+            show_samples=False,
+            # show_samples=show_samples,
             inputs_to_highlight=inputs_to_highlight,
-            aspect="auto",
-            initial_set_color=analyzer.initial_set_color,
-            initial_set_zorder=analyzer.initial_set_zorder,
-            sample_zorder=analyzer.sample_zorder
+            plot_lims=np.array([[-3.8,5.64],[-0.64,2.5]]),
+            # aspect=False,
+            initial_set_color='tab:red',
+            # initial_set_zorder=self.estimated_backprojection_set_zorder,
+            # extra_constraint = initial_constraint,
+            # extra_set_color=self.initial_set_color,
+            # extra_set_zorder=self.initial_set_zorder,
         )
 
-        analyzer.partitioner.linewidth = 1
+        analyzer.partitioner.linewidth = 2
 
         # Go through each combination of prop/part we want in the table
-        for propagator in ['SDP', 'CROWN']:
-            for partitioner in ['None', 'Uniform']:
-                prop_part_tuple = (propagator, partitioner)
-                try:
-                    group = grouped.get_group(prop_part_tuple)
-                except KeyError:
-                    continue
+        tuples = [('CROWN', False), ('CROWNNStep', False), ('CROWN', True)]
+        
+        for prop_part_tuple in tuples:
+        # for propagator in ['SDP', 'CROWN']:
+        #     for partitioner in ['None', 'Uniform']:
+            # prop_part_tuple = (propagator, partitioner)
+            # import pdb; pdb.set_trace()
+            try:
+                group = grouped.get_group(prop_part_tuple)
+            except KeyError:
+                continue
 
-                output_constraint = group['output_constraint'].iloc[0]
-
+            input_constraint = [group['input_constraint'].iloc[i] for i in range(t_max)]
+            # import pdb; pdb.set_trace()
+            for cons in input_constraint:
                 analyzer.partitioner.visualize(
                     [],
                     [],
-                    output_constraint,
-                    None,
+                    cons,
                     reachable_set_color=self.info[prop_part_tuple]['color'],
                     reachable_set_ls=self.info[prop_part_tuple]['ls'],
-                    reachable_set_zorder=analyzer.reachable_set_zorder
+                    # reachable_set_zorder=analyzer.reachable_set_zorder
                 )
 
                 analyzer.partitioner.default_patches = analyzer.partitioner.animate_axes.patches.copy()
                 analyzer.partitioner.default_lines = analyzer.partitioner.animate_axes.lines.copy()
 
-        # Add shaded regions for verification
-        goal_arr = np.array([
-            [-0.5, 0.5],
-            [-0.25, 0.25],
-        ])
-        dims = analyzer.partitioner.input_dims
-        color = "None"
-        fc_color = "lightblue"
-        linewidth = 1
-        ls = '-'
-        rect = constraints.make_rect_from_arr(goal_arr, dims, color, linewidth, fc_color, ls, zorder=0)
-        analyzer.partitioner.animate_axes.add_patch(rect)
+                try:
+                    # import pdb; pdb.set_trace()
+                    analyzer.plot_true_backprojection_sets(
+                        input_constraint[-1],
+                        # backreachable_set, 
+                        output_constraint,
+                        t_max=t_max,
+                        color='darkgreen',
+                        zorder=10,#self.true_backprojection_set_zorder,
+                        linestyle='-',
+                        show_samples=False,
+                    )
+                except:
+                    pass
+        
+        
 
-        avoid_arr = np.array([
-            analyzer.partitioner.animate_axes.get_xlim(),
-            [0.35, analyzer.partitioner.animate_axes.get_ylim()[1]],
-        ])
-        dims = analyzer.partitioner.input_dims
-        color = "None"
-        fc_color = "wheat"
-        linewidth = 1
-        ls = '-'
-        rect = constraints.make_rect_from_arr(avoid_arr, dims, color, linewidth, fc_color, ls, zorder=0)
-        analyzer.partitioner.animate_axes.add_patch(rect)
+        # Add shaded regions for verification
+        # goal_arr = np.array([
+        #     [-0.5, 0.5],
+        #     [-0.25, 0.25],
+        # ])
+        # dims = analyzer.partitioner.input_dims
+        # color = "None"
+        # fc_color = "lightblue"
+        # linewidth = 1
+        # ls = '-'
+        # rect = constraints.make_rect_from_arr(goal_arr, dims, color, linewidth, fc_color, ls, zorder=0)
+        # analyzer.partitioner.animate_axes.add_patch(rect)
+
+        # avoid_arr = np.array([
+        #     analyzer.partitioner.animate_axes.get_xlim(),
+        #     [0.35, analyzer.partitioner.animate_axes.get_ylim()[1]],
+        # ])
+        # dims = analyzer.partitioner.input_dims
+        # color = "None"
+        # fc_color = "wheat"
+        # linewidth = 1
+        # ls = '-'
+        # rect = constraints.make_rect_from_arr(avoid_arr, dims, color, linewidth, fc_color, ls, zorder=0)
+        # analyzer.partitioner.animate_axes.add_patch(rect)
 
         plt.tight_layout()
+        # analyzer.partitioner.animate_axis.set_xlim(-3.8, 5.64)
+        # analyzer.partitioner.animate_axis.set_ylim(-0.64, 2.5)
 
         # Save plot with similar name to pkl file that contains data
         fig_filename = filename.replace('table', 'reachable').replace('pkl', 'png')
         plt.savefig(fig_filename)
 
-        # plt.show()
+        plt.show()
 
 
 # class CompareLPvsCF(Experiment):
@@ -875,7 +954,7 @@ if __name__ == '__main__':
     # Like Fig 3 in ICRA21 paper
     # c = CompareRuntimeVsErrorTable()
     c = ErrorVsPartitions()
-    c.run()
+    # c.run()
     # c.plot()  # 3A: table
     # c.plot_reachable_sets()  # 3B: overlay reachable sets
     c.plot_error_vs_timestep()  # 3C: error vs timestep

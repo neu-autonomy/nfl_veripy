@@ -232,6 +232,7 @@ class ClosedLoopPartitioner(partitioners.Partitioner):
         reachable_set_color=None,
         reachable_set_zorder=None,
         reachable_set_ls=None,
+        reachable_set_lw=None,
         dont_tighten_layout=False,
         plot_lims=None,
         ):
@@ -241,7 +242,7 @@ class ClosedLoopPartitioner(partitioners.Partitioner):
         self.animate_axes.patches = self.default_patches.copy()
         self.animate_axes.lines = self.default_lines.copy()
 
-        self.plot_reachable_sets(output_constraint, self.input_dims, reachable_set_color=reachable_set_color, reachable_set_zorder=reachable_set_zorder, reachable_set_ls=reachable_set_ls)
+        self.plot_reachable_sets(output_constraint, self.input_dims, reachable_set_color=reachable_set_color, reachable_set_zorder=reachable_set_zorder, reachable_set_ls=reachable_set_ls, reachable_set_lw=reachable_set_lw)
 
         if plot_lims is not None:
             import ast
@@ -306,18 +307,18 @@ class ClosedLoopPartitioner(partitioners.Partitioner):
             self.plot_partition(input_constraint, dims, "tab:red")
 
     def get_one_step_backprojection_set(
-        self, output_constraint, input_constraint, propagator, num_partitions=None, overapprox=False, refined=False, heuristic='guided', old_method=False
+        self, output_constraint, input_constraint, propagator, num_partitions=None, overapprox=False, refined=False, heuristic='guided', all_lps=False, slow_cvxpy=False
     ):
         input_constraint, info = propagator.get_one_step_backprojection_set(
-            output_constraint, deepcopy(input_constraint), num_partitions=num_partitions, overapprox=overapprox, refined=refined, heuristic=heuristic, old_method=old_method
+            output_constraint, deepcopy(input_constraint), num_partitions=num_partitions, overapprox=overapprox, refined=refined, heuristic=heuristic, all_lps=all_lps, slow_cvxpy=slow_cvxpy
         )
         return input_constraint, info
 
     def get_backprojection_set(
-        self, output_constraint, input_constraint, propagator, t_max, num_partitions=None, overapprox=False, refined=False, heuristic='guided', old_method=False
+        self, output_constraint, input_constraint, propagator, t_max, num_partitions=None, overapprox=False, refined=False, heuristic='guided', all_lps=False, slow_cvxpy=False
     ):
         input_constraint_, info = propagator.get_backprojection_set(
-            output_constraint, deepcopy(input_constraint), t_max, num_partitions=num_partitions, overapprox=overapprox, refined=refined, heuristic=heuristic, old_method=old_method
+            output_constraint, deepcopy(input_constraint), t_max, num_partitions=num_partitions, overapprox=overapprox, refined=refined, heuristic=heuristic, all_lps=all_lps, slow_cvxpy=slow_cvxpy
         )
         input_constraint = input_constraint_.copy()
 
@@ -355,6 +356,8 @@ class ClosedLoopPartitioner(partitioners.Partitioner):
                 estimated_hull = ConvexHull(estimated_verts)
                 estimated_area = estimated_hull.volume
                 
+                print('estimated: {} --- true: {}'.format(estimated_area, true_area))
+                print('estimated range: {} --- true range: {}'.format(backprojection_sets[t].range, x_range))
 
                 errors.append((estimated_area - true_area) / true_area)
         else:
@@ -391,10 +394,10 @@ class ClosedLoopPartitioner(partitioners.Partitioner):
         return final_error, avg_error, np.array(errors)
 
     def get_N_step_backprojection_set(
-        self, output_constraint, input_constraint, propagator, t_max, num_partitions=None, overapprox=False
+        self, output_constraint, input_constraint, propagator, t_max, num_partitions=None, overapprox=False, heuristic='guided', all_lps=False, slow_cvxpy=False
     ):
         input_constraint_, info = propagator.get_N_step_backprojection_set(
-            output_constraint, deepcopy(input_constraint), t_max, num_partitions=num_partitions, overapprox=overapprox
+            output_constraint, deepcopy(input_constraint), t_max, num_partitions=num_partitions, overapprox=overapprox, heuristic=heuristic, all_lps=all_lps, slow_cvxpy=slow_cvxpy
         )
         input_constraint = input_constraint_.copy()
 
