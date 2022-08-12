@@ -231,6 +231,15 @@ def main(args):
         )
         # output_constraint = [output_constraint2,output_constraint1]
         output_constraint = [output_constraint1]
+    elif args.boundaries == "rotated":
+        vertices = np.vstack((final_state_range.T, np.hstack((np.array([final_state_range[0, :]]).T, np.flip([final_state_range[1, :]]).T))))
+        W = final_state_range[:, 1] - final_state_range[:, 0]
+        # import pdb; pdb.set_trace()
+        output_constraint1 = constraints.RotatedLpConstraint(
+            pose=final_state_range[:, 0], W = W, theta=0, vertices = vertices
+        )
+        input_constraint = constraints.RotatedLpConstraint()
+        output_constraint = [output_constraint1]
     else:
         raise NotImplementedError
 
@@ -238,7 +247,7 @@ def main(args):
         # Run the analyzer N times to compute an estimated runtime
         import time
 
-        num_calls = 5
+        num_calls = 1
         times = np.empty(num_calls)
         final_errors = np.empty(num_calls)
         avg_errors = np.empty(num_calls, dtype=np.ndarray)
@@ -256,25 +265,27 @@ def main(args):
             t = t_end - t_start
             times[num] = t
             backprojection_sets = input_constraint_list[0]
+            backreachable_sets = [analyzer_info_list[0]['per_timestep'][i]['backreachable_set'] for i in range(int(args.t_max))]
             target_set = output_constraint[0]
-            # final_error, avg_error, all_error = analyzer.get_backprojection_error(target_set, backprojection_sets, t_max=args.t_max)
+            final_error, avg_error, all_error = analyzer.get_backprojection_error(target_set, backprojection_sets, t_max=args.t_max, backreachable_sets=backreachable_sets)
 
-            # final_errors[num] = final_error
-            # avg_errors[num] = avg_error
-            # all_errors[num] = all_error
-            # output_constraints[num] = output_constraint
+            final_errors[num] = final_error
+            avg_errors[num] = avg_error
+            all_errors[num] = all_error
+            output_constraints[num] = output_constraint
 
         stats['runtimes'] = times
-        # stats['final_step_errors'] = final_errors
-        # stats['avg_errors'] = avg_errors
-        # stats['all_errors'] = all_errors
-        # stats['input_constraints'] = input_constraint_list[0]
+        stats['final_step_errors'] = final_errors
+        stats['avg_errors'] = avg_errors
+        stats['all_errors'] = all_errors
+        stats['input_constraints'] = input_constraint_list[0]
         stats['avg_runtime'] = times.mean()
 
         print("All times: {}".format(times))
         print("Avg time: {} +/- {}".format(times.mean(), times.std()))
         # print('final error: {}'.format(final_error))
-        # print("Final Error: {}".format(final_errors[-1]))
+        print("Final Error: {}".format(final_errors[-1]))
+        print("Avg Error: {}".format(avg_errors[-1]))
     else:
         # Run analysis once
         # Run analysis & generate a plot
@@ -431,7 +442,7 @@ def setup_parser():
     parser.add_argument(
         "--boundaries",
         default="lp",
-        choices=["lp", "polytope"],
+        choices=["lp", "polytope", "rotated"],
         help="what shape of convex set to bound reachable sets (default: lp)",
     )
     parser.add_argument(

@@ -53,13 +53,14 @@ class ClosedLoopPropagator(propagators.Propagator):
 
     def get_single_target_backprojection_set(self, output_constraint, input_constraint, t_max, num_partitions=None, overapprox=False, refined=False, heuristic='guided', all_lps=False, slow_cvxpy=False):
         input_constraints = []
+        
 
         input_constraint, this_info = self.get_one_step_backprojection_set(
             output_constraint, input_constraint, num_partitions=num_partitions, overapprox=overapprox, collected_input_constraints=[output_constraint]+input_constraints, refined=refined, heuristic=heuristic, all_lps=all_lps, slow_cvxpy=slow_cvxpy
         )
         input_constraints.append(deepcopy(input_constraint))
-        info = {'per_timestep': []}
-        info['per_timestep'].append(this_info)
+        # info = {'per_timestep': []}
+        # info['per_timestep'].append(this_info)
 
         if overapprox:
             for i in np.arange(0 + self.dynamics.dt + 1e-10, t_max, self.dynamics.dt):
@@ -69,7 +70,7 @@ class ClosedLoopPropagator(propagators.Propagator):
                     next_output_constraint, next_input_constraint, num_partitions=num_partitions, overapprox=overapprox, collected_input_constraints=[output_constraint]+input_constraints, infos=info['per_timestep'], refined= refined, heuristic=heuristic, all_lps=all_lps, slow_cvxpy=slow_cvxpy
                 )
                 input_constraints.append(deepcopy(input_constraint))
-                info['per_timestep'].append(this_info)
+                # info['per_timestep'].append(this_info)
         else:
             for i in np.arange(0 + self.dynamics.dt + 1e-10, t_max, self.dynamics.dt):
                 # TODO: Support N-step backprojection in the under-approximation case
@@ -109,7 +110,7 @@ def over_approximate_constraint(constraint):
     # TODO: Add an assert
     # TODO: implement a more general version
 
-    constraint.A = constraint.A[0]
-    constraint.b = [np.max(np.array(constraint.b), axis=0)]
+    # constraint.A = constraint.A[0]
+    # constraint.b = [np.max(np.array(constraint.b), axis=0)]
 
     return constraint

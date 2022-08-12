@@ -4,6 +4,8 @@ import multiprocessing
 from posixpath import split
 from tkinter.messagebox import NO
 from tokenize import Hexnumber
+
+import matplotlib
 from .ClosedLoopPropagator import ClosedLoopPropagator
 import nn_closed_loop.elements as elements
 import numpy as np
@@ -606,6 +608,16 @@ class ClosedLoopCROWNIBPCodebasePropagator(ClosedLoopPropagator):
             norm = output_constraint.p
             A_t1 = None
             b_t1 = None
+        elif isinstance(output_constraint, constraints.RotatedLpConstraint):
+            norm = np.inf
+            xt1_min = output_constraint.bounding_box[:, 0]
+            xt1_max = output_constraint.bounding_box[:, 1]
+            theta = output_constraint.theta
+            R = np.array([[np.cos(theta), np.sin(theta)], [-np.sin(theta), np.cos(theta)]])
+            pose = output_constraint.pose
+            W = output_constraint.width
+            A_t1 = None
+            b_t1 = None
         else:
             raise NotImplementedError
 
@@ -652,8 +664,15 @@ class ClosedLoopCROWNIBPCodebasePropagator(ClosedLoopPropagator):
 
 
         # Dynamics must be satisfied
-        constrs += [self.dynamics.dynamics_step(xt,ut) <= xt1_max]
-        constrs += [self.dynamics.dynamics_step(xt,ut) >= xt1_min]
+        if isinstance(output_constraint, constraints.LpConstraint):
+            constrs += [self.dynamics.dynamics_step(xt,ut) <= xt1_max]
+            constrs += [self.dynamics.dynamics_step(xt,ut) >= xt1_min]
+        elif isinstance(output_constraint, constraints.RotatedLpConstraint):
+            constrs += [R@self.dynamics.dynamics_step(xt,ut)-R@pose <= W]
+            constrs += [R@self.dynamics.dynamics_step(xt,ut)-R@pose >= np.array([0, 0])]
+        else:
+            raise NotImplementedError
+
         A_t_i = cp.Parameter(num_states)
         obj = A_t_i@xt
         min_prob = cp.Problem(cp.Minimize(obj), constrs)
@@ -732,6 +751,8 @@ class ClosedLoopCROWNIBPCodebasePropagator(ClosedLoopPropagator):
             input_constraint = constraints.PolytopeConstraint(A=[], b=[])
         elif isinstance(output_constraint, constraints.LpConstraint):
             input_constraint = constraints.LpConstraint(p=np.inf)
+        elif isinstance(output_constraint, constraints.RotatedLpConstraint):
+            input_constraint = constraints.RotatedLpConstraint()
         ut_max = -np.inf*np.ones(num_control_inputs)
         ut_min = np.inf*np.ones(num_control_inputs)
         xt_range_max = -np.inf*np.ones(xt1_min.shape)
@@ -872,6 +893,39 @@ class ClosedLoopCROWNIBPCodebasePropagator(ClosedLoopPropagator):
             info['lower_A'] = lower_A_range.detach().numpy()[0]
             info['upper_sum_b'] = upper_sum_b_range.detach().numpy()[0]
             info['lower_sum_b'] = lower_sum_b_range.detach().numpy()[0]
+
+            if isinstance(output_constraint, constraints.RotatedLpConstraint):
+                # rangee = input_constraint.range
+                info['mar_hull'], theta, xy, W, mar_vertices = find_MAR(info['bp_set_partitions'])
+                # theta = 0
+                # xy = rangee[:, 0]
+                # W = rangee[:, 1] - rangee[:, 0]
+                # mar_vertices = np.vstack((rangee.T, np.hstack((np.array([rangee[0, :]]).T, np.flip([rangee[1, :]]).T))))
+                # import pdb; pdb.set_trace()
+                # info['mar_hull'], theta, xy, W = find_MAR(info['bp_set_partitions'])
+                # print(W)
+                # print(theta)
+                input_constraint = constraints.RotatedLpConstraint(pose=xy, theta=theta, W=W, vertices=mar_vertices)
+                # import pdb; pdb.set_trace()
+                t_start = time.time()
+                lower_A_range, upper_A_range, lower_sum_b_range, upper_sum_b_range = self.network(
+                        method_opt=self.method_opt,
+                        norm=norm,
+                        x_U=torch.Tensor(np.array([input_constraint.bounding_box[:, 1]])),
+                        x_L=torch.Tensor(np.array([input_constraint.bounding_box[:, 0]])),
+                        upper=True,
+                        lower=True,
+                        C=C,
+                        return_matrices=True,
+                    )
+                t_end = time.time()
+                info['crown'].append(t_end-t_start)
+
+                info['u_range'] = np.vstack((ut_min, ut_max)).T
+                info['upper_A'] = upper_A_range.detach().numpy()[0]
+                info['lower_A'] = lower_A_range.detach().numpy()[0]
+                info['upper_sum_b'] = upper_sum_b_range.detach().numpy()[0]
+                info['lower_sum_b'] = lower_sum_b_range.detach().numpy()[0]
 
             # print(info['upper_A'])
             # print(info['lower_A'])
@@ -1068,7 +1122,7 @@ class ClosedLoopCROWNIBPCodebasePropagator(ClosedLoopPropagator):
         b_stack = np.hstack([b_, b_NN])
 
         # Add newly calculated BP region from partioned backreachable set to overall BP set estimate
-        if isinstance(input_constraint, constraints.LpConstraint):
+        if isinstance(input_constraint, constraints.LpConstraint) or isinstance(input_constraint, constraints.RotatedLpConstraint):
             b_max = b_[0:int(len(b_)/2)]
             b_min = -b_[int(len(b_)/2):int(len(b_))]
 
@@ -1344,12 +1398,12 @@ class ClosedLoopCROWNIBPCodebasePropagator(ClosedLoopPropagator):
 
 
         # Add newly calculated BP region from partioned backreachable set to overall BP set estimate
-        if isinstance(input_constraint, constraints.LpConstraint):
+        if isinstance(input_constraint, constraints.LpConstraint) or isinstance(input_constraint, constraints.RotatedLpConstraint):
             b_max = b_[0:int(len(b_)/2)]
             b_min = -b_[int(len(b_)/2):int(len(b_))]
 
             # if any(b_max > xt_range_max) or any(b_min < xt_range_min):
-            info['bp_set_partitions'].append(constraints.LpConstraint(range=np.array([b_min, b_max]).T)) 
+            info['bp_set_partitions'].append(constraints.LpConstraint(range=np.array([b_min, b_max]).T))
 
             ut_max_candidate = np.maximum(upper_A@xt_max+upper_sum_b, upper_A@xt_min+upper_sum_b)
             ut_min_candidate = np.minimum(lower_A@xt_max+lower_sum_b, lower_A@xt_min+lower_sum_b)
@@ -1432,96 +1486,197 @@ class ClosedLoopCROWNIBPCodebasePropagator(ClosedLoopPropagator):
             upper_A = cp.Parameter((num_control_inputs, num_states))
             lower_sum_b = cp.Parameter(num_control_inputs)
             upper_sum_b = cp.Parameter(num_control_inputs)
+            if isinstance(collected_input_constraints[0], constraints.LpConstraint) or isinstance(collected_input_constraints[0], constraints.RotatedLpConstraint):
+                xt_min = cp.Parameter(num_states)
+                xt_max = cp.Parameter(num_states)
 
-            xt_min = cp.Parameter(num_states)
-            xt_max = cp.Parameter(num_states)
+                xt1_min = cp.Parameter(num_states)
+                xt1_max = cp.Parameter(num_states)
 
-            xt1_min = cp.Parameter(num_states)
-            xt1_max = cp.Parameter(num_states)
+                A_t = cp.Parameter(num_states)
 
-            A_t = cp.Parameter(num_states)
+                params = {
+                    'lower_A': lower_A,
+                    'upper_A': upper_A,
+                    'lower_sum_b': lower_sum_b,
+                    'upper_sum_b': upper_sum_b,
+                    'xt_min': xt_min,
+                    'xt_max': xt_max,
+                    'xt1_min': xt1_min,
+                    'xt1_max': xt1_max,
+                    'A_t': A_t
+                }
 
-            params = {
-                'lower_A': lower_A,
-                'upper_A': upper_A,
-                'lower_sum_b': lower_sum_b,
-                'upper_sum_b': upper_sum_b,
-                'xt_min': xt_min,
-                'xt_max': xt_max,
-                'xt1_min': xt1_min,
-                'xt1_max': xt1_max,
-                'A_t': A_t
-            }
+                constrs = []
+                constrs += [lower_A@xt + lower_sum_b <= ut]
+                constrs += [ut <= upper_A@xt + upper_sum_b]
 
-            constrs = []
-            constrs += [lower_A@xt + lower_sum_b <= ut]
-            constrs += [ut <= upper_A@xt + upper_sum_b]
-
-            # Included state limits to reduce size of backreachable sets by eliminating states that are not physically possible (e.g., maximum velocities)
-            constrs += [xt_min <= xt]
-            constrs += [xt <= xt_max]
+                # Included state limits to reduce size of backreachable sets by eliminating states that are not physically possible (e.g., maximum velocities)
+                constrs += [xt_min <= xt]
+                constrs += [xt <= xt_max]
 
 
-            # Dynamics must be satisfied
-            constrs += [self.dynamics.dynamics_step(xt, ut) <= xt1_max]
-            constrs += [self.dynamics.dynamics_step(xt, ut) >= xt1_min]
+                # Dynamics must be satisfied
+
+                constrs += [self.dynamics.dynamics_step(xt, ut) <= xt1_max]
+                constrs += [self.dynamics.dynamics_step(xt, ut) >= xt1_min]
+            
+            elif isinstance(collected_input_constraints[0], constraints.RotatedLpConstraint):
+                xt_min = cp.Parameter(num_states)
+                xt_max = cp.Parameter(num_states)
+
+                R = cp.Parameter((num_states, num_states))
+                pose = cp.Parameter(num_states)
+                W = cp.Parameter(num_states)
+
+                A_t = cp.Parameter(num_states)
+
+                params = {
+                    'lower_A': lower_A,
+                    'upper_A': upper_A,
+                    'lower_sum_b': lower_sum_b,
+                    'upper_sum_b': upper_sum_b,
+                    'xt_min': xt_min,
+                    'xt_max': xt_max,
+                    'R': R,
+                    'W': W,
+                    'pose': pose,
+                    'A_t': A_t
+                }
+
+                constrs = []
+                constrs += [lower_A@xt + lower_sum_b <= ut]
+                constrs += [ut <= upper_A@xt + upper_sum_b]
+
+                # Included state limits to reduce size of backreachable sets by eliminating states that are not physically possible (e.g., maximum velocities)
+                constrs += [xt_min <= xt]
+                constrs += [xt <= xt_max]
+
+
+                # Dynamics must be satisfied
+
+                constrs += [R@self.dynamics.dynamics_step(xt,ut)-R@pose <= W]
+                constrs += [R@self.dynamics.dynamics_step(xt,ut)-R@pose >= np.array([0, 0])]
             
             obj = A_t@xt
             min_prob = cp.Problem(cp.Minimize(obj), constrs)
             max_prob = cp.Problem(cp.Maximize(obj), constrs)
-        else: 
-            num_steps = len(collected_input_constraints)
-            xt = cp.Variable((num_states, num_steps+1))
-            ut = cp.Variable((num_control_inputs, num_steps))
+        else:
+            if isinstance(collected_input_constraints[0], constraints.LpConstraint):
+                num_steps = len(collected_input_constraints)
+                xt = cp.Variable((num_states, num_steps+1))
+                ut = cp.Variable((num_control_inputs, num_steps))
 
 
-            lower_A_list = [cp.Parameter((num_control_inputs, num_states)) for i in range(num_steps)]
-            upper_A_list = [cp.Parameter((num_control_inputs, num_states)) for i in range(num_steps)]
-            lower_sum_b_list = [cp.Parameter(num_control_inputs) for i in range(num_steps)]
-            upper_sum_b_list = [cp.Parameter(num_control_inputs) for i in range(num_steps)]
+                lower_A_list = [cp.Parameter((num_control_inputs, num_states)) for i in range(num_steps)]
+                upper_A_list = [cp.Parameter((num_control_inputs, num_states)) for i in range(num_steps)]
+                lower_sum_b_list = [cp.Parameter(num_control_inputs) for i in range(num_steps)]
+                upper_sum_b_list = [cp.Parameter(num_control_inputs) for i in range(num_steps)]
 
-            xt_min = [cp.Parameter(num_states) for i in range(num_steps+1)]
-            xt_max = [cp.Parameter(num_states) for i in range(num_steps+1)]
-
-
-            A_t = cp.Parameter(num_states)
-
-            params = {
-                'lower_A': lower_A_list,
-                'upper_A': upper_A_list,
-                'lower_sum_b': lower_sum_b_list,
-                'upper_sum_b': upper_sum_b_list,
-                'xt_min': xt_min,
-                'xt_max': xt_max,
-                'A_t': A_t
-            }
+                xt_min = [cp.Parameter(num_states) for i in range(num_steps+1)]
+                xt_max = [cp.Parameter(num_states) for i in range(num_steps+1)]
 
 
-            constrs = []
+                A_t = cp.Parameter(num_states)
 
-            for t in range(num_steps):
-                # Gather CROWN bounds and previous BP bounds
-                if t > 0:
-                    upper_A_list[t].value = infos[-t-modifier]['upper_A']
-                    lower_A_list[t].value = infos[-t-modifier]['lower_A']
-                    upper_sum_b_list[t].value = infos[-t-modifier]['upper_sum_b']
-                    lower_sum_b_list[t].value = infos[-t-modifier]['lower_sum_b']
+                params = {
+                    'lower_A': lower_A_list,
+                    'upper_A': upper_A_list,
+                    'lower_sum_b': lower_sum_b_list,
+                    'upper_sum_b': upper_sum_b_list,
+                    'xt_min': xt_min,
+                    'xt_max': xt_max,
+                    'A_t': A_t
+                }
 
-                    xt_min[t].value = collected_input_constraints[-t-modifier].range[:, 0]
-                    xt_max[t].value = collected_input_constraints[-t-modifier].range[:, 1]
 
-                # u_t bounded by CROWN bounds
-                constrs += [lower_A_list[t]@xt[:, t]+lower_sum_b_list[t] <= ut[:, t]]
-                constrs += [ut[:, t] <= upper_A_list[t]@xt[:, t]+upper_sum_b_list[t]]
+                constrs = []
 
-                # Each xt must fall in the original backprojection
-                constrs += [xt_min[t] <= xt[:, t]]
-                constrs += [xt[:, t] <= xt_max[t]]
+                for t in range(num_steps):
+                    # Gather CROWN bounds and previous BP bounds
+                    if t > 0:
+                        upper_A_list[t].value = infos[-t-modifier]['upper_A']
+                        lower_A_list[t].value = infos[-t-modifier]['lower_A']
+                        upper_sum_b_list[t].value = infos[-t-modifier]['upper_sum_b']
+                        lower_sum_b_list[t].value = infos[-t-modifier]['lower_sum_b']
 
-                # x_t and x_{t+1} connected through system dynamics
-                constrs += [self.dynamics.dynamics_step(xt[:, t], ut[:, t]) == xt[:, t+1]]
+                        xt_min[t].value = collected_input_constraints[-t-modifier].range[:, 0]
+                        xt_max[t].value = collected_input_constraints[-t-modifier].range[:, 1]
 
-            obj = A_t@xt[:,0]
+                    # u_t bounded by CROWN bounds
+                    constrs += [lower_A_list[t]@xt[:, t]+lower_sum_b_list[t] <= ut[:, t]]
+                    constrs += [ut[:, t] <= upper_A_list[t]@xt[:, t]+upper_sum_b_list[t]]
+
+                    # Each xt must fall in the original backprojection
+                    constrs += [xt_min[t] <= xt[:, t]]
+                    constrs += [xt[:, t] <= xt_max[t]]
+
+                    # x_t and x_{t+1} connected through system dynamics
+                    constrs += [self.dynamics.dynamics_step(xt[:, t], ut[:, t]) == xt[:, t+1]]
+
+            elif isinstance(collected_input_constraints[0], constraints.RotatedLpConstraint):
+
+                num_steps = len(collected_input_constraints)
+                xt = cp.Variable((num_states, num_steps+1))
+                ut = cp.Variable((num_control_inputs, num_steps))
+
+
+                lower_A_list = [cp.Parameter((num_control_inputs, num_states)) for i in range(num_steps)]
+                upper_A_list = [cp.Parameter((num_control_inputs, num_states)) for i in range(num_steps)]
+                lower_sum_b_list = [cp.Parameter(num_control_inputs) for i in range(num_steps)]
+                upper_sum_b_list = [cp.Parameter(num_control_inputs) for i in range(num_steps)]
+
+                xt_min = [cp.Parameter(num_states)]
+                xt_max = [cp.Parameter(num_states)]
+
+                R = [cp.Parameter((num_states, num_states)) for i in range(num_steps+1)]
+                pose = [cp.Parameter(num_states) for i in range(num_steps+1)] 
+                W = [cp.Parameter(num_states) for i in range(num_steps+1)]
+
+
+                A_t = cp.Parameter(num_states)
+
+                params = {
+                    'lower_A': lower_A_list,
+                    'upper_A': upper_A_list,
+                    'lower_sum_b': lower_sum_b_list,
+                    'upper_sum_b': upper_sum_b_list,
+                    'xt_min': xt_min,
+                    'xt_max': xt_max,
+                    'A_t': A_t
+                }
+
+
+                constrs = []
+
+                constrs += [xt_min[0] <= xt[:, 0]]
+                constrs += [xt[:, 0] <= xt_max[0]]
+
+                for t in range(num_steps):
+                    # Gather CROWN bounds and previous BP bounds
+                    if t > 0:
+                        upper_A_list[t].value = infos[-t-modifier]['upper_A']
+                        lower_A_list[t].value = infos[-t-modifier]['lower_A']
+                        upper_sum_b_list[t].value = infos[-t-modifier]['upper_sum_b']
+                        lower_sum_b_list[t].value = infos[-t-modifier]['lower_sum_b']
+
+                        theta = collected_input_constraints[-t-modifier].theta
+
+                        R[t].value = np.array([[np.cos(theta), np.sin(theta)], [-np.sin(theta), np.cos(theta)]])
+                        W[t].value = collected_input_constraints[-t-modifier].width
+                        pose[t].value = collected_input_constraints[-t-modifier].pose
+
+                        # Each xt must fall in the previously calculated (rotated) backprojection
+                        constrs += [R[t]@xt[:, t] <= W[t] + R[t]@pose[t]]
+                        constrs += [R[t]@xt[:, t] >= R[t]@pose[t]]
+
+                    # u_t bounded by CROWN bounds
+                    constrs += [lower_A_list[t]@xt[:, t]+lower_sum_b_list[t] <= ut[:, t]]
+                    constrs += [ut[:, t] <= upper_A_list[t]@xt[:, t]+upper_sum_b_list[t]]
+
+                    # x_t and x_{t+1} connected through system dynamics
+                    constrs += [self.dynamics.dynamics_step(xt[:, t], ut[:, t]) == xt[:, t+1]]
+            obj = A_t@xt[:, 0]
             min_prob = cp.Problem(cp.Minimize(obj), constrs)
             max_prob = cp.Problem(cp.Maximize(obj), constrs)
 
@@ -2191,3 +2346,133 @@ class ClosedLoopCROWNNStepPropagator(ClosedLoopCROWNPropagator):
         lower_sum_b = lower_sum_b.detach().numpy()[0]
 
         return lower_A, upper_A, lower_sum_b, upper_sum_b
+
+
+def find_MAR(partitions):
+    import itertools
+    points_list = []
+    for constraint in partitions:
+        A = constraint.range
+        A_ = list(A[0, :])
+        A__ = list(A[1, :])
+        for r in itertools.product(A_, A__):
+            if r[0] != np.inf and r[0] != -np.inf:
+                points_list.append(np.array(r))
+
+    points = np.array(points_list)
+    from scipy.spatial import ConvexHull, convex_hull_plot_2d
+
+    hull = ConvexHull(points)
+
+    vertices = points[hull.vertices, :]
+
+    min_area = np.inf
+    mar_verts = np.empty((4,2))
+
+    for i in range(len(vertices)):
+        next = i + 1
+        if next == len(vertices):
+            next = 0
+        edge = vertices[next, :] - vertices[i, :]
+        
+        min_ext = np.inf
+        max_ext = -np.inf
+        max_idx, min_idx = 0, 0
+        rays = vertices - vertices[i, :]
+        for j, ray in enumerate(rays):
+            projection = np.dot(edge, ray)/np.linalg.norm(edge)
+            if projection > max_ext:
+                max_idx = j
+                max_ext = projection
+            if projection < min_ext:
+                min_idx = j
+                min_ext = projection
+        rect_verts = []
+        rect_verts += [vertices[i, :]+max_ext*edge/np.linalg.norm(edge), vertices[i, :]+min_ext*edge/np.linalg.norm(edge)]
+        
+        min_ext2 = np.inf
+        max_ext2 = -np.inf
+        max_idx2, min_idx2 = 0, 0
+        rays2 = vertices - rect_verts[0]
+        edge2 = vertices[max_idx, :] - rect_verts[0]
+        for j, ray in enumerate(rays2):
+            projection2 = np.dot(edge2, ray)/np.linalg.norm(edge2)
+            if projection2 > max_ext2:
+                max_idx2 = j
+                max_ext2 = projection2
+            if projection2 < min_ext2:
+                min_idx2 = j
+                min_ext2 = projection2
+        rect_verts += [rect_verts[0]+max_ext2*edge2/np.linalg.norm(edge2), rect_verts[1]+max_ext2*edge2/np.linalg.norm(edge2)]
+        rect_verts = np.array(rect_verts)
+        
+        # import pdb; pdb.set_trace()
+        if not np.isnan(rect_verts).any():
+            rect_hull = ConvexHull(rect_verts)
+            area = rect_hull.volume
+        else:
+            area = np.inf
+
+        if area < min_area:
+            min_area = area
+            mar_verts = rect_verts
+        
+        # import pdb; pdb.set_trace()
+
+    xy_idx = 0
+    xy_min = np.inf
+    for idx, vert in enumerate(mar_verts):
+        if vert[1] <= xy_min:
+            if (vert[1] == xy_min and vert[0] < mar_verts[xy_idx, 0]) or vert[1] < xy_min:
+                xy_idx = idx
+                xy_min = vert[1]
+
+    xy = mar_verts[xy_idx, :]
+
+    theta_idx = 0
+    theta = np.inf
+    for idx, vert in enumerate(mar_verts):
+        if idx != xy_idx:
+            vert_theta = np.arctan2(vert[1]-xy[1], vert[0]-xy[0])
+            if vert_theta < theta:
+                theta = vert_theta
+                theta_idx = idx
+
+    
+    # width_idx = 0
+    # width_max = -np.inf
+    # for idx, vert in enumerate(mar_verts):
+    #     if vert[0] >= width_max:
+    #         if (vert[0] == width_max and vert[0] < mar_verts[width_idx, 1]) or vert[0] > width_max:
+    #             width_idx = idx
+    #             width_max = vert[0]
+
+    # xy = mar_verts[xy_idx, :]
+    # base = mar_verts[width_idx, :] - xy
+    # width = np.linalg.norm(base)
+    # height = min_area/width
+    # angle = np.arctan2(base[1], base[0])
+
+    mar_hull = ConvexHull(mar_verts)
+    width = np.linalg.norm(mar_verts[theta_idx, :]-xy)
+    height = mar_hull.volume/width
+    W = np.array([width, height])
+
+
+
+    # import pdb; pdb.set_trace()
+
+    import matplotlib.pyplot as plt
+    from matplotlib.patches import Rectangle
+
+    # fig, ax = plt.subplots()
+    # ax.scatter(points[:, 0], points[:, 1])
+    # ax.scatter(vertices[:, 0], vertices[:, 1], color='r')
+    # ax.scatter(rect_verts[:, 0], rect_verts[:, 1], color='b')
+    # convex_hull_plot_2d(mar_hull, ax=ax)
+    # rect = Rectangle(xy, width, height, angle, ec='b', fill=False)
+    # ax.add_patch(rect)
+    plt.show()
+
+    # import pdb; pdb.set_trace()
+    return mar_hull, theta, xy, W, mar_verts

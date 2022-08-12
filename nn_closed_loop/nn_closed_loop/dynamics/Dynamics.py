@@ -1,3 +1,4 @@
+from re import U
 from nn_closed_loop.utils.utils import range_to_polytope
 import numpy as np
 import platform
@@ -140,6 +141,8 @@ class Dynamics:
             A, b = target_set.A, target_set.b[0]
         elif isinstance(target_set, constraints.LpConstraint):
             A, b = range_to_polytope(target_set.range)
+        elif isinstance(target_set, constraints.RotatedLpConstraint):
+            A, b = range_to_polytope(target_set.bounding_box)
         else:
             raise NotImplementedError
 
@@ -440,6 +443,8 @@ class Dynamics:
                 )
                 xs = xs[within_constraint_inds]
                 us = us[within_constraint_inds]
+        # elif isinstance(input_constraint, constraints.RotatedLpConstraint):
+            
         else:
             raise NotImplementedError
 

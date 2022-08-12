@@ -213,15 +213,22 @@ class ClosedLoopPartitioner(partitioners.Partitioner):
         # Plot the initial state set's boundaries
         if initial_set_color is None:
             initial_set_color = "tab:grey"
-        rect = input_constraint.plot(self.animate_axes, input_dims, initial_set_color, zorder=initial_set_zorder, linewidth=self.linewidth, plot_2d=self.plot_2d)
-        self.default_patches += rect
+        # rect = input_constraint.plot(self.animate_axes, input_dims, initial_set_color, zorder=initial_set_zorder, linewidth=self.linewidth, plot_2d=self.plot_2d)
+        # self.default_patches += rect
+        # input_constraint.plot(self.animate_axes)
+        if isinstance(input_constraint, constraints.LpConstraint) or isinstance(input_constraint, constraints.PolytopeConstraint):
+            input_constraint.plot(self.animate_axes, input_dims, extra_set_color, zorder=extra_set_zorder, linewidth=self.linewidth, plot_2d=self.plot_2d)
+        elif isinstance(input_constraint, constraints.RotatedLpConstraint):
+            input_constraint.plot(self.animate_axes)
 
         if extra_set_color is None:
             extra_set_color = "tab:red"
         if extra_constraint[0] is not None:
             for i in range(len(extra_constraint)):
-                rect = extra_constraint[i].plot(self.animate_axes, input_dims, extra_set_color, zorder=extra_set_zorder, linewidth=self.linewidth, plot_2d=self.plot_2d)
-                self.default_patches += rect
+                if isinstance(extra_constraint[i], constraints.LpConstraint) or isinstance(extra_constraint[i], constraints.PolytopeConstraint):
+                    extra_constraint[i].plot(self.animate_axes, input_dims, extra_set_color, zorder=extra_set_zorder, linewidth=self.linewidth, plot_2d=self.plot_2d)
+                elif isinstance(extra_constraint[i], constraints.RotatedLpConstraint):
+                    extra_constraint[i].plot(self.animate_axes)
 
     def visualize(self,
         M,
@@ -284,7 +291,10 @@ class ClosedLoopPartitioner(partitioners.Partitioner):
         if reachable_set_lw is None:
             reachable_set_lw = self.linewidth
         fc_color = "None"
-        constraint.plot(self.animate_axes, dims, reachable_set_color, fc_color=fc_color, zorder=reachable_set_zorder, plot_2d=self.plot_2d, linewidth=reachable_set_lw, ls=reachable_set_ls)
+        if isinstance(constraint, constraints.LpConstraint) or isinstance(constraint, constraints.PolytopeConstraint):
+            constraint.plot(self.animate_axes, dims, reachable_set_color, fc_color=fc_color, zorder=reachable_set_zorder, plot_2d=self.plot_2d, linewidth=reachable_set_lw, ls=reachable_set_ls)
+        elif isinstance(constraint, constraints.RotatedLpConstraint):
+            constraint.plot(self.animate_axes)
 
     # def plot_partition(self, constraint, bounds, dims, color):
     def plot_partition(self, constraint, dims, color):
@@ -325,7 +335,7 @@ class ClosedLoopPartitioner(partitioners.Partitioner):
         return input_constraint, info
 
     def get_backprojection_error(
-        self, target_set, backprojection_sets, propagator, t_max
+        self, target_set, backprojection_sets, propagator, t_max, backreachable_sets=None
     ):
         errors = []
         from scipy.spatial import ConvexHull
@@ -336,28 +346,61 @@ class ClosedLoopPartitioner(partitioners.Partitioner):
             true_verts_reversed = self.dynamics.get_true_backprojection_set(
                 backprojection_sets[-1], target_set, 
                 t_max, controller=propagator.network,
-                num_samples=1e7
+                num_samples=1e8
             )
             true_verts = np.flip(true_verts_reversed, axis=1)
             num_steps = len(backprojection_sets)
 
             for t in range(num_steps):
-                x_min = np.min(true_verts[:,t+1,:], axis=0)
-                x_max = np.max(true_verts[:,t+1,:], axis=0)
+                # x_min = np.min(true_verts[:,t+1,:], axis=0)
+                # x_max = np.max(true_verts[:,t+1,:], axis=0)
 
-                x_range = x_max-x_min
-                true_area = np.prod(x_range)
+                # x_range = x_max-x_min
+                # true_area = np.prod(x_range)
 
-                # true_hull = ConvexHull(true_verts[:, t+1, :])
-                # true_area = true_hull.volume
+                true_hull = ConvexHull(true_verts[:, t+1, :])
+                true_area = true_hull.volume
 
                 Abp, bbp = range_to_polytope(backprojection_sets[t].range)
                 estimated_verts = pypoman.polygon.compute_polygon_hull(Abp, bbp)
                 estimated_hull = ConvexHull(estimated_verts)
                 estimated_area = estimated_hull.volume
                 
-                print('estimated: {} --- true: {}'.format(estimated_area, true_area))
-                print('estimated range: {} --- true range: {}'.format(backprojection_sets[t].range, x_range))
+                # print('estimated: {} --- true: {}'.format(estimated_area, true_area))
+                # print('estimated range: {} --- true range: {}'.format(backprojection_sets[t].range, x_range))
+
+                errors.append((estimated_area - true_area) / true_area)
+        elif isinstance(target_set, constraints.RotatedLpConstraint):
+            true_verts_reversed = self.dynamics.get_true_backprojection_set(
+                backreachable_sets[-1], target_set, 
+                t_max, controller=propagator.network,
+                num_samples=1e8
+            )
+            true_verts = np.flip(true_verts_reversed, axis=1)
+            num_steps = len(backprojection_sets)
+
+
+            for t in range(num_steps):
+                # x_min = np.min(true_verts[:,t+1,:], axis=0)
+                # x_max = np.max(true_verts[:,t+1,:], axis=0)
+
+                # x_range = x_max-x_min
+                # true_area = np.prod(x_range)
+                true_hull = ConvexHull(true_verts[:, t+1, :])
+                true_area = true_hull.volume
+
+                # true_hull = ConvexHull(true_verts[:, t+1, :])
+                # true_area = true_hull.volume
+
+                # Abp, bbp = range_to_polytope(backprojection_sets[t].range)
+                # estimated_verts = pypoman.polygon.compute_polygon_hull(Abp, bbp)
+                estimated_hull = ConvexHull(backprojection_sets[t].vertices)
+                estimated_area = estimated_hull.volume
+                
+                # print('estimated: {} --- true: {}'.format(estimated_area, true_area))
+                # print('estimated range: {} --- true range: {}'.format(backprojection_sets[t].range, x_range))
+
+                
 
                 errors.append((estimated_area - true_area) / true_area)
         else:
