@@ -265,9 +265,9 @@ def main(args):
             t = t_end - t_start
             times[num] = t
             backprojection_sets = input_constraint_list[0]
-            backreachable_sets = [analyzer_info_list[0]['per_timestep'][i]['backreachable_set'] for i in range(int(args.t_max))]
+            # backreachable_sets = [analyzer_info_list[0]['per_timestep'][i]['backreachable_set'] for i in range(int(args.t_max))]
             target_set = output_constraint[0]
-            final_error, avg_error, all_error = analyzer.get_backprojection_error(target_set, backprojection_sets, t_max=args.t_max, backreachable_sets=backreachable_sets)
+            final_error, avg_error, all_error = analyzer.get_backprojection_error(target_set, backprojection_sets, t_max=args.t_max)#, backreachable_sets=backreachable_sets)
 
             final_errors[num] = final_error
             avg_errors[num] = avg_error

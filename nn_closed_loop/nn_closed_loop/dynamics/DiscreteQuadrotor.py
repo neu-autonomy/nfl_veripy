@@ -10,7 +10,7 @@ class DiscreteQuadrotor(DiscreteTimeDynamics):
 
         self.continuous_time = False
 
-        dt = 1
+        dt = 0.1
         At = np.array(
             [
                 [1, 0, 0, dt, 0, 0],

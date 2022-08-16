@@ -352,14 +352,14 @@ class ClosedLoopPartitioner(partitioners.Partitioner):
             num_steps = len(backprojection_sets)
 
             for t in range(num_steps):
-                # x_min = np.min(true_verts[:,t+1,:], axis=0)
-                # x_max = np.max(true_verts[:,t+1,:], axis=0)
+                x_min = np.min(true_verts[:,t+1,:], axis=0)
+                x_max = np.max(true_verts[:,t+1,:], axis=0)
 
-                # x_range = x_max-x_min
-                # true_area = np.prod(x_range)
+                x_range = x_max-x_min
+                true_area = np.prod(x_range)
 
-                true_hull = ConvexHull(true_verts[:, t+1, :])
-                true_area = true_hull.volume
+                # true_hull = ConvexHull(true_verts[:, t+1, :])
+                # true_area = true_hull.volume
 
                 Abp, bbp = range_to_polytope(backprojection_sets[t].range)
                 estimated_verts = pypoman.polygon.compute_polygon_hull(Abp, bbp)
