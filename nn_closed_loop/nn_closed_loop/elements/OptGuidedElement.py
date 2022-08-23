@@ -186,14 +186,19 @@ class OptGuidedElement(GuidedElement):
                     time_info['other'].append(t_end-t_start)
                 
                 # Solve the LP and record the updated element range/if the BP constraints can be satisfied (stored in el.flag)
-                t_start = time.time()
-                prob.solve()
-                t_end = time.time()
-                if time_info is not None:
-                    time_info['bp_lp'].append(t_end-t_start)
+                try:
+                    t_start = time.time()
+                    prob.solve()
+                    t_end = time.time()
+                    if time_info is not None:
+                        time_info['bp_lp'].append(t_end-t_start)
+                    temp = deepcopy(el.ranges.T)
+                    temp[idx] = prob.value
+                except:
+                    el.flag = 'infeasible'
+                    temp = deepcopy(el.ranges.T)
 
-                temp = deepcopy(el.ranges.T)
-                temp[idx] = prob.value
+                
                 el.ranges = temp.T
                 el.flag = prob.status
             

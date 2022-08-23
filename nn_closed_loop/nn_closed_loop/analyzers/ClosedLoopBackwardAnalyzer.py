@@ -359,14 +359,25 @@ class ClosedLoopBackwardAnalyzer(analyzers.Analyzer):
         #             rect = ic.plot(self.partitioner.animate_axes, self.partitioner.input_dims, self.estimated_backprojection_partitioned_set_color, zorder=self.estimated_backprojection_partitioned_set_zorder, linewidth=self.partitioner.linewidth*0.5, plot_2d=self.partitioner.plot_2d)
         #             self.partitioner.default_patches += rect
         
-        # show_backprojection_set_partitions = False
-        # if show_backprojection_set_partitions:
-        #     for info in kwargs.get('per_timestep', []):#[::4]:
-        #         for partition in info.get('bp_set_partitions', None):
-        #             ic = partition
-        #             if ic is None: continue
-        #             rect = ic.plot(self.partitioner.animate_axes, self.partitioner.input_dims, 'm', zorder=10, linewidth=self.partitioner.linewidth*0.75, plot_2d=self.partitioner.plot_2d)
-        #             self.partitioner.default_patches += rect
+        show_backprojection_set_partitions = False
+        if show_backprojection_set_partitions:
+            for step in kwargs.get('per_timestep', []):#[::4]:
+                for info in step:
+                    for partition in info.get('bp_set_partitions', None):
+                        ic = partition
+                        if ic is None: continue
+                        rect = ic.plot(self.partitioner.animate_axes, self.partitioner.input_dims, 'm', zorder=10, linewidth=self.partitioner.linewidth*0.75, plot_2d=self.partitioner.plot_2d)
+                        self.partitioner.default_patches += rect
+
+        import pdb; pdb.set_trace()
+        show_target_partition_bps = True
+        if show_target_partition_bps:
+            for step in kwargs.get('per_timestep', []):#[::4]:
+                for info in step:
+                    ic = info.get('bp_set', None)
+                    if ic is None: continue
+                    rect = ic.plot(self.partitioner.animate_axes, self.partitioner.input_dims, 'm', zorder=10, linewidth=self.partitioner.linewidth*0.75, plot_2d=self.partitioner.plot_2d)
+                    self.partitioner.default_patches += rect
 
         # show_nstep_backprojection_set_partitions = False
         # if show_nstep_backprojection_set_partitions:

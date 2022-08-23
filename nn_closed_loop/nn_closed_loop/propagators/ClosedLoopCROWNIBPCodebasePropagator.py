@@ -1321,8 +1321,8 @@ class ClosedLoopCROWNIBPCodebasePropagator(ClosedLoopPropagator):
             params['lower_sum_b'][0].value = lower_sum_b
             params['upper_sum_b'][0].value = upper_sum_b
             
-            params['xt_min'][0].value = element.ranges[:,0]
-            params['xt_max'][0].value = element.ranges[:,1]
+            params['xt_min'][0].value = element.ranges[:, 0]
+            params['xt_max'][0].value = element.ranges[:, 1]
 
 
         # Solve optimization problem (min and max) for each state
@@ -1359,11 +1359,21 @@ class ClosedLoopCROWNIBPCodebasePropagator(ClosedLoopPropagator):
                 else:
                     params['A_t'].value = A_t_[i, :]
                 t_start = time.time()
-                prob.solve()
-                # prob2.solve()
-                t_end = time.time()
-                info['bp_lp'].append(t_end-t_start)
-                b_[i] = prob.value
+                try:
+                    # TODO: Make this robust to ECOS failure
+                    prob.solve()
+                    # prob2.solve()
+                    t_end = time.time()
+                    info['bp_lp'].append(t_end-t_start)
+                    b_[i] = prob.value
+                    # print(prob.status)
+                except:
+                    print('ECOS failed')
+                    print(collected_input_constraints[0].range)
+                    prob.solve(solver=cp.OSQP, verbose=True)
+                    import pdb; pdb.set_trace()
+                    pass
+                
                 # print('{} vs {}'.format(prob.value, prob2.value))
 
                 # print('status: {}; time: {}'.format(prob.status,t_end-t_start))
