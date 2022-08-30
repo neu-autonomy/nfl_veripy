@@ -1,10 +1,10 @@
 from codecs import backslashreplace_errors
 from copy import deepcopy
 from turtle import back
-import nn_partition.analyzers as analyzers
-import nn_closed_loop.partitioners as partitioners
-import nn_closed_loop.propagators as propagators
-from nn_partition.utils.utils import samples_to_range, get_sampled_outputs
+import nn_partition.nn_partition.analyzers as analyzers
+import nn_closed_loop.nn_closed_loop.partitioners as partitioners
+import nn_closed_loop.nn_closed_loop.propagators as propagators
+from nn_partition.nn_partition.utils.utils import samples_to_range, get_sampled_outputs
 import matplotlib.pyplot as plt
 import numpy as np
 
@@ -369,7 +369,7 @@ class ClosedLoopBackwardAnalyzer(analyzers.Analyzer):
                         rect = ic.plot(self.partitioner.animate_axes, self.partitioner.input_dims, 'm', zorder=10, linewidth=self.partitioner.linewidth*0.75, plot_2d=self.partitioner.plot_2d)
                         self.partitioner.default_patches += rect
 
-        import pdb; pdb.set_trace()
+        # import pdb; pdb.set_trace()
         show_target_partition_bps = True
         if show_target_partition_bps:
             for step in kwargs.get('per_timestep', []):#[::4]:

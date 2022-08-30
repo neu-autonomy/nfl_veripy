@@ -1,9 +1,9 @@
 import numpy as np
 from itertools import product
-from nn_partition.utils.utils import sect
+from nn_partition.nn_partition.utils.utils import sect
 import matplotlib.pyplot as plt
 from matplotlib.patches import Rectangle
-from nn_partition.utils.utils import get_sampled_outputs, samples_to_range
+from nn_partition.nn_partition.utils.utils import get_sampled_outputs, samples_to_range
 import os
 import time
 import imageio

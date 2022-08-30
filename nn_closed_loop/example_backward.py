@@ -1,10 +1,10 @@
-from nn_closed_loop.constraints.ClosedLoopConstraints import LpConstraint
+from nn_closed_loop.nn_closed_loop.constraints.ClosedLoopConstraints import LpConstraint
 import numpy as np
-import nn_closed_loop.dynamics as dynamics
-import nn_closed_loop.analyzers as analyzers
-import nn_closed_loop.constraints as constraints
-from nn_closed_loop.utils.nn import load_controller
-from nn_closed_loop.utils.utils import range_to_polytope, plot_time_data
+import nn_closed_loop.nn_closed_loop.dynamics as dynamics
+import nn_closed_loop.nn_closed_loop.analyzers as analyzers
+import nn_closed_loop.nn_closed_loop.constraints as constraints
+from nn_closed_loop.nn_closed_loop.utils.nn import load_controller
+from nn_closed_loop.nn_closed_loop.utils.utils import range_to_polytope, plot_time_data
 import os
 import argparse
 

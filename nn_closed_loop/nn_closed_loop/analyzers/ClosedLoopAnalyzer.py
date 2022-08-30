@@ -1,8 +1,8 @@
 from matplotlib.pyplot import plot
-import nn_partition.analyzers as analyzers
-import nn_closed_loop.partitioners as partitioners
-import nn_closed_loop.propagators as propagators
-from nn_partition.utils.utils import samples_to_range, get_sampled_outputs
+import nn_partition.nn_partition.analyzers as analyzers
+import nn_closed_loop.nn_closed_loop.partitioners as partitioners
+import nn_closed_loop.nn_closed_loop.propagators as propagators
+from nn_partition.nn_partition.utils.utils import samples_to_range, get_sampled_outputs
 import matplotlib.pyplot as plt
 
 # plt.rcParams['mathtext.fontset'] = 'stix'

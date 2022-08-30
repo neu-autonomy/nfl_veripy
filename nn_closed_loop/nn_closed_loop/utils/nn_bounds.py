@@ -1,6 +1,6 @@
 import torch
 import numpy as np
-from crown_ibp.bound_layers import BoundSequential
+from crown_ibp.crown_ibp.bound_layers import BoundSequential
 import cvxpy as cp
 
 import logging
@@ -29,7 +29,7 @@ class BoundClosedLoopController(BoundSequential):
             # Borrowing brilliant idea from Reach-SDP paper to add 2 ReLUs
             # to handle control limits
 
-            from crown_ibp.bound_layers import BoundReLU, BoundLinear
+            from crown_ibp.crown_ibp.bound_layers import BoundReLU, BoundLinear
             from copy import deepcopy
 
             # To ensure CROWN doesn't exceed the control limits below

@@ -1,9 +1,9 @@
 from random import randrange
 from tkinter.tix import InputOnly
 import numpy as np
-import nn_partition.propagators as propagators
+import nn_partition.nn_partition.propagators as propagators
 from copy import deepcopy
-import nn_closed_loop.constraints as constraints
+import nn_closed_loop.nn_closed_loop.constraints as constraints
 from itertools import product
 
 from torch.multiprocessing import Pool

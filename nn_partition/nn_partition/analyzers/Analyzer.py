@@ -1,7 +1,7 @@
 import matplotlib.pyplot as plt
-from nn_partition.utils.utils import get_sampled_outputs, samples_to_range
-import nn_partition.partitioners as partitioners
-import nn_partition.propagators as propagators
+from nn_partition.nn_partition.utils.utils import get_sampled_outputs, samples_to_range
+import nn_partition.nn_partition.partitioners as partitioners
+import nn_partition.nn_partition.propagators as propagators
 import inspect
 from scipy.spatial import ConvexHull
 import time
