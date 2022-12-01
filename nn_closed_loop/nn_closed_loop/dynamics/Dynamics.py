@@ -171,14 +171,17 @@ class Dynamics:
         start_pts = [np.mean(start_region, axis=1) for start_region in start_regions]
         points = deepcopy([start_pts])
         t_max = len(bp_sets)-1
-        # import pdb; pdb.set_trace()
+        
         for i in range(t_max):
+            # import pdb; pdb.set_trace()
             upper_A, lower_A, upper_sum_b, lower_sum_b = crown_bounds[i]
             print(upper_A)
             print(lower_A)
             print(upper_sum_b)
             print(lower_sum_b)
             while len(points[-1]) <= i+1:
+                # print(i)
+                # print(len(points[-1]))  
                 pt_sequence = points.pop()
                 pt = pt_sequence[-1]
                 
@@ -262,10 +265,10 @@ class Dynamics:
                 zorder=zorder,
             )
 
-        ax.set_xlabel("$x_" + str(input_dims[0][0]) + "$")
-        ax.set_ylabel("$x_" + str(input_dims[1][0]) + "$")
-        if len(input_dims) == 3:
-            ax.set_zlabel("$x_" + str(input_dims[2][0]) + "$")
+        # ax.set_xlabel("$x_" + str(input_dims[0][0]) + "$")
+        # ax.set_ylabel("$x_" + str(input_dims[1][0]) + "$")
+        # if len(input_dims) == 3:
+        #     ax.set_zlabel("$x_" + str(input_dims[2][0]) + "$")
 
         if save_plot:
             ax.savefig(plot_name)
@@ -311,7 +314,7 @@ class Dynamics:
 
         
         orange = Color("orange")
-        colors = list(orange.range_to(Color("purple"),num_timesteps))
+        colors = list(orange.range_to(Color("purple"),num_timesteps-1))
         # import pdb; pdb.set_trace()
         for traj in range(num_runs):
             if len(input_dims) == 2:

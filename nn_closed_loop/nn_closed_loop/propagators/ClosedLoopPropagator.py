@@ -101,8 +101,8 @@ class ClosedLoopPropagator(propagators.Propagator):
             # import pdb; pdb.set_trace()
         else:
             # num_partitions_ = num_partitions
-            # num_partitions_ = np.array([2, 1, 1, 1, 1, 1])
-            num_partitions_ = np.array([8,8])
+            # num_partitions_ = np.array([1, 1, 1, 1, 1, 1])
+            num_partitions_ = np.array([1,1])
         input_shape = output_constraint.range.shape[:-1]
         slope = np.divide(
             (output_constraint.range[..., 1] - output_constraint.range[..., 0]), num_partitions_
@@ -111,13 +111,13 @@ class ClosedLoopPropagator(propagators.Propagator):
         for el in product(*[range(int(num)) for num in num_partitions_.flatten()]):
         
             oc_ = np.array(el).reshape(input_shape)
-            output_range_ = np.empty_like(output_constraint.range)
+            output_range_ = np.empty_like(output_constraint.range, dtype=float)
             output_range_[..., 0] = output_constraint.range[..., 0] + np.multiply(
                 oc_, slope
             )
             output_range_[..., 1] = output_constraint.range[..., 0] + np.multiply(
                 oc_ + 1, slope
-            )
+            )   
             oc = constraints.LpConstraint(range=output_range_)
 
             element_list.append(oc)
@@ -133,7 +133,7 @@ class ClosedLoopPropagator(propagators.Propagator):
         # import pdb; pdb.set_trace()
         parallel = False
         if parallel: 
-            with Pool() as p:
+            with Pool(6) as p:
                 partitioned_list = p.starmap(self.get_single_element_backprojection_set, arg_list)
 
                 input_constraints_ = [partitioned_list[i][0] for i in range(len(partitioned_list))]

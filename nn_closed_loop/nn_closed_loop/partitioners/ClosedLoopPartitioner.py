@@ -172,13 +172,13 @@ class ClosedLoopPartitioner(partitioners.Partitioner):
             aspect = "auto"
 
         self.animate_fig, self.animate_axes = plt.subplots(1, 1, subplot_kw=dict(projection=projection))
-        # if controller_name is not None:
-        #     from nn_closed_loop.utils.controller_generation import display_ground_robot_control_field
-        #     display_ground_robot_control_field(name=controller_name,ax=self.animate_axes)
-
         if controller_name is not None:
-            from nn_closed_loop.utils.controller_generation import display_ground_robot_DI_control_field
-            display_ground_robot_DI_control_field(name=controller_name,ax=self.animate_axes)
+            from nn_closed_loop.utils.controller_generation import display_ground_robot_control_field
+            display_ground_robot_control_field(name=controller_name,ax=self.animate_axes)
+
+        # if controller_name is not None:
+        #     from nn_closed_loop.utils.controller_generation import display_ground_robot_DI_control_field
+        #     display_ground_robot_DI_control_field(name=controller_name,ax=self.animate_axes)
 
         self.animate_axes.set_aspect(aspect)
 
@@ -217,6 +217,7 @@ class ClosedLoopPartitioner(partitioners.Partitioner):
         # self.default_patches += rect
         # input_constraint.plot(self.animate_axes)
         if isinstance(input_constraint, constraints.LpConstraint) or isinstance(input_constraint, constraints.PolytopeConstraint):
+            # import pdb; pdb.set_trace()
             input_constraint.plot(self.animate_axes, input_dims, extra_set_color, zorder=extra_set_zorder, linewidth=self.linewidth, plot_2d=self.plot_2d)
         elif isinstance(input_constraint, constraints.RotatedLpConstraint):
             input_constraint.plot(self.animate_axes)

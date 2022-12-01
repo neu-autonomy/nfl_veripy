@@ -1,5 +1,6 @@
 from codecs import backslashreplace_errors
 from copy import deepcopy
+from re import S
 from turtle import back
 import nn_partition.analyzers as analyzers
 import nn_closed_loop.partitioners as partitioners
@@ -18,7 +19,7 @@ class ClosedLoopBackwardAnalyzer(analyzers.Analyzer):
         self.dynamics = dynamics
         analyzers.Analyzer.__init__(self, torch_model=torch_model)
 
-        self.true_backprojection_set_color = 'darkgreen'
+        self.true_backprojection_set_color = 'k'#'darkgreen'
         self.estimated_backprojection_set_color = 'tab:blue'
         self.estimated_one_step_backprojection_set_color = 'tab:orange'
         self.estimated_backprojection_partitioned_set_color = 'tab:gray'
@@ -183,7 +184,12 @@ class ClosedLoopBackwardAnalyzer(analyzers.Analyzer):
         show_BReach=False,
         **kwargs
     ):
-        
+        # import pdb; pdb.set_trace()
+        # if inputs_to_highlight is None:
+        #     inputs_to_highlight=[
+        #         {"dim": [0], "name": "$x$"},
+        #         {"dim": [1], "name": "$\dot{x}$"},
+        #     ]  
 
         # import nn_closed_loop.constraints as constraints
         # from nn_closed_loop.utils.utils import range_to_polytope
@@ -254,34 +260,41 @@ class ClosedLoopBackwardAnalyzer(analyzers.Analyzer):
         # import matplotlib as mpl
         # from mpl_toolkits.axes_grid1 import make_axes_locatable
         # divider = make_axes_locatable(plt.gca())
-        # ax_cb = divider.append_axes("right", size="5%", pad=0.05)
+        # # ax_cb = divider.append_axes("right", size="50%", pad=0.05)
+        # ax_cb = divider.new_horizontal(size="5%", pad=0.05)
         # # cax = self.partitioner.animate_fig.add_axes([0.9, 0, 0.05, 1])
         # cmap = mpl.colors.LinearSegmentedColormap.from_list("", [color.hex for color in colors])
         # cb1 = mpl.colorbar.ColorbarBase(ax_cb, cmap=cmap, orientation='vertical', label='t (s)', values=range(len(input_constraints)))
         
         # plt.gcf().add_axes(ax_cb)
 
-        # # import pdb; pdb.set_trace()
+        # import pdb; pdb.set_trace()
         # import numpy as np
-        # # start_region = np.array(
-        # #     [
-        # #         [-2.2200, -2.1542],
-        # #         [0.6297, 0.6935]
-        # #     ]
-        # # )
         # start_region = np.array(
         #     [
-        #         [-2.3754, -2.2702],
-        #         [0.5622, 0.6644]
+        #         [-2.2200, -2.1542],
+        #         [0.6297, 0.6935]
         #     ]
         # )
+        # # start_region = np.array(
+        # #     [
+        # #         [-2.3754, -2.2702],
+        # #         [0.5622, 0.6644]
+        # #     ]
+        # # )
+        # # start_region = np.array(
+        # #     [
+        # #         [-1.8, -1.75],
+        # #         [0.5622, 0.6644]
+        # #     ]
+        # # )
         # crown_bounds = []
-        # for info in kwargs.get('per_timestep', []):
-        #     crown_bounds.append((info.get('upper_A', None), info.get('lower_A', None), info.get('upper_sum_b', None), info.get('lower_sum_b', None)))
+        # for step in kwargs.get('per_timestep', []):
+        #     for info in step:
+        #         crown_bounds.append((info.get('upper_A', None), info.get('lower_A', None), info.get('upper_sum_b', None), info.get('lower_sum_b', None)))
         # crown_bounds.reverse()
 
-        
-        # self.plot_relaxed_sequence([start_region], input_constraints[0:], crown_bounds, output_constraint, marker="*")
+        # self.plot_relaxed_sequence([start_region], input_constraints[0:], crown_bounds, output_constraint, marker="^")
 
         # start_region = np.array(
         #     [
@@ -289,7 +302,6 @@ class ClosedLoopBackwardAnalyzer(analyzers.Analyzer):
         #         [0.5625, 0.6643]
         #     ]
         # )
-
         # self.plot_relaxed_sequence([start_region], input_constraints[0:], crown_bounds, output_constraint, marker='s')
 
         # Plot all our input constraints (i.e., our backprojection set estimates)
@@ -329,7 +341,6 @@ class ClosedLoopBackwardAnalyzer(analyzers.Analyzer):
             except:
                 print('faileeddd')
                 pass
-
         # # If they exist, plot all our loose input constraints (i.e., our one-step backprojection set estimates)
         # # TODO: Make plotting these optional via a flag
         # if show_BReach:
@@ -341,42 +352,44 @@ class ClosedLoopBackwardAnalyzer(analyzers.Analyzer):
 
 
         # # TODO: pass these as flags
-        # show_backreachable_set = False
-        # if show_backreachable_set:
-        #     # import pdb; pdb.set_trace()
-        #     for info in kwargs.get('per_timestep', []):#[::5]:
-        #         ic = info.get('backreachable_set', None)
-        #         if ic is None: continue
-        #         rect = ic.plot(self.partitioner.animate_axes, self.partitioner.input_dims, self.backreachable_set_color, zorder=self.backreachable_set_zorder, linewidth=self.partitioner.linewidth, plot_2d=self.partitioner.plot_2d)
-        #         self.partitioner.default_patches += rect
+        show_backreachable_set = False
+        if show_backreachable_set:
+            # import pdb; pdb.set_trace()
+            for step in kwargs.get('per_timestep', [])[::4]:
+                for info in step:
+                    ic = info.get('backreachable_set', None)
+                    if ic is None: continue
+                    rect = ic.plot(self.partitioner.animate_axes, self.partitioner.input_dims, self.backreachable_set_color, zorder=self.backreachable_set_zorder, linewidth=self.partitioner.linewidth, plot_2d=self.partitioner.plot_2d)
+                    self.partitioner.default_patches += rect
 
-        # show_backreachable_set_partitions = False
-        # if show_backreachable_set_partitions:
-        #     for info in kwargs.get('per_timestep', []):#[::4]:
-        #         for partition in info.get('br_set_partitions', None):
-        #             ic = partition
-        #             if ic is None: continue
-        #             rect = ic.plot(self.partitioner.animate_axes, self.partitioner.input_dims, self.estimated_backprojection_partitioned_set_color, zorder=self.estimated_backprojection_partitioned_set_zorder, linewidth=self.partitioner.linewidth*0.5, plot_2d=self.partitioner.plot_2d)
-        #             self.partitioner.default_patches += rect
+        show_backreachable_set_partitions = False
+        if show_backreachable_set_partitions:
+            for step in [kwargs.get('per_timestep', [])[1]]:
+                for info in step:
+                    for partition in info.get('br_set_partitions', None):
+                        ic = partition
+                        if ic is None: continue
+                        rect = ic.plot(self.partitioner.animate_axes, self.partitioner.input_dims, self.estimated_backprojection_partitioned_set_color, zorder=self.estimated_backprojection_partitioned_set_zorder, linewidth=self.partitioner.linewidth*0.5, plot_2d=self.partitioner.plot_2d)
+                        self.partitioner.default_patches += rect
         
         show_backprojection_set_partitions = False
         if show_backprojection_set_partitions:
-            for step in kwargs.get('per_timestep', []):#[::4]:
+            for step in kwargs.get('per_timestep', [])[::4]:
                 for info in step:
                     for partition in info.get('bp_set_partitions', None):
                         ic = partition
                         if ic is None: continue
-                        rect = ic.plot(self.partitioner.animate_axes, self.partitioner.input_dims, 'm', zorder=10, linewidth=self.partitioner.linewidth*0.75, plot_2d=self.partitioner.plot_2d)
+                        rect = ic.plot(self.partitioner.animate_axes, self.partitioner.input_dims, 'grey', zorder=11, linewidth=self.partitioner.linewidth*0.3, plot_2d=self.partitioner.plot_2d)
                         self.partitioner.default_patches += rect
 
-        import pdb; pdb.set_trace()
-        show_target_partition_bps = True
+        # import pdb; pdb.set_trace()
+        show_target_partition_bps = False
         if show_target_partition_bps:
-            for step in kwargs.get('per_timestep', []):#[::4]:
+            for step in kwargs.get('per_timestep', [])[::4]:
                 for info in step:
                     ic = info.get('bp_set', None)
                     if ic is None: continue
-                    rect = ic.plot(self.partitioner.animate_axes, self.partitioner.input_dims, 'm', zorder=10, linewidth=self.partitioner.linewidth*0.75, plot_2d=self.partitioner.plot_2d)
+                    rect = ic.plot(self.partitioner.animate_axes, self.partitioner.input_dims, 'm', zorder=10, linewidth=self.partitioner.linewidth*0.82, plot_2d=self.partitioner.plot_2d)
                     self.partitioner.default_patches += rect
 
         # show_nstep_backprojection_set_partitions = False
@@ -506,6 +519,19 @@ class ClosedLoopBackwardAnalyzer(analyzers.Analyzer):
         #     plt.close()
         # self.partitioner.animate_axes.set_xlim([-17.2, 3])
         # self.partitioner.animate_axes.set_ylim([-7.2, 7.2])
+
+
+        # from colour import Color
+        # orange = Color("orange")
+        # colors = list(orange.range_to(Color("purple"),len(input_constraints)))
+        # import matplotlib as mpl
+        # from mpl_toolkits.axes_grid1 import make_axes_locatable
+        # divider = make_axes_locatable(plt.gca())
+        # ax_cb = divider.append_axes("right", size="5%", pad=0.05)
+        # # cax = self.partitioner.animate_fig.add_axes([0.9, 0, 0.05, 1])
+        # cmap = mpl.colors.LinearSegmentedColormap.from_list("", [color.hex for color in colors])
+        # cb1 = mpl.colorbar.ColorbarBase(ax_cb, cmap=cmap, orientation='vertical', label='t (s)', values=range(len(input_constraints)))
+        # plt.gcf().add_axes(ax_cb)
 
     def get_sampled_outputs(self, input_range, N=1000):
         return get_sampled_outputs(input_range, self.propagator, N=N)
@@ -653,6 +679,7 @@ class ClosedLoopBackwardAnalyzer(analyzers.Analyzer):
                 xs=x_samples_inside_backprojection_set, # np.dstack([x_samples_inside_backprojection_set, xt1_from_those_samples_]).transpose(0, 2, 1),
                 colors=None
             )
+            print(self.partitioner.animate_axes.get_ylabel())
 
             # Show samples from inside the backreachable set and their futures under the NN (don't necessarily end in target set)
             # self.partitioner.dynamics.show_samples(
@@ -698,7 +725,7 @@ class ClosedLoopBackwardAnalyzer(analyzers.Analyzer):
                 y.append(point[1])
         
         # import pdb; pdb.set_trace()
-        ax[0].scatter(x, y, s=20, zorder=15, c='k', marker=marker)
+        ax[0].scatter(x, y, s=40, zorder=15, c='k', marker=marker)
 
 
 

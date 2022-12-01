@@ -351,9 +351,11 @@ class ErrorVsPartitions(Experiment):
 
             
             all_errors = group['final_step_error']
-            # import pdb; pdb.set_trace()
+
             all_runtimes = group['avg_runtime']
             label = self.info[prop_part_tuple]['name']
+
+            import pdb; pdb.set_trace()
             # replace citation with the ref number in this plot
             # label = label.replace('~\\cite{hu2020reach}', ' [22]')
             

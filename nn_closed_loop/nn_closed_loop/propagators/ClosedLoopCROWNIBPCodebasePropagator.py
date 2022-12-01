@@ -505,7 +505,7 @@ class ClosedLoopCROWNIBPCodebasePropagator(ClosedLoopPropagator):
             for el in product(*[range(int(num)) for num in num_partitions.flatten()]):
                 t_start = time.time()
                 element_ = np.array(el).reshape(input_shape)
-                input_range_ = np.empty_like(br_set_element.ranges)
+                input_range_ = np.empty_like(br_set_element.ranges, dtype=float)
                 input_range_[..., 0] = br_set_element.ranges[..., 0] + np.multiply(
                     element_, slope
                 )

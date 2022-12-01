@@ -9,6 +9,7 @@ class DoubleIntegrator(DiscreteTimeDynamics):
 
         self.continuous_time = False
 
+        # dt = 0.125
         dt = 1
 
         At = np.array([[1, dt], [0, 1]])

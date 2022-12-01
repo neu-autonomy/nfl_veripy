@@ -36,6 +36,10 @@ def main(args):
                 ast.literal_eval(args.final_state_range)
             )
     elif args.system == "ground_robot":
+        inputs_to_highlight = [
+            {"dim": [0], "name": "$p_x$ (m)"},
+            {"dim": [1], "name": "$p_y$ (m)"},
+        ]
         if args.state_feedback:
             dyn = dynamics.GroundRobotSI()
         else:
@@ -75,9 +79,9 @@ def main(args):
             )
     elif args.system == "discrete_quadrotor":
         inputs_to_highlight = [
-            {"dim": [0], "name": "$x$"},
-            {"dim": [1], "name": "$y$"},
-            {"dim": [2], "name": "$z$"},
+            {"dim": [0], "name": "$p_x\ \mathrm{(m)}$"},
+            {"dim": [1], "name": "$p_y\ \mathrm{(m)}$"},
+            {"dim": [2], "name": "$p_z\ \mathrm{(m)}$"},
         ]
         if args.state_feedback:
             dyn = dynamics.DiscreteQuadrotor()
@@ -373,7 +377,7 @@ def main(args):
             inputs_to_highlight=inputs_to_highlight,
             show=args.show_plot,
             labels=args.plot_labels,
-            aspect=args.plot_aspect,
+            aspect=args.plot_aspect,#2.82
             plot_lims=args.plot_lims,
             initial_constraint=[init_constraint],
             controller_name=controller_name,
