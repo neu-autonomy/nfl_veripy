@@ -1,5 +1,5 @@
 from .Propagator import Propagator
-import nn_partition.utils.utils
+import nn_partition.nn_partition.utils.utils
 import numpy as np
 import torch
 
@@ -9,7 +9,7 @@ import torch
 
 # Suppress autoLIRPA logging info...
 import logging
-from auto_LiRPA.utils import logger
+from auto_LiRPA.auto_LiRPA.utils import logger
 
 logger.setLevel(logging.WARNING)
 

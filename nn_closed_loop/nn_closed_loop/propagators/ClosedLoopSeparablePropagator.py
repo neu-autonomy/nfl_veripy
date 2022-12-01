@@ -2,12 +2,12 @@ from .ClosedLoopPropagator import ClosedLoopPropagator
 from .ClosedLoopCROWNIBPCodebasePropagator import ClosedLoopCROWNPropagator
 import numpy as np
 import pypoman
-import nn_closed_loop.constraints as constraints
+import nn_closed_loop.nn_closed_loop.constraints as constraints
 import torch
-from nn_closed_loop.utils.utils import range_to_polytope
+from nn_closed_loop.nn_closed_loop.utils.utils import range_to_polytope
 import cvxpy as cp
 from itertools import product
-import nn_partition.analyzers as analyzers
+import nn_partition.nn_partition.analyzers as analyzers
 
 
 class ClosedLoopSeparablePropagator(ClosedLoopPropagator):
