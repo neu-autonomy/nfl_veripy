@@ -132,15 +132,6 @@ def main(args):
             ast.literal_eval(args.num_partitions)
         )
 
-    if args.init_state_range is None:
-        init_constraint = None
-    else:
-        import ast
-        init_state_range = np.array(
-            ast.literal_eval(args.init_state_range)
-        )
-        init_constraint = LpConstraint(init_state_range)
-
     partitioner_hyperparams = {
         "type": args.partitioner,
         "num_partitions": num_partitions,
@@ -156,7 +147,7 @@ def main(args):
         model_name=args.controller,
     )
 
-    controller_name=None
+    controller_name = None
     if args.show_policy:
         controller_name = vars(args)['controller']
 
@@ -174,7 +165,7 @@ def main(args):
         # )
         # input_constraint = constraints.PolytopeConstraint(None, None)
         # output_constraint = [output_constraint1]
-    elif args.boundaries == "lp":
+    elif args.boundaries == "rectangle":
         target_set = constraints.LpConstraint(
             range=final_state_range, p=np.inf
         )
@@ -201,20 +192,6 @@ def main(args):
             t = t_end - t_start
             times[num] = t
 
-            # import pdb; pdb.set_trace()
-            # if 'tightened_overapprox' in analyzer_info[0]['per_timestep'][-1]:
-            #     backprojection_sets = [i['tightened_overapprox'] for i in analyzer_info[0]['per_timestep']]
-            # else:
-            #     backprojection_sets = [i['backproj_overapprox'] for i in analyzer_info[0]['per_timestep']]
-            # backprojection_sets = input_constraint_list[0]
-            # target_set = output_constraint[0]
-            # final_error, avg_error, all_error = analyzer.get_backprojection_error(target_set, backprojection_sets, t_max=args.t_max)
-
-            # final_errors[num] = final_error
-            # avg_errors[num] = avg_error
-            # all_errors[num] = all_error
-            # all_backprojection_sets[num] = output_constraint
-
         stats['runtimes'] = times
         stats['final_step_errors'] = final_errors
         stats['avg_errors'] = avg_errors
@@ -232,10 +209,7 @@ def main(args):
         
     controller_name=None
     if args.show_policy:
-            controller_name = vars(args)['controller']
-    # print(input_constraint.A, input_constraint.b)
-    # error, avg_error = analyzer.get_error(input_constraint,output_constraint, t_max=args.t_max)
-    # print('Final step approximation error:{:.2f}\nAverage approximation error: {:.2f}'.format(error, avg_error))
+        controller_name = vars(args)['controller']
 
     if args.save_plot:
         save_dir = "{}/results/examples_backward/".format(
@@ -294,7 +268,15 @@ def main(args):
                 analyzer_info["save_name"] + "_" + pars2
             )
         analyzer_info["save_name"] = analyzer_info["save_name"] + ".png"
-    # import pdb; pdb.set_trace()
+
+    if args.init_state_range is None:
+        init_constraint = None
+    else:
+        import ast
+        init_state_range = np.array(
+            ast.literal_eval(args.init_state_range)
+        )
+        init_constraint = LpConstraint(init_state_range)
 
     if args.show_plot or args.save_plot:
         analyzer.visualize(
@@ -374,9 +356,9 @@ def setup_parser():
     )
     parser.add_argument(
         "--boundaries",
-        default="lp",
-        choices=["lp", "polytope"],
-        help="what shape of convex set to bound reachable sets (default: lp)",
+        default="rectangle",
+        choices=["rectangle", "polytope"],
+        help="what shape of convex set to bound reachable sets (default: rectangle)",
     )
     parser.add_argument(
         "--num_polytope_facets",
@@ -479,7 +461,6 @@ def setup_parser():
         action="store_true",
         help="Show convex hulls of true backprojection sets"
     )
-    parser.set_defaults(show_convex_hulls=True)
 
     return parser
 

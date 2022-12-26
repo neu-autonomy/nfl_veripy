@@ -4,4 +4,5 @@ python -m nn_closed_loop.example \
 	--system double_integrator \
 	--state_feedback \
 	--t_max 2 \
+	--show_samples \
 	--skip_show_plot

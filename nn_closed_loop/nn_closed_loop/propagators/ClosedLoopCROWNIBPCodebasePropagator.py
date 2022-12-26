@@ -229,7 +229,7 @@ class ClosedLoopCROWNIBPCodebasePropagator(ClosedLoopPropagator):
         constrs += [self.dynamics.dynamics_step(xt, ut) <= target_sets[-1].range[:, 1]]
         constrs += [self.dynamics.dynamics_step(xt, ut) >= target_sets[-1].range[:, 0]]
 
-        b, status = optimize_over_all_states(num_states, xt, constrs)
+        b, status = optimize_over_all_states(xt, constrs)
 
         backprojection_set = optimization_results_to_backprojection_set(
             status, b, backreachable_set
@@ -801,7 +801,7 @@ class ClosedLoopCROWNRefinedPropagator(ClosedLoopCROWNPropagator):
         for t in range(num_steps):
             constrs += [self.dynamics.dynamics_step(xt[:, t], ut[:, t]) == xt[:, t+1]]
 
-        b, status = optimize_over_all_states(num_states, xt[:, 0], constrs)
+        b, status = optimize_over_all_states(xt[:, 0], constrs)
 
         backprojection_set = optimization_results_to_backprojection_set(
             status, b, backreachable_set

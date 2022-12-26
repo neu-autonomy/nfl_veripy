@@ -343,7 +343,7 @@ def main(args):
         )
         output_constraint = constraints.PolytopeConstraint(A_out)
         back_output_constraint = [None]
-    elif args.boundaries == "lp":
+    elif args.boundaries == "rectangle":
         input_constraint = constraints.LpConstraint(
             range=init_state_range, p=np.inf
         )
@@ -489,134 +489,6 @@ def main(args):
             **analyzer_info
         )
 
-    if args.include_backward:
-        # import pdb; pdb.set_trace()
-        # final_state_range = output_constraint.range[-1]
-        # final_state_range = np.array(
-        #     [
-        #         [-7, -6.5],
-        #         [-0.5, 0.5]
-        #     ]
-        # )
-        # final_state_range = np.array(
-        #     [
-        #         [-1, 1],
-        #         [-1, 1]
-        #     ]
-        # )
-        # final_state_range = np.array(
-        #         [  # (num_inputs, 2)
-        #             [4.5, 5.0],  # x0min, x0max
-        #             [-0.25, 0.25],  # x1min, x1max
-        #         ]
-        #     )
-        # final_state_range = np.array(
-        #         [
-        #             [ 4.91619968,  4.53423548,  2.36018491, -0.11017013, -1.06671727, -3.92222357],
-        #             [ 5.02522087,  4.64494753,  2.46865058, -0.08676434, -1.03767562, -3.89723158]
-        #         ]
-        #     ).T
-        # final_state_range = np.array(
-        #         [  # (num_inputs, 2)
-        #             [4.65, 4.65, 2.95, 0.94, -0.01, -0.01],
-        #             [4.75, 4.75, 3.05, 0.96, 0.01, 0.01],
-        #         ]
-        #     ).T
-        # final_state_range = np.array(
-        #         [  # (num_inputs, 2)
-        #             [5.58999968, 4.63999987, 2.94000006, 0.70083475, -0.31463686, -9.74409199],
-        #             [5.70999956, 4.75999975, 3.05999994, 0.75489312, -0.20422009, -9.71696091],
-        #         ]
-        #     ).T
-        # final_state_range = np.array(
-        #     [
-        #         [ 4.74399948,  4.84599972],
-        #         [ 4.64899969,  4.75099993],
-        #         [ 2.94900012,  3.05099988],
-        #         [ 0.91608346,  0.93948931],
-        #         [-0.04046369, -0.01142201],
-        #         [-0.98340923, -0.96269608],
-        #     ]
-        # )
-        # final_state_range = np.array(
-        #     [  # (num_inputs, 2)
-        #         [-0.25, 0.5-0.25, 1, -0.2, -0.2, -0.2],
-        #         [0.25, 0.5+0.25, 4, 0.2, 0.2, 0.2],
-        #     ]
-        # ).T
-
-        # final_state_range = np.array(
-        #     [  # (num_inputs, 2)
-        #         [-0.25, -0.25, 2, -0.01, -0.01, -0.01],
-        #         [0.25, 0.25, 2.5, 0.01, 0.01, 0.01],
-        #     ]
-        # ).T
-
-        # final_state_range = np.array(
-        #     [  # (num_inputs, 2)
-        #         [-0.25, 0.25],  # x0min, x0max
-        #         [-0.25, 0.25],  # x1min, x1max
-        #         [0.99,1.01],
-        #         [1.254,1.260]
-        #     ]
-        # )
-        # final_state_range = np.array(
-        #     [  # (num_inputs, 2)
-        #         [-0.25, 0.25],  # x0min, x0max
-        #         [-0.25, 0.25],  # x1min, x1max
-        #         [-0.5, 0.5],
-        #         [-0.01, 0.01]
-        #     ]
-        # )
-        # num_partitions = 1*np.array([1, 1, 1, 1, 1, 1])
-        # num_partitions = 1*np.array([4,4])
-        # num_partitions = 1*np.array([1, 1, 1, 1])
-        
-        back_analyzer = analyzers.ClosedLoopBackwardAnalyzer(controller, dyn)
-        back_analyzer.partitioner = partitioner_hyperparams
-        # import pdb; pdb.set_trace()
-        back_analyzer.propagator = propagator_hyperparams
-        
-        # A_out, b_out = range_to_polytope(final_state_range)
-        # back_output_constraint = constraints.PolytopeConstraint(
-        #     A=A_out, b=[b_out]
-        # )
-        # back_input_constraint = constraints.PolytopeConstraint(None, None)
-
-        import time
-        # back_output_constraint = [constraints.LpConstraint(range=final_state_range, p=np.inf)]
-        # back_input_constraint = constraints.LpConstraint(p=np.inf)
-        t_start = time.time()
-        back_input_constraint_list, back_analyzer_info_list = back_analyzer.get_backprojection_set(
-            back_output_constraint, back_input_constraint, t_max=args.t_max, num_partitions=num_partitions, overapprox=True
-        )
-        t_end = time.time()
-        print(t_end - t_start)
-        # import pdb; pdb.set_trace()
-        # print(back_analyzer_info[])
-        # args.plot_lims = np.array([[-6, 1],[-4, 4]])
-        # import pdb; pdb.set_trace()
-        back_analyzer.visualize(
-            back_input_constraint_list,
-            back_output_constraint,
-            back_analyzer_info_list,
-            show_samples=args.show_samples,
-            show_trajectories=args.show_trajectories,
-            show=args.show_plot,
-            labels=args.plot_labels,
-            aspect=args.plot_aspect,
-            inputs_to_highlight=inputs_to_highlight,
-            plot_lims=args.plot_lims,
-            initial_constraint=[input_constraint],
-            controller_name=controller_name,
-            show_BReach=args.show_BReach
-        )
-
-
-        # back_stats, back_analyzer_info = os.system(
-        #     "python -m example_backward --partitioner None --propagator CROWN --system ground_robot --controller linear_controller30x2 --state_feedback --show_plot --boundaries polytope --overapprox --t_max {} --final_state_range{}".format(args.t_max, final_state_tuple)
-        # )
-
     return stats, analyzer_info
 
 
@@ -685,9 +557,9 @@ def setup_parser():
     )
     parser.add_argument(
         "--boundaries",
-        default="lp",
-        choices=["lp", "polytope"],
-        help="what shape of convex set to bound reachable sets (default: lp)",
+        default="rectangle",
+        choices=["rectangle", "polytope"],
+        help="what shape of convex set to bound reachable sets (default: rectangle)",
     )
     parser.add_argument(
         "--num_polytope_facets",

@@ -290,13 +290,13 @@ class ClosedLoopBackwardAnalyzer(analyzers.Analyzer):
 
         # If they exist, plot all our loose input constraints (i.e., our one-step backprojection set estimates)
         # TODO: Make plotting these optional via a flag
-        if show_BReach:
-            raise NotImplementedError
-            for info in kwargs.get('per_timestep', []):
-                ic = info.get('one_step_backprojection_overapprox', None)
-                if ic is None: continue
-                rect = ic.plot(self.partitioner.animate_axes, self.partitioner.input_dims, self.estimated_one_step_backprojection_set_color, zorder=self.estimated_one_step_backprojection_set_zorder, linewidth=self.partitioner.linewidth, plot_2d=self.partitioner.plot_2d)
-                self.partitioner.default_patches += rect
+        # if show_BReach:
+        #     raise NotImplementedError
+        #     for info in kwargs.get('per_timestep', []):
+        #         ic = info.get('one_step_backprojection_overapprox', None)
+        #         if ic is None: continue
+        #         rect = ic.plot(self.partitioner.animate_axes, self.partitioner.input_dims, self.estimated_one_step_backprojection_set_color, zorder=self.estimated_one_step_backprojection_set_zorder, linewidth=self.partitioner.linewidth, plot_2d=self.partitioner.plot_2d)
+        #         self.partitioner.default_patches += rect
 
         # Sketchy workaround to trajectories not showing up
         if show_trajectories and initial_constraint is not None:
