@@ -1,5 +1,6 @@
 ## Updates
 
+- **2022-06-20:** Add new backprojection code from [`BReach-LP` paper](https://arxiv.org/abs/2204.08319). More info [here](/docs/_static/cdc22/cdc22.md)
 - **2022-05-09:** Add new N-Step `ClosedLoopPropagator`. Rather than recursively computing reachable sets (suffers from the wrapping effect), we see improved performance by solving an LP directly for the reachable set N steps in the future. You can experiment with this using the `CROWNNStep` flag in `nn_closed_loop/example.py`.
 - **2022-05-09:** Add new MILP-based `ClosedLoopPropagator`, using [`OVERT`](https://github.com/sisl/OVERTVerify.jl). Note that this component requires a Julia installation, and we pass data between Python and Julia using a lightweight local HTTP server. More info [here](/docs/_static/other.md).
 
@@ -12,13 +13,13 @@
 
 For more info, please see [this README](/docs/_static/access21/access21.md).
 
-### `nn_closed_loop`: Closed-Loop Analysis (NNs in feedback loops) -- includes Reach-LP
+### `nn_closed_loop`: Closed-Loop Analysis (NNs in feedback loops) -- includes Reach-LP and BReach-LP
 
 **Handles problems such as:**
 - Given a set of possible initial states, a trained NN controller, and a known dynamics model, compute outer bounds on the set of possible future states (**forward reachable sets**).
 - Given a set of terminal states, a trained NN controller, and a known dynamics model, compute inner/outer bounds on the set of possible initial states that will/won't lead to the terminal state set (**backprojection sets**).
 
-For more info, please see [this README](/docs/_static/access21/access21.md).
+For more info, please see [this README](/docs/_static/access21/access21.md) and [this README](/docs/_static/cdc22/cdc22.md).
 
 ## Setup
 
@@ -97,6 +98,7 @@ Please see the `jupyter_notebooks` folder for an interactive version of the abov
 * LCSS/ACC '21: [README](/docs/_static/lcss21/lcss21.md)
 * ICRA '21: [README](/docs/_static/icra21/icra21.md)
 * IEEE Access '21: [README](/docs/_static/access21/access21.md)
+* CDC '22 (in review): [README](/docs/_static/cdc22/cdc22.md)
 
 ### If you find this code useful, please consider citing:
 
@@ -125,6 +127,16 @@ For the closed-loop code:
 }
 ```
 
+For the backward reachability code:
+```
+@article{rober2022backward,
+  title={Backward Reachability Analysis for Neural Feedback Loops},
+  author={Rober, Nicholas and Everett, Michael and How, Jonathan P},
+  journal={arXiv preprint arXiv:2204.08319},
+  year={2022}
+}
+```
+
 ## Acknowledgements
 
 This research is supported by Ford Motor Company.
@@ -140,5 +152,3 @@ We build on excellent open-source repositories from the neural network analysis 
 
 - [ ] add rtdocs (auto-fill code snippets from test files)
 - [ ] add installation instructions & tests for julia code
-- [ ] add link to backproj paper
-- [ ] add backproj code (when approved)

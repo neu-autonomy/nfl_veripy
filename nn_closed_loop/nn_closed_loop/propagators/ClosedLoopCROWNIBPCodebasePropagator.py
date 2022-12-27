@@ -234,7 +234,168 @@ class ClosedLoopCROWNIBPCodebasePropagator(ClosedLoopPropagator):
         backprojection_set = optimization_results_to_backprojection_set(
             status, b, backreachable_set
         )
+
         return backprojection_set
+
+
+    '''
+    NOT USED in CDC 2022 Paper
+
+    Essentially combines uses N-step (ReBReach-LP) constraints directly into original (BReach-LP) algorithm
+
+    Inputs: 
+        ranges: section of backreachable set
+        upper_A, lower_A, upper_sum_b, lower_sum_b: CROWN variables defining upper and lower affine bounds
+        xt1max, xt1min: target set max values
+        A_t: matrix describing in which directions to optimize
+        input_constraint: empty constraint object
+        xt_range_min, xt_range_max: min and max x values current overall BP set estimate (expanded as new partitions are analyzed)
+        ut_min, ut_max: min and max u values current overall BP set estimate (expanded as new partitions are analyzed)
+        collected_input_constraints: BP over-approximations from previously calculated timesteps
+        infos: dict containing crown bounds from previously calculated timesteps
+    Outputs: 
+        input_constraint: one step BP set over-approximation
+        xt_range_min, xt_range_max: min and max x values current overall BP set estimate (expanded as new partitions are analyzed)
+        ut_min, ut_max: min and max u values current overall BP set estimate (expanded as new partitions are analyzed)
+    '''
+    def get_refined_one_step_backprojection_set_overapprox(
+        self,
+        ranges,
+        upper_A,
+        lower_A,
+        upper_sum_b,
+        lower_sum_b,
+        xt1_max,
+        xt1_min,
+        A_t,
+        xt_range_min,
+        xt_range_max,
+        ut_min,
+        ut_max,
+        input_constraint,
+        collected_input_constraints,
+        infos
+    ):
+        xt_min = ranges[..., 0]
+        xt_max = ranges[..., 1]
+
+        num_states = xt1_min.shape[0]
+        num_control_inputs = self.dynamics.bt.shape[1]
+
+        # An over-approximation of the backprojection set is the set of:
+        # all xt s.t. there exists some u \in [pi^L(x_t), pi^U(x_t)]
+        #              that leads to the target set
+
+        ut_max_candidate = np.maximum(upper_A@xt_max+upper_sum_b, upper_A@xt_min+upper_sum_b)
+        ut_min_candidate = np.minimum(lower_A@xt_max+lower_sum_b, lower_A@xt_min+lower_sum_b)
+
+
+        num_facets = 2*num_states
+        num_steps = len(collected_input_constraints)
+        
+        xt = cp.Variable((num_states, num_steps+1))
+        ut = cp.Variable((num_control_inputs, num_steps))
+        constrs = []
+
+        # x_{t=0} \in this partition of 0-th backreachable set
+        constrs += [xt_min <= xt[:, 0]]
+        constrs += [xt[:, 0] <= xt_max]
+
+
+        # x_{t=T} must be in target set
+        if isinstance(collected_input_constraints[0], constraints.LpConstraint):
+            goal_set_A, goal_set_b = range_to_polytope(collected_input_constraints[0].range)
+        elif isinstance(collected_input_constraints[0], constraints.PolytopeConstraint):
+            goal_set_A, goal_set_b = collected_input_constraints[0].A, collected_input_constraints[0].b[0]
+        constrs += [goal_set_A@xt[:, -1] <= goal_set_b]
+
+        # Each ut must not exceed CROWN bounds
+        for t in range(num_steps):
+            # if t == 0:
+            #     lower_A, upper_A, lower_sum_b, upper_sum_b = self.get_crown_matrices(xt_min, xt_max, num_control_inputs)
+            # else:
+            # Gather CROWN bounds for full backprojection overapprox
+            if t > 0:
+                upper_A = infos[-t]['upper_A']
+                lower_A = infos[-t]['lower_A']
+                upper_sum_b = infos[-t]['upper_sum_b']
+                lower_sum_b = infos[-t]['lower_sum_b']
+
+            # u_t bounded by CROWN bounds
+            constrs += [lower_A@xt[:, t]+lower_sum_b <= ut[:, t]]
+            constrs += [ut[:, t] <= upper_A@xt[:, t]+upper_sum_b]
+
+
+        # Each xt must fall in the original backprojection
+        for t in range(1,num_steps):
+            constrs += [collected_input_constraints[-t].range[:,0] <= xt[:,t]]
+            constrs += [xt[:,t] <= collected_input_constraints[-t].range[:,1]]
+
+
+        # x_t and x_{t+1} connected through system dynamics
+        for t in range(num_steps):
+            constrs += [self.dynamics.dynamics_step(xt[:, t], ut[:, t]) == xt[:, t+1]]
+
+        A_facets = np.vstack([A_t, -A_t])
+        A_facets_i = cp.Parameter(num_states)
+        obj = A_facets_i@xt[:, 0]
+        prob = cp.Problem(cp.Maximize(obj), constrs)
+        A_ = A_facets
+        b_ = np.empty(num_facets)
+        for i in range(num_facets):
+            A_facets_i.value = A_facets[i, :]
+            prob.solve()
+            b_[i] = prob.value
+
+        # This cell of the backprojection set is upper-bounded by the
+        # cell of the backreachable set that we used in the NN relaxation
+        # ==> the polytope is the intersection (i.e., concatenation)
+        # of the polytope used for relaxing the NN and the soln to the LP
+        A_NN, b_NN = range_to_polytope(ranges)
+        A_stack = np.vstack([A_, A_NN])
+        b_stack = np.hstack([b_, b_NN])
+
+
+        # Add newly calculated BP region from partioned backreachable set to overall BP set estimate
+        if isinstance(input_constraint, constraints.LpConstraint):
+            b_max = b_[0:int(len(b_)/2)]
+            b_min = -b_[int(len(b_)/2):int(len(b_))]
+
+            ut_max_candidate = np.maximum(upper_A@xt_max+upper_sum_b, upper_A@xt_min+upper_sum_b)
+            ut_min_candidate = np.minimum(lower_A@xt_max+lower_sum_b, lower_A@xt_min+lower_sum_b)
+
+            ut_min = np.minimum(ut_min, ut_min_candidate)
+            ut_max = np.maximum(ut_max, ut_max_candidate)
+
+            xt_range_max = np.max((xt_range_max, b_max),axis=0)
+            xt_range_min = np.min((xt_range_min, b_min),axis=0)
+
+            input_constraint.range = np.array([xt_range_min,xt_range_max]).T
+
+        elif isinstance(input_constraint, constraints.PolytopeConstraint):
+            # Only add that polytope to the list if it's non-empty
+            vertices = np.array(pypoman.duality.compute_polytope_vertices(A_stack,b_stack))
+            if len(vertices) > 0:
+                # pypoman.polygon.compute_polygon_hull(A_stack, b_stack+1e-10)
+                # vertices = np.array(pypoman.duality.compute_polytope_vertices(A_stack,b_stack))
+                
+                xt_max_candidate = np.max(vertices, axis=0)
+                xt_min_candidate = np.min(vertices, axis=0)
+                xt_range_max = np.maximum(xt_range_max, xt_max_candidate)
+                xt_range_min = np.minimum(xt_range_min, xt_min_candidate)
+
+                ut_max_candidate = np.maximum(upper_A@xt_max+upper_sum_b, upper_A@xt_min+upper_sum_b)
+                ut_min_candidate = np.minimum(lower_A@xt_max+lower_sum_b, lower_A@xt_min+lower_sum_b)
+
+                ut_min = np.minimum(ut_min, ut_min_candidate)
+                ut_max = np.maximum(ut_max, ut_max_candidate)
+                
+                input_constraint.A.append(A_)
+                input_constraint.b.append(b_)
+        else:
+            raise NotImplementedError
+
+        return input_constraint, xt_range_min, xt_range_max, ut_min, ut_max
 
 
 class ClosedLoopIBPPropagator(ClosedLoopCROWNIBPCodebasePropagator):
@@ -342,7 +503,6 @@ class ClosedLoopCROWNNStepPropagator(ClosedLoopCROWNPropagator):
             num_partitions=num_partitions, 
             overapprox=overapprox,
         )
-        # import pdb; pdb.set_trace()
         for i in range(len(output_constraint_list)):
             tightened_input_constraints, tightened_infos = self.get_single_target_N_step_backprojection_set(output_constraint_list[i], input_constraints[i], infos[i], t_max=t_max, num_partitions=num_partitions, overapprox=overapprox)
 
@@ -428,7 +588,6 @@ class ClosedLoopCROWNNStepPropagator(ClosedLoopCROWNPropagator):
     ):
         # TODO: Update for new structure (6/10/22)
         raise NotImplementedError
-        # import pdb; pdb.set_trace()
         # Get range of "earliest" backprojection overapprox
         vertices = np.array(
             pypoman.duality.compute_polytope_vertices(
@@ -486,16 +645,6 @@ class ClosedLoopCROWNNStepPropagator(ClosedLoopCROWNPropagator):
             constrs += [xt_min <= xt[:, 0]]
             constrs += [xt[:, 0] <= xt_max]
 
-            # if self.dynamics.x_limits is not None:
-            #     x_llim = self.dynamics.x_limits[:, 0]
-            #     x_ulim = self.dynamics.x_limits[:, 1]
-            
-
-            # # Each xt must be in a backprojection overapprox
-            # for t in range(num_steps - 1):
-            #     A, b = input_constraints[t].A[0], input_constraints[t].b[0]
-            #     constrs += [A@xt[:, t+1] <= b]
-
             # x_{t=T} must be in target set
             if isinstance(output_constraint, constraints.LpConstraint):
                 goal_set_A, goal_set_b = range_to_polytope(output_constraint.range)
@@ -530,16 +679,6 @@ class ClosedLoopCROWNNStepPropagator(ClosedLoopCROWNPropagator):
             for t in range(num_steps):
                 constrs += [self.dynamics.dynamics_step(xt[:, t], ut[:, t]) == xt[:, t+1]]
 
-                # if self.dynamics.x_limits is not None:
-                #     x_llim = self.dynamics.x_limits[:, 0]
-                #     x_ulim = self.dynamics.x_limits[:, 1]
-                #     constrs += [self.dynamics.dynamics_step(xt[:, t], ut[:, t]) <= x_ulim]
-                #     constrs += [self.dynamics.dynamics_step(xt[:, t], ut[:, t]) >= x_llim]
-
-            # u_t satisfies control limits (TODO: Necessary? CROWN should account for these)
-            # for t in range(num_steps):
-            #     constrs += [-1 <= ut[:, t]]
-            #     constrs += [1 >= ut[:, t]]
 
             A_facets_i = cp.Parameter(num_states)
             obj = A_facets_i@xt[:, 0]
@@ -573,10 +712,6 @@ class ClosedLoopCROWNNStepPropagator(ClosedLoopCROWNPropagator):
             elif isinstance(output_constraint, constraints.PolytopeConstraint):
                 vertices = np.array(pypoman.duality.compute_polytope_vertices(A_stack,b_stack))
                 if len(vertices) > 0:
-                    # import pdb; pdb.set_trace()
-                    # pypoman.polygon.compute_polygon_hull(A_stack, b_stack+1e-10)
-                    # vertices = np.array(pypoman.duality.compute_polytope_vertices(A_stack,b_stack))
-                    
                     xt_max_candidate = np.max(vertices, axis=0)
                     xt_min_candidate = np.min(vertices, axis=0)
                     xt_range_max = np.maximum(xt_range_max, xt_max_candidate)
@@ -594,9 +729,6 @@ class ClosedLoopCROWNNStepPropagator(ClosedLoopCROWNPropagator):
         elif isinstance(output_constraint, constraints.PolytopeConstraint):
             x_overapprox = np.vstack((xt_range_min, xt_range_max)).T
             A_overapprox, b_overapprox = range_to_polytope(x_overapprox)
-
-            # infos[-1]['tightened_constraint'] = tightened_constraint
-            # infos[-1]['tightened_overapprox'] = constraints.PolytopeConstraint(A_overapprox, b_overapprox)
             
             input_constraint = deepcopy(input_constraints[-1])
             input_constraint.A = [A_overapprox]

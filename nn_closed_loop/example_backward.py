@@ -185,6 +185,14 @@ def main(args):
             t_end = time.time()
             t = t_end - t_start
             times[num] = t
+            backprojection_sets = input_constraint_list[0]
+            target_set = output_constraint[0]
+            final_error, avg_error, all_error = analyzer.get_backprojection_error(target_set, backprojection_sets, t_max=args.t_max)
+
+            final_errors[num] = final_error
+            avg_errors[num] = avg_error
+            all_errors[num] = all_error
+            output_constraints[num] = output_constraint
 
         stats['runtimes'] = times
         stats['final_step_errors'] = final_errors
@@ -203,7 +211,7 @@ def main(args):
         
     controller_name=None
     if args.show_policy:
-        controller_name = vars(args)['controller']
+            controller_name = vars(args)['controller']
 
     if args.save_plot:
         save_dir = "{}/results/examples_backward/".format(

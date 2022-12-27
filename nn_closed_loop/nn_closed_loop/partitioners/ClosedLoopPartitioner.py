@@ -80,10 +80,7 @@ class ClosedLoopPartitioner(partitioners.Partitioner):
                 input_constraint, propagator, t_max, num_samples=1000,
                 output_constraint=output_constraint
             )
-            # output_bs_exact = self.get_sampled_out_range(
-            #     input_constraint, propagator, t_max, num_samples=1000,
-            #     output_constraint=output_constraint
-            # )
+
             num_steps = len(output_constraint.b)
             from scipy.spatial import ConvexHull
             for t in range(num_steps):
@@ -161,8 +158,6 @@ class ClosedLoopPartitioner(partitioners.Partitioner):
         if controller_name is not None:
             from nn_closed_loop.utils.controller_generation import display_ground_robot_control_field
             display_ground_robot_control_field(name=controller_name,ax=self.animate_axes)
-        # from nn_closed_loop.utils.controller_generation import display_ground_robot_DI_control_field
-        # display_ground_robot_DI_control_field(ax=self.animate_axes)
 
         self.animate_axes.set_aspect(aspect)
 
@@ -206,9 +201,6 @@ class ClosedLoopPartitioner(partitioners.Partitioner):
                 rect = extra_constraint[i].plot(self.animate_axes, input_dims, extra_set_color, zorder=extra_set_zorder, linewidth=self.linewidth, plot_2d=self.plot_2d)
                 self.default_patches += rect
 
-        # # Reachable sets
-        # self.plot_reachable_sets(output_constraint, input_dims)
-
     def visualize(
         self,
         M,
@@ -228,47 +220,7 @@ class ClosedLoopPartitioner(partitioners.Partitioner):
         self.animate_axes.patches = self.default_patches.copy()
         self.animate_axes.lines = self.default_lines.copy()
 
-        # Actually draw the reachable sets and partitions
-        # 
-        # Draws reachable sets in colors corresponding to trajectories
-        # from colour import Color
-        # orange = Color("orange")
-        # colors = list(orange.range_to(Color("purple"),len(output_constraint.range)))
-        # for i, set in enumerate(output_constraint.range):
-        #     constraint = constraints.LpConstraint(set)
-            # self.plot_reachable_sets(constraint, self.input_dims, reachable_set_color=colors[i].hex_l, reachable_set_zorder=reachable_set_zorder, reachable_set_ls=reachable_set_ls)
-
         self.plot_reachable_sets(output_constraint, self.input_dims, reachable_set_color=reachable_set_color, reachable_set_zorder=reachable_set_zorder, reachable_set_ls=reachable_set_ls)
-
-
-
-        # self.plot_partitions(M, output_constraint, self.input_dims)
-
-        from nn_closed_loop.utils.utils import range_to_polytope
-        # target_range = np.array(
-        #     [
-        #         [-1, 1],
-        #         [-1, 1]
-        #     ]
-        # )
-        # A, b = range_to_polytope(target_range)
-
-        # target_constraint = constraints.PolytopeConstraint(A,b)
-        # self.plot_reachable_sets(
-        #     target_constraint,
-        #     self.input_dims,
-        #     reachable_set_color='tab:green',
-        #     reachable_set_zorder=4,
-        #     reachable_set_ls='-'
-        # )
-        # initial_range = np.array(
-        #     [
-        #         [-5.5, -5],
-        #         [-0.5, 0.5]
-        #     ]
-        # )
-        
-        
 
         if plot_lims is not None:
             import ast
@@ -325,14 +277,6 @@ class ClosedLoopPartitioner(partitioners.Partitioner):
 
         # first = True
         for (input_constraint, output_range) in M:
-            # if first:
-            #     input_label = "Cell of Partition"
-            #     output_label = "One Cell's Estimated Bounds"
-            #     first = False
-            # else:
-            #     input_label = None
-            #     output_label = None
-
             # Next state constraint of that cell
             output_constraint_ = constraints.LpConstraint(range=output_range)
             self.plot_partition(output_constraint_, dims, "grey")
@@ -516,22 +460,6 @@ class ClosedLoopPartitioner(partitioners.Partitioner):
         from scipy.spatial import ConvexHull
 
         if isinstance(target_set, constraints.LpConstraint):
-            # raise NotImplementedError
-            # output_estimated_range = output_constraint.range
-            # output_range_exact = self.get_sampled_out_range(
-            #     input_constraint, propagator, t_max, num_samples=1000
-            # )
-            # num_steps = len(output_constraint.range)
-            # for t in range(num_steps):
-            #     true_area = np.product(
-            #         output_range_exact[t][..., 1]
-            #         - output_range_exact[t][..., 0]
-            #     )
-            #     estimated_area = np.product(
-            #         output_estimated_range[t][..., 1]
-            #         - output_estimated_range[t][..., 0]
-            #     )
-            #     errors.append((estimated_area - true_area) / true_area)
             Ats, bts = range_to_polytope(target_set.range)
             target_set_poly = PolytopeConstraint(A=Ats, b=bts)
             true_verts_reversed = self.dynamics.get_true_backprojection_set(
@@ -542,7 +470,6 @@ class ClosedLoopPartitioner(partitioners.Partitioner):
             num_steps = len(backprojection_sets)
 
             for t in range(num_steps):
-                # true_verts = pypoman.polygon.compute_polygon_hull(output_constraint.A, output_bs_exact[t])
                 x_min = np.min(true_verts[:,t+1,:], axis=0)
                 x_max = np.max(true_verts[:,t+1,:], axis=0)
 
@@ -559,12 +486,10 @@ class ClosedLoopPartitioner(partitioners.Partitioner):
                 
 
                 errors.append((estimated_area - true_area) / true_area)
-            # import pdb; pdb.set_trace()
         else:
             # This implementation should actually be moved to Lp constraint
 
 
-            # import pdb; pdb.set_trace()
             # Note: This compares the estimated polytope
             # with the "best" polytope with those facets.
             # There could be a much better polytope with lots of facets.
@@ -573,22 +498,15 @@ class ClosedLoopPartitioner(partitioners.Partitioner):
                 t_max, controller=propagator.network
             )
             true_verts = np.flip(true_verts_reversed, axis=1)
-            # output_bs_exact = self.get_sampled_out_range(
-            #     input_constraint, propagator, t_max, num_samples=1000,
-            #     output_constraint=output_constraint
-            # )
             num_steps = len(backprojection_sets)
             
             for t in range(num_steps):
-                # true_verts = pypoman.polygon.compute_polygon_hull(output_constraint.A, output_bs_exact[t])
                 x_min = np.min(true_verts[:,t+1,:], axis=0)
                 x_max = np.max(true_verts[:,t+1,:], axis=0)
 
                 x_range = x_max-x_min
                 true_area = np.prod(x_range)
 
-                # true_hull = ConvexHull(true_verts[:, t+1, :])
-                # true_area = true_hull.volume
                 estimated_verts = pypoman.polygon.compute_polygon_hull(backprojection_sets[t].A[0], backprojection_sets[t].b[0])
                 estimated_hull = ConvexHull(estimated_verts)
                 estimated_area = estimated_hull.volume

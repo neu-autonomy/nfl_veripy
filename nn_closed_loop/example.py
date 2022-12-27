@@ -51,36 +51,12 @@ def main(args):
         else:
             raise NotImplementedError
         if args.init_state_range is None:
-            # init_state_range = np.array(
-            #     [  # (num_inputs, 2)
-            #         [-12.5, -12.0],  # x0min, x0max
-            #         [-0.25, 0.25],  # x1min, x1max
-            #     ]
-            # )
             init_state_range = np.array(
                 [  # (num_inputs, 2)
                     [-1.5, -0.5],  # x0min, x0max
                     [-0.5, 0.5],  # x1min, x1max
                 ]
             )
-            # init_state_range = np.array(
-            #     [  # (num_inputs, 2)
-            #         [-6.75, -5.5],  # x0min, x0max
-            #         [0, 1.5],  # x1min, x1max
-            #     ]
-            # )
-            # init_state_range = np.array(
-            #     [  # (num_inputs, 2)
-            #         [-6.75, -5.5],  # x0min, x0max
-            #         [0, 1.5],  # x1min, x1max
-            #     ]
-            # )
-            # init_state_range = np.array(
-            #     [  # (num_inputs, 2)
-            #         [-6.28125, -6.125],  # x0min, x0max
-            #         [0, 0.1875],  # x1min, x1max
-            #     ]
-            # )
         else:
             import ast
 
@@ -179,24 +155,6 @@ def main(args):
                     [4.75, 4.75, 3.05, 0.96, 0.01, 0.01],
                 ]
             ).T
-            # init_state_range = np.array( # tree_trunks_vs_quadrotor_12__
-            #     [  # (num_inputs, 2)
-            #         [-6.5, 0.25-0.25, 2, .95, -0.01, -0.01],
-            #         [-6, 0.25+0.25, 2.5, 1.0, 0.01, 0.01],
-            #     ]
-            # ).T
-            # init_state_range = np.array(
-            #     [  # (num_inputs, 2)
-            #         [-4.5, -0.25, 2, 0.95, -0.01, -0.01],
-            #         [-4.5, 0.25, 2.5, 1.05, 0.01, 0.01],
-            #     ]
-            # ).T
-            # init_state_range = np.array( # tree_trunks_vs_quadrotor_12__
-            #     [  # (num_inputs, 2)
-            #         [-6.5,-0.25, 2, 1.95, -0.01, -0.01],
-            #         [-6, 0.25, 2.5, 2.0, 0.01, 0.01],
-            #     ]
-            # ).T
         else:
             import ast
 
@@ -348,21 +306,13 @@ def main(args):
             range=init_state_range, p=np.inf
         )
         output_constraint = constraints.LpConstraint(p=np.inf)
-        if args.include_backward:
+        if args.show_obs:
             back_input_constraint = constraints.LpConstraint(p=np.inf)
             back_output_constraint = [constraints.LpConstraint(range=final_state_range, p=np.inf)]
         else:
             back_output_constraint = [None]
     else:
         raise NotImplementedError
-    
-
-    # dyn.show_trajectories(
-    #     args.t_max * dyn.dt,
-    #     input_constraint,
-    #     ax=None,
-    #     controller=analyzer.propagator.network,
-    # )
 
     if args.estimate_runtime:
         # Run the analyzer N times to compute an estimated runtime
@@ -471,7 +421,6 @@ def main(args):
         if args.show_policy:
             controller_name = vars(args)['controller']
 
-    # import pdb; pdb.set_trace()
     if args.show_plot or args.save_plot:
         analyzer.visualize(
             input_constraint,
@@ -660,8 +609,8 @@ def setup_parser():
         help="number of control inputs - only used for scalability expt (default: 2)",
     )
     parser.add_argument(
-        "--include_backward",
-        dest="include_backward",
+        "--show_obs",
+        dest="show_obs",
         action="store_true",
         help="Check final reachable set to see what parts backproject to initial state"
     )

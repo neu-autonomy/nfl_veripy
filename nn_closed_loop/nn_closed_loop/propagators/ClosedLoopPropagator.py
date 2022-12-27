@@ -31,7 +31,7 @@ class ClosedLoopPropagator(propagators.Propagator):
 
         return output_constraints, info
 
-    def get_one_step_backprojection_set(self, output_constraint, intput_constraint, overapprox=False):
+    def get_one_step_backprojection_set(self, output_constraint, intput_constraint, overapprox=False,):
         raise NotImplementedError
 
     def get_backprojection_set(self, output_constraints, input_constraint, t_max, num_partitions=None, overapprox=False, refined=False):
