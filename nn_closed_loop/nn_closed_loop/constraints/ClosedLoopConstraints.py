@@ -24,9 +24,10 @@ class PolytopeConstraint(Constraint):
 
     def __add__(self, x):
         if x is None:
-            return
+            return self
         self.A.append(x.A)
         self.b.append(x.b)
+        return self
 
     def add_cell(self, output_constraint):
         reachable_set_this_cell = [o.b for o in output_constraint]

@@ -28,11 +28,9 @@ def main(args):
                 ]
             )
         else:
-            raise NotImplementedError
             import ast
-
-            init_state_range = np.array(
-                ast.literal_eval(args.init_state_range)
+            final_state_range = np.array(
+                ast.literal_eval(args.final_state_range)
             )
     elif args.system == "ground_robot":
         if args.state_feedback:
@@ -160,11 +158,7 @@ def main(args):
     if args.boundaries == "polytope":
         raise NotImplementedError
         # A_out, b_out = range_to_polytope(final_state_range)
-        # output_constraint1 = constraints.PolytopeConstraint(
-        #     A=A_out, b=[b_out]
-        # )
-        # input_constraint = constraints.PolytopeConstraint(None, None)
-        # output_constraint = [output_constraint1]
+        # target_set = constraints.PolytopeConstraint(A=A_out, b=b_out)
     elif args.boundaries == "rectangle":
         target_set = constraints.LpConstraint(
             range=final_state_range, p=np.inf
