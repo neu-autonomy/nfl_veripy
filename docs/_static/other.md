@@ -28,3 +28,15 @@ python -m nn_closed_loop.example \
 docker build -t nnrob -f docker/Dockerfile .
 docker run -v $PWD:/home/nn_robustness_analysis nnrob:latest python -m nn_closed_loop.tests.test
 ```
+
+### Run new closed-loop partitioner example
+
+```bash
+python -m nn_closed_loop.example_backward \
+    --partitioner None \
+    --propagator CROWN \
+    --system double_integrator \
+    --state_feedback \
+    --t_max 2 \
+    --show_plot --overapprox --skip_save_plot
+```

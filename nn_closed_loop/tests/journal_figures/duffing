@@ -4,4 +4,5 @@ python -m nn_closed_loop.example \
 	--system duffing \
 	--state_feedback \
 	--t_max 0.3 \
+	--show_samples \
 	--skip_show_plot

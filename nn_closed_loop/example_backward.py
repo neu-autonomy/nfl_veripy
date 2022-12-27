@@ -28,11 +28,9 @@ def main(args):
                 ]
             )
         else:
-            raise NotImplementedError
             import ast
-
-            init_state_range = np.array(
-                ast.literal_eval(args.init_state_range)
+            final_state_range = np.array(
+                ast.literal_eval(args.final_state_range)
             )
     elif args.system == "ground_robot":
         if args.state_feedback:
@@ -124,23 +122,13 @@ def main(args):
             import ast
 
     if args.num_partitions is None:
-        num_partitions = np.array([1, 1, 1, 1])
+        num_partitions = np.array([10, 10])
     else:
         import ast
 
         num_partitions = np.array(
             ast.literal_eval(args.num_partitions)
         )
-
-    if args.init_state_range is None:
-        init_constraint = None
-    else:
-        import ast
-        init_state_range = np.array(
-            ast.literal_eval(args.init_state_range)
-        )
-        init_constraint = LpConstraint(init_state_range)
-
 
     partitioner_hyperparams = {
         "type": args.partitioner,
@@ -157,7 +145,7 @@ def main(args):
         model_name=args.controller,
     )
 
-    controller_name=None
+    controller_name = None
     if args.show_policy:
         controller_name = vars(args)['controller']
 
@@ -168,28 +156,13 @@ def main(args):
 
     # Set up initial state set (and placeholder for reachable sets)
     if args.boundaries == "polytope":
-        A_out, b_out = range_to_polytope(final_state_range)
-        output_constraint1 = constraints.PolytopeConstraint(
-            A=A_out, b=[b_out]
-        )
-        input_constraint = constraints.PolytopeConstraint(None, None)
-        output_constraint = [output_constraint1]
-    elif args.boundaries == "lp":
-        output_constraint1 = constraints.LpConstraint(
+        raise NotImplementedError
+        # A_out, b_out = range_to_polytope(final_state_range)
+        # target_set = constraints.PolytopeConstraint(A=A_out, b=b_out)
+    elif args.boundaries == "rectangle":
+        target_set = constraints.LpConstraint(
             range=final_state_range, p=np.inf
         )
-        input_constraint = constraints.LpConstraint(p=np.inf, range=None)
-        final_state_range2 = np.array(
-                [  # (num_inputs, 2)
-                    [6.5, 7.0],  # x0min, x0max
-                    [-0.25, 0.25],  # x1min, x1max
-                ]
-            )
-        output_constraint2 = constraints.LpConstraint(
-            range=final_state_range2, p=np.inf
-        )
-        # output_constraint = [output_constraint2,output_constraint1]
-        output_constraint = [output_constraint1]
     else:
         raise NotImplementedError
 
@@ -202,12 +175,12 @@ def main(args):
         final_errors = np.empty(num_calls)
         avg_errors = np.empty(num_calls, dtype=np.ndarray)
         all_errors = np.empty(num_calls, dtype=np.ndarray)
-        output_constraints = np.empty(num_calls, dtype=object)
+        all_backprojection_sets = np.empty(num_calls, dtype=object)
         for num in range(num_calls):
             print('call: {}'.format(num))
             t_start = time.time()
-            input_constraint_list, analyzer_info_list = analyzer.get_backprojection_set(
-                output_constraint, input_constraint, t_max=args.t_max, num_partitions=num_partitions, overapprox=args.overapprox, refined=args.refined
+            backprojection_sets, analyzer_info = analyzer.get_backprojection_set(
+                target_set, t_max=args.t_max, num_partitions=num_partitions, overapprox=args.overapprox
             )
             t_end = time.time()
             t = t_end - t_start
@@ -225,15 +198,15 @@ def main(args):
         stats['final_step_errors'] = final_errors
         stats['avg_errors'] = avg_errors
         stats['all_errors'] = all_errors
-        stats['output_constraints'] = output_constraints
+        stats['all_backprojection_sets'] = all_backprojection_sets
 
         print("All times: {}".format(times))
         print("Avg time: {} +/- {}".format(times.mean(), times.std()))
     else:
         # Run analysis once
         # Run analysis & generate a plot
-        input_constraint_list, analyzer_info_list = analyzer.get_backprojection_set(
-            output_constraint, input_constraint, t_max=args.t_max, num_partitions=num_partitions, overapprox=args.overapprox, refined=args.refined
+        backprojection_sets, analyzer_info = analyzer.get_backprojection_set(
+            target_set, t_max=args.t_max, num_partitions=num_partitions, overapprox=args.overapprox
         )
         
     controller_name=None
@@ -271,7 +244,7 @@ def main(args):
                 if key not in ["input_shape", "type"]
             ]
         )
-        analyzer_info_list[0]["save_name"] = (
+        analyzer_info["save_name"] = (
             save_dir
             + args.system
             + pars
@@ -293,16 +266,25 @@ def main(args):
             + np.array2string(num_partitions, separator='_')[1:-1]
         )
         if len(pars2) > 0:
-            analyzer_info_list[0]["save_name"] = (
-                analyzer_info_list[0]["save_name"] + "_" + pars2
+            analyzer_info["save_name"] = (
+                analyzer_info["save_name"] + "_" + pars2
             )
-        analyzer_info_list[0]["save_name"] = analyzer_info_list[0]["save_name"] + ".png"
-    # import pdb; pdb.set_trace()
+        analyzer_info["save_name"] = analyzer_info["save_name"] + ".png"
+
+    if args.init_state_range is None:
+        init_constraint = None
+    else:
+        import ast
+        init_state_range = np.array(
+            ast.literal_eval(args.init_state_range)
+        )
+        init_constraint = LpConstraint(init_state_range)
+
     if args.show_plot or args.save_plot:
         analyzer.visualize(
-            input_constraint_list,
-            output_constraint,
-            analyzer_info_list,
+            backprojection_sets,
+            target_set,
+            analyzer_info,
             show_samples=args.show_samples,
             show_trajectories=args.show_trajectories,
             show_convex_hulls=args.show_convex_hulls,
@@ -315,7 +297,7 @@ def main(args):
             show_BReach=args.show_BReach
         )
 
-    return stats, analyzer_info_list
+    return stats, analyzer_info
 
 
 def setup_parser():
@@ -359,14 +341,14 @@ def setup_parser():
     parser.add_argument(
         "--partitioner",
         default="None",
-        choices=["None"],
+        choices=["None", "Uniform"],
         help="which partitioner to use (work in progress for backward...)",
     )
     parser.add_argument(
         "--propagator",
-        default="IBP",
-        choices=["IBP", "CROWN", "FastLin", "SDP", "CROWNLP", "CROWNNStep"],
-        help="which propagator to use (default: IBP)",
+        default="CROWN",
+        choices=["CROWN", "CROWNNStep", "CROWNRefined"],
+        help="which propagator to use (default: CROWN)",
     )
 
     parser.add_argument(
@@ -376,9 +358,9 @@ def setup_parser():
     )
     parser.add_argument(
         "--boundaries",
-        default="lp",
-        choices=["lp", "polytope"],
-        help="what shape of convex set to bound reachable sets (default: lp)",
+        default="rectangle",
+        choices=["rectangle", "polytope"],
+        help="what shape of convex set to bound reachable sets (default: rectangle)",
     )
     parser.add_argument(
         "--num_polytope_facets",
@@ -451,13 +433,6 @@ def setup_parser():
     )
     parser.set_defaults(overapprox=False)
     parser.add_argument(
-        "--refined",
-        dest="refined",
-        action="store_true",
-        help="whether to use extended set of constraints for BReach-LP",
-    )
-    parser.set_defaults(refined=False)
-    parser.add_argument(
         "--show_BReach",
         dest="show_BReach",
         action="store_true",
@@ -488,6 +463,7 @@ def setup_parser():
         action="store_true",
         help="Show convex hulls of true backprojection sets"
     )
+
     return parser
 
 

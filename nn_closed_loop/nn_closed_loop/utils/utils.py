@@ -1,6 +1,7 @@
 import pickle
 import numpy as np
 import os
+import torch
 
 dir_path = os.path.dirname(os.path.realpath(__file__))
 
@@ -56,11 +57,63 @@ def plot_polytope_facets(A, b, ls='-', show=True):
     if show:
         plt.show()
 
+
 def get_polytope_verts(A, b):
     import pypoman
     # vertices = pypoman.duality.compute_polytope_vertices(A, b)
     vertices = pypoman.polygon.compute_polygon_hull(A, b)
     print(vertices)
+
+
+def get_crown_matrices(propagator, state_set, num_control_inputs, sensor_noise):
+    nn_input_max = torch.Tensor(np.expand_dims(state_set.range[:, 1], axis=0))
+    nn_input_min = torch.Tensor(np.expand_dims(state_set.range[:, 0], axis=0))
+    if sensor_noise is not None:
+        # Because there might be sensor noise, the NN could see a different
+        # set of states than the system is actually in
+        raise NotImplementedError
+
+    # Compute the NN output matrices (for this backreachable_set)
+    C = torch.eye(num_control_inputs).unsqueeze(0)
+    return CROWNMatrices(
+        *propagator.network(
+            method_opt=propagator.method_opt,
+            norm=np.inf,
+            x_U=nn_input_max,
+            x_L=nn_input_min,
+            upper=True,
+            lower=True,
+            C=C,
+            return_matrices=True,
+        )
+    )
+
+
+class CROWNMatrices:
+    def __init__(self, lower_A, upper_A, lower_sum_b, upper_sum_b):
+        self.upper_A = upper_A
+        self.lower_A = lower_A
+        self.upper_sum_b = upper_sum_b
+        self.lower_sum_b = lower_sum_b
+
+    def to_numpy(self):
+        return self.upper_A_numpy, self.lower_A_numpy, self.upper_sum_b_numpy, self.lower_sum_b_numpy
+
+    @property
+    def lower_A_numpy(self):
+        return self.lower_A.detach().numpy()[0]
+
+    @property
+    def upper_A_numpy(self):
+        return self.upper_A.detach().numpy()[0]
+
+    @property
+    def lower_sum_b_numpy(self):
+        return self.lower_sum_b.detach().numpy()[0]
+
+    @property
+    def upper_sum_b_numpy(self):
+        return self.upper_sum_b.detach().numpy()[0]
 
 
 if __name__ == "__main__":

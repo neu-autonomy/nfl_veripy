@@ -280,3 +280,90 @@ class ClosedLoopSimGuidedPartitioner(ClosedLoopPartitioner):
             (output_range_sim[..., 0] - output_range_[..., 0]) <= 0
         ) and np.all((output_range_sim[..., 1] - output_range_[..., 1]) >= 0)
         return inside
+
+    def get_one_step_backprojection_set(
+        self, target_sets, propagator, num_partitions=None, overapprox=False
+    ):
+
+        backreachable_set, info = self.get_one_step_backreachable_set(target_sets[-1])
+        info['backreachable_set'] = backreachable_set
+
+        if overapprox:
+            # Set an empty Constraint that will get filled in
+            backprojection_set = constraints.LpConstraint(
+                range=np.vstack(
+                    (
+                        np.inf*np.ones(propagator.dynamics.num_states),
+                        -np.inf*np.ones(propagator.dynamics.num_states)
+                    )
+                ).T,
+                p=np.inf
+            )
+        else:
+            backprojection_set = constraints.PolytopeConstraint(A=[], b=[])
+
+        '''
+        Partition the backreachable set (xt).
+        For each cell in the partition:
+        - relax the NN (use CROWN to compute matrices for affine bounds)
+        - use the relaxed NN to compute bounds on xt1
+        - use those bounds to define constraints on xt, and if valid, add
+            to backprojection_set
+        '''
+
+        # Setup the partitions
+        if num_partitions is None:
+            num_partitions = np.array([10, 10])
+
+        input_range = backreachable_set.range
+        input_shape = input_range.shape[:-1]
+        slope = np.divide(
+            (input_range[..., 1] - input_range[..., 0]), num_partitions
+        )
+
+        # Iterate through each partition
+        for element in product(
+            *[range(int(num)) for num in num_partitions.flatten()]
+        ):
+            # Compute this partition's min/max xt values
+            element = np.array(element).reshape(input_shape)
+            backreachable_set_this_cell = constraints.LpConstraint(
+                range=np.empty_like(input_range), p=np.inf
+            )
+            backreachable_set_this_cell.range[:, 0] = input_range[:, 0] + np.multiply(
+                element, slope
+            )
+            backreachable_set_this_cell.range[:, 1] = input_range[:, 0] + np.multiply(
+                element + 1, slope
+            )
+
+            backprojection_set_this_cell, this_info = propagator.get_one_step_backprojection_set(
+                backreachable_set_this_cell,
+                target_sets,
+                overapprox=overapprox,
+            )
+
+            if backprojection_set_this_cell is None:
+                continue
+            else:
+                if overapprox:
+                    backprojection_set.range[:, 0] = np.minimum(backprojection_set_this_cell.range[:, 0], backprojection_set.range[:, 0])
+                    backprojection_set.range[:, 1] = np.maximum(backprojection_set_this_cell.range[:, 1], backprojection_set.range[:, 1])
+                else:
+                    backprojection_set.A.append(backprojection_set_this_cell.A)
+                    backprojection_set.b.append(backprojection_set_this_cell.b)
+
+            # TODO: Store the detailed partitions in info
+
+        if overapprox:
+
+            # These will be used to further backproject this set in time
+            backprojection_set.crown_matrices = get_crown_matrices(
+                propagator,
+                backprojection_set,
+                self.dynamics.num_inputs,
+                self.dynamics.sensor_noise
+            )
+
+        return backprojection_set, info
+

@@ -301,7 +301,7 @@ def main(args):
         )
         output_constraint = constraints.PolytopeConstraint(A_out)
         back_output_constraint = [None]
-    elif args.boundaries == "lp":
+    elif args.boundaries == "rectangle":
         input_constraint = constraints.LpConstraint(
             range=init_state_range, p=np.inf
         )
@@ -506,9 +506,9 @@ def setup_parser():
     )
     parser.add_argument(
         "--boundaries",
-        default="lp",
-        choices=["lp", "polytope"],
-        help="what shape of convex set to bound reachable sets (default: lp)",
+        default="rectangle",
+        choices=["rectangle", "polytope"],
+        help="what shape of convex set to bound reachable sets (default: rectangle)",
     )
     parser.add_argument(
         "--num_polytope_facets",

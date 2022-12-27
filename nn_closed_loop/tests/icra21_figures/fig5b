@@ -4,6 +4,7 @@ python -m nn_closed_loop.example \
 	--system quadrotor \
 	--output_feedback \
 	--t_max 0.2 \
+	--show_samples \
 	--save_plot --skip_show_plot \
-	--boundaries lp \
+	--boundaries rectangle \
 	--plot_aspect equal
