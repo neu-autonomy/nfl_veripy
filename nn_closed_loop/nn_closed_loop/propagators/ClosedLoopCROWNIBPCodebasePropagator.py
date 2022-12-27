@@ -416,8 +416,8 @@ class ClosedLoopCROWNPropagator(ClosedLoopCROWNIBPCodebasePropagator):
             self, input_shape=input_shape, dynamics=dynamics
         )
         self.method_opt = "full_backward_range"
-        self.params = {"same-slope": False, "zero-lb": True}
-        # self.params = {"same-slope": False}
+        # self.params = {"same-slope": False, "zero-lb": True}
+        self.params = {"same-slope": False}
 
 
 class ClosedLoopCROWNLPPropagator(ClosedLoopCROWNPropagator):
