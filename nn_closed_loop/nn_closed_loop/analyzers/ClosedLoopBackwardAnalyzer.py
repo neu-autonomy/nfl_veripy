@@ -64,9 +64,9 @@ class ClosedLoopBackwardAnalyzer(analyzers.Analyzer):
             **{**hyperparams, "dynamics": self.dynamics}
         )
 
-    def get_one_step_backprojection_set(self, output_constraint, input_constraint, num_partitions=None, overapprox=False, refined=False):
+    def get_one_step_backprojection_set(self, target_set, num_partitions=None, overapprox=False, refined=False):
         backprojection_set, info = self.partitioner.get_one_step_backprojection_set(
-            output_constraint, input_constraint, self.propagator, num_partitions=num_partitions, overapprox=overapprox, refined=refined
+            target_set, self.propagator, num_partitions=num_partitions, overapprox=overapprox, refined=refined
         )
         return backprojection_set, info
 
@@ -76,9 +76,9 @@ class ClosedLoopBackwardAnalyzer(analyzers.Analyzer):
         )
         return backprojection_set, info
     
-    def get_N_step_backprojection_set(self, output_constraint, t_max, num_partitions=None, overapprox=False):
+    def get_N_step_backprojection_set(self, target_set, t_max, num_partitions=None, overapprox=False):
         backprojection_set, info = self.partitioner.get_N_step_backprojection_set(
-            output_constraint, self.propagator, t_max, num_partitions=num_partitions, overapprox=overapprox
+            target_set, self.propagator, t_max, num_partitions=num_partitions, overapprox=overapprox
         )
         return backprojection_set, info
 

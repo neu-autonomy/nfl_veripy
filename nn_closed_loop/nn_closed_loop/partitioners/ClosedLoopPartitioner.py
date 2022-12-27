@@ -31,45 +31,46 @@ class ClosedLoopPartitioner(partitioners.Partitioner):
         )
 
     def get_one_step_reachable_set(
-        self, input_constraint, output_constraint, propagator
+        self, initial_set, propagator
     ):
-        output_constraint, info = propagator.get_one_step_reachable_set(
-            input_constraint, deepcopy(output_constraint)
+        reachable_set, info = propagator.get_one_step_reachable_set(
+            initial_set
         )
-        return output_constraint, info
+        return reachable_set, info
 
     def get_reachable_set(
-        self, input_constraint, output_constraint, propagator, t_max
+        self, initial_set, propagator, t_max
     ):
-        output_constraint_this_cell, info = propagator.get_reachable_set(
-            input_constraint, deepcopy(output_constraint), t_max
+        reachable_set, info = propagator.get_reachable_set(
+            initial_set, t_max
         )
+        return reachable_set, info
 
-        # TODO: this is repeated from UniformPartitioner...
-        # might be more efficient to directly return from propagator?
-        _ = output_constraint.add_cell(output_constraint_this_cell)
+        # # TODO: this is repeated from UniformPartitioner...
+        # # might be more efficient to directly return from propagator?
+        # _ = reachable_set.add_cell(reachable_set_this_cell)
 
-        return output_constraint, info
+        # return reachable_set, info
 
     def get_error(
-        self, input_constraint, output_constraint, propagator, t_max
+        self, initial_set, reachable_sets, propagator, t_max
     ):
         errors = []
 
-        if isinstance(input_constraint, constraints.LpConstraint):
-            output_estimated_range = output_constraint.range
-            output_range_exact = self.get_sampled_out_range(
-                input_constraint, propagator, t_max, num_samples=1000
+        if isinstance(initial_set, constraints.LpConstraint):
+            estimated_reachable_set_ranges = reachable_sets.range
+            true_reachable_set_ranges = self.get_sampled_out_range(
+                initial_set, propagator, t_max, num_samples=1000
             )
-            num_steps = len(output_constraint.range)
+            num_steps = true_reachable_set_ranges.shape[0]
             for t in range(num_steps):
                 true_area = np.product(
-                    output_range_exact[t][..., 1]
-                    - output_range_exact[t][..., 0]
+                    true_reachable_set_ranges[t][..., 1]
+                    - true_reachable_set_ranges[t][..., 0]
                 )
                 estimated_area = np.product(
-                    output_estimated_range[t][..., 1]
-                    - output_estimated_range[t][..., 0]
+                    estimated_reachable_set_ranges[t][..., 1]
+                    - estimated_reachable_set_ranges[t][..., 0]
                 )
                 errors.append((estimated_area - true_area) / true_area)
         else:
@@ -77,17 +78,17 @@ class ClosedLoopPartitioner(partitioners.Partitioner):
             # with the "best" polytope with those facets.
             # There could be a much better polytope with lots of facets.
             true_verts = self.get_sampled_out_range(
-                input_constraint, propagator, t_max, num_samples=1000,
-                output_constraint=output_constraint
+                initial_set, propagator, t_max, num_samples=1000,
+                output_constraint=reachable_sets
             )
 
-            num_steps = len(output_constraint.b)
+            num_steps = len(reachable_sets.b)
             from scipy.spatial import ConvexHull
             for t in range(num_steps):
-                # true_verts = pypoman.polygon.compute_polygon_hull(output_constraint.A, output_bs_exact[t])
+                # true_verts = pypoman.polygon.compute_polygon_hull(reachable_sets.A, output_bs_exact[t])
                 true_hull = ConvexHull(true_verts[:, t+1, :])
                 true_area = true_hull.volume
-                estimated_verts = pypoman.polygon.compute_polygon_hull(output_constraint.A, output_constraint.b[t])
+                estimated_verts = pypoman.polygon.compute_polygon_hull(reachable_sets.A[t], reachable_sets.b[t])
                 estimated_hull = ConvexHull(estimated_verts)
                 estimated_area = estimated_hull.volume
                 errors.append((estimated_area - true_area) / true_area)
@@ -96,23 +97,24 @@ class ClosedLoopPartitioner(partitioners.Partitioner):
         return final_error, avg_error, np.array(errors)
 
     def get_sampled_out_range(
-        self, input_constraint, propagator, t_max=5, num_samples=1000,
+        self, initial_set, propagator, t_max=5, num_samples=1000,
         output_constraint=None
     ):
+        # TODO: change output_constraint to better name
         return self.dynamics.get_sampled_output_range(
-            input_constraint, t_max, num_samples, controller=propagator.network,
+            initial_set, t_max, num_samples, controller=propagator.network,
             output_constraint=output_constraint
         )
 
     def get_sampled_out_range_guidance(
-        self, input_constraint, propagator, t_max=5, num_samples=1000
+        self, initial_set, propagator, t_max=5, num_samples=1000
     ):
         # Duplicate of get_sampled_out_range, but called during partitioning
-        return self.get_sampled_out_range(input_constraint, propagator, t_max=t_max, num_samples=num_samples)
+        return self.get_sampled_out_range(initial_set, propagator, t_max=t_max, num_samples=num_samples)
 
     def setup_visualization(
         self,
-        input_constraint,
+        initial_set,
         t_max,
         propagator,
         show_samples=True,
@@ -164,7 +166,7 @@ class ClosedLoopPartitioner(partitioners.Partitioner):
         if show_samples:
             self.dynamics.show_samples(
                 t_max * self.dynamics.dt,
-                input_constraint,
+                initial_set,
                 ax=self.animate_axes,
                 controller=propagator.network,
                 input_dims=input_dims,
@@ -175,7 +177,7 @@ class ClosedLoopPartitioner(partitioners.Partitioner):
         if show_trajectories:
             self.dynamics.show_trajectories(
                 t_max * self.dynamics.dt,
-                input_constraint,
+                initial_set,
                 ax=self.animate_axes,
                 controller=propagator.network,
                 input_dims=input_dims,
@@ -191,21 +193,21 @@ class ClosedLoopPartitioner(partitioners.Partitioner):
         # Plot the initial state set's boundaries
         if initial_set_color is None:
             initial_set_color = "tab:grey"
-        rect = input_constraint.plot(self.animate_axes, input_dims, initial_set_color, zorder=initial_set_zorder, linewidth=self.linewidth, plot_2d=self.plot_2d)
+        rect = initial_set.plot(self.animate_axes, input_dims, initial_set_color, zorder=initial_set_zorder, linewidth=self.linewidth, plot_2d=self.plot_2d)
         self.default_patches += rect
 
         if extra_set_color is None:
             extra_set_color = "tab:red"
-        if extra_constraint[0] is not None:
-            for i in range(len(extra_constraint)):
-                rect = extra_constraint[i].plot(self.animate_axes, input_dims, extra_set_color, zorder=extra_set_zorder, linewidth=self.linewidth, plot_2d=self.plot_2d)
-                self.default_patches += rect
+        # if extra_constraint[0] is not None:
+        #     for i in range(len(extra_constraint)):
+        #         rect = extra_constraint[i].plot(self.animate_axes, input_dims, extra_set_color, zorder=extra_set_zorder, linewidth=self.linewidth, plot_2d=self.plot_2d)
+        #         self.default_patches += rect
 
     def visualize(
         self,
         M,
         interior_M,
-        output_constraint,
+        reachable_sets,
         iteration=0,
         title=None,
         reachable_set_color=None,
@@ -220,7 +222,7 @@ class ClosedLoopPartitioner(partitioners.Partitioner):
         self.animate_axes.patches = self.default_patches.copy()
         self.animate_axes.lines = self.default_lines.copy()
 
-        self.plot_reachable_sets(output_constraint, self.input_dims, reachable_set_color=reachable_set_color, reachable_set_zorder=reachable_set_zorder, reachable_set_ls=reachable_set_ls)
+        self.plot_reachable_sets(reachable_sets, self.input_dims, reachable_set_color=reachable_set_color, reachable_set_zorder=reachable_set_zorder, reachable_set_ls=reachable_set_ls)
 
         if plot_lims is not None:
             import ast
@@ -273,7 +275,7 @@ class ClosedLoopPartitioner(partitioners.Partitioner):
 
         constraint.plot(self.animate_axes, dims, color, linewidth=1, plot_2d=self.plot_2d)
 
-    def plot_partitions(self, M, output_constraint, dims):
+    def plot_partitions(self, M, dims):
 
         # first = True
         for (input_constraint, output_range) in M:

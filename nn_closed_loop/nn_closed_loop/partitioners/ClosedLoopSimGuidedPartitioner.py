@@ -51,14 +51,12 @@ class ClosedLoopSimGuidedPartitioner(ClosedLoopPartitioner):
 
     def get_one_step_reachable_set(
         self,
-        input_constraint,
-        output_constraint,
+        initial_set,
         propagator,
         num_partitions=None,
     ):
         reachable_set, info = self.get_reachable_set(
-            input_constraint,
-            output_constraint,
+            initial_set,
             propagator,
             t_max=1,
             num_partitions=num_partitions,
@@ -67,8 +65,7 @@ class ClosedLoopSimGuidedPartitioner(ClosedLoopPartitioner):
 
     def get_reachable_set(
         self,
-        input_constraint,
-        output_constraint,
+        initial_set,
         propagator,
         t_max,
         num_partitions=None,
@@ -88,37 +85,26 @@ class ClosedLoopSimGuidedPartitioner(ClosedLoopPartitioner):
         # query NN --> get N output pts)
         # Compute [u_sim], aka bounds on the sampled outputs (Line 6)
         # (Line 5-6)
-        output_range_sim = self.get_sampled_out_range_guidance(
-            input_constraint, propagator, t_max, num_samples=1000
+        reachable_set_range_sim = self.get_sampled_out_range_guidance(
+            initial_set, propagator, t_max, num_samples=1000
         )
 
         # Get initial output reachable set (Line 3)
         t_start = time.time()
 
-        output_constraint_, info = propagator.get_reachable_set(
-            input_constraint, deepcopy(output_constraint), t_max
+        reachable_set, info = propagator.get_reachable_set(
+            initial_set, t_max
         )
         t_end = time.time()
         propagator_computation_time += t_end - t_start
         num_propagator_calls += t_max
 
-        if isinstance(
-            output_constraint, constraints.PolytopeConstraint
-        ):
-            raise NotImplementedError
-        elif isinstance(output_constraint, constraints.LpConstraint):
-            reachable_set = [o.range for o in output_constraint_]
-            M = [(input_constraint, reachable_set)]  # (Line 4)
-        else:
-            raise NotImplementedError
-
-        u_e = reachable_set.copy()
+        M = [(initial_set, reachable_set)]  # (Line 4)
 
         if self.make_animation:
-            output_constraint_ = constraints.LpConstraint(range=[o.range for o in output_constraint_])
             self.setup_visualization(
-                input_constraint,
-                output_constraint_,
+                initial_set,
+                reachable_set,
                 propagator,
                 show_samples=True,
                 inputs_to_highlight=[
@@ -131,109 +117,106 @@ class ClosedLoopSimGuidedPartitioner(ClosedLoopPartitioner):
                 sample_zorder=self.sample_zorder
             )
 
-        u_e, info = self.partition_loop(
+        reachable_set_range, info = self.partition_loop(
             M,
             interior_M,
-            output_range_sim,
+            reachable_set_range_sim,
             sect_method,
             num_propagator_calls,
-            input_constraint,
-            u_e,
+            initial_set,
+            reachable_set.range,
             propagator,
             propagator_computation_time,
             t_start_overall,
             t_max,
-            output_constraint,
         )
 
         # info["all_partitions"] = ranges
         info["num_propagator_calls"] = num_propagator_calls
         info["num_partitions"] = np.product(num_partitions)
 
-        output_constraint.range = u_e
+        reachable_set = constraints.LpConstraint(range=reachable_set_range)
 
-        return output_constraint, info
+        return reachable_set, info
 
     def partition_loop(
         self,
         M,
         interior_M,
-        output_range_sim,
+        reachable_set_range_sim,
         sect_method,
         num_propagator_calls,
-        input_constraint,
+        initial_set,
         u_e,
         propagator,
         propagator_computation_time,
         t_start_overall,
         t_max,
-        output_constraint
     ):
         if self.make_animation:
-            self.call_visualizer(output_range_sim, M+interior_M, num_propagator_calls, interior_M, iteration=-1)
+            self.call_visualizer(reachable_set_range_sim, M+interior_M, num_propagator_calls, interior_M, iteration=-1)
 
         # Used by UnGuided, SimGuided, GreedySimGuided, etc.
         iteration = 0
         terminate = False
         start_time_partition_loop = t_start_overall
         while len(M) != 0 and not terminate:
-            input_constraint_, reachable_set_ = self.grab_from_M(M, output_range_sim)  # (Line 9)
+            initial_set_this_cell, reachable_set_this_cell = self.grab_from_M(M, reachable_set_range_sim)  # (Line 9)
 
             if self.check_if_partition_within_sim_bnds(
-                reachable_set_, output_range_sim
+                reachable_set_this_cell, reachable_set_range_sim
             ):
                 # Line 11
-                interior_M.append((input_constraint_, reachable_set_))
+                interior_M.append((initial_set_this_cell, reachable_set_this_cell))
             else:
                 # Line 14
                 elapsed_time = time.time() - start_time_partition_loop
                 terminate = self.check_termination(
-                    input_constraint,
+                    initial_set,
                     num_propagator_calls,
                     u_e,
-                    output_range_sim,
-                    M + [(input_constraint_, reachable_set_)] + interior_M,
+                    reachable_set_range_sim,
+                    M + [(initial_set_this_cell, reachable_set_this_cell)] + interior_M,
                     elapsed_time,
                 )
 
                 if not terminate:
                     # Line 15
-                    input_ranges_ = sect(input_constraint_.range, 2, select=sect_method)
+                    sected_initial_set_ranges = sect(initial_set_this_cell.range, 2, select=sect_method)
                     # Lines 16-17
-                    for input_range_ in input_ranges_:
+                    for sected_initial_set_range in sected_initial_set_ranges:
                         t_start = time.time()
 
-                        input_constraint_ = constraints.LpConstraint(range=input_range_)
-                        output_constraint_, info = propagator.get_reachable_set(
-                            input_constraint_, deepcopy(output_constraint), t_max
+                        initial_set_this_sected_cell = constraints.LpConstraint(range=sected_initial_set_range)
+                        reachable_set_this_sected_cell, info = propagator.get_reachable_set(
+                            initial_set_this_sected_cell, t_max
                         )
                         t_end = time.time()
                         propagator_computation_time += t_end - t_start
                         num_propagator_calls += t_max
 
-                        reachable_set_ = [o.range for o in output_constraint_]
-                        M.append((input_constraint_, reachable_set_))  # Line 18
+                        M.append((initial_set_this_sected_cell, reachable_set_this_sected_cell))  # Line 18
 
                 else:  # Lines 19-20
-                    M.append((input_constraint_, reachable_set_))
+                    M.append((initial_set_this_cell, reachable_set_this_cell))
 
                 if self.make_animation:
-                    self.call_visualizer(output_range_sim, M+interior_M, num_propagator_calls, interior_M, iteration=iteration, dont_tighten_layout=False)
+                    self.call_visualizer(reachable_set_range_sim, M+interior_M, num_propagator_calls, interior_M, iteration=iteration, dont_tighten_layout=False)
             iteration += 1
 
         # Line 24
-        u_e = self.squash_down_to_one_range(output_range_sim, M+interior_M)
-        # u_e = self.squash_down_to_one_range(output_range_sim, M)
+        u_e = self.squash_down_to_one_range(reachable_set_range_sim, M+interior_M)
+        # u_e = self.squash_down_to_one_range(reachable_set_range_sim, M)
         t_end_overall = time.time()
 
         ranges = []
         for m in M+interior_M:
-            ranges.append((m[0].range, np.stack(m[1])))
+            ranges.append((m[0].range, m[1].range))
         info["all_partitions"] = ranges
 
         # Stats & Visualization
         # info = self.compile_info(
-        #     output_range_sim,
+        #     reachable_set_range_sim,
         #     M,
         #     interior_M,
         #     num_propagator_calls,
@@ -261,7 +244,7 @@ class ClosedLoopSimGuidedPartitioner(ClosedLoopPartitioner):
     def squash_down_to_one_range(self, output_range_sim, M):
 
         # (len(M)+1, t_max, n_states, 2)
-        tmp = np.vstack([np.array([m[-1] for m in M]), np.expand_dims(output_range_sim, axis=0)])
+        tmp = np.vstack([np.array([m[1].range for m in M]), np.expand_dims(output_range_sim, axis=0)])
         mins = np.min(tmp[...,0], axis=0)
         maxs = np.max(tmp[...,1], axis=0)
         return np.stack([mins, maxs], axis=2)
@@ -270,15 +253,15 @@ class ClosedLoopSimGuidedPartitioner(ClosedLoopPartitioner):
         return M.pop(0)
 
     def check_if_partition_within_sim_bnds(
-        self, output_range, output_range_sim
+        self, reachable_set, reachable_set_range_sim
     ):
-        output_range_ = np.array(output_range)
+        reachable_set_range = reachable_set.range
 
-        # Check if output_range's linf ball is within
-        # output_range_sim's linf ball *for all timesteps*
+        # Check if reachable_set_range's linf ball is within
+        # reachable_set_range_sim's linf ball *for all timesteps*
         inside = np.all(
-            (output_range_sim[..., 0] - output_range_[..., 0]) <= 0
-        ) and np.all((output_range_sim[..., 1] - output_range_[..., 1]) >= 0)
+            (reachable_set_range_sim[..., 0] - reachable_set_range[..., 0]) <= 0
+        ) and np.all((reachable_set_range_sim[..., 1] - reachable_set_range[..., 1]) >= 0)
         return inside
 
     def get_one_step_backprojection_set(

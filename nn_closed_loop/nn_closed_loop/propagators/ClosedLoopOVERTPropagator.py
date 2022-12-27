@@ -17,8 +17,8 @@ os.makedirs(model_dir, exist_ok=True)
 
 class ClosedLoopOVERTPropagator(ClosedLoopPropagator):
     def __init__(self, input_shape=None, dynamics=None):
-        ClosedLoopPropagator.__init__(
-            self, input_shape=input_shape, dynamics=dynamics
+        super().__init__(
+            input_shape=input_shape, dynamics=dynamics
         )
         self.url = 'http://localhost:8000/overt'
         self.model_filename = model_dir+"/tmp_model.nnet"

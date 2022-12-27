@@ -42,22 +42,26 @@ class ClosedLoopAnalyzer(analyzers.Analyzer):
             **{**hyperparams, "dynamics": self.dynamics}
         )
 
-    def get_one_step_reachable_set(self, input_constraint, output_constraint):
+    def get_one_step_reachable_set(self, initial_set):
+        # initial_set: constraints.LpConstraint(range=(num_states, 2))
+        # reachable_set: constraints.LpConstraint(range=(num_states, 2))
         reachable_set, info = self.partitioner.get_one_step_reachable_set(
-            input_constraint, output_constraint, self.propagator
+            initial_set, self.propagator
         )
         return reachable_set, info
 
-    def get_reachable_set(self, input_constraint, output_constraint, t_max):
+    def get_reachable_set(self, initial_set, t_max):
+        # initial_set: constraints.LpConstraint(range=(num_states, 2))
+        # reachable_set: constraints.LpConstraint(range=(num_timesteps, num_states, 2))
         reachable_set, info = self.partitioner.get_reachable_set(
-            input_constraint, output_constraint, self.propagator, t_max
+            initial_set, self.propagator, t_max
         )
         return reachable_set, info
 
     def visualize(
         self,
-        input_constraint,
-        output_constraint,
+        initial_set,
+        reachable_sets,
         target_constraint=None,
         show=True,
         show_samples=False,
@@ -77,8 +81,8 @@ class ClosedLoopAnalyzer(analyzers.Analyzer):
                 {"dim": [1], "name": "$x_1$"},
             ]
         self.partitioner.setup_visualization(
-            input_constraint,
-            output_constraint.get_t_max(),
+            initial_set,
+            reachable_sets.get_t_max(),
             self.propagator,
             show_samples=show_samples,
             show_trajectories=show_trajectories,
@@ -98,7 +102,7 @@ class ClosedLoopAnalyzer(analyzers.Analyzer):
                 "exterior_partitions", kwargs.get("all_partitions", [])
             ),
             kwargs.get("interior_partitions", []),
-            output_constraint,
+            reachable_sets,
             kwargs.get("iteration", None),
             reachable_set_color=self.reachable_set_color,
             reachable_set_zorder=self.reachable_set_zorder,
@@ -118,8 +122,8 @@ class ClosedLoopAnalyzer(analyzers.Analyzer):
         input_dims = [x["dim"] for x in inputs_to_highlight]
         if show_trajectories:
             self.dynamics.show_trajectories(
-                output_constraint.get_t_max() * self.dynamics.dt,
-                input_constraint,
+                reachable_sets.get_t_max() * self.dynamics.dt,
+                initial_set,
                 input_dims=input_dims,
                 ax=self.partitioner.animate_axes,
                 controller=self.propagator.network,
@@ -148,26 +152,23 @@ class ClosedLoopAnalyzer(analyzers.Analyzer):
         return get_sampled_outputs(input_range, self.propagator, N=N)
 
     def get_sampled_output_range(
-        self, input_constraint, t_max=5, num_samples=1000
+        self, initial_set, t_max=5, num_samples=1000
     ):
         return self.partitioner.get_sampled_out_range(
-            input_constraint, self.propagator, t_max, num_samples
+            initial_set, self.propagator, t_max, num_samples
         )
 
-    def get_output_range(self, input_constraint, output_constraint):
+    def get_output_range(self, initial_set, reachable_sets):
         return self.partitioner.get_output_range(
-            input_constraint, output_constraint
+            initial_set, reachable_sets
         )
-
-    def samples_to_range(self, sampled_outputs):
-        return samples_to_range(sampled_outputs)
 
     def get_exact_output_range(self, input_range):
         sampled_outputs = self.get_sampled_outputs(input_range)
-        output_range = self.samples_to_range(sampled_outputs)
+        output_range = samples_to_range(sampled_outputs)
         return output_range
 
-    def get_error(self, input_constraint, output_constraint, t_max):
+    def get_error(self, initial_set, reachable_sets, t_max):
         return self.partitioner.get_error(
-            input_constraint, output_constraint, self.propagator, t_max
+            initial_set, reachable_sets, self.propagator, t_max
         )

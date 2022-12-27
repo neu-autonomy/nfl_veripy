@@ -17,14 +17,12 @@ class ClosedLoopUniformPartitioner(ClosedLoopPartitioner):
 
     def get_one_step_reachable_set(
         self,
-        input_constraint,
-        output_constraint,
+        initial_set,
         propagator,
         num_partitions=None,
     ):
         reachable_set, info = self.get_reachable_set(
-            input_constraint,
-            output_constraint,
+            initial_set,
             propagator,
             t_max=1,
             num_partitions=num_partitions,
@@ -33,14 +31,15 @@ class ClosedLoopUniformPartitioner(ClosedLoopPartitioner):
 
     def get_reachable_set(
         self,
-        input_constraint,
-        output_constraint,
+        initial_set,
         propagator,
         t_max,
         num_partitions=None,
     ):
 
-        input_range = input_constraint.to_range()
+        reachable_set = constraints.create_empty_constraint(propagator.boundary_type, num_facets=propagator.num_polytope_facets)
+
+        input_range = initial_set.to_range()
 
         info = {}
         num_propagator_calls = 0
@@ -76,22 +75,24 @@ class ClosedLoopUniformPartitioner(ClosedLoopPartitioner):
                 element_ + 1, slope
             )
 
-            input_constraint_this_cell = input_constraint.get_cell(input_range_this_cell)
+            initial_set_this_cell = initial_set.get_cell(input_range_this_cell)
 
-            output_constraint_this_cell, info_this_cell = propagator.get_reachable_set(
-                input_constraint_this_cell, deepcopy(output_constraint), t_max
+            # initial_set: constraints.LpConstraint(range=(num_states, 2))
+            # reachable_set: constraints.LpConstraint(range=(num_states, 2))
+            reachable_set_this_cell, info_this_cell = propagator.get_reachable_set(
+                initial_set_this_cell, t_max
             )
             num_propagator_calls += t_max
             info['nn_matrices'] = info_this_cell
 
-            reachable_set_this_cell = output_constraint.add_cell(output_constraint_this_cell)
+            reachable_set_this_cell = reachable_set.add_cell(reachable_set_this_cell)
             ranges.append((input_range_this_cell, reachable_set_this_cell))
 
         info["all_partitions"] = ranges
         info["num_propagator_calls"] = num_propagator_calls
         info["num_partitions"] = np.product(num_partitions)
 
-        return output_constraint, info
+        return reachable_set, info
 
     def get_one_step_backprojection_set(
         self, target_sets, propagator, num_partitions=None, overapprox=False

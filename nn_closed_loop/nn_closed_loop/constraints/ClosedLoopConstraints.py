@@ -2,7 +2,7 @@ import numpy as np
 import pypoman
 from matplotlib.patches import Rectangle
 from nn_closed_loop.utils.plot_rect_prism import rect_prism
-from nn_closed_loop.utils.utils import range_to_polytope
+from nn_closed_loop.utils.utils import range_to_polytope, get_polytope_A
 
 
 class Constraint:
@@ -154,7 +154,7 @@ class PolytopeConstraint(Constraint):
                 lines += line
             else:
                 for i in range(len(self.b)):
-                    line = make_polytope_from_arrs(ax, self.A, self.b[i], color, label, zorder, ls, linewidth)
+                    line = make_polytope_from_arrs(ax, self.A[i], self.b[i], color, label, zorder, ls, linewidth)
                     lines += line
 
         return lines
@@ -188,20 +188,22 @@ class LpConstraint(Constraint):
     def get_cell(self, input_range):
         return self.__class__(range=input_range, p=self.p)
 
-    def add_cell(self, output_constraint):
-        reachable_set_this_cell = [o.range for o in output_constraint]
+    def add_cell(self, constraint):
+        # constraint: constraints.LpConstraint(range=(num_timesteps, num_states, 2))
+        
         if self.range is None:
-            self.range = np.stack(reachable_set_this_cell)
+            self.range = constraint.range
+            return self.range
 
         tmp = np.stack(
-            [self.range, np.stack(reachable_set_this_cell)],
+            [self.range, constraint.range],
             axis=-1,
         )
 
         self.range[..., 0] = np.min(tmp[..., 0, :], axis=-1)
         self.range[..., 1] = np.max(tmp[..., 1, :], axis=-1)
 
-        return np.stack(reachable_set_this_cell)
+        return constraint.range
 
     def to_reachable_input_objects(self):
         x_min = self.range[..., 0]
@@ -273,3 +275,33 @@ def make_polytope_from_arrs(ax, A, b, color, label, zorder, ls, linewidth=1.5):
         linewidth=linewidth
     )
     return lines
+
+
+def create_empty_constraint(boundary_type, num_facets=None):
+    if boundary_type == "polytope":
+        if num_facets:
+            return PolytopeConstraint(A=get_polytope_A(num_facets))
+        return PolytopeConstraint()
+    elif boundary_type == "rectangle":
+        return LpConstraint()
+
+
+def state_range_to_constraint(state_range, boundary_type):
+    if boundary_type == "polytope":
+        A, b = range_to_polytope(state_range)
+        state_set = PolytopeConstraint(A, b)
+    elif boundary_type == "rectangle":
+        state_set = LpConstraint(
+            range=state_range, p=np.inf
+        )
+    else:
+        raise NotImplementedError
+    return state_set
+
+def list_to_constraint(reachable_sets):
+    if isinstance(reachable_sets[0], LpConstraint):
+        return LpConstraint(range=np.stack([r.range for r in reachable_sets]))
+    elif isinstance(reachable_sets[0], PolytopeConstraint):
+        return PolytopeConstraint(A=np.stack([r.A for r in reachable_sets]), b=np.stack([r.b for r in reachable_sets]))
+    else:
+        raise NotImplementedError

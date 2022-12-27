@@ -10,6 +10,9 @@ from nn_closed_loop.utils.utils import (
 )
 import os
 import argparse
+import ast
+import time
+
 
 dir_path = os.path.dirname(os.path.realpath(__file__))
 
@@ -35,12 +38,6 @@ def main(args):
                     [-0.25, 0.25],  # x1min, x1max
                 ]
             )
-        else:
-            import ast
-
-            init_state_range = np.array(
-                ast.literal_eval(args.init_state_range)
-            )
     elif args.system == "ground_robot":
         inputs_to_highlight = [
             {"dim": [0], "name": "$p_x \ (\mathrm{m})$"},
@@ -57,24 +54,12 @@ def main(args):
                     [-0.5, 0.5],  # x1min, x1max
                 ]
             )
-        else:
-            import ast
-
-            init_state_range = np.array(
-                ast.literal_eval(args.init_state_range)
-            )
         if args.final_state_range is None:
             final_state_range = np.array(
                 [
                     [-7.0, -6.5],
                     [-0.5, 0.5]
                 ]
-            )
-        else:
-            import ast
-
-            final_state_range = np.array(
-                ast.literal_eval(args.final_state_range)
             )
     elif args.system == "ground_robot_DI":
         inputs_to_highlight = [
@@ -94,12 +79,6 @@ def main(args):
                     [-0.01, 0.01]
                 ]
             )
-        else:
-            import ast
-
-            init_state_range = np.array(
-                ast.literal_eval(args.init_state_range)
-            )
         if args.final_state_range is None:
             final_state_range = np.array(
                 [  # (num_inputs, 2)
@@ -108,12 +87,6 @@ def main(args):
                     [-1, 1],
                     [-1, 1]
                 ]
-            )
-        else:
-            import ast
-
-            final_state_range = np.array(
-                ast.literal_eval(args.final_state_range)
             )
     elif args.system == "unicycle":
         inputs_to_highlight = [
@@ -132,12 +105,6 @@ def main(args):
                     [-np.pi/100, np.pi/100]
                 ]
             )
-        else:
-            import ast
-
-            init_state_range = np.array(
-                ast.literal_eval(args.init_state_range)
-            )
     elif args.system == "quadrotor":
         inputs_to_highlight = [
             {"dim": [0], "name": "$x$"},
@@ -155,12 +122,6 @@ def main(args):
                     [4.75, 4.75, 3.05, 0.96, 0.01, 0.01],
                 ]
             ).T
-        else:
-            import ast
-
-            init_state_range = np.array(
-                ast.literal_eval(args.init_state_range)
-            )
         if args.final_state_range is None:
             final_state_range = np.array(
                 [  # (num_inputs, 2)
@@ -168,12 +129,6 @@ def main(args):
                     [0.25, 0.5+0.25, 4, 0.2, 0.2, 0.2],
                 ]
             ).T
-        else:
-            import ast
-
-            final_state_range = np.array(
-                ast.literal_eval(args.final_state_range)
-            )
     elif args.system == "quadrotor_8D":
         inputs_to_highlight = [
             {"dim": [0], "name": "$x$"},
@@ -191,12 +146,6 @@ def main(args):
                     [4.75, 4.75, 3.05, 0.96, 0.01, 0.01, 0, 0],
                 ]
             ).T
-        else:
-            import ast
-
-            init_state_range = np.array(
-                ast.literal_eval(args.init_state_range)
-            )
         if args.final_state_range is None:
             final_state_range = np.array(
                 [  # (num_inputs, 2)
@@ -204,12 +153,6 @@ def main(args):
                     [0.25, 0.5+0.25, 4, 0.2, 0.2, 0.2],
                 ]
             ).T
-        else:
-            import ast
-
-            final_state_range = np.array(
-                ast.literal_eval(args.final_state_range)
-            )
     elif args.system == "duffing":
         inputs_to_highlight = [
             {"dim": [0], "name": "$x_0$"},
@@ -239,21 +182,23 @@ def main(args):
         dyn = dynamics.Unity(args.nx, args.nu)
         if args.init_state_range is None:
             init_state_range = np.vstack([-np.ones(args.nx), np.ones(args.nx)]).T
-        else:
-            import ast
-
-            init_state_range = np.array(
-                ast.literal_eval(args.init_state_range)
-            )
         controller = load_controller_unity(args.nx, args.nu)
     else:
         raise NotImplementedError
 
+    # Ingest init/final state range as arg
+    if args.init_state_range is not None:
+        init_state_range = np.array(
+            ast.literal_eval(args.init_state_range)
+        )
+    if args.final_state_range is not None:
+        final_state_range = np.array(
+            ast.literal_eval(args.final_state_range)
+        )
+
     if args.num_partitions is None:
         num_partitions = np.ones(dyn.At.shape[0])
     else:
-        import ast
-
         num_partitions = np.array(
             ast.literal_eval(args.num_partitions)
         )
@@ -263,105 +208,80 @@ def main(args):
         "num_partitions": num_partitions,
         "make_animation": args.make_animation,
         "show_animation": args.show_animation,
+        "num_polytope_facets": args.num_polytope_facets,
     }
     propagator_hyperparams = {
         "type": args.propagator,
         "input_shape": init_state_range.shape[:-1],
+        "boundary_type": args.boundaries,
+        "num_polytope_facets": args.num_polytope_facets,
     }
     if args.propagator == "SDP":
         propagator_hyperparams["cvxpy_solver"] = args.cvxpy_solver
 
     # Load NN control policy
-    if args.system is not "Quadrotor_8D":
+    if isinstance(args.controller, str):
         controller = load_controller(
             system=dyn.__class__.__name__,
-            model_name=args.controller,
-        )
-    elif args.system is "Quadrotor_8D":
-        controller = th.load(dir_path+"/models/Quadrotor_8D/intermediate_policy_0.pt")
-        controller.eval()
+            model_name=args.controller
+            )
     else:
-        raise NotImplementedError
+        controller = args.controller
 
     # Set up analyzer (+ parititoner + propagator)
     analyzer = analyzers.ClosedLoopAnalyzer(controller, dyn)
     analyzer.partitioner = partitioner_hyperparams
-    # import pdb; pdb.set_trace()
     analyzer.propagator = propagator_hyperparams
 
-    # Set up initial state set (and placeholder for reachable sets)
-    if args.boundaries == "polytope":
-        A_inputs, b_inputs = range_to_polytope(init_state_range)
-        if args.system == "quadrotor":
-            A_out = A_inputs
-        else:
-            A_out = get_polytope_A(args.num_polytope_facets)
-        input_constraint = constraints.PolytopeConstraint(
-            A_inputs, b_inputs
-        )
-        output_constraint = constraints.PolytopeConstraint(A_out)
-        back_output_constraint = [None]
-    elif args.boundaries == "rectangle":
-        input_constraint = constraints.LpConstraint(
-            range=init_state_range, p=np.inf
-        )
-        output_constraint = constraints.LpConstraint(p=np.inf)
-        if args.show_obs:
-            back_input_constraint = constraints.LpConstraint(p=np.inf)
-            back_output_constraint = [constraints.LpConstraint(range=final_state_range, p=np.inf)]
-        else:
-            back_output_constraint = [None]
-    else:
-        raise NotImplementedError
+    initial_state_set = constraints.state_range_to_constraint(init_state_range, args.boundaries)
 
     if args.estimate_runtime:
         # Run the analyzer N times to compute an estimated runtime
-        import time
-
-        num_calls = 5
-        times = np.empty(num_calls)
-        final_errors = np.empty(num_calls)
-        avg_errors = np.empty(num_calls, dtype=np.ndarray)
-        all_errors = np.empty(num_calls, dtype=np.ndarray)
-        output_constraints = np.empty(num_calls, dtype=object)
-        for num in range(num_calls):
+        times = np.empty(args.num_calls)
+        final_errors = np.empty(args.num_calls, dtype=np.ndarray)
+        avg_errors = np.empty(args.num_calls, dtype=np.ndarray)
+        all_errors = np.empty(args.num_calls, dtype=np.ndarray)
+        all_reachable_sets = np.empty(args.num_calls, dtype=object)
+        for num in range(args.num_calls):
             print('call: {}'.format(num))
             t_start = time.time()
-            output_constraint, analyzer_info = analyzer.get_reachable_set(
-                input_constraint, output_constraint, t_max=args.t_max
+            reachable_sets, analyzer_info = analyzer.get_reachable_set(
+                initial_state_set, t_max=args.t_max
             )
             t_end = time.time()
             t = t_end - t_start
             times[num] = t
 
-            final_error, avg_error, all_error = analyzer.get_error(input_constraint, output_constraint, t_max=args.t_max)
-            final_errors[num] = final_error
-            avg_errors[num] = avg_error
-            all_errors[num] = all_error
-            output_constraints[num] = output_constraint
+            if num == 0:
+                final_error, avg_error, all_error = analyzer.get_error(initial_state_set, reachable_sets, t_max=args.t_max)
+                final_errors[num] = final_error
+                avg_errors[num] = avg_error
+                all_errors[num] = all_error
+                all_reachable_sets[num] = reachable_sets
 
         stats['runtimes'] = times
         stats['final_step_errors'] = final_errors
         stats['avg_errors'] = avg_errors
         stats['all_errors'] = all_errors
-        stats['output_constraints'] = output_constraints
+        stats['reachable_sets'] = all_reachable_sets
 
         print("All times: {}".format(times))
         print("Avg time: {} +/- {}".format(times.mean(), times.std()))
     else:
         # Run analysis once
-        import time
         t_start = time.time()
-        output_constraint, analyzer_info = analyzer.get_reachable_set(
-            input_constraint, output_constraint, t_max=args.t_max
+        reachable_sets, analyzer_info = analyzer.get_reachable_set(
+            initial_state_set, t_max=args.t_max
         )
         t_end = time.time()
         print(t_end - t_start)
-        # print(output_constraint.range)
+        stats['reachable_sets'] = reachable_sets
 
     if args.estimate_error:
-        final_error, avg_error, errors = analyzer.get_error(input_constraint, output_constraint, t_max=args.t_max)
-        print('Final step approximation error:{:.2f}\nAverage approximation error: {:.2f}\nAll errors: {}'.format(final_error, avg_error, errors))
+        final_error, avg_error, errors = analyzer.get_error(initial_state_set, reachable_sets, t_max=args.t_max)
+        print('Final step approximation error: {}'.format(final_error))
+        print('Avg errors: {}'.format(avg_error))
+        print('All errors: {}'.format(errors))
 
     if args.save_plot:
         save_dir = "{}/results/examples/".format(
@@ -408,8 +328,6 @@ def main(args):
             + str(round(args.t_max, 1))
             + "_"
             + args.boundaries
-            + "_"
-            + str(args.num_polytope_facets)
         )
         if len(pars2) > 0:
             analyzer_info["save_name"] = (
@@ -417,15 +335,10 @@ def main(args):
             )
         analyzer_info["save_name"] = analyzer_info["save_name"] + ".png"
         
-        controller_name=None
-        if args.show_policy:
-            controller_name = vars(args)['controller']
-
     if args.show_plot or args.save_plot:
         analyzer.visualize(
-            input_constraint,
-            output_constraint,
-            target_constraint = back_output_constraint,
+            initial_state_set,
+            reachable_sets,
             show_samples=args.show_samples,
             show_trajectories=args.show_trajectories,
             show=args.show_plot,
@@ -434,7 +347,7 @@ def main(args):
             plot_lims=args.plot_lims,
             iteration=None,
             inputs_to_highlight=inputs_to_highlight,
-            controller_name=controller_name,
+            controller_name=None,
             **analyzer_info
         )
 
@@ -495,7 +408,7 @@ def setup_parser():
     parser.add_argument(
         "--propagator",
         default="IBP",
-        choices=["IBP", "CROWN", "CROWNNStep", "FastLin", "SDP", "CROWNLP", "SeparableCROWN", "SeparableIBP", "SeparableSGIBP", "OVERT"],
+        choices=["IBP", "CROWN", "CROWNNStep", "FastLin", "SDP", "CROWNLP", "SeparableCROWN", "SeparableIBP", "SeparableSGIBP", "OVERT", "JaxForwardCROWN"],
         help="which propagator to use (default: IBP)",
     )
 
@@ -645,6 +558,12 @@ def setup_parser():
         help="whether to show results of BReach-LP when using ReBReach-LP",
     )
     parser.set_defaults(show_BReach=False)
+    parser.add_argument(
+        "--num_calls",
+        default=20,
+        type=int,
+        help="how many times to call the analyzer to estimate runtime (default: 20)",
+    )
 
 
 

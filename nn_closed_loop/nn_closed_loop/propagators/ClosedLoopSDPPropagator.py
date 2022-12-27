@@ -21,8 +21,8 @@ class ClosedLoopSDPPropagator(ClosedLoopPropagator):
     def __init__(
         self, input_shape=None, dynamics=None, cvxpy_solver="default"
     ):
-        ClosedLoopPropagator.__init__(
-            self, input_shape=input_shape, dynamics=dynamics
+        super().__init__(
+            input_shape=input_shape, dynamics=dynamics
         )
         self.cvxpy_solver = cvxpy_solver
 

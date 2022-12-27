@@ -122,7 +122,7 @@ def main(args):
             import ast
 
     if args.num_partitions is None:
-        num_partitions = np.array([10, 10])
+        num_partitions = None
     else:
         import ast
 
@@ -137,17 +137,17 @@ def main(args):
     propagator_hyperparams = {
         "type": args.propagator,
         "input_shape": final_state_range.shape[:-1],
+        "num_iterations": args.num_iterations,
     }
 
     # Load NN control policy
-    controller = load_controller(
-        system=dyn.__class__.__name__,
-        model_name=args.controller,
-    )
-
-    controller_name = None
-    if args.show_policy:
-        controller_name = vars(args)['controller']
+    if isinstance(args.controller, str):
+        controller = load_controller(
+            system=dyn.__class__.__name__,
+            model_name=args.controller
+            )
+    else:
+        controller = args.controller
 
     # Set up analyzer (+ partitioner + propagator)
     analyzer = analyzers.ClosedLoopBackwardAnalyzer(controller, dyn)
@@ -170,13 +170,13 @@ def main(args):
         # Run the analyzer N times to compute an estimated runtime
         import time
 
-        num_calls = 5
-        times = np.empty(num_calls)
-        final_errors = np.empty(num_calls)
-        avg_errors = np.empty(num_calls, dtype=np.ndarray)
-        all_errors = np.empty(num_calls, dtype=np.ndarray)
-        all_backprojection_sets = np.empty(num_calls, dtype=object)
-        for num in range(num_calls):
+        times = np.empty(args.num_calls)
+        final_errors = np.empty(args.num_calls)
+        avg_errors = np.empty(args.num_calls, dtype=np.ndarray)
+        all_errors = np.empty(args.num_calls, dtype=np.ndarray)
+        all_backprojection_sets = np.empty(args.num_calls, dtype=object)
+        target_sets = np.empty(num_calls, dtype=object)
+        for num in range(args.num_calls):
             print('call: {}'.format(num))
             t_start = time.time()
             backprojection_sets, analyzer_info = analyzer.get_backprojection_set(
@@ -185,20 +185,24 @@ def main(args):
             t_end = time.time()
             t = t_end - t_start
             times[num] = t
-            backprojection_sets = input_constraint_list[0]
-            target_set = output_constraint[0]
-            final_error, avg_error, all_error = analyzer.get_backprojection_error(target_set, backprojection_sets, t_max=args.t_max)
 
-            final_errors[num] = final_error
-            avg_errors[num] = avg_error
-            all_errors[num] = all_error
-            output_constraints[num] = output_constraint
+            if num == 0:
+                final_error, avg_error, all_error = analyzer.get_backprojection_error(target_set, backprojection_sets, t_max=args.t_max)
+
+                final_errors[num] = final_error
+                avg_errors[num] = avg_error
+                all_errors[num] = all_error
+                all_backprojection_sets[num] = backprojection_sets
+                target_sets[num] = target_sets
+
+
 
         stats['runtimes'] = times
         stats['final_step_errors'] = final_errors
         stats['avg_errors'] = avg_errors
         stats['all_errors'] = all_errors
         stats['all_backprojection_sets'] = all_backprojection_sets
+        stats['target_sets'] = target_sets
 
         print("All times: {}".format(times))
         print("Avg time: {} +/- {}".format(times.mean(), times.std()))
@@ -208,6 +212,7 @@ def main(args):
         backprojection_sets, analyzer_info = analyzer.get_backprojection_set(
             target_set, t_max=args.t_max, num_partitions=num_partitions, overapprox=args.overapprox
         )
+        stats['backprojection_sets'] = backprojection_sets
         
     controller_name=None
     if args.show_policy:
@@ -462,6 +467,18 @@ def setup_parser():
         dest="show_convex_hulls",
         action="store_true",
         help="Show convex hulls of true backprojection sets"
+    )
+    parser.add_argument(
+        "--num_calls",
+        default=20,
+        type=int,
+        help="how many times to call the analyzer to estimate runtime (default: 20)",
+    )
+    parser.add_argument(
+        "--num_iterations",
+        default=1,
+        type=int,
+        help="how many times to recursively improve the BP set estimate per timestep (default: 1)",
     )
 
     return parser
