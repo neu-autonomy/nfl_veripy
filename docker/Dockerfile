@@ -1,4 +1,4 @@
-FROM python:3.6.15-slim
+FROM python:3.10.3-slim
 
 RUN apt-get update && apt-get install -y \
     libblas-dev \
