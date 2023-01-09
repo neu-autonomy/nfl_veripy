@@ -354,14 +354,14 @@ class Partitioner:
         title=None,
     ):
         if show_input:
-            self.ax_input.patches = self.default_patches[
+            self.ax_input.add_patch(self.default_patches[
                 self.input_axis
-            ].copy()
+            ].copy())
             self.ax_input.lines = self.default_lines[self.input_axis].copy()
         if show_output:
-            self.ax_output.patches = self.default_patches[
+            self.ax_output.add_patch(self.default_patches[
                 self.output_axis
-            ].copy()
+            ].copy())
             self.ax_output.lines = self.default_lines[self.output_axis].copy()
         input_dims_ = self.input_dims_
 

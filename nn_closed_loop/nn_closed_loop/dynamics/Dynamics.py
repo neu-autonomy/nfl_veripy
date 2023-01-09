@@ -5,7 +5,7 @@ if platform.system() == "Darwin":
     import matplotlib
     matplotlib.use('MACOSX')
 import matplotlib.pyplot as plt
-from matplotlib import cm
+from matplotlib import colormaps
 
 from nn_closed_loop.utils.nn_bounds import BoundClosedLoopController
 import nn_closed_loop.constraints as constraints
@@ -77,7 +77,7 @@ class Dynamics:
         raise NotImplementedError
 
     def colors(self, t_max):
-        return [cm.get_cmap(self.cmap_name)(i) for i in range(t_max + 1)]
+        return [colormaps[self.cmap_name](i) for i in range(t_max + 1)]
 
     def get_sampled_output_range(
         self, input_constraint, t_max=5, num_samples=1000, controller="mpc",

@@ -14,28 +14,32 @@ from nn_closed_loop.utils.optimization_utils import (
 import cvxpy as cp
 from itertools import product
 from copy import deepcopy
+from nn_closed_loop.utils.nn_bounds import BoundClosedLoopController
+
+import nn_closed_loop.dynamics as dynamics
+from typing import Optional
 
 
 class ClosedLoopCROWNIBPCodebasePropagator(ClosedLoopPropagator):
-    def __init__(self, input_shape=None, dynamics=None, boundary_type="rectangle", num_polytope_facets=None):
+    def __init__(self, input_shape: Optional[np.ndarray] = None, dynamics: Optional[dynamics.Dynamics] = None, boundary_type: str = "rectangle", num_polytope_facets: Optional[int] = None):
         super().__init__(
             input_shape=input_shape, dynamics=dynamics, boundary_type=boundary_type, num_polytope_facets=num_polytope_facets,
         )
+        self.params: dict[str, bool] = {}
+        self.method_opt: str = "TODO"
 
-    def torch2network(self, torch_model):
-        from nn_closed_loop.utils.nn_bounds import BoundClosedLoopController
-
+    def torch2network(self, torch_model: torch.nn.Sequential) -> BoundClosedLoopController:
         torch_model_cl = BoundClosedLoopController.convert(
             torch_model, dynamics=self.dynamics, bound_opts=self.params
         )
         return torch_model_cl
 
-    def forward_pass(self, input_data):
+    def forward_pass(self, input_data: np.ndarray) -> np.ndarray:
         return self.network(
             torch.Tensor(input_data), method_opt=None
         ).data.numpy()
 
-    def get_one_step_reachable_set(self, initial_set):
+    def get_one_step_reachable_set(self, initial_set: constraints.SingleTimestepConstraint) -> tuple[constraints.SingleTimestepConstraint, dict]:
         # initial_set: constraints.LpConstraint(range=(num_states, 2))
         # reachable_set: constraints.LpConstraint(range=(num_states, 2))
 
@@ -120,11 +124,11 @@ class ClosedLoopCROWNIBPCodebasePropagator(ClosedLoopPropagator):
     '''
     def get_one_step_backprojection_set(
         self,
-        backreachable_set,
-        target_sets,
-        overapprox=False,
-        infos=None,
-    ):
+        backreachable_set: constraints.SingleTimestepConstraint,
+        target_sets: constraints.MultiTimestepConstraint,
+        overapprox: bool = False,
+        infos: dict = {},
+    ) -> tuple[Optional[constraints.SingleTimestepConstraint], dict]:
 
         backreachable_set.crown_matrices = get_crown_matrices(
             self,
@@ -144,7 +148,7 @@ class ClosedLoopCROWNIBPCodebasePropagator(ClosedLoopPropagator):
                 target_sets
             )
 
-        return backprojection_set, {}
+        return backprojection_set, infos
 
     '''
     Inputs: 
@@ -157,26 +161,32 @@ class ClosedLoopCROWNIBPCodebasePropagator(ClosedLoopPropagator):
     '''
     def get_one_step_backprojection_set_underapprox(
         self,
-        backreachable_set,
-        target_sets
-    ):
+        backreachable_set: constraints.SingleTimestepConstraint,
+        target_sets: constraints.MultiTimestepConstraint,
+    ) -> Optional[constraints.PolytopeConstraint]:
         # For our under-approximation, refer to the Access21 paper.
 
+        if not backreachable_set.crown_matrices:
+            raise ValueError('Need to set backreachable_set.crown_matrices.')
         upper_A, lower_A, upper_sum_b, lower_sum_b = backreachable_set.crown_matrices.to_numpy()
+
+        target_set = target_sets.get_constraint_at_time_index(0)
+        target_set_range = target_set.to_range()
+        assert target_set_range is not None, "target_set.range is None -- make sure it's set to an array."
 
         # The NN matrices define three types of constraints:
         # - NN's resulting lower bnds on xt1 >= lower bnds on xt1
         # - NN's resulting upper bnds on xt1 <= upper bnds on xt1
         # - NN matrices are only valid within the partition
-        A_NN, b_NN = range_to_polytope(backreachable_set.range)
+        A_NN, b_NN = backreachable_set.get_polytope()
         A = np.vstack([
                 (self.dynamics.At+self.dynamics.bt@upper_A),
                 -(self.dynamics.At+self.dynamics.bt@lower_A),
                 A_NN
             ])
         b = np.hstack([
-                target_sets[0].range[:, 1] - self.dynamics.bt@upper_sum_b,
-                -target_sets[0].range[:, 0] + self.dynamics.bt@lower_sum_b,
+                target_set_range[:, 1] - self.dynamics.bt@upper_sum_b,
+                -target_set_range[:, 0] + self.dynamics.bt@lower_sum_b,
                 b_NN
                 ])
 
@@ -205,9 +215,9 @@ class ClosedLoopCROWNIBPCodebasePropagator(ClosedLoopPropagator):
     '''
     def get_one_step_backprojection_set_overapprox(
         self,
-        backreachable_set,
-        target_sets
-    ):
+        backreachable_set: constraints.SingleTimestepConstraint,
+        target_sets: constraints.MultiTimestepConstraint,
+    ) -> Optional[constraints.SingleTimestepConstraint]:
 
         num_states, num_control_inputs = self.dynamics.bt.shape
 
@@ -220,18 +230,19 @@ class ClosedLoopCROWNIBPCodebasePropagator(ClosedLoopPropagator):
         constrs = []
 
         # Constraints to ensure that xt stays within the backreachable set
-        constrs += [backreachable_set.range[:, 0] <= xt]
-        constrs += [xt <= backreachable_set.range[:, 1]]
+        A_backreach, b_backreach = backreachable_set.get_polytope()
+        constrs += [A_backreach@xt <= b_backreach]
 
         # Constraints to ensure that ut satisfies the affine bounds
+        assert backreachable_set.crown_matrices is not None, "Need to set backreachable_set.crown_matrices."
         constrs += [backreachable_set.crown_matrices.lower_A_numpy@xt+backreachable_set.crown_matrices.lower_sum_b_numpy <= ut]
         constrs += [ut <= backreachable_set.crown_matrices.upper_A_numpy@xt+backreachable_set.crown_matrices.upper_sum_b_numpy]
 
         # Constraints to ensure xt reaches the "target set" given ut
         # ... where target set = our best bounds on the next state set
         # (i.e., either the true target set or a backprojection set)
-        constrs += [self.dynamics.dynamics_step(xt, ut) <= target_sets[-1].range[:, 1]]
-        constrs += [self.dynamics.dynamics_step(xt, ut) >= target_sets[-1].range[:, 0]]
+        A_target, b_target = target_sets.get_constraint_at_time_index(-1).get_polytope()
+        constrs += [A_target@self.dynamics.dynamics_step(xt, ut) <= b_target]
 
         b, status = optimize_over_all_states(xt, constrs)
 
@@ -403,7 +414,7 @@ class ClosedLoopCROWNIBPCodebasePropagator(ClosedLoopPropagator):
 
 
 class ClosedLoopIBPPropagator(ClosedLoopCROWNIBPCodebasePropagator):
-    def __init__(self, input_shape=None, dynamics=None, boundary_type="rectangle", num_polytope_facets=None):
+    def __init__(self, input_shape: Optional[np.ndarray] = None, dynamics: Optional[dynamics.Dynamics] = None, boundary_type: str = "rectangle", num_polytope_facets: Optional[int] = None):
         super().__init__(
             input_shape=input_shape, dynamics=dynamics, boundary_type=boundary_type, num_polytope_facets=num_polytope_facets,
         )
@@ -415,7 +426,7 @@ class ClosedLoopIBPPropagator(ClosedLoopCROWNIBPCodebasePropagator):
 
 
 class ClosedLoopCROWNPropagator(ClosedLoopCROWNIBPCodebasePropagator):
-    def __init__(self, input_shape=None, dynamics=None, boundary_type="rectangle", num_polytope_facets=None):
+    def __init__(self, input_shape: Optional[np.ndarray] = None, dynamics: Optional[dynamics.Dynamics] = None, boundary_type: str = "rectangle", num_polytope_facets: Optional[int] = None):
         super().__init__(
             input_shape=input_shape, dynamics=dynamics, boundary_type=boundary_type, num_polytope_facets=num_polytope_facets,
         )
@@ -427,7 +438,7 @@ class ClosedLoopCROWNPropagator(ClosedLoopCROWNIBPCodebasePropagator):
 class ClosedLoopCROWNLPPropagator(ClosedLoopCROWNPropagator):
     # Same as ClosedLoopCROWNPropagator but don't allow the
     # use of closed-form soln to the optimization, even if it's possible
-    def __init__(self, input_shape=None, dynamics=None, boundary_type="rectangle", num_polytope_facets=None):
+    def __init__(self, input_shape: Optional[np.ndarray] = None, dynamics: Optional[dynamics.Dynamics] = None, boundary_type: str = "rectangle", num_polytope_facets: Optional[int] = None):
         super().__init__(
             input_shape=input_shape, dynamics=dynamics, boundary_type=boundary_type
         )
@@ -435,7 +446,7 @@ class ClosedLoopCROWNLPPropagator(ClosedLoopCROWNPropagator):
 
 
 class ClosedLoopFastLinPropagator(ClosedLoopCROWNIBPCodebasePropagator):
-    def __init__(self, input_shape=None, dynamics=None, boundary_type="rectangle", num_polytope_facets=None):
+    def __init__(self, input_shape: Optional[np.ndarray] = None, dynamics: Optional[dynamics.Dynamics] = None, boundary_type: str = "rectangle", num_polytope_facets: Optional[int] = None):
         super().__init__(
             input_shape=input_shape, dynamics=dynamics, boundary_type=boundary_type, num_polytope_facets=num_polytope_facets,
         )
@@ -444,12 +455,12 @@ class ClosedLoopFastLinPropagator(ClosedLoopCROWNIBPCodebasePropagator):
 
 
 class ClosedLoopCROWNNStepPropagator(ClosedLoopCROWNPropagator):
-    def __init__(self, input_shape=None, dynamics=None, boundary_type="rectangle", num_polytope_facets=None):
+    def __init__(self, input_shape: Optional[np.ndarray] = None, dynamics: Optional[dynamics.Dynamics] = None, boundary_type: str = "rectangle", num_polytope_facets: Optional[int] = None):
         super().__init__(
             input_shape=input_shape, dynamics=dynamics, boundary_type=boundary_type, num_polytope_facets=num_polytope_facets,
         )
 
-    def get_reachable_set(self, initial_set, t_max):
+    def get_reachable_set(self, initial_set: constraints.SingleTimestepConstraint, t_max: int) -> tuple[constraints.MultiTimestepConstraint, dict]:
 
         # initial_set: constraint.LpConstraint(range=(num_states, 2))
         # reachable_sets: constraint.LpConstraint(range=(num_timesteps, num_states, 2))
@@ -460,7 +471,7 @@ class ClosedLoopCROWNNStepPropagator(ClosedLoopCROWNPropagator):
         reachable_sets = [constraints.LpConstraint(range=r) for r in reachable_sets.range]
 
         # Symbolically refine all N steps
-        tightened_reachable_sets = []
+        tightened_reachable_sets = [] # type: list[constraints.SingleTimestepConstraint]
         tightened_infos = deepcopy(infos)
         N = len(reachable_sets)
         for t in range(2, N + 1):
@@ -468,20 +479,14 @@ class ClosedLoopCROWNNStepPropagator(ClosedLoopCROWNPropagator):
             # N-step analysis accepts as input:
             # [1st output constraint, {2,...,t} tightened output constraints,
             #  dummy output constraint]
-            reachable_sets_better = deepcopy(reachable_sets[:1])
-            reachable_sets_better += deepcopy(tightened_reachable_sets)
-            reachable_sets_better += deepcopy(reachable_sets[:1]) # just a dummy
-
             reachable_set, info = self.get_N_step_reachable_set(
-                initial_set, reachable_sets_better, infos['per_timestep'][:t]
+                initial_set, reachable_sets[:1] + tightened_reachable_sets + reachable_sets[:1], infos['per_timestep'][:t]
             )
             tightened_reachable_sets.append(reachable_set)
             tightened_infos['per_timestep'][t-1] = info
 
-        reachable_sets = reachable_sets[:1] + tightened_reachable_sets
-
         # "redo" the packaging of reachable_sets as range=(num_timesteps, num_states, 2)
-        reachable_sets = constraints.LpConstraint(range=np.stack(r.range for r in reachable_sets))
+        reachable_sets = constraints.list_to_constraint(reachable_sets[:1] + tightened_reachable_sets)
 
         # Do N-step "symbolic" refinement
         # reachable_set, new_infos = self.get_N_step_reachable_set(
@@ -890,7 +895,7 @@ class ClosedLoopCROWNNStepPropagator(ClosedLoopCROWNPropagator):
 
 
 class ClosedLoopCROWNRefinedPropagator(ClosedLoopCROWNPropagator):
-    def __init__(self, input_shape=None, dynamics=None, boundary_type="rectangle", num_polytope_facets=None):
+    def __init__(self, input_shape: Optional[np.ndarray] = None, dynamics: Optional[dynamics.Dynamics] = None, boundary_type: str = "rectangle", num_polytope_facets: Optional[int] = None):
         super().__init__(
             input_shape=input_shape, dynamics=dynamics, boundary_type=boundary_type, num_polytope_facets=num_polytope_facets,
         )

@@ -1,3 +1,6 @@
+import os
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
+import tensorflow as tf
 from nn_closed_loop.constraints.ClosedLoopConstraints import LpConstraint
 import numpy as np
 import nn_closed_loop.dynamics as dynamics
@@ -5,38 +8,30 @@ import nn_closed_loop.analyzers as analyzers
 import nn_closed_loop.constraints as constraints
 from nn_closed_loop.utils.nn import load_controller
 from nn_closed_loop.utils.utils import range_to_polytope
-import os
 import argparse
+import ast
+import time
 
 
-def main(args):
+def main(args: argparse.Namespace) -> tuple[dict, dict]:
     np.random.seed(seed=0)
     stats = {}
 
+    if not args.state_feedback:
+        raise ValueError("Currently only support state feedback for backward reachability.")
+
     # Dynamics
     if args.system == "double_integrator":
-        if args.state_feedback:
-            dyn = dynamics.DoubleIntegrator()
-        else:
-            raise NotImplementedError
-            dyn = dynamics.DoubleIntegratorOutputFeedback()
+        dyn = dynamics.DoubleIntegrator()
         if args.final_state_range is None:
             final_state_range = np.array(
                 [  # (num_inputs, 2)
                     [4.5, 5.0],  # x0min, x0max
                     [-0.25, 0.25],  # x1min, x1max
                 ]
-            )
-        else:
-            import ast
-            final_state_range = np.array(
-                ast.literal_eval(args.final_state_range)
-            )
+            )            
     elif args.system == "ground_robot":
-        if args.state_feedback:
-            dyn = dynamics.GroundRobotSI()
-        else:
-            raise NotImplementedError
+        dyn = dynamics.GroundRobotSI()
         if args.final_state_range is None:
             final_state_range = np.array(
                 [  # (num_inputs, 2)
@@ -44,17 +39,8 @@ def main(args):
                     [-1., 1.],  # x1min, x1max
                 ]
             )
-        else:
-            import ast
-
-            final_state_range = np.array(
-                ast.literal_eval(args.final_state_range)
-            )
     elif args.system == "ground_robot_DI":
-        if args.state_feedback:
-            dyn = dynamics.GroundRobotDI()
-        else:
-            raise NotImplementedError
+        dyn = dynamics.GroundRobotDI()
         if args.final_state_range is None:
             final_state_range = np.array(
                 [  # (num_inputs, 2)
@@ -64,17 +50,8 @@ def main(args):
                     [-0.01, 0.01],
                 ]
             )
-        else:
-            import ast
-
-            final_state_range = np.array(
-                ast.literal_eval(args.final_state_range)
-            )
     elif args.system == "4_double_integrators":
-        if args.state_feedback:
-            dyn = dynamics.DoubleIntegratorx4()
-        else:
-            raise NotImplementedError
+        dyn = dynamics.DoubleIntegratorx4()
         if args.final_state_range is None:
             final_state_range = np.array(
                 [  # (num_inputs, 2)
@@ -88,22 +65,13 @@ def main(args):
                     [-0.01, 0.01],
                 ]
             )
-        else:
-            import ast
-
-            final_state_range = np.array(
-                ast.literal_eval(args.final_state_range)
-            )
     elif args.system == "quadrotor":
         inputs_to_highlight = [
             {"dim": [0], "name": "$x$"},
             {"dim": [1], "name": "$y$"},
             {"dim": [2], "name": "$z$"},
         ]
-        if args.state_feedback:
-            dyn = dynamics.Quadrotor()
-        else:
-            dyn = dynamics.QuadrotorOutputFeedback()
+        dyn = dynamics.Quadrotor()
         if args.final_state_range is None:
             final_state_range = np.array(
                 [  # (num_inputs, 2)
@@ -111,21 +79,17 @@ def main(args):
                     [-5+0.25, 0.25, 2.5, 0.01, 0.01, 0.01],
                 ]
             ).T
-        else:
-            import ast
-
-            final_state_range = np.array(
-                ast.literal_eval(args.final_state_range)
-            )
     else:
-            raise NotImplementedError
-            import ast
+        raise NotImplementedError
+
+    if args.final_state_range is not None:
+        final_state_range = np.array(
+            ast.literal_eval(args.final_state_range)
+        )
 
     if args.num_partitions is None:
         num_partitions = None
     else:
-        import ast
-
         num_partitions = np.array(
             ast.literal_eval(args.num_partitions)
         )
@@ -133,11 +97,14 @@ def main(args):
     partitioner_hyperparams = {
         "type": args.partitioner,
         "num_partitions": num_partitions,
+        "num_polytope_facets": args.num_polytope_facets,
     }
     propagator_hyperparams = {
         "type": args.propagator,
         "input_shape": final_state_range.shape[:-1],
         "num_iterations": args.num_iterations,
+        "boundary_type": args.boundaries,
+        "num_polytope_facets": args.num_polytope_facets,
     }
 
     # Load NN control policy
@@ -156,9 +123,8 @@ def main(args):
 
     # Set up initial state set (and placeholder for reachable sets)
     if args.boundaries == "polytope":
-        raise NotImplementedError
-        # A_out, b_out = range_to_polytope(final_state_range)
-        # target_set = constraints.PolytopeConstraint(A=A_out, b=b_out)
+        A_out, b_out = range_to_polytope(final_state_range)
+        target_set = constraints.PolytopeConstraint(A=A_out, b=b_out)
     elif args.boundaries == "rectangle":
         target_set = constraints.LpConstraint(
             range=final_state_range, p=np.inf
@@ -168,7 +134,6 @@ def main(args):
 
     if args.estimate_runtime:
         # Run the analyzer N times to compute an estimated runtime
-        import time
 
         times = np.empty(args.num_calls)
         final_errors = np.empty(args.num_calls)
@@ -279,7 +244,6 @@ def main(args):
     if args.init_state_range is None:
         init_constraint = None
     else:
-        import ast
         init_state_range = np.array(
             ast.literal_eval(args.init_state_range)
         )
@@ -291,13 +255,14 @@ def main(args):
             target_set,
             analyzer_info,
             show_samples=args.show_samples,
+            show_samples_from_cells=args.show_samples_from_cells,
             show_trajectories=args.show_trajectories,
             show_convex_hulls=args.show_convex_hulls,
             show=args.show_plot,
             labels=args.plot_labels,
             aspect=args.plot_aspect,
             plot_lims=args.plot_lims,
-            initial_constraint=[init_constraint],
+            initial_constraint=init_constraint,
             controller_name=controller_name,
             show_BReach=args.show_BReach
         )
@@ -305,7 +270,7 @@ def main(args):
     return stats, analyzer_info
 
 
-def setup_parser():
+def setup_parser() -> argparse.ArgumentParser:
 
     parser = argparse.ArgumentParser(
         description="Backward analyze a closed loop system w/ NN controller."
@@ -461,6 +426,12 @@ def setup_parser():
         dest="show_samples",
         action="store_true",
         help="Show samples starting from initial condition"
+    )
+    parser.add_argument(
+        "--show_samples_from_cells",
+        dest="show_samples_from_cells",
+        action="store_true",
+        help="Show samples starting from each cell in initial condition"
     )
     parser.add_argument(
         "--show_convex_hulls",

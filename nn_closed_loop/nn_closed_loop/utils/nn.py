@@ -7,12 +7,14 @@ from tensorflow.keras.layers import Dense
 from tensorflow.keras.models import model_from_json
 from crown_ibp.conversions.keras2torch import keras2torch
 
+from typing import Optional
+
 dir_path = os.path.dirname(os.path.realpath(__file__))
 
 
 def create_model(
-    neurons_per_layer, input_shape, output_shape, activation="relu"
-):
+    neurons_per_layer: list[int], input_shape: tuple, output_shape: tuple, activation: str = "relu"
+) -> Sequential:
     model = Sequential()
     model.add(
         Dense(
@@ -29,8 +31,8 @@ def create_model(
 
 
 def create_and_train_model(
-    neurons_per_layer, xs, us, epochs=20, batch_size=32, verbose=0, validation_split=0.0
-):
+    neurons_per_layer: list[int], xs: np.ndarray, us: np.ndarray, epochs: int = 20, batch_size: int = 32, verbose: bool = False, validation_split: float = 0.0
+) -> Sequential:
     model = create_model(
         neurons_per_layer, input_shape=xs.shape[1:], output_shape=us.shape[1:]
     )
@@ -38,8 +40,9 @@ def create_and_train_model(
     return model
 
 
-def save_model(model, system="DoubleIntegrator", model_name="default"):
-    path = "{}/../../models/{}/{}".format(dir_path, system, model_name)
+def save_model(model: Sequential, system: str = "DoubleIntegrator", model_name: str = "default", path: Optional[str] = None) -> None:
+    if not path:
+        path = "{}/../../models/{}/{}".format(dir_path, system, model_name)
     os.makedirs(path, exist_ok=True)
     # serialize model to JSON
     model_json = model.to_json()
@@ -51,7 +54,7 @@ def save_model(model, system="DoubleIntegrator", model_name="default"):
     print("Saved model to disk")
 
 
-def load_controller(system="DoubleIntegrator", model_name="default", model_type='torch'):
+def load_controller(system: str = "DoubleIntegrator", model_name: str = "default", model_type: str = 'torch') -> Sequential:
     system = system.replace('OutputFeedback', '')  # remove OutputFeedback suffix if applicable
     path = "{}/../../models/{}/{}".format(dir_path, system, model_name)
     with open(path + "/model.json", "r") as f:
@@ -64,7 +67,7 @@ def load_controller(system="DoubleIntegrator", model_name="default", model_type=
     return torch_model
 
 
-def load_controller_unity(nx, nu):
+def load_controller_unity(nx: int, nu: int) -> Sequential:
     system = "unity"
     path = "{}/../../models/{}".format(dir_path, system)
     model_name = "/nx_{}_nu_{}/model".format(str(nx).zfill(3), str(nu).zfill(3))
@@ -82,7 +85,7 @@ def load_controller_unity(nx, nu):
     return torch_model
 
 
-def plot_data(xs, us, system):
+def plot_data(xs: np.ndarray, us: np.ndarray, system: str) -> None:
 
     import matplotlib.pyplot as plt
 
@@ -98,7 +101,7 @@ def plot_data(xs, us, system):
     plt.show()
 
 
-def load_data(system="double_integrator"):
+def load_data(system: str = "double_integrator") -> tuple[np.ndarray, np.ndarray]:
 
     if system == "double_integrator":
         import pickle
@@ -131,7 +134,7 @@ def load_data(system="double_integrator"):
     return xs, us
 
 
-def create_and_save_deep_models():
+def create_and_save_deep_models() -> None:
     neurons_per_layers = []
     neurons_per_layers.append([5])
     neurons_per_layers.append([5, 5])
@@ -147,14 +150,14 @@ def create_and_save_deep_models():
         model = create_and_train_model(neurons_per_layer, xs, us, verbose=True)
         save_model(
             model,
-            name="model",
-            dir=dir_path
+            system="model",
+            path=dir_path
             + "/models/double_integrator_test_{}/".format(
                 "_".join(map(str, neurons_per_layer))
             ),
         )
 
-def train_n_models(xs, us):
+def train_n_models(xs: np.ndarray, us: np.ndarray) -> None:
     num_models = 3
 
     colors = ['r', 'c', 'b']
@@ -191,10 +194,9 @@ def train_n_models(xs, us):
                 [-0.25, 0.25],  # x1min, x1max
             ]
         )
-        input_constraint = constraints.LpConstraint(
+        initial_set = constraints.LpConstraint(
             range=init_state_range, p=np.inf
         )
-        output_constraint = constraints.LpConstraint(p=np.inf)
         partitioner_hyperparams = {
             "type": "None",
             "make_animation": False,
@@ -208,15 +210,14 @@ def train_n_models(xs, us):
         analyzer.partitioner = partitioner_hyperparams
         analyzer.propagator = propagator_hyperparams
         t_max = 5
-        output_constraint, analyzer_info = analyzer.get_reachable_set(
-            input_constraint, output_constraint, t_max=t_max
+        reachable_sets, analyzer_info = analyzer.get_reachable_set(
+            initial_set, t_max=t_max
         )
         analyzer.visualize(
-            input_constraint,
-            output_constraint,
+            initial_set,
+            reachable_sets,
             show_samples=True,
             show=True,
-            labels=None,
             aspect="auto",
             iteration=None,
             inputs_to_highlight=[{"dim": [0], "name": "$x_0$"}, {"dim": [1], "name": "$x_1$"}],

@@ -36,7 +36,7 @@ class ClosedLoopPropagator(propagators.Propagator):
 
         return reachable_sets, info
 
-    def get_one_step_backprojection_set(self, target_set, overapprox=False,):
+    def get_one_step_backprojection_set(self, backreachable_set, target_sets, overapprox=False):
         raise NotImplementedError
 
     def get_backprojection_set(self, target_sets, t_max, num_partitions=None, overapprox=False, refined=False):
@@ -62,20 +62,3 @@ class ClosedLoopPropagator(propagators.Propagator):
         )
 
         return backprojection_set, info
-
-    def output_to_constraint(self, bs, constraint):
-        raise NotImplementedError
-        if isinstance(constraint, constraints.PolytopeOutputConstraint):
-            constraint.b = bs
-        elif isinstance(constraint, constraints.LpOutputConstraint):
-            constraint.range = np.empty((num_states, 2))
-            constraint.range[:, 0] = -bs[(num_facets // 2):]
-            constraint.range[:, 1] = bs[:(num_facets // 2)]
-        elif isinstance(
-            constraint, constraints.EllipsoidOutputConstraint
-        ):
-            constraint.center = b
-            constraint.shape = A
-        else:
-            raise NotImplementedError
-        return constraint

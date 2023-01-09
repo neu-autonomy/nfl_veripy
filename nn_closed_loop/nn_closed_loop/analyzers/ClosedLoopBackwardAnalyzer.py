@@ -6,14 +6,19 @@ import matplotlib.pyplot as plt
 import numpy as np
 import nn_closed_loop.constraints as constraints
 import ast
+from scipy.spatial import ConvexHull
 
+import nn_closed_loop.dynamics as dynamics
+import torch
+import matplotlib
+from typing import Optional, Any
 
 # plt.rcParams['mathtext.fontset'] = 'stix'
 # plt.rcParams['font.family'] = 'STIXGeneral'
 
 
 class ClosedLoopBackwardAnalyzer(analyzers.Analyzer):
-    def __init__(self, torch_model, dynamics):
+    def __init__(self, torch_model: torch.nn.Sequential, dynamics: dynamics.Dynamics):
         self.torch_model = torch_model
         self.dynamics = dynamics
         analyzers.Analyzer.__init__(self, torch_model=torch_model)
@@ -54,35 +59,35 @@ class ClosedLoopBackwardAnalyzer(analyzers.Analyzer):
     def propagator_dict(self):
         return propagators.propagator_dict
 
-    def instantiate_partitioner(self, partitioner, hyperparams):
+    def instantiate_partitioner(self, partitioner: str, hyperparams: dict[str, Any]) -> partitioners.ClosedLoopPartitioner:
         return partitioners.partitioner_dict[partitioner](
             **{**hyperparams, "dynamics": self.dynamics}
         )
 
-    def instantiate_propagator(self, propagator, hyperparams):
+    def instantiate_propagator(self, propagator: str, hyperparams: dict[str, Any]) -> propagators.ClosedLoopPropagator:
         return propagators.propagator_dict[propagator](
             **{**hyperparams, "dynamics": self.dynamics}
         )
 
-    def get_one_step_backprojection_set(self, target_set, num_partitions=None, overapprox=False, refined=False):
+    def get_one_step_backprojection_set(self, target_set: constraints.SingleTimestepConstraint, num_partitions=None, overapprox: bool = False, refined: bool = False) -> tuple[constraints.MultiTimestepConstraint, dict]:
         backprojection_set, info = self.partitioner.get_one_step_backprojection_set(
             target_set, self.propagator, num_partitions=num_partitions, overapprox=overapprox, refined=refined
         )
         return backprojection_set, info
 
-    def get_backprojection_set(self, target_set, t_max, num_partitions=None, overapprox=False):
+    def get_backprojection_set(self, target_set: constraints.SingleTimestepConstraint, t_max: int, num_partitions=None, overapprox: bool = False) -> tuple[constraints.MultiTimestepConstraint, dict]:
         backprojection_set, info = self.partitioner.get_backprojection_set(
             target_set, self.propagator, t_max, num_partitions=num_partitions, overapprox=overapprox
         )
         return backprojection_set, info
     
-    def get_N_step_backprojection_set(self, target_set, t_max, num_partitions=None, overapprox=False):
+    def get_N_step_backprojection_set(self, target_set: constraints.SingleTimestepConstraint, t_max: int, num_partitions=None, overapprox: bool = False) -> tuple[constraints.MultiTimestepConstraint, dict]:
         backprojection_set, info = self.partitioner.get_N_step_backprojection_set(
             target_set, self.propagator, t_max, num_partitions=num_partitions, overapprox=overapprox
         )
         return backprojection_set, info
 
-    def get_backprojection_error(self, target_set, backprojection_sets, t_max):
+    def get_backprojection_error(self, target_set: constraints.SingleTimestepConstraint, backprojection_sets: constraints.MultiTimestepConstraint, t_max: int) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
         return self.partitioner.get_backprojection_error(
             target_set, backprojection_sets, self.propagator, t_max
         )
@@ -92,36 +97,33 @@ class ClosedLoopBackwardAnalyzer(analyzers.Analyzer):
     - target_set: LpConstraint: target set
 
     '''
-    def visualize(
+    def visualize( # type: ignore
         self,
-        backprojection_sets,
-        target_set,
-        info,
-        initial_constraint=None,
-        show=True,
-        show_samples=False,
-        show_trajectories=False,
-        show_convex_hulls=False,
-        aspect="auto",
-        labels={},
-        plot_lims=None,
-        inputs_to_highlight=None,
-        controller_name=None,
-        show_BReach=False,
-    ):
+        backprojection_sets: constraints.MultiTimestepConstraint,
+        target_set: constraints.SingleTimestepConstraint,
+        info: dict,
+        initial_constraint: Optional[constraints.SingleTimestepConstraint] = None,
+        show: bool = True,
+        show_samples: bool = False,
+        show_samples_from_cells: bool = False,
+        show_trajectories: bool = False,
+        show_convex_hulls: bool = False,
+        aspect: str = "auto",
+        labels: dict = {},
+        plot_lims: Optional[str] = None,
+        inputs_to_highlight: list[dict] = [{"dim": [0], "name": "$x_0$"}, {"dim": [1], "name": "$x_1$"}],
+        controller_name: Optional[str] = None,
+        show_BReach: bool = False,
+    ) -> None:
         # sampled_outputs = self.get_sampled_outputs(input_range)
         # output_range_exact = self.samples_to_range(sampled_outputs)
-        if inputs_to_highlight is None:
-            inputs_to_highlight=[
-                {"dim": [0], "name": "$x$"},
-                {"dim": [1], "name": "$\dot{x}$"},
-            ]
 
         self.partitioner.setup_visualization(
-            backprojection_sets[-1],
-            len(backprojection_sets),
+            backprojection_sets.get_constraint_at_time_index(-1),
+            backprojection_sets.get_t_max(),
             self.propagator,
             show_samples=show_samples,
+            show_samples_from_cells=show_samples_from_cells,
             inputs_to_highlight=inputs_to_highlight,
             aspect=aspect,
             initial_set_color=self.estimated_backprojection_set_color,
@@ -132,7 +134,6 @@ class ClosedLoopBackwardAnalyzer(analyzers.Analyzer):
             controller_name=controller_name
         )
 
-        # for i in range(len(output_constraint_list)):
         self.visualize_single_set(
             backprojection_sets,
             target_set,
@@ -169,20 +170,20 @@ class ClosedLoopBackwardAnalyzer(analyzers.Analyzer):
     
     def visualize_single_set(
         self,
-        backprojection_sets,
-        target_set,
-        initial_constraint=None,
-        show=True,
-        show_samples=False,
-        show_trajectories=False,
-        show_convex_hulls=False,
-        aspect="auto",
-        labels={},
-        plot_lims=None,
-        inputs_to_highlight=None,
-        show_BReach=False,
+        backprojection_sets: constraints.MultiTimestepConstraint,
+        target_set: constraints.SingleTimestepConstraint,
+        initial_constraint: Optional[constraints.SingleTimestepConstraint]=None,
+        show: bool = True,
+        show_samples: bool = False,
+        show_trajectories: bool = False,
+        show_convex_hulls: bool = False,
+        aspect: str = "auto",
+        labels: dict = {},
+        plot_lims: Optional[str] = None,
+        inputs_to_highlight: Optional[list[dict]] = None,
+        show_BReach: bool = False,
         **kwargs
-    ):
+    ) -> None:
         
         # import nn_closed_loop.constraints as constraints
         # from nn_closed_loop.utils.utils import range_to_polytope
@@ -261,9 +262,15 @@ class ClosedLoopBackwardAnalyzer(analyzers.Analyzer):
         # plt.gcf().add_axes(ax_cb)
 
         # Plot all our input constraints (i.e., our backprojection set estimates)
-        for backprojection_set in backprojection_sets:
-            rect = backprojection_set.plot(self.partitioner.animate_axes, self.partitioner.input_dims, self.estimated_backprojection_set_color, zorder=self.estimated_backprojection_set_zorder, linewidth=self.partitioner.linewidth, plot_2d=self.partitioner.plot_2d)
-            self.partitioner.default_patches += rect
+        rects = backprojection_sets.plot(self.partitioner.animate_axes, self.partitioner.input_dims, self.estimated_backprojection_set_color, zorder=self.estimated_backprojection_set_zorder, linewidth=self.partitioner.linewidth, plot_2d=self.partitioner.plot_2d)
+        self.partitioner.default_patches += rects
+        for cell in backprojection_sets.cells:
+            rects = cell.plot(self.partitioner.animate_axes, self.partitioner.input_dims, self.estimated_backprojection_set_color, zorder=self.estimated_backprojection_set_zorder, linewidth=self.partitioner.linewidth, plot_2d=self.partitioner.plot_2d)
+            self.partitioner.default_patches += rects
+
+        # for backprojection_set in backprojection_sets:
+        #     rect = backprojection_set.plot(self.partitioner.animate_axes, self.partitioner.input_dims, self.estimated_backprojection_set_color, zorder=self.estimated_backprojection_set_zorder, linewidth=self.partitioner.linewidth, plot_2d=self.partitioner.plot_2d)
+        #     self.partitioner.default_patches += rect
 
         # Show the target set
         self.plot_target_set(
@@ -275,7 +282,7 @@ class ClosedLoopBackwardAnalyzer(analyzers.Analyzer):
 
         # Show the "true" N-Step backprojection set as a convex hull
         backreachable_set = kwargs['per_timestep'][-1]['backreachable_set']
-        t_max = len(backprojection_sets)
+        t_max = backprojection_sets.get_t_max()
         if show_convex_hulls:
             self.plot_true_backprojection_sets(
                 backreachable_set,
@@ -301,40 +308,17 @@ class ClosedLoopBackwardAnalyzer(analyzers.Analyzer):
         if show_trajectories and initial_constraint is not None:
             self.dynamics.show_trajectories(
                 t_max * self.dynamics.dt,
-                initial_constraint[0],
+                initial_constraint,
                 ax=self.partitioner.animate_axes,
                 controller=self.propagator.network,
             ) 
-
-    def get_sampled_outputs(self, input_range, N=1000):
-        return get_sampled_outputs(input_range, self.propagator, N=N)
-
-    def get_sampled_output_range(
-        self, input_constraint, t_max=5, num_samples=1000
-    ):
-        return self.partitioner.get_sampled_out_range(
-            input_constraint, self.propagator, t_max, num_samples
-        )
-
-    def get_output_range(self, input_constraint, output_constraint):
-        return self.partitioner.get_output_range(
-            input_constraint, output_constraint
-        )
-
-    def samples_to_range(self, sampled_outputs):
-        return samples_to_range(sampled_outputs)
-
-    def get_exact_output_range(self, input_range):
-        sampled_outputs = self.get_sampled_outputs(input_range)
-        output_range = self.samples_to_range(sampled_outputs)
-        return output_range
 
     def get_error(self, input_constraint, output_constraint, t_max):
         return self.partitioner.get_error(
             input_constraint, output_constraint, self.propagator, t_max
         )
 
-    def plot_backreachable_set(self, backreachable_set, color='cyan', zorder=None, linestyle='-'):
+    def plot_backreachable_set(self, backreachable_set: constraints.SingleTimestepConstraint, color: str = 'cyan', zorder: Optional[int] = None, linestyle: str = '-') -> None:
         self.partitioner.plot_reachable_sets(
             backreachable_set,
             self.partitioner.input_dims,
@@ -343,7 +327,7 @@ class ClosedLoopBackwardAnalyzer(analyzers.Analyzer):
             reachable_set_ls=linestyle
         )
 
-    def plot_target_set(self, target_set, color='cyan', zorder=None, linestyle='-',linewidth=2.5):
+    def plot_target_set(self, target_set: constraints.SingleTimestepConstraint, color: str = 'cyan', zorder: Optional[int] = None, linestyle: str = '-', linewidth: float = 2.5) -> None:
         self.partitioner.plot_reachable_sets(
             target_set,
             self.partitioner.input_dims,
@@ -353,7 +337,7 @@ class ClosedLoopBackwardAnalyzer(analyzers.Analyzer):
             reachable_set_lw=linewidth
         )
 
-    def plot_tightened_backprojection_set(self, tightened_set, color='darkred', zorder=None, linestyle='-'):
+    def plot_tightened_backprojection_set(self, tightened_set: constraints.SingleTimestepConstraint, color: str = 'darkred', zorder: Optional[int] = None, linestyle: str = '-') -> None:
         self.partitioner.plot_reachable_sets(
             tightened_set,
             self.partitioner.input_dims,
@@ -362,7 +346,7 @@ class ClosedLoopBackwardAnalyzer(analyzers.Analyzer):
             reachable_set_ls=linestyle
         )
 
-    def plot_backprojection_set(self, backreachable_set, target_set, show_samples=False, color='g', zorder=None, linestyle='-'):
+    def plot_backprojection_set(self, backreachable_set: constraints.SingleTimestepConstraint, target_set: constraints.SingleTimestepConstraint, show_samples: bool = False, color: str = 'g', zorder: Optional[int] = None, linestyle: str = '-') -> None:
 
         # Sample a bunch of pts from our "true" backreachable set
         # (it's actually the tightest axis-aligned rectangle around the backreachable set)
@@ -374,11 +358,12 @@ class ClosedLoopBackwardAnalyzer(analyzers.Analyzer):
         )
 
         # Find which of the xt+1 points actually end up in the target set
+        target_set_A, target_set_b = target_set.get_polytope()
         within_constraint_inds = np.where(
             np.all(
                 (
-                    np.dot(target_set.A, xt1_from_those_samples.T)
-                    - np.expand_dims(target_set.b[0], axis=-1)
+                    np.dot(target_set_A, xt1_from_those_samples.T)
+                    - np.expand_dims(target_set_b, axis=-1)
                 )
                 <= 0,
                 axis=0,
@@ -430,7 +415,7 @@ class ClosedLoopBackwardAnalyzer(analyzers.Analyzer):
         )
         # self.default_lines[self.output_axis].append(conv_hull_line[0])
 
-    def plot_true_backprojection_sets(self, backreachable_set, target_set, t_max, show_samples=False, color='g', zorder=None, linestyle='-'):
+    def plot_true_backprojection_sets(self, backreachable_set: constraints.SingleTimestepConstraint, target_set: constraints.SingleTimestepConstraint, t_max: int, show_samples: bool = False, color: str = 'g', zorder: Optional[int] = None, linestyle: str = '-') -> None:
 
         # Sample a bunch of pts from our "true" backreachable set
         # (it's actually the tightest axis-aligned rectangle around the backreachable set)
@@ -483,8 +468,7 @@ class ClosedLoopBackwardAnalyzer(analyzers.Analyzer):
         # self.default_lines[self.output_axis].append(conv_hull_line[0])
 
 
-def plot_convex_hull(samples, dims, color, linewidth, linestyle, zorder, label, axes):
-    from scipy.spatial import ConvexHull
+def plot_convex_hull(samples: np.ndarray, dims: list, color: str, linewidth: float, linestyle: str, zorder: Optional[int], label: str, axes: matplotlib.axes) -> matplotlib.lines.Line2D:
     hull = ConvexHull(
         samples[..., dims].squeeze()
     )

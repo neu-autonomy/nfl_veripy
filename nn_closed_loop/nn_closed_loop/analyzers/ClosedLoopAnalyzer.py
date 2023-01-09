@@ -4,17 +4,22 @@ import nn_closed_loop.partitioners as partitioners
 import nn_closed_loop.propagators as propagators
 from nn_partition.utils.utils import samples_to_range, get_sampled_outputs
 import matplotlib.pyplot as plt
+import numpy as np
+
+import torch
+import nn_closed_loop.dynamics as dynamics
+from typing import Any, Dict, Optional
+import nn_closed_loop.constraints as constraints
 
 # plt.rcParams['mathtext.fontset'] = 'stix'
 # plt.rcParams['font.family'] = 'STIXGeneral'
 
 
 class ClosedLoopAnalyzer(analyzers.Analyzer):
-    def __init__(self, torch_model, dynamics):
+    def __init__(self, torch_model: torch.nn.Sequential, dynamics: dynamics.Dynamics):
         self.torch_model = torch_model
         self.dynamics = dynamics
-        analyzers.Analyzer.__init__(self, torch_model=torch_model)
-
+        super().__init__(torch_model=torch_model)
         self.reachable_set_color = 'tab:blue'
         self.reachable_set_zorder = 2
         self.initial_set_color = 'k'
@@ -25,24 +30,24 @@ class ClosedLoopAnalyzer(analyzers.Analyzer):
 
 
     @property
-    def partitioner_dict(self):
+    def partitioner_dict(self) -> dict:
         return partitioners.partitioner_dict
 
     @property
-    def propagator_dict(self):
+    def propagator_dict(self) -> dict:
         return propagators.propagator_dict
 
-    def instantiate_partitioner(self, partitioner, hyperparams):
+    def instantiate_partitioner(self, partitioner: str, hyperparams: dict[str, Any]) -> partitioners.ClosedLoopPartitioner:
         return self.partitioner_dict[partitioner](
             **{**hyperparams, "dynamics": self.dynamics}
         )
 
-    def instantiate_propagator(self, propagator, hyperparams):
+    def instantiate_propagator(self, propagator: str, hyperparams: dict[str, Any]) -> propagators.ClosedLoopPropagator:
         return self.propagator_dict[propagator](
             **{**hyperparams, "dynamics": self.dynamics}
         )
 
-    def get_one_step_reachable_set(self, initial_set):
+    def get_one_step_reachable_set(self, initial_set: constraints.SingleTimestepConstraint) -> tuple[constraints.SingleTimestepConstraint, dict]:
         # initial_set: constraints.LpConstraint(range=(num_states, 2))
         # reachable_set: constraints.LpConstraint(range=(num_states, 2))
         reachable_set, info = self.partitioner.get_one_step_reachable_set(
@@ -50,7 +55,7 @@ class ClosedLoopAnalyzer(analyzers.Analyzer):
         )
         return reachable_set, info
 
-    def get_reachable_set(self, initial_set, t_max):
+    def get_reachable_set(self, initial_set: constraints.SingleTimestepConstraint, t_max: float) -> tuple[constraints.MultiTimestepConstraint, dict]:
         # initial_set: constraints.LpConstraint(range=(num_states, 2))
         # reachable_set: constraints.LpConstraint(range=(num_timesteps, num_states, 2))
         reachable_set, info = self.partitioner.get_reachable_set(
@@ -58,28 +63,23 @@ class ClosedLoopAnalyzer(analyzers.Analyzer):
         )
         return reachable_set, info
 
-    def visualize(
+    def visualize( # type: ignore[override]
         self,
-        initial_set,
-        reachable_sets,
-        target_constraint=None,
-        show=True,
-        show_samples=False,
-        show_trajectories=False,
-        aspect="auto",
-        plot_lims=None,
-        labels={},
-        inputs_to_highlight=None,
-        dont_close=True,
-        controller_name=None,
+        initial_set: constraints.SingleTimestepConstraint,
+        reachable_sets: constraints.MultiTimestepConstraint,
+        target_constraint: Optional[constraints.SingleTimestepConstraint] = None,
+        show: bool = True,
+        show_samples: bool = False,
+        show_trajectories: bool = False,
+        aspect: str = "auto",
+        plot_lims: Optional[str] = None,
+        labels: dict = {},
+        inputs_to_highlight: list[dict] = [{"dim": [0], "name": "$x_0$"}, {"dim": [1], "name": "$x_1$"}],
+        dont_close: bool = True,
+        controller_name: Optional[str] = None,
         **kwargs
-    ):
+    ) -> None:
 
-        if inputs_to_highlight is None:
-            inputs_to_highlight = [
-                {"dim": [0], "name": "$x_0$"},
-                {"dim": [1], "name": "$x_1$"},
-            ]
         self.partitioner.setup_visualization(
             initial_set,
             reachable_sets.get_t_max(),
@@ -148,27 +148,28 @@ class ClosedLoopAnalyzer(analyzers.Analyzer):
         elif not dont_close:
             plt.close()
 
-    def get_sampled_outputs(self, input_range, N=1000):
+    def get_sampled_outputs(self, input_range: np.ndarray, N: int = 1000) -> np.ndarray:
         return get_sampled_outputs(input_range, self.propagator, N=N)
 
     def get_sampled_output_range(
-        self, initial_set, t_max=5, num_samples=1000
-    ):
+        self, initial_set: constraints.Constraint, t_max: int = 5, num_samples: int = 1000
+    ) -> np.ndarray:
         return self.partitioner.get_sampled_out_range(
             initial_set, self.propagator, t_max, num_samples
         )
 
-    def get_output_range(self, initial_set, reachable_sets):
+    def get_output_range(self, initial_set: constraints.SingleTimestepConstraint, reachable_sets: constraints.Constraint) -> np.ndarray: # type: ignore[override]
+        # TODO: when is this used? if used changed reachable_sets type to multitimestep. if not used, delete?
         return self.partitioner.get_output_range(
             initial_set, reachable_sets
         )
 
-    def get_exact_output_range(self, input_range):
+    def get_exact_output_range(self, input_range: np.ndarray) -> np.ndarray: # type: ignore[override]
         sampled_outputs = self.get_sampled_outputs(input_range)
         output_range = samples_to_range(sampled_outputs)
         return output_range
 
-    def get_error(self, initial_set, reachable_sets, t_max):
+    def get_error(self, initial_set: constraints.SingleTimestepConstraint, reachable_sets: constraints.MultiTimestepConstraint, t_max: int): # type: ignore[override]
         return self.partitioner.get_error(
             initial_set, reachable_sets, self.propagator, t_max
         )

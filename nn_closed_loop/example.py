@@ -1,3 +1,6 @@
+import os
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
+import tensorflow as tf
 import numpy as np
 import torch as th
 import nn_closed_loop.dynamics as dynamics
@@ -8,18 +11,17 @@ from nn_closed_loop.utils.utils import (
     range_to_polytope,
     get_polytope_A,
 )
-import os
 import argparse
 import ast
 import time
+from typing import Dict, Tuple
 
 
 dir_path = os.path.dirname(os.path.realpath(__file__))
 
-def main(args):
+def main(args: argparse.Namespace) -> Tuple[Dict, Dict]:
     np.random.seed(seed=0)
     stats = {}
-    controller = None
 
     # Dynamics
     if args.system == "double_integrator":
@@ -28,7 +30,7 @@ def main(args):
             {"dim": [1], "name": "$x_1$"},
         ]
         if args.state_feedback:
-            dyn = dynamics.DoubleIntegrator()
+            dyn = dynamics.DoubleIntegrator() # type: dynamics.Dynamics
         else:
             dyn = dynamics.DoubleIntegratorOutputFeedback()
         if args.init_state_range is None:
@@ -354,7 +356,7 @@ def main(args):
     return stats, analyzer_info
 
 
-def setup_parser():
+def setup_parser() -> argparse.ArgumentParser:
 
     parser = argparse.ArgumentParser(
         description="Analyze a closed loop system w/ NN controller."

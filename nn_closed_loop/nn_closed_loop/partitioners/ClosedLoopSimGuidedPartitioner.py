@@ -5,9 +5,13 @@ from copy import deepcopy
 import time
 from nn_partition.utils.utils import sect
 
+import nn_closed_loop.propagators as propagators
+import nn_closed_loop.dynamics as dynamics
+from typing import Union, Optional
+
 
 class ClosedLoopSimGuidedPartitioner(ClosedLoopPartitioner):
-    def __init__(self, dynamics, num_partitions=16, make_animation=False, show_animation=False):
+    def __init__(self, dynamics: dynamics.Dynamics, num_partitions: Union[None, int, np.ndarray] = 16, make_animation: bool = False, show_animation: bool = False):
         ClosedLoopPartitioner.__init__(self, dynamics=dynamics, make_animation=make_animation, show_animation=show_animation)
         self.num_partitions = num_partitions
         self.interior_condition = "linf"
@@ -21,40 +25,24 @@ class ClosedLoopSimGuidedPartitioner(ClosedLoopPartitioner):
         self.initial_set_zorder = 2
         self.sample_zorder = 1
 
-    def check_termination(
+    def check_termination( # type: ignore
         self,
-        input_constraint,
-        num_propagator_calls,
-        u_e,
-        output_range_sim,
-        M,
-        elapsed_time,
-    ):
-        if self.termination_condition_type == "input_cell_size":
-            raise NotImplementedError
-        elif self.termination_condition_type == "num_propagator_calls":
+        num_propagator_calls: int,
+    ) -> bool:
+        if self.termination_condition_type == "num_propagator_calls":
             terminate = (
                 num_propagator_calls >= self.termination_condition_value
             )
-        elif self.termination_condition_type == "pct_improvement":
-            raise NotImplementedError
-        elif self.termination_condition_type == "pct_error":
-            raise NotImplementedError
-        elif self.termination_condition_type == "verify":
-            raise NotImplementedError
-        elif self.termination_condition_type == "time_budget":
-            raise NotImplementedError
-            # terminate = elapsed_time >= self.termination_condition_value
         else:
             raise NotImplementedError
         return terminate
 
     def get_one_step_reachable_set(
         self,
-        initial_set,
-        propagator,
-        num_partitions=None,
-    ):
+        initial_set: constraints.SingleTimestepConstraint,
+        propagator: propagators.ClosedLoopPropagator,
+        num_partitions: Union[None, int, list, np.ndarray] = None,
+    ) -> tuple[constraints.SingleTimestepConstraint, dict]:
         reachable_set, info = self.get_reachable_set(
             initial_set,
             propagator,
@@ -65,46 +53,46 @@ class ClosedLoopSimGuidedPartitioner(ClosedLoopPartitioner):
 
     def get_reachable_set(
         self,
-        initial_set,
-        propagator,
-        t_max,
-        num_partitions=None,
-    ):
+        initial_set: constraints.SingleTimestepConstraint,
+        propagator: propagators.ClosedLoopPropagator,
+        t_max: int,
+        num_partitions: Union[None, int, list, np.ndarray] = None,
+    ) -> tuple[constraints.MultiTimestepConstraint, dict]:
 
         t_start_overall = time.time()
         info = {}
-        propagator_computation_time = 0
+        propagator_computation_time = 0.
 
         # Algorithm 1 of (Xiang, 2020): https://arxiv.org/pdf/2004.12273.pdf
         sect_method = "max"
 
         num_propagator_calls = 0
-        interior_M = []
+        interior_M = [] # type: list[tuple[constraints.SingleTimestepConstraint, constraints.MultiTimestepConstraint]]
 
         # Run N simulations (i.e., randomly sample N pts from input range -->
         # query NN --> get N output pts)
         # Compute [u_sim], aka bounds on the sampled outputs (Line 6)
         # (Line 5-6)
-        reachable_set_range_sim = self.get_sampled_out_range_guidance(
+        reachable_sets_range_sim = self.get_sampled_out_range_guidance(
             initial_set, propagator, t_max, num_samples=1000
         )
 
         # Get initial output reachable set (Line 3)
         t_start = time.time()
 
-        reachable_set, info = propagator.get_reachable_set(
+        reachable_sets, info = propagator.get_reachable_set(
             initial_set, t_max
         )
         t_end = time.time()
         propagator_computation_time += t_end - t_start
         num_propagator_calls += t_max
 
-        M = [(initial_set, reachable_set)]  # (Line 4)
+        M = [(initial_set, reachable_sets)]  # (Line 4)
 
         if self.make_animation:
             self.setup_visualization(
                 initial_set,
-                reachable_set,
+                reachable_sets,
                 propagator,
                 show_samples=True,
                 inputs_to_highlight=[
@@ -117,14 +105,14 @@ class ClosedLoopSimGuidedPartitioner(ClosedLoopPartitioner):
                 sample_zorder=self.sample_zorder
             )
 
-        reachable_set_range, info = self.partition_loop(
+        reachable_sets_range, info = self.partition_loop(
             M,
             interior_M,
-            reachable_set_range_sim,
+            reachable_sets_range_sim,
             sect_method,
             num_propagator_calls,
             initial_set,
-            reachable_set.range,
+            reachable_sets.range,
             propagator,
             propagator_computation_time,
             t_start_overall,
@@ -133,26 +121,25 @@ class ClosedLoopSimGuidedPartitioner(ClosedLoopPartitioner):
 
         # info["all_partitions"] = ranges
         info["num_propagator_calls"] = num_propagator_calls
-        info["num_partitions"] = np.product(num_partitions)
 
-        reachable_set = constraints.LpConstraint(range=reachable_set_range)
+        reachable_sets = constraints.MultiTimestepLpConstraint(range=reachable_sets_range)
 
-        return reachable_set, info
+        return reachable_sets, info
 
     def partition_loop(
         self,
-        M,
-        interior_M,
+        M: list[tuple[constraints.SingleTimestepConstraint, constraints.MultiTimestepConstraint]],
+        interior_M: list[tuple[constraints.SingleTimestepConstraint, constraints.MultiTimestepConstraint]],
         reachable_set_range_sim,
-        sect_method,
-        num_propagator_calls,
-        initial_set,
+        sect_method: str,
+        num_propagator_calls: int,
+        initial_set: constraints.SingleTimestepConstraint,
         u_e,
-        propagator,
-        propagator_computation_time,
-        t_start_overall,
-        t_max,
-    ):
+        propagator: propagators.ClosedLoopPropagator,
+        propagator_computation_time: float,
+        t_start_overall: float,
+        t_max: float,
+    ) -> tuple[np.ndarray, dict]:
         if self.make_animation:
             self.call_visualizer(reachable_set_range_sim, M+interior_M, num_propagator_calls, interior_M, iteration=-1)
 
@@ -171,14 +158,7 @@ class ClosedLoopSimGuidedPartitioner(ClosedLoopPartitioner):
             else:
                 # Line 14
                 elapsed_time = time.time() - start_time_partition_loop
-                terminate = self.check_termination(
-                    initial_set,
-                    num_propagator_calls,
-                    u_e,
-                    reachable_set_range_sim,
-                    M + [(initial_set_this_cell, reachable_set_this_cell)] + interior_M,
-                    elapsed_time,
-                )
+                terminate = self.check_termination(num_propagator_calls)
 
                 if not terminate:
                     # Line 15

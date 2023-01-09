@@ -11,5 +11,7 @@ setup(
         "tabulate",
         "colour",
     ],
-    packages=find_packages(),
+    packages=["nn_closed_loop"],
+    # package_data={"nn_closed_loop": ["py.typed", "**/py.typed"]},
+    # zip_safe=False,
 )
