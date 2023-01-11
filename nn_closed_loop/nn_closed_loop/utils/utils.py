@@ -6,6 +6,10 @@ import torch
 dir_path = os.path.dirname(os.path.realpath(__file__))
 
 
+def colors(t, cmap='tab10'):
+  return cm.get_cmap(cmap)(t % len(cm.get_cmap(cmap).colors))
+
+
 def save_dataset(xs, us, system="DoubleIntegrator", dataset_name="default"):
     path = "{}/../../datasets/{}/{}".format(dir_path, system, dataset_name)
     os.makedirs(path, exist_ok=True)

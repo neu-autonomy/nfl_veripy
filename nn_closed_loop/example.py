@@ -410,7 +410,7 @@ def setup_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--propagator",
         default="IBP",
-        choices=["IBP", "CROWN", "CROWNNStep", "FastLin", "SDP", "CROWNLP", "SeparableCROWN", "SeparableIBP", "SeparableSGIBP", "OVERT", "JaxForwardCROWN"],
+        choices=["IBP", "CROWN", "CROWNNStep", "FastLin", "SDP", "CROWNLP", "SeparableCROWN", "SeparableIBP", "SeparableSGIBP", "OVERT", "JaxForwardCROWN", "JaxCROWNIterative", "JaxCROWNUnrolled"],
         help="which propagator to use (default: IBP)",
     )
 

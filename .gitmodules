@@ -7,3 +7,6 @@
 [submodule "auto_LiRPA"]
 	path = auto_LiRPA
 	url = https://github.com/KaidiXu/auto_LiRPA.git
+[submodule "jax_verify"]
+	path = jax_verify
+	url = https://github.com/deepmind/jax_verify.git

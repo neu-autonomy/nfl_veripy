@@ -13,6 +13,7 @@ import torch
 import os
 import pickle
 from colour import Color
+import jax.numpy as jnp
 
 
 dir_path = os.path.dirname(os.path.realpath(__file__))
@@ -37,6 +38,16 @@ class Dynamics:
         self.bt = bt
         self.ct = ct
         self.num_states, self.num_inputs = bt.shape
+
+        # Store dynamics matrices as jnp arrays too
+        self.At_jnp = jnp.asarray(At)
+        self.bt_jnp = jnp.asarray(bt)
+        self.ct_jnp = jnp.asarray(ct)
+
+        # Store dynamics matrices as torch tensors too
+        self.At_torch = torch.Tensor(At)
+        self.bt_torch = torch.Tensor(bt)
+        self.ct_torch = torch.Tensor(ct)
 
         # Observation Dynamics and Noise
         if c is None:
@@ -75,6 +86,19 @@ class Dynamics:
 
     def dynamics_step(self, xs, us):
         raise NotImplementedError
+
+    def dynamics_step_jnp(self, xs, us):
+        raise NotImplementedError
+
+    def dynamics_step_torch(self, xs, us):
+        raise NotImplementedError
+
+    def tmax_to_num_timesteps(self, t_max):
+        num_timesteps = round(t_max / self.dt)
+        return num_timesteps
+
+    def num_timesteps_to_tmax(self, num_timesteps):
+        return num_timesteps * self.dt
 
     def colors(self, t_max):
         return [colormaps[self.cmap_name](i) for i in range(t_max + 1)]
@@ -451,7 +475,14 @@ class ContinuousTimeDynamics(Dynamics):
 
     def dynamics_step(self, xs, us):
         xs_t1 = xs + self.dt * self.dynamics(xs, us)
-        
+        return xs_t1
+
+    def dynamics_jnp(self, xs, us):
+        xdot = jnp.dot(self.At_jnp, xs.T).T + jnp.dot(self.bt_jnp, us.T).T + self.ct_jnp
+        return xdot
+
+    def dynamics_step_jnp(self, xs, us):
+        xs_t1 = xs + self.dt * self.dynamics_jnp(xs, us)
         return xs_t1
 
 
@@ -485,6 +516,12 @@ class DiscreteTimeDynamics(Dynamics):
             xs_t1 = self.At@xs + self.bt@us + self.ct
 
         return xs_t1
+
+    def dynamics_step_jnp(self, xs, us):
+        return jnp.dot(self.At_jnp, xs.T).T + jnp.dot(self.bt_jnp, us.T).T + self.ct_jnp
+
+    def dynamics_step_torch(self, xs, us):
+        return torch.mm(self.At_torch, xs.transpose(0,1)).transpose(0, 1) + torch.mm(self.bt_torch, us.transpose(0, 1)).transpose(0, 1) + self.ct_torch
 
 
 if __name__ == "__main__":

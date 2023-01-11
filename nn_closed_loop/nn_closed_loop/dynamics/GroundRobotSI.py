@@ -15,12 +15,7 @@ class GroundRobotSI(DiscreteTimeDynamics):
         ct = np.array([0.0, 0.0]).T
 
         # u_limits = None
-        u_limits = 1*np.array(
-            [
-                [-1, 1],
-                [-1, 1]
-            ]
-        )
+        u_limits = np.array([[-1,1], [-1,1]], dtype=float)
 
         dt = 1.0
 

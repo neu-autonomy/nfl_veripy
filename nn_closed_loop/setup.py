@@ -10,6 +10,8 @@ setup(
         "nn_partition",
         "tabulate",
         "colour",
+        "jax",
+        "jax_verify",
     ],
     packages=["nn_closed_loop"],
     # package_data={"nn_closed_loop": ["py.typed", "**/py.typed"]},

@@ -15,6 +15,18 @@ from .ClosedLoopSeparablePropagator import (
     ClosedLoopSeparableIBPPropagator,
     ClosedLoopSeparableSGIBPPropagator,
 )
+from .ClosedLoopJaxVerifyPropagator import (
+    ClosedLoopJaxPropagator,
+    ClosedLoopJaxIterativePropagator,
+    ClosedLoopJaxUnrolledPropagator,
+    ClosedLoopJaxUnrolledJittedPropagator,
+    ClosedLoopJaxPolytopePropagator,
+    ClosedLoopJaxRectanglePropagator,
+    ClosedLoopJaxLPPropagator,
+    ClosedLoopJaxPolytopeJittedPropagator,
+    ClosedLoopJaxRectangleJittedPropagator,
+    ClosedLoopJaxLPJittedPropagator,
+)
 
 propagator_dict = {
     "CROWN": ClosedLoopCROWNPropagator,
@@ -28,4 +40,18 @@ propagator_dict = {
     "SeparableIBP": ClosedLoopSeparableIBPPropagator,
     "SeparableSGIBP": ClosedLoopSeparableSGIBPPropagator,
     "OVERT": ClosedLoopOVERTPropagator,
+    "TorchBackwardCROWNReachLP": ClosedLoopCROWNPropagator,
+    "TorchBackwardCROWNNStep": ClosedLoopCROWNNStepPropagator,
+    "TorchCROWNLP": ClosedLoopCROWNLPPropagator,
+    "TorchIBP": ClosedLoopIBPPropagator,
+    "TorchFastLin": ClosedLoopFastLinPropagator,
+    "JaxCROWNIterative": ClosedLoopJaxIterativePropagator,
+    "JaxCROWNUnrolled": ClosedLoopJaxUnrolledPropagator,
+    "JaxUnrolledJitted": ClosedLoopJaxUnrolledJittedPropagator,
+    "JaxPolytope": ClosedLoopJaxPolytopePropagator,
+    "JaxRectangle": ClosedLoopJaxRectanglePropagator,
+    "JaxLP": ClosedLoopJaxLPPropagator,
+    "JaxPolytopeJitted": ClosedLoopJaxPolytopeJittedPropagator,
+    "JaxRectangleJitted": ClosedLoopJaxRectangleJittedPropagator,
+    "JaxLPJitted": ClosedLoopJaxLPJittedPropagator,
 }
