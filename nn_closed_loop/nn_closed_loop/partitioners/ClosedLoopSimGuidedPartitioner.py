@@ -1,9 +1,9 @@
 from .ClosedLoopPartitioner import ClosedLoopPartitioner
-import nn_closed_loop.nn_closed_loop.constraints as constraints
+import nn_closed_loop.constraints as constraints
 import numpy as np
 from copy import deepcopy
 import time
-from nn_partition.nn_partition.utils.utils import sect
+from nn_partition.utils.utils import sect
 
 
 class ClosedLoopSimGuidedPartitioner(ClosedLoopPartitioner):

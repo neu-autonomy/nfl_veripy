@@ -1,16 +1,16 @@
 import numpy as np
-import nn_partition.nn_partition.partitioners as partitioners
+import nn_partition.partitioners as partitioners
 from pandas.core.indexing import convert_to_index_sliceable
 import pypoman
 import matplotlib.pyplot as plt
 from matplotlib import cm
 from matplotlib.patches import Rectangle
-import nn_closed_loop.nn_closed_loop.constraints as constraints
-from nn_closed_loop.nn_closed_loop.utils.utils import range_to_polytope
+import nn_closed_loop.constraints as constraints
+from nn_closed_loop.utils.utils import range_to_polytope
 from copy import deepcopy
 import os
 
-from nn_closed_loop.nn_closed_loop.constraints.ClosedLoopConstraints import PolytopeConstraint
+from nn_closed_loop.constraints.ClosedLoopConstraints import PolytopeConstraint
 
 
 class ClosedLoopPartitioner(partitioners.Partitioner):

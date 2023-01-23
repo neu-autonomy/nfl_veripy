@@ -1,5 +1,5 @@
 from .Propagator import Propagator
-import nn_partition.nn_partition.utils.utils
+import nn_partition.utils.utils
 import numpy as np
 import torch
 

@@ -8,8 +8,8 @@ if platform.system() == "Darwin":
 import matplotlib.pyplot as plt
 from matplotlib import cm
 
-from nn_closed_loop.nn_closed_loop.utils.nn_bounds import BoundClosedLoopController
-import nn_closed_loop.nn_closed_loop.constraints as constraints
+from nn_closed_loop.utils.nn_bounds import BoundClosedLoopController
+import nn_closed_loop.constraints as constraints
 import torch
 import os
 import pickle

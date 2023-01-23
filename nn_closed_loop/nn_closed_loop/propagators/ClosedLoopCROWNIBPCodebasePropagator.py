@@ -7,12 +7,12 @@ from tokenize import Hexnumber
 
 import matplotlib
 from .ClosedLoopPropagator import ClosedLoopPropagator
-import nn_closed_loop.nn_closed_loop.elements as elements
+import nn_closed_loop.elements as elements
 import numpy as np
 import pypoman
-import nn_closed_loop.nn_closed_loop.constraints as constraints
+import nn_closed_loop.constraints as constraints
 import torch
-from nn_closed_loop.nn_closed_loop.utils.utils import range_to_polytope
+from nn_closed_loop.utils.utils import range_to_polytope
 import cvxpy as cp
 from itertools import product
 from copy import deepcopy
@@ -291,7 +291,7 @@ class ClosedLoopCROWNIBPCodebasePropagator(ClosedLoopPropagator):
         )
 
     def torch2network(self, torch_model):
-        from nn_closed_loop.nn_closed_loop.utils.nn_bounds import BoundClosedLoopController
+        from nn_closed_loop.utils.nn_bounds import BoundClosedLoopController
 
         torch_model_cl = BoundClosedLoopController.convert(
             torch_model, dynamics=self.dynamics, bound_opts=self.params
