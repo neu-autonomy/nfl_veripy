@@ -342,7 +342,7 @@ def simple_quad():
     model = create_and_train_model(neurons_per_layer, xs, us, epochs=5, verbose=True)
     save_model(model, name="model", dir=dir_path+"/controllers/simple_quad/")
 
-
+# Control policy used for OJCSYS 2022 paper
 def discrete_quad_avoid_origin_maneuver():
     neurons_per_layer = [20,20]
     state_range = np.array(
@@ -377,7 +377,47 @@ def discrete_quad_avoid_origin_maneuver():
     print('ok')
     model = create_and_train_model(neurons_per_layer, xs, us, epochs=6, verbose=True)
     # save_model(model, name="model", dir=dir_path+"/controllers/ground_robot_DI_avoid_origin_maneuver_velocity_update/")
-    save_model(model, system='Quadrotor', model_name='quad_avoid_origin_maneuver_2')
+    save_model(model, system='DiscreteQuadrotor', model_name='quad_avoid_origin_maneuver_2')
+
+# Control policy used for OJCSYS 2022 paper revision
+def sized_up_discrete_quad_avoid_origin_maneuver(network_size):
+    neurons_per_layer = network_size
+    state_range = np.array(
+        [
+            [-8, 5],
+            [-12, 12],
+            [1, 4],
+            [-2, 2],
+            [-2, 2],
+            [-2, 2]
+        ]
+    )
+    xs = np.random.uniform(low=state_range[:, 0], high=state_range[:, 1], size=(30000000, 6))
+    us = np.zeros((len(xs),3))
+    for i,pos in enumerate(xs):
+        if np.abs(pos[0]) < 0.25 and np.abs(pos[1]) < 0.25:
+            ax = 16*pos[0]
+            ay = 16*pos[1]
+            az = 16*(pos[2]-2.5)
+        elif np.abs(pos[0]) < 2.25 and np.abs(pos[1]) < 2.25:
+            ax = 4*np.sign(pos[0])
+            ay = 4*np.sign(pos[1])
+            az = 4*np.sign(pos[2]-2.5)
+        else:
+            az = 0
+            ax = 0
+            ay_ = -0.25*pos[1]+4/pos[1]-3*pos[4]
+            ay = max(min(ay_, 2), -2)
+        us[i] = np.array([ax, ay, az])
+        if np.mod(i,1000000)==0:
+            print('yeayea')
+    print('ok')
+    model = create_and_train_model(neurons_per_layer, xs, us, epochs=6, verbose=True)
+
+    suffix = ''
+    for i in neurons_per_layer:
+        suffix = suffix + '_{}'.format(i)
+    save_model(model, system='DiscreteQuadrotor', model_name='discrete_quad_avoid_origin_maneuver' + suffix)
 
 def fast_discrete_quad_avoid_origin_maneuver():
     neurons_per_layer = [30, 30, 30]
@@ -878,7 +918,7 @@ def main():
     # zero_input_controller()
     # complex_potential_field_controller()
     ## buggy_complex_potential_field_controller2()
-    complex_potential_field_controller_go_straight()
+    # complex_potential_field_controller_go_straight()
     # display_ground_robot_control_field(name='complex_potential_field')
     # build_controller_from_matlab("quad_mpc_data_paths_not_as_small.mat")
     # generate_mpc_data_quadrotor()
@@ -892,6 +932,10 @@ def main():
     # double_integratorx4()
     # ground_robotDI_sine()
     # corner_policy()
+    # quad_sizes = [[64,64], [128, 128], [128, 128, 128], [256, 256], [256, 256, 256]]
+    quad_sizes = [[60,60]]
+    for size in quad_sizes:
+        sized_up_discrete_quad_avoid_origin_maneuver(network_size = size)
 
 if __name__ == "__main__":
     main()

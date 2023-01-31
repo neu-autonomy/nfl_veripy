@@ -805,151 +805,265 @@ class CompareRuntimeVsErrorTable(Experiment):
         plt.show()
 
 
-# class CompareLPvsCF(Experiment):
-#     def __init__(self, system):
-#         self.system = system
-#         Experiment.__init__(self)
+class NNScalability(Experiment):
+    def __init__(self):
+        self.filename = results_dir + 'runtime_vs_error_{dt}_table.pkl'
+        self.baseline_filename = results_dir + 'runtime_vs_error_{dt}_table_baseline.pkl'
+        Experiment.__init__(self)
 
-#     def run(self):
-#         rows = []
-#         rows.append(["", "1", "4", "16"])
+    def run(self):
+        dt = datetime.datetime.now().strftime('%Y_%m_%d__%H_%M_%S')
 
-#         propagator_names = {"CROWNLP": "L.P.", "CROWN": "C.F."}
-#         t_max = {"quadrotor": 2, "double_integrator": 5}
-#         partitions = {
-#             'quadrotor': ["[1,1,1,1,1,1]", "[2,2,1,1,1,1]", "[2,2,2,2,1,1]"],
-#             'double_integrator': ["[1,1]", "[2,2]", "[4,4]"]
-#         }
+        parser = ex.setup_parser()
+        args = parser.parse_args()
 
-#         parser = ex.setup_parser()
+        args.save_plot = False
+        args.show_plot = False
+        args.make_animation = False
+        args.show_animation = False
+        args.state_feedback = True
+        args.boundaries = "lp"
+        args.system = "discrete_quadrotor"
+        args.t_max = 6
+        args.num_partitions = 750
+        args.estimate_runtime = True
+        args.overapprox = True
+        args.partitioner = "None"
+        args.propagator = "CROWN"
+        args.refined = True
 
-#         for propagator in ["CROWNLP", "CROWN"]:
-#             row = [propagator_names[propagator]]
-#             for num_partitions in partitions[self.system]:
+        expts = [
+            {
+                'partition_heuristic': 'guided',
+                'controller': 'discrete_quad_avoid_origin_maneuver_2'
+            },
+            {
+                'partition_heuristic': 'guided',
+                'controller': 'discrete_quad_avoid_origin_maneuver_40_40'
+            },
+            {
+                'partition_heuristic': 'guided',
+                'controller': 'discrete_quad_avoid_origin_maneuver_50_50'
+            },
+            {
+                'partition_heuristic': 'guided',
+                'controller': 'discrete_quad_avoid_origin_maneuver_40_40'
+            }
+        ]
+        baselines = [
+            {
+                'num_partitions': "[25, 25]",
+                'partition_heuristic': 'uniform',
+            },
+        ]
 
-#                 args = parser.parse_args()
-#                 args.partitioner = "Uniform"
-#                 args.propagator = propagator
-#                 args.system = self.system
-#                 args.state_feedback = True
-#                 args.t_max = t_max[self.system]
-#                 args.num_partitions = num_partitions
-#                 args.estimate_runtime = True
-
-#                 stats, info = ex.main(args)
-
-#                 mean_runtime = stats['runtimes'].mean()
-#                 std_runtime = stats['runtimes'].std()
-#                 runtime_str = "${:.3f} \pm {:.3f}$".format(mean_runtime, std_runtime)
-#                 row.append(runtime_str)
-#             rows.append(row)
+        df = pd.DataFrame()
+        df_b = pd.DataFrame()
         
-#         self.data = rows
-
-#     def plot(self):
-#         if hasattr(self, "data"):
-#             rows = self.data
-#         else:
-#             # Grab from specific pkl file
-#             raise NotImplementedError
-
-#         print(tabulate(rows, headers='firstrow'))
-#         print()
-#         print(tabulate(rows, headers='firstrow', tablefmt='latex_raw'))
-
-
-# class NxScalability(Experiment):
-#     def __init__(self, state_or_control="state"):
-#         self.filename = results_dir + 'runtime_vs_num_{x_or_u}_{dt}_table.pkl'
-#         self.state_or_control = state_or_control
-#         Experiment.__init__(self)
-
-#     def run(self):
-#         dt = datetime.datetime.now().strftime('%Y_%m_%d__%H_%M_%S')
-
-#         parser = ex.setup_parser()
-#         args = parser.parse_args()
-
-#         args.save_plot = False
-#         args.show_plot = False
-#         args.make_animation = False
-#         args.show_animation = False
-#         # args.init_state_range = "[[2.5, 3.0], [-0.25, 0.25]]"
-#         args.state_feedback = True
-#         args.boundaries = "lp"
-#         args.system = "unity"
-#         args.t_max = 5
-#         args.estimate_runtime = True
-
-#         expts = [
-#             {
-#                 'partitioner': 'None',
-#                 'propagator': 'CROWN',
-#             },
-#             # {
-#             #     'partitioner': 'None',
-#             #     'propagator': 'SDP',
-#             #     'cvxpy_solver': 'MOSEK',
-#             # },
-#         ]
-
-#         nxs = [2, 3, 4, 10, 20, 30, 50, 100]
-
-#         df = pd.DataFrame()
-
-#         for nx in nxs:
-#             for expt in expts:
-#                 for key, value in expt.items():
-#                     setattr(args, key, value)
-
-#                 if self.state_or_control == "state":
-#                     args.nx = nx
-#                 elif self.state_or_control == "control":
-#                     args.nu = nx
-#                 stats, info = ex.main(args)
-
-#                 for i, runtime in enumerate(stats['runtimes']):
-#                     df = df.append({
-#                         **expt,
-#                         'run': i,
-#                         'runtime': runtime,
-#                         'final_step_error': stats['final_step_errors'][i],
-#                         'avg_error': stats['avg_errors'][i],
-#                         'output_constraint': stats['output_constraints'][i],
-#                         'all_errors': stats['all_errors'][i],
-#                         'nx': nx,
-#                         }, ignore_index=True)
-#         df.to_pickle(self.filename.format(x_or_u=self.state_or_control, dt=dt))
-
-#     def plot(self):
-
-#         # Grab latest file as pandas dataframe
-#         list_of_files = glob.glob(self.filename.format(x_or_u=self.state_or_control, dt='*'))
-#         latest_filename = max(list_of_files, key=os.path.getctime)
-#         df = pd.read_pickle(latest_filename)
-
-#         runtime_mean_series = df.groupby(['propagator', 'nx']).runtime.mean().unstack()
-#         runtime_std_series = df.groupby(['propagator', 'nx']).runtime.std().unstack()
+        #Generate 5 random numbers between 10 and 30
+        np.random.seed(1)
+        rand_len = 1
+        rand_list = np.random.uniform(low=0, high=5, size=(rand_len,))
+        print(rand_list)
+        # rand_list = [0,1]
         
-#         plt.clf()
+        for expt in expts:
+            avg_runtime_avg = 0
+            avg_error_avg = 0
+            for shift in rand_list:
+                for key, value in expt.items():
+                    setattr(args, key, value)
+                setattr(args,'final_state_range', '[[{},{}],[-0.25,0.25]]'.format(4.5+shift, 5.0+shift))
+                stats, info = ex.main(args)
+                
+                
+                avg_runtime_avg += stats['avg_runtime']/rand_len
+                avg_error_avg += stats['final_step_errors'][0]/rand_len
+            
+            # import pdb; pdb.set_trace()
 
-#         color = 'tab:green'
-#         plt.plot(runtime_mean_series.columns.to_numpy(), runtime_mean_series.iloc[0].to_numpy(), color=color)
-#         plt.gca().fill_between(runtime_mean_series.columns.to_numpy(), runtime_mean_series.iloc[0].to_numpy()-runtime_std_series.iloc[0].to_numpy(), runtime_mean_series.iloc[0].to_numpy(), alpha=0.2, color=color)
-#         plt.gca().fill_between(runtime_mean_series.columns.to_numpy(), runtime_mean_series.iloc[0].to_numpy(), runtime_mean_series.iloc[0].to_numpy()+runtime_std_series.iloc[0].to_numpy(), alpha=0.2, color=color)
+            for i, runtime in enumerate(stats['runtimes']):
+                stats['final_step_errors'][i] = avg_error_avg
+                stats['avg_runtime'] = avg_runtime_avg
+                df = df.append({
+                    **expt,
+                    'run': i,
+                    'runtime': runtime,
+                    'final_step_error': stats['final_step_errors'][i],
+                    'avg_error': stats['avg_errors'][i],
+                    'output_constraint': stats['output_constraints'][i],
+                    'all_errors': stats['all_errors'][i], 
+                    'avg_runtime': stats['avg_runtime']
+                    }, ignore_index=True)
+        df.to_pickle(self.filename.format(dt=dt))
 
-#         if self.state_or_control == "state":
-#             plt.xlabel('Number of States, $n_x$')
-#         elif self.state_or_control == "control":
-#             plt.xlabel('Number of Control Inputs, $n_u$')
-#         plt.ylabel('Computation Time [s]')
-#         plt.tight_layout()
 
-#         # Save plot with similar name to pkl file that contains data
-#         filename = latest_filename
-#         fig_filename = filename.replace('table', 'runtime_'+self.state_or_control).replace('pkl', 'png')
-#         plt.savefig(fig_filename)
 
+        # for baseline in baselines:
+        #     avg_runtime_avg = 0
+        #     avg_error_avg = 0
+        #     for shift in rand_list:
+        #         for key, value in baseline.items():
+        #             setattr(args, key, value)
+        #         setattr(args,'final_state_range', '[[{},{}],[-0.25,0.25]]'.format(4.5+shift, 5.0+shift))
+        #         stats, info = ex.main(args)
+                
+                
+        #         avg_runtime_avg += stats['avg_runtime']/rand_len
+        #         avg_error_avg += stats['final_step_errors'][0]/rand_len
+        #         # import pdb; pdb.set_trace()
+
+        #     for i, runtime in enumerate(stats['runtimes']):
+        #         stats['final_step_errors'][i] = avg_error_avg
+        #         stats['avg_runtime'] = avg_runtime_avg
+        #         df_b = df_b.append({
+        #             **baseline,
+        #             'run': i,
+        #             'runtime': runtime,
+        #             'final_step_error': stats['final_step_errors'][i],
+        #             'avg_error': stats['avg_errors'][i],
+        #             'output_constraint': stats['output_constraints'][i],
+        #             'all_errors': stats['all_errors'][i], 
+        #             'avg_runtime': stats['avg_runtime']
+        #             }, ignore_index=True)
+        # df_b.to_pickle(self.baseline_filename.format(dt=dt))
+
+
+
+
+    def grab_latest_groups(self):
+        # Grab latest file as pandas dataframe
+        list_of_files = glob.glob(self.filename.format(dt='*'))
+        latest_filename = max(list_of_files, key=os.path.getctime)
+        df = pd.read_pickle(latest_filename)
+
+        # df will have every trial, so group by which prop/part was used
+        groupby = ['partition_heuristic']
+        grouped = df.groupby(groupby)
+
+
+        list_of_files_b = glob.glob(self.baseline_filename.format(dt='*'))
+        latest_filename_b = max(list_of_files_b, key=os.path.getctime)
+        df_b = pd.read_pickle(latest_filename_b)
+
+        # df will have every trial, so group by which prop/part was used
+        grouped_b = df_b.groupby(groupby)
+
+        return grouped, latest_filename, grouped_b
+
+    def plot(self):
+        grouped, filename = self.grab_latest_groups()
+        # Setup table columns
+        rows = []
+        rows.append(["Algorithm", "Runtime [s]", "Final Step Error"])
+
+        tuples = []
+        tuples += [('CROWN', 'None'), ('CROWNNStep', 'None')]
+
+        # Go through each combination of prop/part we want in the table
+        for prop_part_tuple in tuples:
+            try:
+                group = grouped.get_group(prop_part_tuple)
+            except KeyError:
+                continue
+
+            # import pdb; pdb.set_trace()
+
+            name = self.info[prop_part_tuple]['name']
+
+            mean_runtime = group['runtime'].mean()
+            std_runtime = group['runtime'].std()
+            runtime_str = "${:.3f} \pm {:.3f}$".format(mean_runtime, std_runtime)
+
+            final_step_error = group['final_step_error'].mean()
+
+            # Add the entries to the table for that prop/part
+            row = []
+            row.append(name)
+            row.append(runtime_str)
+            row.append("{:.2f}".format(final_step_error))
+
+            rows.append(row)
+
+        # print as a human-readable table and as a latex table
+        print(tabulate(rows, headers='firstrow'))
+        print()
+        print(tabulate(rows, headers='firstrow', tablefmt='latex_raw'))
+
+    def plot_error_vs_timestep(self):
+        grouped, filename, grouped_b = self.grab_latest_groups()
+        
+
+        fig, ax = plt.subplots(1, 1)
+
+        # Go through each combination of prop/part we want in the table
+        for partitioner in ['uniform', 'guided']:
+            prop_part_tuple = (partitioner)
+            try:
+                group = grouped.get_group(prop_part_tuple)
+            except KeyError:
+                continue
+
+            
+            all_errors = group['final_step_error']
+
+            all_runtimes = group['avg_runtime']
+            label = self.info[prop_part_tuple]['name']
+
+            import pdb; pdb.set_trace()
+            # replace citation with the ref number in this plot
+            # label = label.replace('~\\cite{hu2020reach}', ' [22]')
+            
+            plt.plot(
+                all_runtimes,
+                all_errors, 
+                color=self.info[prop_part_tuple]['color'],
+                ls=self.info[prop_part_tuple]['ls'],
+                label=label,
+            )
+
+
+
+        for partitioner in ['uniform']:
+            prop_part_tuple = (partitioner)
+            try:
+                group_b = grouped_b.get_group(prop_part_tuple)
+            except KeyError:
+                continue
+
+            
+            ref_errors = [group_b['final_step_error'][0], group_b['final_step_error'][0]]
+            all_runtimes = [0.5, 5]
+            label = 'lower bound'
+            # replace citation with the ref number in this plot
+            # label = label.replace('~\\cite{hu2020reach}', ' [22]')
+            
+        #     # import pdb; pdb.set_trace()
+            plt.plot(
+                all_runtimes,
+                ref_errors, 
+                color='k',
+                ls='--',
+            )
+
+        
+        plt.legend()
+
+        ax.set_yscale('log')
+        plt.xlabel('Time (s)')
+        plt.yticks([2, 3, 4, 5, 10, 50],[2, 3, 4, 5, 10, 50], fontsize=16)
+        plt.ylabel('Approximation Error')
+        plt.tight_layout()
+        ax.grid(which='major', color='#CCCCCC', linewidth=0.8)
+        # Show the minor grid as well. Style it in very light gray as a thin,
+        # dotted line.
+        ax.grid(which='minor', color='#CCCCCC', linestyle=':', linewidth=0.5)
+
+        # Save plot with similar name to pkl file that contains data
+        fig_filename = filename.replace('table', 'timestep').replace('pkl', 'png')
+        plt.savefig(fig_filename)
+
+        plt.show()
 
 if __name__ == '__main__':
 

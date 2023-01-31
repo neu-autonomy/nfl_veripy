@@ -218,7 +218,8 @@ class ClosedLoopPartitioner(partitioners.Partitioner):
         # input_constraint.plot(self.animate_axes)
         if isinstance(input_constraint, constraints.LpConstraint) or isinstance(input_constraint, constraints.PolytopeConstraint):
             # import pdb; pdb.set_trace()
-            input_constraint.plot(self.animate_axes, input_dims, extra_set_color, zorder=extra_set_zorder, linewidth=self.linewidth, plot_2d=self.plot_2d)
+            print('that was it')
+            # input_constraint.plot(self.animate_axes, input_dims, extra_set_color, zorder=extra_set_zorder, linewidth=self.linewidth, plot_2d=self.plot_2d)
         elif isinstance(input_constraint, constraints.RotatedLpConstraint):
             input_constraint.plot(self.animate_axes)
 
@@ -347,7 +348,7 @@ class ClosedLoopPartitioner(partitioners.Partitioner):
             true_verts_reversed = self.dynamics.get_true_backprojection_set(
                 backprojection_sets[-1], target_set, 
                 t_max, controller=propagator.network,
-                num_samples=1e8
+                num_samples=1e4
             )
             true_verts = np.flip(true_verts_reversed, axis=1)
             num_steps = len(backprojection_sets)

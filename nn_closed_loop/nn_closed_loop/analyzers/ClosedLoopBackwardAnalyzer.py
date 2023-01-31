@@ -306,13 +306,14 @@ class ClosedLoopBackwardAnalyzer(analyzers.Analyzer):
 
         # Plot all our input constraints (i.e., our backprojection set estimates)
         import nn_closed_loop.constraints as constraints
-        for j,ic in enumerate(input_constraints[0:]):
-            if isinstance(output_constraint, constraints.LpConstraint):
-                # rect = ic.plot(self.partitioner.animate_axes, self.partitioner.input_dims, colors[j].hex_l, zorder=self.estimated_backprojection_set_zorder, linewidth=self.partitioner.linewidth, plot_2d=self.partitioner.plot_2d)
-                rect = ic.plot(self.partitioner.animate_axes, self.partitioner.input_dims, self.estimated_backprojection_set_color, zorder=self.estimated_backprojection_set_zorder, linewidth=self.partitioner.linewidth, plot_2d=self.partitioner.plot_2d)
-                self.partitioner.default_patches += rect
-            elif isinstance(output_constraint, constraints.RotatedLpConstraint):
-                ic.plot(self.partitioner.animate_axes)#, self.partitioner.input_dims, self.estimated_backprojection_set_color, zorder=self.estimated_backprojection_set_zorder, linewidth=self.partitioner.linewidth, plot_2d=self.partitioner.plot_2d)
+        if False:
+            for j,ic in enumerate(input_constraints[0:]):
+                if isinstance(output_constraint, constraints.LpConstraint):
+                    # rect = ic.plot(self.partitioner.animate_axes, self.partitioner.input_dims, colors[j].hex_l, zorder=self.estimated_backprojection_set_zorder, linewidth=self.partitioner.linewidth, plot_2d=self.partitioner.plot_2d)
+                    rect = ic.plot(self.partitioner.animate_axes, self.partitioner.input_dims, self.estimated_backprojection_set_color, zorder=self.estimated_backprojection_set_zorder, linewidth=self.partitioner.linewidth, plot_2d=self.partitioner.plot_2d)
+                    self.partitioner.default_patches += rect
+                elif isinstance(output_constraint, constraints.RotatedLpConstraint):
+                    ic.plot(self.partitioner.animate_axes)#, self.partitioner.input_dims, self.estimated_backprojection_set_color, zorder=self.estimated_backprojection_set_zorder, linewidth=self.partitioner.linewidth, plot_2d=self.partitioner.plot_2d)
         # Show the target set
         self.plot_target_set(
             output_constraint,
@@ -383,9 +384,9 @@ class ClosedLoopBackwardAnalyzer(analyzers.Analyzer):
                         self.partitioner.default_patches += rect
 
         # import pdb; pdb.set_trace()
-        show_target_partition_bps = False
+        show_target_partition_bps = True
         if show_target_partition_bps:
-            for step in kwargs.get('per_timestep', [])[::4]:
+            for step in kwargs.get('per_timestep', []):
                 for info in step:
                     ic = info.get('bp_set', None)
                     if ic is None: continue
