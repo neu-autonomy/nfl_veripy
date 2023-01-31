@@ -29,12 +29,13 @@ height = 128//stride    # Height of downsampled grayscale image
 def main():
     
     path = dir_path+'/TinyTaxiNet.pt'
-    onnx_model = onnx.load('./TinyTaxiNet.onnx')
+    onnx_model = onnx.load('./full_mlp_supervised.onnx')
     model = convert(onnx_model)
 
-    ez_image = Image.open(dir_path+"/downsampled_images/smallsubset_1traj/MWH_Runway04_morning_overcast_1_2000.png")
-    ez_arr = np.array(ez_image)[:,:,0]/255.0
-    test_input = torch.from_numpy(np.array(ez_arr.flatten(), dtype='float32'))
+    # ez_image = Image.open(dir_path+"/downsampled_images/smallsubset_1traj/MWH_Runway04_morning_overcast_1_2000.png")
+    # ez_arr = np.array(ez_image)[:,:,0]/255.0
+    # test_input = torch.from_numpy(np.array(ez_arr.flatten(), dtype='float32'))
+    test_input = torch.from_numpy(np.array([0, 0, -8, 0], dtype='float32'))
     pred = model(test_input)
     input_set = np.vstack((test_input-0.001, test_input+0.001))
 
@@ -48,9 +49,9 @@ def main():
 
     
 
-    keras_model = tf.keras.models.load_model(dir_path+'/TinyTaxiNet.h5')
+    keras_model = tf.keras.models.load_model(dir_path+'/full_mlp_supervised.h5')
     torch_model = keras2torch(keras_model, "converted_model")
-    pred2 = model(test_input)
+    pred2 = torch_model(test_input)
 
     network = BoundSequential.convert(
         torch_model, {"zero-lb": True}

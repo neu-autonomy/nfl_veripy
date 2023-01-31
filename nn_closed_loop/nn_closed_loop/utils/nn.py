@@ -1,4 +1,6 @@
 import numpy as np
+import tensorflow as tf
+import torch
 import os
 
 os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
@@ -54,13 +56,18 @@ def save_model(model, system="DoubleIntegrator", model_name="default"):
 def load_controller(system="DoubleIntegrator", model_name="default", model_type='torch'):
     system = system.replace('OutputFeedback', '')  # remove OutputFeedback suffix if applicable
     path = "{}/../../models/{}/{}".format(dir_path, system, model_name)
-    with open(path + "/model.json", "r") as f:
-        loaded_model_json = f.read()
-    model = model_from_json(loaded_model_json)
-    model.load_weights(path + "/model.h5")
+    if system != "Taxinet":
+        with open(path + "/model.json", "r") as f:
+            loaded_model_json = f.read()
+        model = model_from_json(loaded_model_json)
+        model.load_weights(path + "/model.h5")
+    else:
+        model = tf.keras.models.load_model(path+'/model.h5')
+    
     if model_type == 'keras':
         return model
     torch_model = keras2torch(model, "torch_model")
+    
     return torch_model
 
 

@@ -164,6 +164,31 @@ def main(args):
             final_state_range = np.array(
                 ast.literal_eval(args.final_state_range)
             )
+    elif args.system == "taxinet":
+        inputs_to_highlight = [
+            {"dim": [2], "name": "$p$"},
+            {"dim": [3], "name": "$\theta$"},
+        ]
+        if args.state_feedback:
+            dyn = dynamics.Taxinet()
+        else:
+            raise NotImplementedError
+        if args.final_state_range is None:
+            final_state_range = np.array(
+                [  # (num_inputs, 2)
+                    [-0.8, 0.8],  # x0min, x0max
+                    [-0.8, 0.8],  # x1min, x1max
+                    [10, 11],
+                    [-30, 30],
+                ]
+            )
+        else:
+            # raise NotImplementedError
+            import ast
+
+            final_state_range = np.array(
+                ast.literal_eval(args.final_state_range)
+            )
     else:
             raise NotImplementedError
             import ast
@@ -271,7 +296,8 @@ def main(args):
             backprojection_sets = input_constraint_list[0]
             # backreachable_sets = [analyzer_info_list[0]['per_timestep'][i]['backreachable_set'] for i in range(int(args.t_max))]
             target_set = output_constraint[0]
-            final_error, avg_error, all_error = analyzer.get_backprojection_error(target_set, backprojection_sets, t_max=args.t_max)#, backreachable_sets=backreachable_sets)
+            # final_error, avg_error, all_error = analyzer.get_backprojection_error(target_set, backprojection_sets, t_max=args.t_max)#, backreachable_sets=backreachable_sets)
+            final_error, avg_error, all_error = 0, 0, 0
 
             final_errors[num] = final_error
             avg_errors[num] = avg_error
@@ -395,7 +421,7 @@ def setup_parser():
     parser.add_argument(
         "--system",
         default="double_integrator",
-        choices=["double_integrator", "quadrotor", "ground_robot", "ground_robot_DI", "4_double_integrators", "discrete_quadrotor"],
+        choices=["double_integrator", "quadrotor", "ground_robot", "ground_robot_DI", "4_double_integrators", "discrete_quadrotor", "taxinet"],
         help="which system to analyze (default: double_integrator_mpc)",
     )
     parser.add_argument(
