@@ -392,7 +392,7 @@ def sized_up_discrete_quad_avoid_origin_maneuver(network_size):
             [-2, 2]
         ]
     )
-    xs = np.random.uniform(low=state_range[:, 0], high=state_range[:, 1], size=(30000000, 6))
+    xs = np.random.uniform(low=state_range[:, 0], high=state_range[:, 1], size=(5000000, 6))
     us = np.zeros((len(xs),3))
     for i,pos in enumerate(xs):
         if np.abs(pos[0]) < 0.25 and np.abs(pos[1]) < 0.25:
@@ -412,7 +412,7 @@ def sized_up_discrete_quad_avoid_origin_maneuver(network_size):
         if np.mod(i,1000000)==0:
             print('yeayea')
     print('ok')
-    model = create_and_train_model(neurons_per_layer, xs, us, epochs=6, verbose=True)
+    model = create_and_train_model(neurons_per_layer, xs, us, epochs=15, batch_size=128, verbose=True)
 
     suffix = ''
     for i in neurons_per_layer:
