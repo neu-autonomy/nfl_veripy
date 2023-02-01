@@ -825,12 +825,14 @@ class NNScalability(Experiment):
         args.boundaries = "lp"
         args.system = "discrete_quadrotor"
         args.t_max = 6
-        args.num_partitions = 750
+        args.num_partitions = "750"
         args.estimate_runtime = True
         args.overapprox = True
         args.partitioner = "None"
         args.propagator = "CROWN"
         args.refined = True
+        args.init_state_range = "[[-5.25,-4.75],[-.25,.25],[2.25,2.75],[0.95,0.99],[-0.01,0.01],[-0.01,0.01]]"
+        args.final_state_range = "[[-0.8,0.8],[-0.8,0.8],[1.5,3.5],[-1,1],[-1,1],[-1,1]]"
 
         expts = [
             {
@@ -845,89 +847,56 @@ class NNScalability(Experiment):
                 'partition_heuristic': 'guided',
                 'controller': 'discrete_quad_avoid_origin_maneuver_50_50'
             },
-            {
-                'partition_heuristic': 'guided',
-                'controller': 'discrete_quad_avoid_origin_maneuver_40_40'
-            }
-        ]
-        baselines = [
-            {
-                'num_partitions': "[25, 25]",
-                'partition_heuristic': 'uniform',
-            },
+            # {
+            #     'partition_heuristic': 'guided',
+            #     'controller': 'discrete_quad_avoid_origin_maneuver_60_60'
+            # }
+            # {
+            #     'partition_heuristic': 'guided',
+            #     'controller': 'discrete_quad_avoid_origin_maneuver_128_128'
+            # }
+            # {
+            #     'partition_heuristic': 'guided',
+            #     'controller': 'discrete_quad_avoid_origin_maneuver_128_128'
+            # }
+
         ]
 
         df = pd.DataFrame()
-        df_b = pd.DataFrame()
-        
-        #Generate 5 random numbers between 10 and 30
-        np.random.seed(1)
-        rand_len = 1
-        rand_list = np.random.uniform(low=0, high=5, size=(rand_len,))
-        print(rand_list)
-        # rand_list = [0,1]
         
         for expt in expts:
-            avg_runtime_avg = 0
-            avg_error_avg = 0
-            for shift in rand_list:
-                for key, value in expt.items():
-                    setattr(args, key, value)
-                setattr(args,'final_state_range', '[[{},{}],[-0.25,0.25]]'.format(4.5+shift, 5.0+shift))
-                stats, info = ex.main(args)
+            controller_name = expt['controller']
+            if controller_name ==  'discrete_quad_avoid_origin_maneuver_2':
+                num_nodes = 40
+            else:
+                import re
+                num_nodes = sum([int(s) for s in re.findall(r'\d+', controller_name)])
+            for key, value in expt.items():
+                setattr(args, key, value)
+            stats, info = ex.main(args)
                 
                 
-                avg_runtime_avg += stats['avg_runtime']/rand_len
-                avg_error_avg += stats['final_step_errors'][0]/rand_len
+            avg_runtime = stats['avg_runtime']
+            avg_error = stats['final_step_errors'][0]
+            
+
             
             # import pdb; pdb.set_trace()
 
             for i, runtime in enumerate(stats['runtimes']):
-                stats['final_step_errors'][i] = avg_error_avg
-                stats['avg_runtime'] = avg_runtime_avg
+                stats['final_step_errors'][i] = avg_error
+                stats['avg_runtime'] = avg_runtime
                 df = df.append({
                     **expt,
                     'run': i,
                     'runtime': runtime,
                     'final_step_error': stats['final_step_errors'][i],
                     'avg_error': stats['avg_errors'][i],
-                    'output_constraint': stats['output_constraints'][i],
                     'all_errors': stats['all_errors'][i], 
-                    'avg_runtime': stats['avg_runtime']
+                    'avg_runtime': stats['avg_runtime'],
+                    'num_nodes': num_nodes
                     }, ignore_index=True)
         df.to_pickle(self.filename.format(dt=dt))
-
-
-
-        # for baseline in baselines:
-        #     avg_runtime_avg = 0
-        #     avg_error_avg = 0
-        #     for shift in rand_list:
-        #         for key, value in baseline.items():
-        #             setattr(args, key, value)
-        #         setattr(args,'final_state_range', '[[{},{}],[-0.25,0.25]]'.format(4.5+shift, 5.0+shift))
-        #         stats, info = ex.main(args)
-                
-                
-        #         avg_runtime_avg += stats['avg_runtime']/rand_len
-        #         avg_error_avg += stats['final_step_errors'][0]/rand_len
-        #         # import pdb; pdb.set_trace()
-
-        #     for i, runtime in enumerate(stats['runtimes']):
-        #         stats['final_step_errors'][i] = avg_error_avg
-        #         stats['avg_runtime'] = avg_runtime_avg
-        #         df_b = df_b.append({
-        #             **baseline,
-        #             'run': i,
-        #             'runtime': runtime,
-        #             'final_step_error': stats['final_step_errors'][i],
-        #             'avg_error': stats['avg_errors'][i],
-        #             'output_constraint': stats['output_constraints'][i],
-        #             'all_errors': stats['all_errors'][i], 
-        #             'avg_runtime': stats['avg_runtime']
-        #             }, ignore_index=True)
-        # df_b.to_pickle(self.baseline_filename.format(dt=dt))
-
 
 
 
@@ -938,67 +907,64 @@ class NNScalability(Experiment):
         df = pd.read_pickle(latest_filename)
 
         # df will have every trial, so group by which prop/part was used
-        groupby = ['partition_heuristic']
+        groupby = ['controller']
         grouped = df.groupby(groupby)
 
 
-        list_of_files_b = glob.glob(self.baseline_filename.format(dt='*'))
-        latest_filename_b = max(list_of_files_b, key=os.path.getctime)
-        df_b = pd.read_pickle(latest_filename_b)
+        return grouped, latest_filename
 
-        # df will have every trial, so group by which prop/part was used
-        grouped_b = df_b.groupby(groupby)
+    # def plot(self):
+    #     grouped, filename = self.grab_latest_groups()
+    #     # Setup table columns
+    #     rows = []
+    #     rows.append(["Algorithm", "Runtime [s]", "Final Step Error"])
 
-        return grouped, latest_filename, grouped_b
+    #     tuples = []
+    #     tuples += [('CROWN', 'None'), ('CROWNNStep', 'None')]
 
-    def plot(self):
+    #     # Go through each combination of prop/part we want in the table
+    #     for prop_part_tuple in tuples:
+    #         try:
+    #             group = grouped.get_group(prop_part_tuple)
+    #         except KeyError:
+    #             continue
+
+    #         # import pdb; pdb.set_trace()
+
+    #         name = self.info[prop_part_tuple]['name']
+
+    #         mean_runtime = group['runtime'].mean()
+    #         std_runtime = group['runtime'].std()
+    #         runtime_str = "${:.3f} \pm {:.3f}$".format(mean_runtime, std_runtime)
+
+    #         final_step_error = group['final_step_error'].mean()
+
+    #         # Add the entries to the table for that prop/part
+    #         row = []
+    #         row.append(name)
+    #         row.append(runtime_str)
+    #         row.append("{:.2f}".format(final_step_error))
+
+    #         rows.append(row)
+
+    #     # print as a human-readable table and as a latex table
+    #     print(tabulate(rows, headers='firstrow'))
+    #     print()
+    #     print(tabulate(rows, headers='firstrow', tablefmt='latex_raw'))
+
+    def time_vs_num_nodes(self):
         grouped, filename = self.grab_latest_groups()
-        # Setup table columns
-        rows = []
-        rows.append(["Algorithm", "Runtime [s]", "Final Step Error"])
-
-        tuples = []
-        tuples += [('CROWN', 'None'), ('CROWNNStep', 'None')]
-
-        # Go through each combination of prop/part we want in the table
-        for prop_part_tuple in tuples:
-            try:
-                group = grouped.get_group(prop_part_tuple)
-            except KeyError:
-                continue
-
-            # import pdb; pdb.set_trace()
-
-            name = self.info[prop_part_tuple]['name']
-
-            mean_runtime = group['runtime'].mean()
-            std_runtime = group['runtime'].std()
-            runtime_str = "${:.3f} \pm {:.3f}$".format(mean_runtime, std_runtime)
-
-            final_step_error = group['final_step_error'].mean()
-
-            # Add the entries to the table for that prop/part
-            row = []
-            row.append(name)
-            row.append(runtime_str)
-            row.append("{:.2f}".format(final_step_error))
-
-            rows.append(row)
-
-        # print as a human-readable table and as a latex table
-        print(tabulate(rows, headers='firstrow'))
-        print()
-        print(tabulate(rows, headers='firstrow', tablefmt='latex_raw'))
-
-    def plot_error_vs_timestep(self):
-        grouped, filename, grouped_b = self.grab_latest_groups()
         
 
         fig, ax = plt.subplots(1, 1)
 
+        all_runtimes = []
+        num_nodes = []
+
         # Go through each combination of prop/part we want in the table
-        for partitioner in ['uniform', 'guided']:
-            prop_part_tuple = (partitioner)
+        for controller in ['discrete_quad_avoid_origin_maneuver_2', 'discrete_quad_avoid_origin_maneuver_40_40', 'discrete_quad_avoid_origin_maneuver_50_50']:
+            # import pdb; pdb.set_trace()
+            prop_part_tuple = (controller)
             try:
                 group = grouped.get_group(prop_part_tuple)
             except KeyError:
@@ -1006,53 +972,25 @@ class NNScalability(Experiment):
 
             
             all_errors = group['final_step_error']
+            num_nodes.append(np.mean(group['num_nodes']))
 
-            all_runtimes = group['avg_runtime']
-            label = self.info[prop_part_tuple]['name']
+            all_runtimes.append(np.mean(group['avg_runtime']))
 
-            import pdb; pdb.set_trace()
+            # import pdb; pdb.set_trace()
             # replace citation with the ref number in this plot
             # label = label.replace('~\\cite{hu2020reach}', ' [22]')
             
-            plt.plot(
-                all_runtimes,
-                all_errors, 
-                color=self.info[prop_part_tuple]['color'],
-                ls=self.info[prop_part_tuple]['ls'],
-                label=label,
-            )
+        plt.plot(
+            num_nodes,
+            all_runtimes, 
+            color='tab:blue',
+        )
 
 
-
-        for partitioner in ['uniform']:
-            prop_part_tuple = (partitioner)
-            try:
-                group_b = grouped_b.get_group(prop_part_tuple)
-            except KeyError:
-                continue
-
-            
-            ref_errors = [group_b['final_step_error'][0], group_b['final_step_error'][0]]
-            all_runtimes = [0.5, 5]
-            label = 'lower bound'
-            # replace citation with the ref number in this plot
-            # label = label.replace('~\\cite{hu2020reach}', ' [22]')
-            
-        #     # import pdb; pdb.set_trace()
-            plt.plot(
-                all_runtimes,
-                ref_errors, 
-                color='k',
-                ls='--',
-            )
-
-        
-        plt.legend()
-
-        ax.set_yscale('log')
-        plt.xlabel('Time (s)')
-        plt.yticks([2, 3, 4, 5, 10, 50],[2, 3, 4, 5, 10, 50], fontsize=16)
-        plt.ylabel('Approximation Error')
+        # ax.set_yscale('log')
+        plt.xlabel('Number of Nodes')
+        # plt.yticks([2, 3, 4, 5, 10, 50],[2, 3, 4, 5, 10, 50], fontsize=16)
+        plt.ylabel('Computation Time (s)')
         plt.tight_layout()
         ax.grid(which='major', color='#CCCCCC', linewidth=0.8)
         # Show the minor grid as well. Style it in very light gray as a thin,
@@ -1069,11 +1007,14 @@ if __name__ == '__main__':
 
     # Like Fig 3 in ICRA21 paper
     # c = CompareRuntimeVsErrorTable()
-    c = ErrorVsPartitions()
+    ###c = ErrorVsPartitions()
     # c.run()
     # c.plot()  # 3A: table
     # c.plot_reachable_sets()  # 3B: overlay reachable sets
-    c.plot_error_vs_timestep()  # 3C: error vs timestep
+    ###c.plot_error_vs_timestep()  # 3C: error vs timestep
+    c = NNScalability()
+    # c.run()
+    c.time_vs_num_nodes()
 
     # c = CompareLPvsCF(system="double_integrator")
     # c.run()

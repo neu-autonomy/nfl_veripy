@@ -3,7 +3,7 @@ import cvxpy as cp
 from copy import deepcopy
 import torch
 import time
-from nn_closed_loop.nn_closed_loop.elements import Element, GuidedElement
+from nn_closed_loop.elements import Element, GuidedElement
 import nn_closed_loop.constraints as constraints
 
 class OptGuidedElement(GuidedElement):
