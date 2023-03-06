@@ -830,9 +830,9 @@ class NNScalability(Experiment):
         args.overapprox = True
         args.partitioner = "None"
         args.propagator = "CROWN"
-        args.refined = True
+        args.refined = False
         args.init_state_range = "[[-5.25,-4.75],[-.25,.25],[2.25,2.75],[0.95,0.99],[-0.01,0.01],[-0.01,0.01]]"
-        args.final_state_range = "[[-0.8,0.8],[-0.8,0.8],[1.5,3.5],[-1,1],[-1,1],[-1,1]]"
+        args.final_state_range = "[[-1,1],[-1,1],[1.5,3.5],[-1,1],[-1,1],[-1,1]]"
 
         expts = [
             {
@@ -847,14 +847,19 @@ class NNScalability(Experiment):
                 'partition_heuristic': 'guided',
                 'controller': 'discrete_quad_avoid_origin_maneuver_50_50'
             },
-            # {
-            #     'partition_heuristic': 'guided',
-            #     'controller': 'discrete_quad_avoid_origin_maneuver_60_60'
-            # }
-            # {
-            #     'partition_heuristic': 'guided',
-            #     'controller': 'discrete_quad_avoid_origin_maneuver_128_128'
-            # }
+            {
+                'partition_heuristic': 'guided',
+                'controller': 'discrete_quad_avoid_origin_maneuver_60_60'
+            },
+            {
+                'partition_heuristic': 'guided',
+                'controller': 'discrete_quad_avoid_origin_maneuver_80_80'
+            },
+            {
+                'partition_heuristic': 'guided',
+                'controller': 'discrete_quad_avoid_origin_maneuver_128_128'
+            },
+            
             # {
             #     'partition_heuristic': 'guided',
             #     'controller': 'discrete_quad_avoid_origin_maneuver_128_128'
@@ -962,7 +967,7 @@ class NNScalability(Experiment):
         num_nodes = []
 
         # Go through each combination of prop/part we want in the table
-        for controller in ['discrete_quad_avoid_origin_maneuver_2', 'discrete_quad_avoid_origin_maneuver_40_40', 'discrete_quad_avoid_origin_maneuver_50_50']:
+        for controller in ['discrete_quad_avoid_origin_maneuver_2', 'discrete_quad_avoid_origin_maneuver_40_40', 'discrete_quad_avoid_origin_maneuver_50_50', 'discrete_quad_avoid_origin_maneuver_60_60', 'discrete_quad_avoid_origin_maneuver_80_80', 'discrete_quad_avoid_origin_maneuver_100_100', 'discrete_quad_avoid_origin_maneuver_128_128']:
             # import pdb; pdb.set_trace()
             prop_part_tuple = (controller)
             try:
@@ -979,20 +984,34 @@ class NNScalability(Experiment):
             # import pdb; pdb.set_trace()
             # replace citation with the ref number in this plot
             # label = label.replace('~\\cite{hu2020reach}', ' [22]')
-            
+        
+        from matplotlib.patches import Rectangle
+        ax.add_patch(Rectangle((30, 20), 70, 45, alpha=0.1, color='g'))
+        # ax.add_patch(Rectangle((100, 20), 170, 45, alpha=0.1, color='r'))
+
         plt.plot(
             num_nodes,
             all_runtimes, 
             color='tab:blue',
+            marker='o'
         )
 
+        plt.plot(
+            [100, 100],
+            [20, 65], 
+            color='tab:red',
+        )
+
+        
 
         # ax.set_yscale('log')
-        plt.xlabel('Number of Nodes')
+        plt.xlabel('Number of Neurons')
         # plt.yticks([2, 3, 4, 5, 10, 50],[2, 3, 4, 5, 10, 50], fontsize=16)
         plt.ylabel('Computation Time (s)')
         plt.tight_layout()
         ax.grid(which='major', color='#CCCCCC', linewidth=0.8)
+        ax.set_xlim((30, 270))
+        ax.set_ylim((20, 65))
         # Show the minor grid as well. Style it in very light gray as a thin,
         # dotted line.
         ax.grid(which='minor', color='#CCCCCC', linestyle=':', linewidth=0.5)

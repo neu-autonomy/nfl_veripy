@@ -392,7 +392,7 @@ def sized_up_discrete_quad_avoid_origin_maneuver(network_size):
             [-2, 2]
         ]
     )
-    xs = np.random.uniform(low=state_range[:, 0], high=state_range[:, 1], size=(5000000, 6))
+    xs = np.random.uniform(low=state_range[:, 0], high=state_range[:, 1], size=(10000000, 6))
     us = np.zeros((len(xs),3))
     for i,pos in enumerate(xs):
         if np.abs(pos[0]) < 0.25 and np.abs(pos[1]) < 0.25:
@@ -412,12 +412,15 @@ def sized_up_discrete_quad_avoid_origin_maneuver(network_size):
         if np.mod(i,1000000)==0:
             print('yeayea')
     print('ok')
-    model = create_and_train_model(neurons_per_layer, xs, us, epochs=15, batch_size=128, verbose=True)
+    for j in range(1):
+        
+        model = create_and_train_model(neurons_per_layer, xs, us, epochs=6, verbose=True)
 
-    suffix = ''
-    for i in neurons_per_layer:
-        suffix = suffix + '_{}'.format(i)
-    save_model(model, system='DiscreteQuadrotor', model_name='discrete_quad_avoid_origin_maneuver' + suffix)
+        suffix = ''
+        for i in neurons_per_layer:
+            suffix = suffix + '_{}'.format(i)
+        # suffix += '_{}'.format(j)
+        save_model(model, system='DiscreteQuadrotor', model_name='discrete_quad_avoid_origin_maneuver' + suffix)
 
 def fast_discrete_quad_avoid_origin_maneuver():
     neurons_per_layer = [30, 30, 30]
@@ -933,7 +936,7 @@ def main():
     # ground_robotDI_sine()
     # corner_policy()
     # quad_sizes = [[64,64], [128, 128], [128, 128, 128], [256, 256], [256, 256, 256]]
-    quad_sizes = [[60,60]]
+    quad_sizes = [[100, 100]]
     for size in quad_sizes:
         sized_up_discrete_quad_avoid_origin_maneuver(network_size = size)
 
