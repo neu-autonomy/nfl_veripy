@@ -61,13 +61,23 @@ def load_controller(system="DoubleIntegrator", model_name="default", model_type=
             loaded_model_json = f.read()
         model = model_from_json(loaded_model_json)
         model.load_weights(path + "/model.h5")
+        import pdb; pdb.set_trace()
     else:
+        # import pdb; pdb.set_trace()
         model = tf.keras.models.load_model(path+'/model.h5')
     
     if model_type == 'keras':
         return model
     torch_model = keras2torch(model, "torch_model")
-    
+    weights = []
+    for name, param in torch_model.named_parameters():
+        weights.append(param.detach().numpy())
+
+    # np.savez("weights.npz", *weights)
+    # num_layers = len(model["weights"])
+	# layer_sizes = np.vstack(size(model["weights"][1], 2), [length(vec(model["biases"][i])) for i in 1:num_layers])
+    # np.savez("params.npz", X_mean=X_mean, X_std=X_std, Y_mean=Y_mean, Y_std=Y_std, layer_sizes=layer_sizes)
+
     return torch_model
 
 
@@ -87,6 +97,35 @@ def load_controller_unity(nx, nu):
     torch_model = keras2torch(model, "torch_model")
 
     return torch_model
+
+
+def rpm_converter(system="DoubleIntegrator", model_name="default", model_type='torch'):
+    system = system.replace('OutputFeedback', '')  # remove OutputFeedback suffix if applicable
+    path = "{}/../../models/{}/{}".format(dir_path, system, model_name)
+    if system != "Taxinet":
+        with open(path + "/model.json", "r") as f:
+            loaded_model_json = f.read()
+        model = model_from_json(loaded_model_json)
+        model.load_weights(path + "/model.h5")
+    else:
+        model = tf.keras.models.load_model(path+'/model.h5')
+
+    
+
+    torch_model = keras2torch(model, "torch_model")
+    weights = []
+    for name, param in torch_model.named_parameters():
+        weights.append(param.detach().numpy())
+
+    import pdb; pdb.set_trace()
+    # num_layers = len(model["weights"])
+	# layer_sizes = vcat(size(model["weights"][1], 2), [length(vec(model["biases"][i])) for i in 1:num_layers])
+
+    # np.savez("weights.npz", *weights)
+    # num_layers = len(model["weights"])
+	# layer_sizes = np.vstack(size(model["weights"][1], 2), [length(vec(model["biases"][i])) for i in 1:num_layers])
+    # np.savez("params.npz", X_mean=X_mean, X_std=X_std, Y_mean=Y_mean, Y_std=Y_std, layer_sizes=layer_sizes)
+
 
 
 def plot_data(xs, us, system):

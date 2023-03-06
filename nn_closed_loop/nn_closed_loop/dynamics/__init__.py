@@ -13,3 +13,4 @@ from .DoubleIntegratorx4 import DoubleIntegratorx4
 from .Unicycle import Unicycle
 from .DiscreteQuadrotor import DiscreteQuadrotor
 from .Taxinet import Taxinet
+from .Pendulum import Pendulum

@@ -101,7 +101,8 @@ class ClosedLoopPropagator(propagators.Propagator):
             # import pdb; pdb.set_trace()
         else:
             # num_partitions_ = num_partitions
-            num_partitions_ = np.array([1, 1, 1, 1, 1, 1])
+            num_partitions_ = np.array([1, 1])
+            # num_partitions_ = np.array([1, 1, 1, 1, 1, 1])
             # num_partitions_ = np.array([1,1,2,30])
         input_shape = output_constraint.range.shape[:-1]
         slope = np.divide(

@@ -246,11 +246,46 @@ def main(args):
                 ast.literal_eval(args.init_state_range)
             )
         controller = load_controller_unity(args.nx, args.nu)
+    elif args.system == "pendulum":
+        inputs_to_highlight = [
+            {"dim": [0], "name": "$\theta \ (\mathrm{ rad })$"},
+            {"dim": [1], "name": "$\omega \ (\mathrm{rad/s})$"},
+        ]
+        if args.state_feedback:
+            dyn = dynamics.Pendulum()
+        else:
+            raise NotImplementedError
+        if args.init_state_range is None:
+            init_state_range = np.array(
+                [  # (num_inputs, 2)
+                    [1., 1.2],  # x0min, x0max
+                    [0., 0.2],  # x1min, x1max
+                ]
+            )
+        else:
+            import ast
+
+            init_state_range = np.array(
+                ast.literal_eval(args.init_state_range)
+            )
+        if args.final_state_range is None:
+            final_state_range = np.array(
+                [
+                    [-7.0, -6.5],
+                    [-0.5, 0.5]
+                ]
+            )
+        else:
+            import ast
+
+            final_state_range = np.array(
+                ast.literal_eval(args.final_state_range)
+            )
     else:
         raise NotImplementedError
 
     if args.num_partitions is None:
-        num_partitions = np.ones(dyn.At.shape[0])
+        num_partitions = np.ones(2)
     else:
         import ast
 
@@ -449,7 +484,7 @@ def setup_parser():
     parser.add_argument(
         "--system",
         default="double_integrator",
-        choices=["double_integrator", "quadrotor", "duffing", "iss", "ground_robot", "ground_robot_DI", "quadrotor_8D"],
+        choices=["double_integrator", "quadrotor", "duffing", "iss", "ground_robot", "ground_robot_DI", "quadrotor_8D", "pendulum"],
         help="which system to analyze (default: double_integrator)",
     )
     parser.add_argument(
@@ -495,7 +530,7 @@ def setup_parser():
     parser.add_argument(
         "--propagator",
         default="IBP",
-        choices=["IBP", "CROWN", "CROWNNStep", "FastLin", "SDP", "CROWNLP", "SeparableCROWN", "SeparableIBP", "SeparableSGIBP", "OVERT"],
+        choices=["IBP", "CROWN", "CROWNNStep", "FastLin", "SDP", "CROWNLP", "SeparableCROWN", "SeparableIBP", "SeparableSGIBP", "OVERT", "AutoLiRPA"],
         help="which propagator to use (default: IBP)",
     )
 

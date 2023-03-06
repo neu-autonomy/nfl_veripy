@@ -276,7 +276,7 @@ def main(args):
         # Run the analyzer N times to compute an estimated runtime
         import time
 
-        num_calls = 1
+        num_calls = 2
         times = np.empty(num_calls)
         final_errors = np.empty(num_calls)
         avg_errors = np.empty(num_calls, dtype=np.ndarray)

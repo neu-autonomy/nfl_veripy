@@ -14,6 +14,7 @@ from .ClosedLoopSeparablePropagator import (
     ClosedLoopSeparableIBPPropagator,
     ClosedLoopSeparableSGIBPPropagator,
 )
+from .ClosedLoopAUTOLIRPAPropagator import ClosedLoopAUTOLIRPAPropagator
 
 propagator_dict = {
     "CROWN": ClosedLoopCROWNPropagator,
@@ -26,4 +27,5 @@ propagator_dict = {
     "SeparableIBP": ClosedLoopSeparableIBPPropagator,
     "SeparableSGIBP": ClosedLoopSeparableSGIBPPropagator,
     "OVERT": ClosedLoopOVERTPropagator,
+    "AutoLiRPA": ClosedLoopAUTOLIRPAPropagator
 }
