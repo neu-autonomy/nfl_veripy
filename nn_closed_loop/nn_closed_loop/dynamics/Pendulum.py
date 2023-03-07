@@ -4,6 +4,7 @@ from scipy.linalg import solve_discrete_are
 from nn_closed_loop.utils.mpc import control_mpc
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 
 
 class Pendulum(DiscreteTimeDynamics):
@@ -18,7 +19,9 @@ class Pendulum(DiscreteTimeDynamics):
         self.l = 0.5
         self.m = 0.5
 
-        self.nn_module = PendulumDynamics()
+        self.dynamics_module = PendulumDynamics()
+        self.controller_module = Controller()
+
 
         At = np.zeros((2, 2))
         bt = np.zeros((2, 1))
@@ -96,3 +99,20 @@ class PendulumDynamics(nn.Module):
     xt1 = torch.cat([xt1_0, xt1_1], 1)
 
     return xt1
+  
+
+class Controller(nn.Module):
+  def __init__(self):
+    super().__init__()
+    self.fc1 = nn.Linear(2, 25)
+    self.fc2 = nn.Linear(25, 25)
+    self.fc3 = nn.Linear(25, 1)
+
+  def forward(self, xt):
+
+    # ut = F.relu(torch.matmul(xt, torch.Tensor([[1], [0]])))
+    output = F.relu(self.fc1(xt))
+    output = F.relu(self.fc2(output))
+    output = self.fc3(output)
+
+    return output

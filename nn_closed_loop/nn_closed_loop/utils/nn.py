@@ -61,7 +61,6 @@ def load_controller(system="DoubleIntegrator", model_name="default", model_type=
             loaded_model_json = f.read()
         model = model_from_json(loaded_model_json)
         model.load_weights(path + "/model.h5")
-        import pdb; pdb.set_trace()
     else:
         # import pdb; pdb.set_trace()
         model = tf.keras.models.load_model(path+'/model.h5')

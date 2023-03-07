@@ -1,6 +1,8 @@
 import pickle
 import numpy as np
 import os
+import torch
+import torch.nn as nn
 
 dir_path = os.path.dirname(os.path.realpath(__file__))
 
@@ -159,6 +161,38 @@ def plot_time_data(info):
     ax.set_axisbelow(True)
     ax.grid(axis='y')
     plt.show()
+
+
+def create_cl_model(dynamics, num_steps):
+    path = "{}/../../models/{}/{}".format(dir_path, "Pendulum", "default/single_pendulum_small_controller.torch")
+    controller = dynamics.controller_module
+    # controller.load_state_dict(self.network.state_dict(), strict=False)
+    controller.load_state_dict(torch.load(path), strict=False)
+    dynamics = dynamics.dynamics_module
+    model = ClosedLoopDynamics(controller, dynamics, num_steps=num_steps)
+    return model
+
+
+
+# Define computation as a nn.Module.
+class ClosedLoopDynamics(nn.Module):
+  def __init__(self, controller, dynamics, num_steps=1):
+    super().__init__()
+    self.controller = controller
+    self.dynamics = dynamics
+    self.num_steps = num_steps
+
+  def forward(self, xt):
+
+    xts = [xt]
+    for i in range(self.num_steps):
+
+      ut = self.controller(xts[-1])
+      xt1 = self.dynamics(xts[-1], ut)
+
+      xts.append(xt1)
+
+    return xts[-1]
 
 
 if __name__ == "__main__":

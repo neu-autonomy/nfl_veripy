@@ -12,7 +12,7 @@ import numpy as np
 import pypoman
 import nn_closed_loop.constraints as constraints
 import torch
-from nn_closed_loop.utils.utils import range_to_polytope
+from nn_closed_loop.utils.utils import range_to_polytope, create_cl_model
 import cvxpy as cp
 from itertools import product
 from copy import deepcopy
@@ -49,15 +49,17 @@ class ClosedLoopAUTOLIRPAPropagator(ClosedLoopPropagator):
         )
         output_constraints.append(deepcopy(output_constraint))
         info['per_timestep'].append(this_info)
+        step_num = 1
         for i in np.arange(0 + self.dynamics.dt + 1e-10, t_max, self.dynamics.dt):
             next_input_constraint = deepcopy(output_constraint)
             next_output_constraint = deepcopy(output_constraint)
-            
+            print(i)
             output_constraint, this_info = self.get_one_step_reachable_set(
-                next_input_constraint, next_output_constraint, i
+                input_constraint, next_output_constraint, step_num
             )
             output_constraints.append(deepcopy(output_constraint))
             info['per_timestep'].append(this_info)
+            step_num += 1
 
         return output_constraints, info
     
@@ -71,64 +73,18 @@ class ClosedLoopAUTOLIRPAPropagator(ClosedLoopPropagator):
         nominal_input = (torch.Tensor([x_range[:, 1]]) + torch.Tensor([x_range[:, 0]])) / 2.
         eps = (torch.Tensor([x_range[:, 1]]) - torch.Tensor([x_range[:, 0]]))/2.
 
-        model = self.create_model(t+1)
+        model = create_cl_model(self.dynamics, t+1)
 
         ptb = PerturbationLpNorm(norm=np.inf, eps=eps)
         my_input = BoundedTensor(nominal_input, ptb)
 
-        import pdb; pdb.set_trace()
         model = BoundedModule(model, nominal_input)
         
         
         
         lb, ub = model.compute_bounds(x=(my_input,), method="backward")
-        import pdb; pdb.set_trace()
-        return super().get_one_step_reachable_set(input_constraint, output_constraint)
+        output_constraint.range = np.vstack((lb.detach().numpy(), ub.detach().numpy())).T
+        return output_constraint, {}
     
 
-    def create_model(self, num_steps):
-        path = "{}/../../models/{}/{}".format(dir_path, "Pendulum", "default/single_pendulum_small_controller.torch")
-        controller = Controller()
-        # controller.load_state_dict(self.network.state_dict(), strict=False)
-        controller.load_state_dict(torch.load(path))
-        dynamics = self.dynamics.nn_module
-        model = ClosedLoopDynamics(controller, dynamics, num_steps=num_steps)
-        return model
 
-
-# Define computation as a nn.Module.
-class ClosedLoopDynamics(nn.Module):
-  def __init__(self, controller, dynamics, num_steps=1):
-    super().__init__()
-    self.controller = controller
-    self.dynamics = dynamics
-    self.num_steps = num_steps
-
-  def forward(self, xt):
-
-    xts = [xt]
-    for i in range(self.num_steps):
-
-      ut = self.controller(xts[-1])
-      xt1 = self.dynamics(xts[-1], ut)
-
-      xts.append(xt1)
-
-    return xts[-1]
-  
-
-class Controller(nn.Module):
-  def __init__(self):
-    super().__init__()
-    self.fc1 = nn.Linear(2, 25)
-    self.fc2 = nn.Linear(25, 25)
-    self.fc3 = nn.Linear(25, 1)
-
-  def forward(self, xt):
-
-    # ut = F.relu(torch.matmul(xt, torch.Tensor([[1], [0]])))
-    output = F.relu(self.fc1(xt))
-    output = F.relu(self.fc2(output))
-    output = self.fc3(output)
-
-    return output
