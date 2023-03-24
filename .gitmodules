@@ -10,3 +10,6 @@
 [submodule "jax_verify"]
 	path = jax_verify
 	url = https://gitlab.com/mit-acl/ford_ugvs/jax_verify.git
+[submodule "alpha-beta-CROWN"]
+	path = alpha-beta-CROWN
+	url = https://github.com/huanzhang12/alpha-beta-CROWN

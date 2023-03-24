@@ -6,6 +6,7 @@ from .ClosedLoopConstraints import (
     MultiTimestepConstraint,
     MultiTimestepLpConstraint,
     MultiTimestepPolytopeConstraint,
+    RotatedLpConstraint,
     make_rect_from_arr,
     create_empty_constraint,
     create_empty_multi_timestep_constraint,

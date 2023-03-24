@@ -170,6 +170,10 @@ class ClosedLoopPartitioner(partitioners.Partitioner):
             from nn_closed_loop.utils.controller_generation import display_ground_robot_control_field
             display_ground_robot_control_field(name=controller_name,ax=self.animate_axes)
 
+        # if controller_name is not None:
+        #     from nn_closed_loop.utils.controller_generation import display_ground_robot_DI_control_field
+        #     display_ground_robot_DI_control_field(name=controller_name,ax=self.animate_axes)
+
         self.animate_axes.set_aspect(aspect)
 
         if show_samples:
@@ -293,7 +297,10 @@ class ClosedLoopPartitioner(partitioners.Partitioner):
         if reachable_set_lw is None:
             reachable_set_lw = self.linewidth
         fc_color = "None"
-        constraint.plot(self.animate_axes, dims, reachable_set_color, fc_color=fc_color, zorder=reachable_set_zorder, plot_2d=self.plot_2d, linewidth=reachable_set_lw, ls=reachable_set_ls)
+        if isinstance(constraint, constraints.LpConstraint) or isinstance(constraint, constraints.PolytopeConstraint):
+            constraint.plot(self.animate_axes, dims, reachable_set_color, fc_color=fc_color, zorder=reachable_set_zorder, plot_2d=self.plot_2d, linewidth=reachable_set_lw, ls=reachable_set_ls)
+        elif isinstance(constraint, constraints.RotatedLpConstraint):
+            constraint.plot(self.animate_axes)
 
     def plot_partition(self, constraint, dims, color):
 
@@ -472,6 +479,9 @@ class ClosedLoopPartitioner(partitioners.Partitioner):
     def get_backprojection_error(
         self, target_set: constraints.SingleTimestepConstraint, backprojection_sets: constraints.MultiTimestepConstraint, propagator: propagators.ClosedLoopPropagator, t_max: int
     ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+
+        # Note: This almost certainly got messed up in the merge (3/24/23)
+
         errors = []
 
         true_verts_reversed = self.dynamics.get_true_backprojection_set(
@@ -485,22 +495,105 @@ class ClosedLoopPartitioner(partitioners.Partitioner):
             x_min = np.min(true_verts[:,t+1,:], axis=0)
             x_max = np.max(true_verts[:,t+1,:], axis=0)
 
+        if isinstance(target_set, constraints.LpConstraint):
+            Ats, bts = range_to_polytope(target_set.range)
+            target_set_poly = PolytopeConstraint(A=Ats, b=bts)
+            true_verts_reversed = self.dynamics.get_true_backprojection_set(
+                backprojection_sets[-1], target_set, 
+                t_max, controller=propagator.network,
+                num_samples=1e8
+            )
+            true_verts = np.flip(true_verts_reversed, axis=1)
+            num_steps = len(backprojection_sets)
+
             x_range = x_max-x_min
             true_area = np.prod(x_range)
 
             estimated_area = backprojection_sets.get_constraint_at_time_index(t).get_area()
 
+            # true_hull = ConvexHull(true_verts[:, t+1, :])
+            # true_area = true_hull.volume
+
+            Abp, bbp = range_to_polytope(backprojection_sets[t].range)
+            estimated_verts = pypoman.polygon.compute_polygon_hull(Abp, bbp)
+            estimated_hull = ConvexHull(estimated_verts)
+            estimated_area = estimated_hull.volume
+            
+            # print('estimated: {} --- true: {}'.format(estimated_area, true_area))
+            # print('estimated range: {} --- true range: {}'.format(backprojection_sets[t].range, x_range))
+
             errors.append((estimated_area - true_area) / true_area)
+        elif isinstance(target_set, constraints.RotatedLpConstraint):
+            true_verts_reversed = self.dynamics.get_true_backprojection_set(
+                backreachable_sets[-1], target_set, 
+                t_max, controller=propagator.network,
+                num_samples=1e8
+            )
+            true_verts = np.flip(true_verts_reversed, axis=1)
+            num_steps = len(backprojection_sets)
+
+
+            for t in range(num_steps):
+                # x_min = np.min(true_verts[:,t+1,:], axis=0)
+                # x_max = np.max(true_verts[:,t+1,:], axis=0)
+
+                # x_range = x_max-x_min
+                # true_area = np.prod(x_range)
+                true_hull = ConvexHull(true_verts[:, t+1, :])
+                true_area = true_hull.volume
+
+                # true_hull = ConvexHull(true_verts[:, t+1, :])
+                # true_area = true_hull.volume
+
+                # Abp, bbp = range_to_polytope(backprojection_sets[t].range)
+                # estimated_verts = pypoman.polygon.compute_polygon_hull(Abp, bbp)
+                estimated_hull = ConvexHull(backprojection_sets[t].vertices)
+                estimated_area = estimated_hull.volume
+                
+                # print('estimated: {} --- true: {}'.format(estimated_area, true_area))
+                # print('estimated range: {} --- true range: {}'.format(backprojection_sets[t].range, x_range))
+
+                
+
+                errors.append((estimated_area - true_area) / true_area)
+        else:
+            # This implementation should actually be moved to Lp constraint
+
+
+            # Note: This compares the estimated polytope
+            # with the "best" polytope with those facets.
+            # There could be a much better polytope with lots of facets.
+            true_verts_reversed = self.dynamics.get_true_backprojection_set(
+                backprojection_sets[-1], target_set, 
+                t_max, controller=propagator.network
+            )
+            true_verts = np.flip(true_verts_reversed, axis=1)
+            num_steps = len(backprojection_sets)
+            
+            for t in range(num_steps):
+                x_min = np.min(true_verts[:,t+1,:], axis=0)
+                x_max = np.max(true_verts[:,t+1,:], axis=0)
+
+                x_range = x_max-x_min
+                true_area = np.prod(x_range)
+
+                estimated_verts = pypoman.polygon.compute_polygon_hull(backprojection_sets[t].A[0], backprojection_sets[t].b[0])
+                estimated_hull = ConvexHull(estimated_verts)
+                estimated_area = estimated_hull.volume
+                
+
+
+                errors.append((estimated_area - true_area) / true_area)
         
         final_error = errors[-1]
         avg_error = np.mean(errors)
         return final_error, avg_error, np.array(errors)
 
     def get_N_step_backprojection_set(
-        self, output_constraint, input_constraint, propagator, t_max, num_partitions=None, overapprox=False
+        self, output_constraint, input_constraint, propagator, t_max, num_partitions=None, overapprox=False, heuristic='guided', all_lps=False, slow_cvxpy=False
     ):
         input_constraint_, info = propagator.get_N_step_backprojection_set(
-            output_constraint, deepcopy(input_constraint), t_max, num_partitions=num_partitions, overapprox=overapprox
+            output_constraint, deepcopy(input_constraint), t_max, num_partitions=num_partitions, overapprox=overapprox, heuristic=heuristic, all_lps=all_lps, slow_cvxpy=slow_cvxpy
         )
         input_constraint = input_constraint_.copy()
 

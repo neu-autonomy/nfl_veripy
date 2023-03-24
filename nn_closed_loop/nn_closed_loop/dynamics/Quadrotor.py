@@ -16,36 +16,51 @@ class Quadrotor(ContinuousTimeDynamics):
         At[2][5] = 1
 
         bt = np.zeros((6, 3))
-        bt[3][0] = g
-        bt[4][1] = -g
+        # bt[3][0] = g
+        # bt[4][1] = -g
+        # bt[5][2] = 1
+        bt[3][0] = 1
+        bt[4][1] = -1
         bt[5][2] = 1
 
         ct = np.zeros((6,))
         ct[-1] = -g
+        # import pdb; pdb.set_trace()
 
         # u_limits = None
-        u_limits = np.array(
+        # u_limits = np.array(
+        #     [
+        #         [-np.pi / 3, np.pi / 3],
+        #         [-np.pi / 3, np.pi / 3],
+        #         [0, 2 * g],
+        #     ]
+        # )
+
+        # # x_limits = 2*np.array(
+        # #     [
+        # #         [-100, 100],
+        # #         [-100, 100],
+        # #         [-100, 100],
+        # #         [-0.5, 0.5],
+        # #         [-0.5, 0.5],
+        # #         [-0.05, 0.05],
+        # #     ]
+        # # )
+        # # 
+        # x_limits = {3: [-2,2], 4: [-2,2], 5: [-2,2]}
+
+
+        u_limits = 1*np.array(
             [
-                [-np.pi / 9, np.pi / 9],
-                [-np.pi / 9, np.pi / 9],
-                [0, 2 * g],
+                [-8, 8],
+                [-8, 8],
+                [1.8, 17.8]
             ]
         )
 
-        # x_limits = 2*np.array(
-        #     [
-        #         [-100, 100],
-        #         [-100, 100],
-        #         [-100, 100],
-        #         [-0.5, 0.5],
-        #         [-0.5, 0.5],
-        #         [-0.05, 0.05],
-        #     ]
-        # )
-        # 
-        x_limits=None   
+        x_limits = {3: [-0.5,0.5], 4: [-0.5,0.5], 5: [-0.5,0.5]}
 
-        dt = 0.1
+        dt = 0.125
 
         super().__init__(At=At, bt=bt, ct=ct, u_limits=u_limits, dt=dt, x_limits=x_limits)
         Q_ = np.zeros((6,6))

@@ -60,7 +60,7 @@ python -m nn_closed_loop.example \
     --init_state_range [[-5.5,-4.5],[.5,1.5]] \
     --final_state_range [[-1,1],[-1,1]] \
     --show_policy \
-    --show_trajectories \ 
+    --show_trajectories \
     --show_obs
 ```
 

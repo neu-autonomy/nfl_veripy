@@ -27,6 +27,7 @@ from .ClosedLoopJaxVerifyPropagator import (
     ClosedLoopJaxRectangleJittedPropagator,
     ClosedLoopJaxLPJittedPropagator,
 )
+from .ClosedLoopAUTOLIRPAPropagator import ClosedLoopAUTOLIRPAPropagator
 
 propagator_dict = {
     "CROWN": ClosedLoopCROWNPropagator,
@@ -54,4 +55,5 @@ propagator_dict = {
     "JaxPolytopeJitted": ClosedLoopJaxPolytopeJittedPropagator,
     "JaxRectangleJitted": ClosedLoopJaxRectangleJittedPropagator,
     "JaxLPJitted": ClosedLoopJaxLPJittedPropagator,
+    "AutoLiRPA": ClosedLoopAUTOLIRPAPropagator
 }

@@ -7,7 +7,7 @@ import nn_closed_loop.dynamics as dynamics
 import nn_closed_loop.analyzers as analyzers
 import nn_closed_loop.constraints as constraints
 from nn_closed_loop.utils.nn import load_controller
-from nn_closed_loop.utils.utils import range_to_polytope
+from nn_closed_loop.utils.utils import range_to_polytope, plot_time_data
 import argparse
 import ast
 import time
@@ -16,6 +16,7 @@ import time
 def main(args: argparse.Namespace) -> tuple[dict, dict]:
     np.random.seed(seed=0)
     stats = {}
+    inputs_to_highlight=None
 
     if not args.state_feedback:
         raise ValueError("Currently only support state feedback for backward reachability.")
@@ -32,6 +33,14 @@ def main(args: argparse.Namespace) -> tuple[dict, dict]:
             )            
     elif args.system == "ground_robot":
         dyn = dynamics.GroundRobotSI()
+        inputs_to_highlight = [
+            {"dim": [0], "name": "$p_x$ (m)"},
+            {"dim": [1], "name": "$p_y$ (m)"},
+        ]
+        if args.state_feedback:
+            dyn = dynamics.GroundRobotSI()
+        else:
+            raise NotImplementedError
         if args.final_state_range is None:
             final_state_range = np.array(
                 [  # (num_inputs, 2)
@@ -44,11 +53,47 @@ def main(args: argparse.Namespace) -> tuple[dict, dict]:
         if args.final_state_range is None:
             final_state_range = np.array(
                 [  # (num_inputs, 2)
-                    [-2., -1.],  # x0min, x0max
-                    [-2., -1.],  # x1min, x1max
+                    [-1, 1],  # x0min, x0max
+                    [-1, 1],  # x1min, x1max
                     [-0.01, 0.01],
                     [-0.01, 0.01],
                 ]
+            )
+        else:
+            import ast
+
+            final_state_range = np.array(
+                ast.literal_eval(args.final_state_range)
+            )
+    elif args.system == "discrete_quadrotor":
+        inputs_to_highlight = [
+            {"dim": [0], "name": "$p_x\ \mathrm{(m)}$"},
+            {"dim": [1], "name": "$p_y\ \mathrm{(m)}$"},
+            {"dim": [2], "name": "$p_z\ \mathrm{(m)}$"},
+        ]
+        if args.state_feedback:
+            dyn = dynamics.DiscreteQuadrotor()
+        else:
+            raise NotImplementedError
+        if args.final_state_range is None:
+            final_state_range = np.array(
+                [  # (num_inputs, 2)
+                    [-1., 1.],  # x0min, x0max
+                    [-1., 1.],  # x1min, x1max
+                    [1.5, 3.5],
+                    dyn.x_limits[3],
+                    # [-0.01, 0.01],
+                    # [-0.01, 0.01],
+                    # [-0.01, 0.01],
+                    dyn.x_limits[4],
+                    dyn.x_limits[5],
+                ]
+            )
+        else:
+            import ast
+
+            final_state_range = np.array(
+                ast.literal_eval(args.final_state_range)
             )
     elif args.system == "4_double_integrators":
         dyn = dynamics.DoubleIntegratorx4()
@@ -73,12 +118,53 @@ def main(args: argparse.Namespace) -> tuple[dict, dict]:
         ]
         dyn = dynamics.Quadrotor()
         if args.final_state_range is None:
+            # final_state_range = np.array(
+            #     [  # (num_inputs, 2)
+            #         [-5-0.25, -0.25, 2, -0.01, -0.01, -0.01],
+            #         [-5+0.25, 0.25, 2.5, 0.01, 0.01, 0.01],
+            #     ]
+            # ).T
             final_state_range = np.array(
                 [  # (num_inputs, 2)
-                    [-5-0.25, -0.25, 2, -0.01, -0.01, -0.01],
-                    [-5+0.25, 0.25, 2.5, 0.01, 0.01, 0.01],
+                    [-1, 1],  # x0min, x0max
+                    [-1, 1],  # x1min, x1max
+                    [1.5, 3.5],
+                    [-1, 1],
+                    [-1, 1],
+                    [-1, 1],
                 ]
-            ).T
+            )
+        else:
+            import ast
+
+            final_state_range = np.array(
+                ast.literal_eval(args.final_state_range)
+            )
+    elif args.system == "taxinet":
+        inputs_to_highlight = [
+            {"dim": [2], "name": "$p$"},
+            {"dim": [3], "name": "$\theta$"},
+        ]
+        if args.state_feedback:
+            dyn = dynamics.Taxinet()
+        else:
+            raise NotImplementedError
+        if args.final_state_range is None:
+            final_state_range = np.array(
+                [  # (num_inputs, 2)
+                    [-0.8, 0.8],  # x0min, x0max
+                    [-0.8, 0.8],  # x1min, x1max
+                    [10, 11],
+                    [-30, 30],
+                ]
+            )
+        else:
+            # raise NotImplementedError
+            import ast
+
+            final_state_range = np.array(
+                ast.literal_eval(args.final_state_range)
+            )
     else:
         raise NotImplementedError
 
@@ -129,6 +215,16 @@ def main(args: argparse.Namespace) -> tuple[dict, dict]:
         target_set = constraints.LpConstraint(
             range=final_state_range, p=np.inf
         )
+    elif args.boundaries == "rotated":
+        raise NotImplementedError # TODO: convert this to target_set format
+        vertices = np.vstack((final_state_range.T, np.hstack((np.array([final_state_range[0, :]]).T, np.flip([final_state_range[1, :]]).T))))
+        W = final_state_range[:, 1] - final_state_range[:, 0]
+        # import pdb; pdb.set_trace()
+        output_constraint1 = constraints.RotatedLpConstraint(
+            pose=final_state_range[:, 0], W = W, theta=0, vertices = vertices
+        )
+        input_constraint = constraints.RotatedLpConstraint()
+        output_constraint = [output_constraint1]
     else:
         raise NotImplementedError
 
@@ -168,9 +264,13 @@ def main(args: argparse.Namespace) -> tuple[dict, dict]:
         stats['all_errors'] = all_errors
         stats['all_backprojection_sets'] = all_backprojection_sets
         stats['target_sets'] = target_sets
+        stats['avg_runtime'] = times.mean()
 
         print("All times: {}".format(times))
         print("Avg time: {} +/- {}".format(times.mean(), times.std()))
+        # print('final error: {}'.format(final_error))
+        print("Final Error: {}".format(final_errors[-1]))
+        print("Avg Error: {}".format(avg_errors[-1]))
     else:
         # Run analysis once
         # Run analysis & generate a plot
@@ -258,9 +358,10 @@ def main(args: argparse.Namespace) -> tuple[dict, dict]:
             show_samples_from_cells=args.show_samples_from_cells,
             show_trajectories=args.show_trajectories,
             show_convex_hulls=args.show_convex_hulls,
+            inputs_to_highlight=inputs_to_highlight,
             show=args.show_plot,
             labels=args.plot_labels,
-            aspect=args.plot_aspect,
+            aspect=args.plot_aspect,#2.82
             plot_lims=args.plot_lims,
             initial_constraint=init_constraint,
             controller_name=controller_name,
@@ -278,7 +379,7 @@ def setup_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--system",
         default="double_integrator",
-        choices=["double_integrator", "quadrotor", "ground_robot", "ground_robot_DI", "4_double_integrators"],
+        choices=["double_integrator", "quadrotor", "ground_robot", "ground_robot_DI", "4_double_integrators", "discrete_quadrotor", "taxinet"],
         help="which system to analyze (default: double_integrator_mpc)",
     )
     parser.add_argument(
@@ -329,7 +430,7 @@ def setup_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--boundaries",
         default="rectangle",
-        choices=["rectangle", "polytope"],
+        choices=["rectangle", "polytope", "rotated"],
         help="what shape of convex set to bound reachable sets (default: rectangle)",
     )
     parser.add_argument(
@@ -451,7 +552,24 @@ def setup_parser() -> argparse.ArgumentParser:
         type=int,
         help="how many times to recursively improve the BP set estimate per timestep (default: 1)",
     )
-
+    parser.add_argument(
+        "--partition_heuristic",
+        default="guided",
+        choices=["guided", "uniform"],
+        help="what type of partitioning strategy do you want?",
+    )
+    parser.add_argument(
+        "--all_lps",
+        dest="all_lps",
+        action="store_true",
+        help="Calculate LPs even if they can't change the resulting BP"
+    )
+    parser.add_argument(
+        "--slow_cvxpy",
+        dest="slow_cvxpy",
+        action="store_true",
+        help="Don't use disciplined parametric "
+    )
     return parser
 
 

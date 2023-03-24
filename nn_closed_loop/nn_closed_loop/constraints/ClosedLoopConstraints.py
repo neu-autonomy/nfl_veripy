@@ -348,6 +348,7 @@ class LpConstraint(Constraint):
         return A, b
 
 
+<<<<<<< HEAD
 class MultiTimestepLpConstraint(LpConstraint):
     # range: (num_timesteps, num_states, 2)
     def __init__(self, range: Optional[np.ndarray] = None, p: float = np.inf, crown_matrices: Optional[CROWNMatrices] = None):
@@ -494,6 +495,7 @@ def make_rect_from_arr(arr: np.ndarray, dims: np.ndarray, color: str, linewidth:
         - arr[dims[0], 0],
         arr[dims[1], 1]
         - arr[dims[1], 0],
+        angle=angle,
         fc=fc_color,
         linewidth=linewidth,
         edgecolor=color,
@@ -501,6 +503,28 @@ def make_rect_from_arr(arr: np.ndarray, dims: np.ndarray, color: str, linewidth:
         linestyle=ls,
     )
     return rect
+
+class RotatedLpConstraint(Constraint):
+    def __init__(self, pose=None, W=None, theta=0, vertices=None):
+        Constraint.__init__(self)
+        self.width = W
+        self.theta = theta
+        self.pose = pose
+        self.bounding_box = np.vstack((np.min(vertices, axis=0), np.max(vertices, axis=0))).T
+        self.vertices = vertices
+
+    def plot(self, ax, plot_2d=True,):#, dims, color, fc_color="None", linewidth=3, zorder=2, plot_2d=True, ls='-'):
+        if not plot_2d:
+            raise NotImplementedError
+        from scipy.spatial import ConvexHull, convex_hull_plot_2d
+        hull = ConvexHull(self.vertices)
+        convex_hull_plot_2d(hull, ax)
+    
+    def plot3d(self, ax, dims, color, fc_color="None", linewidth=1, zorder=2, plot_2d=True):
+        raise NotImplementedError
+
+    def get_t_max(self):
+        return len(self.bounding_box)
 
 
 def make_polytope_from_arrs(ax, A: np.ndarray, b: np.ndarray, color: str, label: str, zorder: int, ls: str, linewidth: float = 1.5) -> list:
