@@ -1,5 +1,4 @@
 from random import randrange
-from tkinter.tix import InputOnly
 import numpy as np
 import nn_partition.propagators as propagators
 from copy import deepcopy

@@ -348,7 +348,6 @@ class LpConstraint(Constraint):
         return A, b
 
 
-<<<<<<< HEAD
 class MultiTimestepLpConstraint(LpConstraint):
     # range: (num_timesteps, num_states, 2)
     def __init__(self, range: Optional[np.ndarray] = None, p: float = np.inf, crown_matrices: Optional[CROWNMatrices] = None):
@@ -488,7 +487,7 @@ MultiTimestepConstraint = Union[MultiTimestepLpConstraint, MultiTimestepPolytope
 SingleTimestepConstraint = Union[LpConstraint, PolytopeConstraint]
 
 
-def make_rect_from_arr(arr: np.ndarray, dims: np.ndarray, color: str, linewidth: float, fc_color: str, ls: int, zorder: Optional[int] = None) -> Rectangle:
+def make_rect_from_arr(arr: np.ndarray, dims: np.ndarray, color: str, linewidth: float, fc_color: str, ls: int, zorder: Optional[int] = None, angle: float = 0.) -> Rectangle:
     rect = Rectangle(
         arr[dims, 0],
         arr[dims[0], 1]
