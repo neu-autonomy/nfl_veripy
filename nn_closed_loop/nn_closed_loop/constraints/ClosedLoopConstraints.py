@@ -205,12 +205,12 @@ class PolytopeConstraint(Constraint):
             raise ValueError('Trying to add_timestep_constraint but self.A or self.b are None.')
         if other.A is None or other.b is None:
             raise ValueError('Trying to add_timestep_constraint but other.A or other.b are None.')
-        return MultiTimestepPolytopeConstraint(A=np.stack([self.A, other.A]), b=np.stack([self.b, other.b]))
+        return MultiTimestepPolytopeConstraint(A=[self.A] + other.A, b=[self.b] + other.b)
 
     def to_multistep_constraint(self) -> MultiTimestepPolytopeConstraint:
         if self.A is None or self.b is None:
             raise ValueError('Trying to convert to multistep constraint but self.A or self.b are None.')
-        constraint = MultiTimestepPolytopeConstraint(A=np.expand_dims(self.A, 0), b=np.expand_dims(self.b, 0))
+        constraint = MultiTimestepPolytopeConstraint(A=[self.A], b=[self.b])
         constraint.cells = [cell.to_multistep_constraint() for cell in self.cells]
         return constraint
 
@@ -361,8 +361,8 @@ class MultiTimestepLpConstraint(LpConstraint):
     def to_reachable_input_objects(self) -> tuple[Optional[np.ndarray], Optional[np.ndarray], np.ndarray, np.ndarray, float]:
         if self.range is None:
             raise ValueError("Can't convert LpConstraint to reachable_input_objects, since self.range is None.")
-        x_min = self.range[0, :, 0]
-        x_max = self.range[0, :, 1]
+        x_min = self.range[-1, :, 0]
+        x_max = self.range[-1, :, 1]
         norm = self.p
         A_inputs = None
         b_inputs = None
@@ -412,15 +412,15 @@ class MultiTimestepLpConstraint(LpConstraint):
 
 
 class MultiTimestepPolytopeConstraint(PolytopeConstraint):
-    # A: (num_timesteps, num_facets, num_states)
-    # b: (num_timesteps, num_facets)
+    # A: [(num_facets_0, num_states), ..., (num_facets_t, num_states)] <- num_timesteps
+    # b: [(num_facets_0,), ..., (num_facets_t,)] <- num_timesteps
     def __init__(self, A: Optional[np.ndarray] = None, b: Optional[np.ndarray] = None):
         super().__init__(A=A, b=b)
 
     def get_t_max(self) -> int:
         if self.A is None:
             raise ValueError("Can't get t_max from MultiTimestepPolytopeConstraint, since self.A is None.")
-        return self.A.shape[0]
+        return len(self.A)
 
     def to_reachable_input_objects(self) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, float]:
         if self.A is None:
@@ -452,8 +452,7 @@ class MultiTimestepPolytopeConstraint(PolytopeConstraint):
             raise ValueError('Trying to add_timestep_constraint but other.A or other.b are None.')
         if self.A is None or self.b is None:
             return other.to_multistep_constraint()
-        constraint = MultiTimestepPolytopeConstraint(A=np.stack([self.A, other.A]), b=np.stack([self.b, other.b]))
-        import pdb; pdb.set_trace()
+        constraint = MultiTimestepPolytopeConstraint(A=self.A + other.A, b=[self.b, other.b])
         if len(self.cells) == 0:
             # We're adding cells to a constraint with no cells, so all those new cells should
             # use the constraint's existing value for its first N timesteps
@@ -467,7 +466,7 @@ class MultiTimestepPolytopeConstraint(PolytopeConstraint):
     def get_constraint_at_time_index(self, i: int) -> PolytopeConstraint:
         if self.A is None or self.b is None:
             raise ValueError('Trying to get_constraint_at_time_index, but self.A or self.b are None')
-        constraint = PolytopeConstraint(A=self.A[i, ...], b=self.b[i, ...])
+        constraint = PolytopeConstraint(A=self.A[i], b=self.b[i])
         for cell in self.cells:
             constraint.add_cell(cell.get_constraint_at_time_index(i))
         return constraint
