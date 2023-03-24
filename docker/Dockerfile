@@ -20,6 +20,5 @@ RUN python -m pip install --no-cache-dir -e robust_sdp
 RUN python -m pip install --no-cache-dir -e jax_verify
 RUN python -m pip install --no-cache-dir -e nn_partition
 RUN python -m pip install --no-cache-dir -e nn_closed_loop
-# RUN python -m pip install -e crown_ibp auto_LiRPA robust_sdp nn_partition nn_closed_loop
 
 CMD ["/bin/bash"]
