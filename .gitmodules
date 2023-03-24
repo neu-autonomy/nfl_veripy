@@ -9,4 +9,4 @@
 	url = https://github.com/KaidiXu/auto_LiRPA.git
 [submodule "jax_verify"]
 	path = jax_verify
-	url = https://github.com/deepmind/jax_verify.git
+	url = https://gitlab.com/mit-acl/ford_ugvs/jax_verify.git

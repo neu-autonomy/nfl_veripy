@@ -133,35 +133,29 @@ class ClosedLoopJaxIterativePropagator(ClosedLoopJaxPropagator):
 
   def get_one_step_backprojection_set(
       self,
-      output_constraint,
-      num_partitions=None,
+      backreachable_set,
+      target_sets,
       overapprox=False,
-      collected_input_constraints=None,
-      infos=None,
-      refined=False
     ):
 
-    target_set = output_constraint
-
     info = {}
-    backreachable_set = self.get_one_step_backreachable_set(target_set)
-    info['backreachable_set'] = backreachable_set
-    info['target_set'] = copy.deepcopy(target_set)
+    # backreachable_set = self.get_one_step_backreachable_set(target_set)
+    # info['backreachable_set'] = backreachable_set
+    # info['target_set'] = copy.deepcopy(target_set)
 
-    if num_partitions is None:
-      return self.get_one_step_backprojection_set_without_partitioning(
-          backreachable_set, target_set, info)
-    else:
-      return self.get_one_step_backprojection_set_with_partitioning(
-          backreachable_set, target_set, info, num_partitions)
+    return self.get_one_step_backprojection_set_without_partitioning(
+        backreachable_set, target_sets, info)
+    # else:
+    #   return self.get_one_step_backprojection_set_with_partitioning(
+    #       backreachable_set, target_sets, info, num_partitions)
 
   def get_one_step_backprojection_set_without_partitioning(
-      self, backreachable_set, target_set, info):
+      self, backreachable_set, target_sets, info):
     A, b = range_to_polytope(backreachable_set.range)
     backprojection_set = constraints.PolytopeConstraint(A=A, b=b)
     for _ in range(self.num_iterations):
       backprojection_set = self.improve_backprojection_set(
-          backprojection_set, target_set)
+          backprojection_set, target_sets)
 
     return backprojection_set, info
 
@@ -298,6 +292,7 @@ class ClosedLoopJaxPolytopePropagator(ClosedLoopJaxIterativePropagator):
         dynamics=dynamics,
         num_iterations=num_iterations,
         pre_compile=pre_compile)
+    self.boundary_type = 'polytope'
 
   def improve_backprojection_set(self, initial_backprojection_set, target_set):
 
@@ -436,31 +431,37 @@ class ClosedLoopJaxRectanglePropagator(ClosedLoopJaxIterativePropagator):
         dynamics=dynamics,
         num_iterations=num_iterations,
         pre_compile=pre_compile)
+    self.boundary_type = 'polytope'
 
-  def improve_backprojection_set(self, initial_backprojection_set, target_set):
+  def improve_backprojection_set(self, initial_backprojection_set, target_sets):
 
     if isinstance(initial_backprojection_set, constraints.PolytopeConstraint):
       input_bounds_np = initial_backprojection_set.to_linf()
       input_bounds = jax_verify.IntervalBound(
-          jnp.array(input_bounds_np[:, 0]), jnp.array(input_bounds_np[:, 1]))
+          jnp.array([input_bounds_np[:, 0]]), jnp.array([input_bounds_np[:, 1]]))
     elif isinstance(initial_backprojection_set, constraints.LpConstraint):
       input_bounds = jax_verify.IntervalBound(
-          jnp.array(initial_backprojection_set.range[:, 0]),
-          jnp.array(initial_backprojection_set.range[:, 1]))
+          jnp.array([initial_backprojection_set.range[:, 0]]),
+          jnp.array([initial_backprojection_set.range[:, 1]]))
 
     fun_to_prop = functools.partial(predict_next_state, self.params,
                                     self.dynamics)
+
+    target_set = target_sets.get_constraint_at_time_index(-1)
+    if isinstance(target_sets, constraints.LpConstraint):
+      A, b = target_set.get_polytope()
+      target_set = constraints.PolytopeConstraint(A, b)
 
     obj = jnp.expand_dims(target_set.A, 1)
     linfuns = backward_crown_bound_propagation_linfun(fun_to_prop, input_bounds,
                                                       obj=obj)
 
-    B = jnp.vstack([linfuns[0].lin_coeffs,
+    B = jnp.vstack([linfuns[0].lin_coeffs[:, 0, :],
                     jnp.eye(self.dynamics.num_states),
                     -jnp.eye(self.dynamics.num_states)])
     c = jnp.hstack([target_set.b - linfuns[0].offset,
-                    input_bounds.upper,
-                    -input_bounds.lower])
+                    input_bounds.upper[0, :],
+                    -input_bounds.lower[0, :]])
 
     backprojection_set = constraints.PolytopeConstraint(
         A=np.array(B, dtype=np.double), b=np.array(c, dtype=np.double))
@@ -649,6 +650,7 @@ class ClosedLoopJaxLPPropagator(ClosedLoopJaxIterativePropagator):
         dynamics=dynamics,
         num_iterations=num_iterations,
         pre_compile=pre_compile)
+    self.boundary_type = 'rectangle'
 
   def torch2network(self, torch_model):
     return_args = super().torch2network(torch_model)
@@ -661,18 +663,20 @@ class ClosedLoopJaxLPPropagator(ClosedLoopJaxIterativePropagator):
 
     return return_args
 
-  def improve_backprojection_set(self, initial_backprojection_set, target_set):
+  def improve_backprojection_set(self, initial_backprojection_set, target_sets):
 
     if isinstance(initial_backprojection_set, constraints.PolytopeConstraint):
       initial_backprojection_set = constraints.LpConstraint(
           range=initial_backprojection_set.to_linf())
 
     input_bounds = jax_verify.IntervalBound(
-        jnp.array(initial_backprojection_set.range[:, 0]),
-        jnp.array(initial_backprojection_set.range[:, 1]))
+        jnp.array([initial_backprojection_set.range[:, 0]]),
+        jnp.array([initial_backprojection_set.range[:, 1]]))
 
+    obj = jnp.expand_dims(jnp.vstack([jnp.eye(self.dynamics.num_inputs),
+                                      -jnp.eye(self.dynamics.num_inputs)]), 1)
     linfuns = backward_crown_bound_propagation_linfun(self.fun_to_prop,
-                                                      input_bounds)
+                                                      input_bounds, obj=obj)
 
     # An over-approximation of the backprojection set is the set of:
     # all xt s.t. there exists some u \in [pi^L(x_t), pi^U(x_t)]
@@ -683,8 +687,10 @@ class ClosedLoopJaxLPPropagator(ClosedLoopJaxIterativePropagator):
     constrs = []
 
     # Constraints to ensure that xt stays within the backreachable set
-    constrs += [input_bounds.lower <= xt]
-    constrs += [xt <= input_bounds.upper]
+    constrs += [input_bounds.lower[0, :] <= xt]
+    constrs += [xt <= input_bounds.upper[0, :]]
+
+    target_set = target_sets.get_constraint_at_time_index(-1)
 
     # Constraints to ensure xt reaches the target set given ut
     if isinstance(target_set, constraints.PolytopeConstraint):
@@ -696,10 +702,10 @@ class ClosedLoopJaxLPPropagator(ClosedLoopJaxIterativePropagator):
       constrs += [self.dynamics.dynamics_step(xt, ut) >= target_set.range[:, 0]]
 
     half_index = linfuns[0].shape[0] // 2
-    lower_slope = linfuns[0].lin_coeffs[:half_index]
-    lower_intercept = linfuns[0].offset[:half_index]
-    upper_slope = -linfuns[0].lin_coeffs[half_index:]
-    upper_intercept = -linfuns[0].offset[half_index:]
+    lower_slope = linfuns[0].lin_coeffs[:half_index][0]
+    lower_intercept = linfuns[0].offset[:half_index][0]
+    upper_slope = -linfuns[0].lin_coeffs[half_index:][0]
+    upper_intercept = -linfuns[0].offset[half_index:][0]
 
     # Constraints to ensure that ut satisfies the affine bounds
     constrs += [lower_slope@xt+lower_intercept <= ut]

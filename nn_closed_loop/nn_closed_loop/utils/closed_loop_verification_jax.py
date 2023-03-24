@@ -99,7 +99,8 @@ def backward_crown_bound_propagation_linfun(
   # If needed, this could be extracted and given as argument to this function,
   # or as a callback that would compute which nodes to target.
   input_indices = [(i,) for i, _ in enumerate(bounds)]
-  if isinstance(bounds[0], 'simplex_bound'): # TODO: add proper class type
+  if False: # TODO: add proper class type
+  # if isinstance(bounds[0], 'simplex_bound'): # TODO: add proper class type
     # In the case we're using a Simplex bound, we also added a linear layer to
     # the front of the NN. So, stop backpropagating when you reach that new
     # linear layer, and you'll get the linfun relating polytope coordinates to
@@ -112,7 +113,7 @@ def backward_crown_bound_propagation_linfun(
         break
   else:
     # We're propagating to the first input.
-    target_index = input_indices[:1]
+    target_index = input_indices[0]
 
   # Create the concretizer. See the class definition above. The definition of a
   # "concretized_bound" for this one is "Obj linear function reformulated as a

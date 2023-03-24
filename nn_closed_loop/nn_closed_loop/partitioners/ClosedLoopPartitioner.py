@@ -376,9 +376,6 @@ class ClosedLoopPartitioner(partitioners.Partitioner):
                 constrs += [self.dynamics.x_limits[state][0] <= xt[state]]
                 constrs += [xt[state] <= self.dynamics.x_limits[state][1]]
 
-        # constrs += [self.dynamics.At@xt + self.dt*self.dynamics.bt@ut + self.dt*self.dynamics.ct <= xt1_max]
-        # constrs += [self.dynamics.At@xt + self.dt*self.dynamics.bt@ut + self.dt*self.dynamics.ct >= xt1_min]
-
         constrs += [self.dynamics.dynamics_step(xt, ut) <= xt1_max]
         constrs += [self.dynamics.dynamics_step(xt, ut) >= xt1_min]
 
@@ -404,14 +401,14 @@ class ClosedLoopPartitioner(partitioners.Partitioner):
             overapprox=overapprox,
         )
 
-        if overapprox:
-            # These will be used to further backproject this set in time
-            backprojection_set.crown_matrices = get_crown_matrices(
-                propagator,
-                backprojection_set,
-                self.dynamics.num_inputs,
-                self.dynamics.sensor_noise
-            )
+        # if overapprox:
+        #     # These will be used to further backproject this set in time
+        #     backprojection_set.crown_matrices = get_crown_matrices(
+        #         propagator,
+        #         backprojection_set,
+        #         self.dynamics.num_inputs,
+        #         self.dynamics.sensor_noise
+        #     )
 
         return backprojection_set, info
 

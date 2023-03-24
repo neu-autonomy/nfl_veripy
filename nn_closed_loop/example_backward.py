@@ -181,7 +181,7 @@ def main(args: argparse.Namespace) -> tuple[dict, dict]:
         
     controller_name=None
     if args.show_policy:
-            controller_name = vars(args)['controller']
+        controller_name = vars(args)['controller']
 
     if args.save_plot:
         save_dir = "{}/results/examples_backward/".format(
@@ -233,7 +233,7 @@ def main(args: argparse.Namespace) -> tuple[dict, dict]:
             + "_"
             + "partitions"
             + "_"
-            + np.array2string(num_partitions, separator='_')[1:-1]
+            # + np.array2string(num_partitions, separator='_')[1:-1]
         )
         if len(pars2) > 0:
             analyzer_info["save_name"] = (
@@ -317,7 +317,7 @@ def setup_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--propagator",
         default="CROWN",
-        choices=["CROWN", "CROWNNStep", "CROWNRefined"],
+        choices=["CROWN", "CROWNNStep", "CROWNRefined", "JaxLP", "JaxRectangle", "JaxPolytope"],
         help="which propagator to use (default: CROWN)",
     )
 
