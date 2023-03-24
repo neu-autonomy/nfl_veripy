@@ -6,6 +6,7 @@ RUN apt-get update && apt-get install -y \
     gifsicle \
     gcc \
     libgmp3-dev \
+    git \
     && rm -rf /var/lib/apt/lists/*
 
 ENV APPPATH /home/nn_robustness_analysis
