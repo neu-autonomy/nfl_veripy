@@ -1,5 +1,9 @@
 import os
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
+import logging
+import jax
+logging.getLogger('jax._src.lib.xla_bridge').addFilter(lambda _: False)
+
 import tensorflow as tf
 from nn_closed_loop.constraints.ClosedLoopConstraints import LpConstraint
 import numpy as np
