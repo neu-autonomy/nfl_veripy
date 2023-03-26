@@ -1,25 +1,9 @@
-from bisect import bisect
-from hashlib import new
-import multiprocessing
-from posixpath import split
-from tkinter.messagebox import NO
-from tokenize import Hexnumber
-
-import matplotlib
 from .ClosedLoopPropagator import ClosedLoopPropagator
-import nn_closed_loop.elements as elements
 import numpy as np
-import pypoman
 import nn_closed_loop.constraints as constraints
 import torch
 from nn_closed_loop.utils.utils import range_to_polytope, create_cl_model
-import cvxpy as cp
-from itertools import product
 from copy import deepcopy
-import torch.nn as nn
-import torch.nn.functional as F
-
-import time
 import os
 
 from auto_LiRPA import BoundedModule, PerturbationLpNorm, BoundedTensor
