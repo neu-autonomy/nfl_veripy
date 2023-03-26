@@ -59,12 +59,6 @@ def main(args: argparse.Namespace) -> tuple[dict, dict]:
                     [-0.01, 0.01],
                 ]
             )
-        else:
-            import ast
-
-            final_state_range = np.array(
-                ast.literal_eval(args.final_state_range)
-            )
     elif args.system == "discrete_quadrotor":
         inputs_to_highlight = [
             {"dim": [0], "name": "$p_x\ \mathrm{(m)}$"},
@@ -82,18 +76,9 @@ def main(args: argparse.Namespace) -> tuple[dict, dict]:
                     [-1., 1.],  # x1min, x1max
                     [1.5, 3.5],
                     dyn.x_limits[3],
-                    # [-0.01, 0.01],
-                    # [-0.01, 0.01],
-                    # [-0.01, 0.01],
                     dyn.x_limits[4],
                     dyn.x_limits[5],
                 ]
-            )
-        else:
-            import ast
-
-            final_state_range = np.array(
-                ast.literal_eval(args.final_state_range)
             )
     elif args.system == "4_double_integrators":
         dyn = dynamics.DoubleIntegratorx4()
@@ -134,12 +119,6 @@ def main(args: argparse.Namespace) -> tuple[dict, dict]:
                     [-1, 1],
                 ]
             )
-        else:
-            import ast
-
-            final_state_range = np.array(
-                ast.literal_eval(args.final_state_range)
-            )
     elif args.system == "taxinet":
         inputs_to_highlight = [
             {"dim": [2], "name": "$p$"},
@@ -157,13 +136,6 @@ def main(args: argparse.Namespace) -> tuple[dict, dict]:
                     [10, 11],
                     [-30, 30],
                 ]
-            )
-        else:
-            # raise NotImplementedError
-            import ast
-
-            final_state_range = np.array(
-                ast.literal_eval(args.final_state_range)
             )
     else:
         raise NotImplementedError

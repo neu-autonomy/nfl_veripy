@@ -192,83 +192,6 @@ class ClosedLoopBackwardAnalyzer(analyzers.Analyzer):
         **kwargs
     ) -> None:
 
-        # import nn_closed_loop.constraints as constraints
-        # from nn_closed_loop.utils.utils import range_to_polytope
-        # target_range = np.array(
-        #     [
-        #         [-1, 1],
-        #         [-1, 1]
-        #     ]
-        # )
-        # A, b = range_to_polytope(target_range)
-
-        # target_constraint = constraints.PolytopeConstraint(A,b)
-        # self.partitioner.plot_reachable_sets(
-        #     target_constraint,
-        #     self.partitioner.input_dims,
-        #     reachable_set_color='tab:green',
-        #     reachable_set_zorder=4,
-        #     reachable_set_ls='-'
-        # )
-        # initial_range = np.array(
-        #     [
-        #         [-5.5, -4.5],
-        #         [-0.5, 0.5]
-        #     ]
-        # )
-        # A, b = range_to_polytope(target_range)
-        
-        # initial_constraint = constraints.LpConstraint(initial_range)
-        # self.partitioner.plot_reachable_sets(
-        #     initial_constraint,
-        #     self.partitioner.input_dims,
-        #     reachable_set_color='k',
-        #     reachable_set_zorder=5,
-        #     reachable_set_ls='-'
-        # )
-
-        # # import pdb; pdb.set_trace()
-        # self.dynamics.show_trajectories(
-        #         len(input_constraints) * self.dynamics.dt,
-        #         initial_constraint,
-        #         ax=self.partitioner.animate_axes,
-        #         controller=self.propagator.network,
-        #         zorder=1,
-        #     )
-        # from colour import Color
-        # orange = Color("orange")
-        # colors = list(orange.range_to(Color("purple"),len(input_constraints)))
-        # import matplotlib as mpl
-        # from mpl_toolkits.axes_grid1 import make_axes_locatable
-        # divider = make_axes_locatable(plt.gca())
-        # ax_cb = divider.new_horizontal(size="5%", pad=0.05)
-        # cmap = mpl.colors.LinearSegmentedColormap.from_list("", [color.hex for color in colors])
-        # from mpl_toolkits.axes_grid1.inset_locator import inset_axes
-        # axins = inset_axes(self.partitioner.animate_axes,
-        #             width="5%",  
-        #             height="100%",
-        #             loc='right',
-        #             borderpad=0.15
-        #            )
-
-        # cb1 = mpl.colorbar.ColorbarBase(axins, cmap=cmap, orientation='vertical', label='t (s)', values=range(len(input_constraints)))
-        
-        # plt.gcf().add_axes(ax_cb)
-
-        # from colour import Color
-        # orange = Color("orange")
-        # colors = list(orange.range_to(Color("purple"),len(input_constraints)))
-        # import matplotlib as mpl
-        # from mpl_toolkits.axes_grid1 import make_axes_locatable
-        # divider = make_axes_locatable(plt.gca())
-        # # ax_cb = divider.append_axes("right", size="50%", pad=0.05)
-        # ax_cb = divider.new_horizontal(size="5%", pad=0.05)
-        # # cax = self.partitioner.animate_fig.add_axes([0.9, 0, 0.05, 1])
-        # cmap = mpl.colors.LinearSegmentedColormap.from_list("", [color.hex for color in colors])
-        # cb1 = mpl.colorbar.ColorbarBase(ax_cb, cmap=cmap, orientation='vertical', label='t (s)', values=range(len(input_constraints)))
-        
-        # plt.gcf().add_axes(ax_cb)
-
         # Plot all our input constraints (i.e., our backprojection set estimates)
         rects = backprojection_sets.plot(self.partitioner.animate_axes, self.partitioner.input_dims, self.estimated_backprojection_set_color, zorder=self.estimated_backprojection_set_zorder, linewidth=self.partitioner.linewidth, plot_2d=self.partitioner.plot_2d)
         self.partitioner.default_patches += rects
@@ -298,102 +221,20 @@ class ClosedLoopBackwardAnalyzer(analyzers.Analyzer):
                 show_samples=False,
             )
 
-        # If they exist, plot all our loose input constraints (i.e., our one-step backprojection set estimates)
-        # TODO: Make plotting these optional via a flag
-        # if show_BReach:
-        #     raise NotImplementedError
-        #     for info in kwargs.get('per_timestep', []):
-        #         ic = info.get('one_step_backprojection_overapprox', None)
-        #         if ic is None: continue
-        #         rect = ic.plot(self.partitioner.animate_axes, self.partitioner.input_dims, self.estimated_one_step_backprojection_set_color, zorder=self.estimated_one_step_backprojection_set_zorder, linewidth=self.partitioner.linewidth, plot_2d=self.partitioner.plot_2d)
-        #         self.partitioner.default_patches += rect
-
-        # backreachable_set = kwargs['per_timestep'][-1]['backreachable_set']
-        target_set = output_constraint
-        t_max = len(kwargs['per_timestep'])*self.dynamics.dt
+        # Show the "true" N-Step backprojection set as a convex hull
+        backreachable_set = kwargs['per_timestep'][-1]['backreachable_set']
+        t_max = backprojection_sets.get_t_max()
         if show_convex_hulls:
-            try:
-                # import pdb; pdb.set_trace()
-                self.plot_true_backprojection_sets(
-                    input_constraints[-1],
-                    # backreachable_set, 
-                    target_set,
-                    t_max=t_max,
-                    color=self.true_backprojection_set_color,
-                    zorder=10,#self.true_backprojection_set_zorder,
-                    linestyle=self.true_backprojection_set_linestyle,
-                    show_samples=True,
-                )
-            except:
-                print('faileeddd')
-                pass
-        # # If they exist, plot all our loose input constraints (i.e., our one-step backprojection set estimates)
-        # # TODO: Make plotting these optional via a flag
-        # if show_BReach:
-        #     for info in kwargs.get('per_timestep', []):
-        #         ic = info.get('one_step_backprojection_overapprox', None)
-        #         if ic is None: continue
-        #         rect = ic.plot(self.partitioner.animate_axes, self.partitioner.input_dims, self.estimated_one_step_backprojection_set_color, zorder=self.estimated_one_step_backprojection_set_zorder, linewidth=self.partitioner.linewidth, plot_2d=self.partitioner.plot_2d)
-        #         self.partitioner.default_patches += rect
+            self.plot_true_backprojection_sets(
+                backreachable_set,
+                target_set,
+                t_max=t_max,
+                color=self.true_backprojection_set_color,
+                zorder=self.true_backprojection_set_zorder,
+                linestyle=self.true_backprojection_set_linestyle,
+                show_samples=False,
+            )
 
-
-        # # TODO: pass these as flags
-        show_backreachable_set = False
-        if show_backreachable_set:
-            # import pdb; pdb.set_trace()
-            for step in kwargs.get('per_timestep', [])[::4]:
-                for info in step:
-                    ic = info.get('backreachable_set', None)
-                    if ic is None: continue
-                    rect = ic.plot(self.partitioner.animate_axes, self.partitioner.input_dims, self.backreachable_set_color, zorder=self.backreachable_set_zorder, linewidth=self.partitioner.linewidth, plot_2d=self.partitioner.plot_2d)
-                    self.partitioner.default_patches += rect
-
-        show_backreachable_set_partitions = False
-        if show_backreachable_set_partitions:
-            for step in [kwargs.get('per_timestep', [])[1]]:
-                for info in step:
-                    for partition in info.get('br_set_partitions', None):
-                        ic = partition
-                        if ic is None: continue
-                        rect = ic.plot(self.partitioner.animate_axes, self.partitioner.input_dims, self.estimated_backprojection_partitioned_set_color, zorder=self.estimated_backprojection_partitioned_set_zorder, linewidth=self.partitioner.linewidth*0.5, plot_2d=self.partitioner.plot_2d)
-                        self.partitioner.default_patches += rect
-        
-        show_backprojection_set_partitions = False
-        if show_backprojection_set_partitions:
-            for step in kwargs.get('per_timestep', [])[::4]:
-                for info in step:
-                    for partition in info.get('bp_set_partitions', None):
-                        ic = partition
-                        if ic is None: continue
-                        rect = ic.plot(self.partitioner.animate_axes, self.partitioner.input_dims, 'grey', zorder=11, linewidth=self.partitioner.linewidth*0.3, plot_2d=self.partitioner.plot_2d)
-                        self.partitioner.default_patches += rect
-
-        # import pdb; pdb.set_trace()
-        show_target_partition_bps = True
-        if show_target_partition_bps:
-            for step in kwargs.get('per_timestep', []):
-                for info in step:
-                    ic = info.get('bp_set', None)
-                    if ic is None: continue
-                    rect = ic.plot(self.partitioner.animate_axes, self.partitioner.input_dims, 'm', zorder=10, linewidth=self.partitioner.linewidth*0.82, plot_2d=self.partitioner.plot_2d)
-                    self.partitioner.default_patches += rect
-
-        # show_nstep_backprojection_set_partitions = False
-        # if show_nstep_backprojection_set_partitions:
-        #     for info in kwargs.get('per_timestep', []):
-        #         for partition in info.get('nstep_bp_set_partitions', None):
-        #             ic = partition
-        #             if ic is None: continue
-        #             rect = ic.plot(self.partitioner.animate_axes, self.partitioner.input_dims, 'm', zorder=10, linewidth=self.partitioner.linewidth*0.75, plot_2d=self.partitioner.plot_2d)
-        #             self.partitioner.default_patches += rect
-        
-        # show_mar = False
-        # if show_mar:
-        #     for info in kwargs.get('per_timestep', []):
-        #         mar_hull = info.get('mar_hull', None)
-        #         from scipy.spatial import ConvexHull, convex_hull_plot_2d
-        #         convex_hull_plot_2d(mar_hull, ax=self.partitioner.animate_axes)
-                    
         # Sketchy workaround to trajectories not showing up
         if show_trajectories and initial_constraint is not None:
             self.dynamics.show_trajectories(

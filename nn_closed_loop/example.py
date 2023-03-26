@@ -205,24 +205,12 @@ def main(args: argparse.Namespace) -> Tuple[Dict, Dict]:
                     [0., 0.2],  # x1min, x1max
                 ]
             )
-        else:
-            import ast
-
-            init_state_range = np.array(
-                ast.literal_eval(args.init_state_range)
-            )
         if args.final_state_range is None:
             final_state_range = np.array(
                 [
                     [-7.0, -6.5],
                     [-0.5, 0.5]
                 ]
-            )
-        else:
-            import ast
-
-            final_state_range = np.array(
-                ast.literal_eval(args.final_state_range)
             )
     else:
         raise NotImplementedError
