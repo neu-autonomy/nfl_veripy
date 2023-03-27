@@ -22,18 +22,23 @@ class ClosedLoopNickPartitioner(ClosedLoopPartitioner):
         self.show_animation = False
         self.make_animation = False
 
+        # TODO: make these args of the class, set them in example_backward.py properly!
+        self.slow_cvxpy = True
+        self.refined = False
+        self.heuristic = 'uniform'
+        self.all_lps = False
+
+
     '''
     Inputs: 
         br_set_element: element object representing the whole backreachable set
         target_set: target set for current problem (i.e. can be previously calculated BP set)
-        dynamics: system dynamics
         partition_budget: number of slices allowed to make
-        heuristic: method used to decide which element to split next
 
     Outputs: 
         element_list: list of partitioned elements to analyze
     '''
-    def partition(self, propagator, br_set_element, problems, target_set=None, dynamics=None, partition_budget=1, heuristic='guided', nstep=False):
+    def partition(self, propagator, br_set_element, problems, target_set=None, partition_budget=1):
         min_split_volume=0.00001 # Note: Discrete Quad 30 s
         i = 0
         element_list = [br_set_element]
@@ -45,7 +50,7 @@ class ClosedLoopNickPartitioner(ClosedLoopPartitioner):
             
 
         # if the heuristic isn't uniform, we iteratively select elements to bisect
-        if heuristic != 'uniform':
+        if self.heuristic != 'uniform':
             while len(element_list) > 0 and i < partition_budget and element_list[-1].prop > 0:
                 element_to_split = element_list.pop()
 
@@ -66,7 +71,7 @@ class ClosedLoopNickPartitioner(ClosedLoopPartitioner):
                 
                 # If element should be split, split it
                 if element_to_split.A_edge.any() and (split_check_low or split_check_up):
-                    new_elements = element_to_split.split(target_set, dynamics, problems, full_samples=br_set_element.samples, br_set_range=br_set_element.ranges, nstep=nstep, min_split_volume=min_split_volume)
+                    new_elements = element_to_split.split(target_set, self.dynamics, problems, full_samples=br_set_element.samples, br_set_range=br_set_element.ranges, nstep=self.refined, min_split_volume=min_split_volume)
                 else: # otherwise, cut el.prop in half and put it back into the list
                     element_to_split.prop = element_to_split.prop*0.5
                     new_elements = [element_to_split]
@@ -100,7 +105,6 @@ class ClosedLoopNickPartitioner(ClosedLoopPartitioner):
                     element_ + 1, slope
                 )
                 element = elements.Element(input_range_)
-                
 
                 num_control_inputs = self.dynamics.bt.shape[1]
                 C = torch.eye(num_control_inputs).unsqueeze(0)
@@ -128,44 +132,26 @@ class ClosedLoopNickPartitioner(ClosedLoopPartitioner):
         self, target_sets: constraints.MultiTimestepConstraint, propagator: propagators.ClosedLoopPropagator, num_partitions=None, overapprox: bool = False
     ) -> tuple[constraints.SingleTimestepConstraint, dict]:
 
-
-        # TODO: make these arguments
-        slow_cvxpy = True
-        refined = False
-        heuristic = 'uniform'
         num_partitions = 5
 
-
-
-        backreachable_set, info = self.get_one_step_backreachable_set(target_sets.get_constraint_at_time_index(-1))
+        target_set = target_sets.get_constraint_at_time_index(-1)
+        backreachable_set, info = self.get_one_step_backreachable_set(target_set)
         info['backreachable_set'] = backreachable_set
 
         backprojection_set = constraints.create_empty_constraint(boundary_type=propagator.boundary_type, num_facets=propagator.num_polytope_facets)
 
-        '''
-        Partition the backreachable set (xt).
-        For each cell in the partition:
-        - relax the NN (use CROWN to compute matrices for affine bounds)
-        - use the relaxed NN to compute bounds on xt1
-        - use those bounds to define constraints on xt, and if valid, add
-            to backprojection_set
-        '''
+        # Attempt at setting initial values for BP set other than +/- np.inf
+        backprojection_set.range = backreachable_set.range
 
         # Generate samples to get an initial underapproximation of the BP set to start with
         # if using the refined flag, we want to use samples that actually reach the target set
-        target_set = target_sets.get_constraint_at_time_index(0) # TODO: should this be -1 or 0?
-        if refined:
+        if self.refined:
             x_samples_inside_backprojection_set = self.dynamics.get_true_backprojection_set(backreachable_set, target_set, t_max=len(target_sets)*self.dynamics.dt, controller=propagator.network)
         # otherwise, find samples that reach the previously calculated BP set
         else:
             x_samples_inside_backprojection_set = self.dynamics.get_true_backprojection_set(backreachable_set, target_set, t_max=self.dynamics.dt, controller=propagator.network)
 
-        nstep = False
-        if refined and len(collected_input_constraints) > 1:
-            nstep = True
-        
         br_set_element = elements.OptGuidedElement(backreachable_set.to_range(), propagator.network, samples=x_samples_inside_backprojection_set[:,0,:])
-
 
         # Set up backprojection LPs
         # TODO: make this also able to handle n-step
@@ -177,10 +163,7 @@ class ClosedLoopNickPartitioner(ClosedLoopPartitioner):
             br_set_element, 
             problems,
             target_set=target_sets,
-            dynamics=self.dynamics, 
             partition_budget=num_partitions, 
-            heuristic=heuristic,
-            nstep=nstep,
         )
 
         if len(element_list) == 0:
@@ -189,53 +172,47 @@ class ClosedLoopNickPartitioner(ClosedLoopPartitioner):
             # backprojection_set = constraints.LpConstraint(range=np.hstack((np.inf*np.ones((num_states,1)), -np.inf*np.ones((num_states,1)))))
             # return backprojection_set, info
 
-
         for element in element_list:
             if element.flag != 'infeasible':
 
-                # TODO: populate backreachable_set_this_cell w/ element
+                if not self.slow_cvxpy:
+                    # TODO: implement a version of get_one_step_backprojection_set_overapprox that
+                    # sets up the LP once, then each call just sets the params and solves it.
+                    raise NotImplementedError
+
+                backreachable_set_this_cell = constraints.LpConstraint(range=element.ranges)
+
+                # Choose which dimensions of this cell's BP set we want to optimize over
+                if self.all_lps:
+                    # Solve an min + max LP for each state (which is often unnecessary)
+                    facet_inds_to_optimize = np.arange(2*self.dynamics.num_states)
+                else:
+                    # Check for which states the optimization can possibly make the BP set more conservative
+                    
+                    # Assuming that we would nominally optimize over [I, -I], get a list/array of the indices
+                    # of [I, -I] that could actually be worth optimizing over
+                    min_idx = backreachable_set_this_cell.range[:, 0] < backprojection_set.range[:, 0] - 1e-5
+                    max_idx = backreachable_set_this_cell.range[:, 1] > backprojection_set.range[:, 1] + 1e-5
+                    facet_inds_to_optimize = np.where(np.hstack((max_idx, min_idx)))[0]
+
+                    # Nick -- do we need this?
+                    # # Check which state (if any) was already optimized during the BR set calculation
+                    # idx2 = np.invert((A_t_ == element.A_t_br).all(axis=1))
+                    # idx = np.vstack((idx1, idx2)).all(axis=0)
+
 
                 # TODO:
                 # if overapprox && nstep, should use get_refined_one_step_backprojection_set_overapprox
                 # if overapprox && nstep, should use get_one_step_backprojection_set_overapprox
                 # if not overapprox, should use get_one_step_backprojection_set_underapprox
 
-                # ############################
-                # # Flag to use naive partitioning
-                # if all_lps:
-                #     idx1 = np.ones(2*num_states)
-
-                # # TODO: get this working -- check which states are worth optimizing over.
-                # # ... only do the optimization if idx[i] == True.
-                # # by default, BP set of this cell should be A_t, b_NN -- update just the entries of b_NN that have idx[i] == True
-                # # where A_NN, b_NN = range_to_polytope(ranges) and A_t_ = np.vstack([A_t, -A_t])
-
-                # # Check for which states the optimization can possibly make the BP set more conservative
-                # min_idx = xt_min < xt_range_min - 1e-5
-                # max_idx = xt_max > xt_range_max + 1e-5
-                # idx1 = np.hstack((max_idx, min_idx))
-
-                # # Check which state (if any) was already optimized during the BR set calculation
-                # idx2 = np.invert((A_t_ == element.A_t_br).all(axis=1))
-                # idx = np.vstack((idx1, idx2)).all(axis=0)
-                # ############################
-
-
-                if not slow_cvxpy:
-                    # TODO: implement a version of get_one_step_backprojection_set_overapprox that
-                    # sets up the LP once, then each call just sets the params and solves it.
-                    raise NotImplementedError
-
-
-                backreachable_set_this_cell = constraints.LpConstraint(range=element.ranges)
-
                 backprojection_set_this_cell, this_info = propagator.get_one_step_backprojection_set(
                     backreachable_set_this_cell,
                     target_sets,
                     overapprox=overapprox,
+                    facet_inds_to_optimize=facet_inds_to_optimize,
                 )
-                backprojection_set.add_cell(backprojection_set_this_cell)
-
+                backprojection_set.add_cell_and_update_main_constraint(backprojection_set_this_cell)
 
                 # TODO: handle rotatedlpconstraints...
                 # if isinstance(output_constraint, constraints.RotatedLpConstraint):

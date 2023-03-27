@@ -128,6 +128,7 @@ class ClosedLoopCROWNIBPCodebasePropagator(ClosedLoopPropagator):
         target_sets: constraints.MultiTimestepConstraint,
         overapprox: bool = False,
         infos: dict = {},
+        facet_inds_to_optimize: Optional[np.array] = None,
     ) -> tuple[Optional[constraints.SingleTimestepConstraint], dict]:
 
         backreachable_set.crown_matrices = get_crown_matrices(
@@ -140,7 +141,8 @@ class ClosedLoopCROWNIBPCodebasePropagator(ClosedLoopPropagator):
         if overapprox:
             backprojection_set = self.get_one_step_backprojection_set_overapprox(
                 backreachable_set,
-                target_sets
+                target_sets,
+                facet_inds_to_optimize=facet_inds_to_optimize,
             )
         else:
             backprojection_set = self.get_one_step_backprojection_set_underapprox(
@@ -217,6 +219,7 @@ class ClosedLoopCROWNIBPCodebasePropagator(ClosedLoopPropagator):
         self,
         backreachable_set: constraints.SingleTimestepConstraint,
         target_sets: constraints.MultiTimestepConstraint,
+        facet_inds_to_optimize: Optional[np.array] = None,
     ) -> Optional[constraints.SingleTimestepConstraint]:
 
         num_states, num_control_inputs = self.dynamics.bt.shape
@@ -244,7 +247,7 @@ class ClosedLoopCROWNIBPCodebasePropagator(ClosedLoopPropagator):
         A_target, b_target = target_sets.get_constraint_at_time_index(-1).get_polytope()
         constrs += [A_target@self.dynamics.dynamics_step(xt, ut) <= b_target]
 
-        b, status = optimize_over_all_states(xt, constrs)
+        b, status = optimize_over_all_states(xt, constrs, facet_inds_to_optimize=facet_inds_to_optimize)
 
         backprojection_set = optimization_results_to_backprojection_set(
             status, b, backreachable_set

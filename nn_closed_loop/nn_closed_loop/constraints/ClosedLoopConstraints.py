@@ -72,7 +72,7 @@ class PolytopeConstraint(Constraint):
         #     [self.b, np.stack(reachable_set_this_cell)]
         # )
         # self.b = np.max(tmp, axis=-1)
-        # return reachable_set_this_cell
+        # return reachable_set_this_cell        
 
     def get_cell(self, input_range: np.ndarray) -> PolytopeConstraint:
         # This is a disaster hack to partition polytopes
@@ -266,6 +266,17 @@ class LpConstraint(Constraint):
 
         self.cells.append(other)
         self.main_constraint_stale = True
+
+    def add_cell_and_update_main_constraint(self, other: Optional[LpConstraint]) -> None:
+        assert self.main_constraint_stale == False
+        self.add_cell(other)
+
+        if len(self.cells) == 1:
+            self.range = other.range
+        else:
+            self.range[:, 0] = np.minimum(self.range[:, 0], other.range[:, 0])
+            self.range[:, 1] = np.maximum(self.range[:, 1], other.range[:, 1])
+        self.main_constraint_stale = False
 
     def update_main_constraint_with_cells(self, overapprox: bool) -> None:
         if overapprox:
