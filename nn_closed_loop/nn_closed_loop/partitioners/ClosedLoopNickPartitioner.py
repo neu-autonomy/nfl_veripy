@@ -10,6 +10,9 @@ import nn_closed_loop.dynamics as dynamics
 import nn_closed_loop.propagators as propagators
 from typing import Optional, Union
 
+import nn_closed_loop.elements as elements
+import torch
+
 
 class ClosedLoopNickPartitioner(ClosedLoopPartitioner):
     def __init__(self, dynamics: dynamics.Dynamics, num_partitions: Union[None, int, np.ndarray] = 16, make_animation: bool = False, show_animation: bool = False):
@@ -30,7 +33,7 @@ class ClosedLoopNickPartitioner(ClosedLoopPartitioner):
     Outputs: 
         element_list: list of partitioned elements to analyze
     '''
-    def partition(self, br_set_element, problems, target_set=None, dynamics=None, partition_budget=1, heuristic='guided', nstep=False, info=None):
+    def partition(self, propagator, br_set_element, problems, target_set=None, dynamics=None, partition_budget=1, heuristic='guided', nstep=False):
         min_split_volume=0.00001 # Note: Discrete Quad 30 s
         i = 0
         element_list = [br_set_element]
@@ -63,24 +66,19 @@ class ClosedLoopNickPartitioner(ClosedLoopPartitioner):
                 
                 # If element should be split, split it
                 if element_to_split.A_edge.any() and (split_check_low or split_check_up):
-                    new_elements = element_to_split.split(target_set, dynamics, problems, full_samples=br_set_element.samples, br_set_range=br_set_element.ranges, nstep=nstep, time_info=info, min_split_volume=min_split_volume)
+                    new_elements = element_to_split.split(target_set, dynamics, problems, full_samples=br_set_element.samples, br_set_range=br_set_element.ranges, nstep=nstep, min_split_volume=min_split_volume)
                 else: # otherwise, cut el.prop in half and put it back into the list
                     element_to_split.prop = element_to_split.prop*0.5
                     new_elements = [element_to_split]
 
                 # Add newly generated elements to element_list
-                t_start = time.time()
                 import bisect
                 for el in new_elements:
                     if el.get_volume() > 0:
                         bisect.insort(element_list, el)
                 i+=1
-                t_end = time.time()
-                if info is not None:
-                    info['other'].append(t_end-t_start)
                 
         else: # Uniform partitioning strategy; copy and pasted from earlier, but now gives a list of elements containing crown bounds
-            t_start = time.time()
             element_list = []
             dim = br_set_element.ranges.shape[0]
             if not type(partition_budget).__module__ == np.__name__:
@@ -92,11 +90,7 @@ class ClosedLoopNickPartitioner(ClosedLoopPartitioner):
             slope = np.divide(
                 (br_set_element.ranges[..., 1] - br_set_element.ranges[..., 0]), num_partitions
             )
-            t_end = time.time()
-            if info is not None:
-                info['other'].append(t_end-t_start)
             for el in product(*[range(int(num)) for num in num_partitions.flatten()]):
-                t_start = time.time()
                 element_ = np.array(el).reshape(input_shape)
                 input_range_ = np.empty_like(br_set_element.ranges, dtype=float)
                 input_range_[..., 0] = br_set_element.ranges[..., 0] + np.multiply(
@@ -114,11 +108,7 @@ class ClosedLoopNickPartitioner(ClosedLoopPartitioner):
                 nn_input_min = torch.Tensor(np.array([element.ranges[:,0]]))
                 norm = np.inf
                 element.crown_bounds = {}
-                t_end = time.time()
-                if info is not None:
-                    info['other'].append(t_end-t_start)
-                t_start = time.time()
-                element.crown_bounds['lower_A'], element.crown_bounds['upper_A'], element.crown_bounds['lower_sum_b'], element.crown_bounds['upper_sum_b'] = self.network(
+                element.crown_bounds['lower_A'], element.crown_bounds['upper_A'], element.crown_bounds['lower_sum_b'], element.crown_bounds['upper_sum_b'] = propagator.network(
                     method_opt='full_backward_range',
                     norm=norm,
                     x_U=nn_input_max,
@@ -129,9 +119,6 @@ class ClosedLoopNickPartitioner(ClosedLoopPartitioner):
                     return_matrices=True,
                 )
                 element.crown_bounds['lower_A'], element.crown_bounds['upper_A'], element.crown_bounds['lower_sum_b'], element.crown_bounds['upper_sum_b'] = element.crown_bounds['lower_A'].detach().numpy()[0], element.crown_bounds['upper_A'].detach().numpy()[0], element.crown_bounds['lower_sum_b'].detach().numpy()[0], element.crown_bounds['upper_sum_b'].detach().numpy()[0]
-                t_end = time.time()
-                if info is not None:
-                    info['crown'].append(t_end-t_start)
 
                 element_list.append(element)
         
@@ -140,6 +127,15 @@ class ClosedLoopNickPartitioner(ClosedLoopPartitioner):
     def get_one_step_backprojection_set(
         self, target_sets: constraints.MultiTimestepConstraint, propagator: propagators.ClosedLoopPropagator, num_partitions=None, overapprox: bool = False
     ) -> tuple[constraints.SingleTimestepConstraint, dict]:
+
+
+        # TODO: make these arguments
+        slow_cvxpy = True
+        refined = False
+        heuristic = 'uniform'
+        num_partitions = 5
+
+
 
         backreachable_set, info = self.get_one_step_backreachable_set(target_sets.get_constraint_at_time_index(-1))
         info['backreachable_set'] = backreachable_set
@@ -157,32 +153,34 @@ class ClosedLoopNickPartitioner(ClosedLoopPartitioner):
 
         # Generate samples to get an initial underapproximation of the BP set to start with
         # if using the refined flag, we want to use samples that actually reach the target set
+        target_set = target_sets.get_constraint_at_time_index(0) # TODO: should this be -1 or 0?
         if refined:
-            x_samples_inside_backprojection_set = self.dynamics.get_true_backprojection_set(backreachable_set, collected_input_constraints[0], t_max=len(collected_input_constraints)*self.dynamics.dt, controller=self.network)
+            x_samples_inside_backprojection_set = self.dynamics.get_true_backprojection_set(backreachable_set, target_set, t_max=len(target_sets)*self.dynamics.dt, controller=propagator.network)
         # otherwise, find samples that reach the previously calculated BP set
         else:
-            x_samples_inside_backprojection_set = self.dynamics.get_true_backprojection_set(backreachable_set, output_constraint, t_max=self.dynamics.dt, controller=self.network)
+            x_samples_inside_backprojection_set = self.dynamics.get_true_backprojection_set(backreachable_set, target_set, t_max=self.dynamics.dt, controller=propagator.network)
 
         nstep = False
         if refined and len(collected_input_constraints) > 1:
             nstep = True
         
-        br_set_element = elements.OptGuidedElement(ranges, self.network, samples=x_samples_inside_backprojection_set[:,0,:])
+        br_set_element = elements.OptGuidedElement(backreachable_set.to_range(), propagator.network, samples=x_samples_inside_backprojection_set[:,0,:])
 
 
         # Set up backprojection LPs
-        problems = self.setup_LPs(nstep, 0, infos, collected_input_constraints)
+        # TODO: make this also able to handle n-step
+        problems = propagator.setup_LPs_1step()
 
         # Partition BR set
         element_list = self.partition(
+            propagator,
             br_set_element, 
             problems,
-            target_set=target_sets, 
+            target_set=target_sets,
             dynamics=self.dynamics, 
             partition_budget=num_partitions, 
             heuristic=heuristic,
             nstep=nstep,
-            info=info
         )
 
         if len(element_list) == 0:
@@ -191,8 +189,9 @@ class ClosedLoopNickPartitioner(ClosedLoopPartitioner):
             # backprojection_set = constraints.LpConstraint(range=np.hstack((np.inf*np.ones((num_states,1)), -np.inf*np.ones((num_states,1)))))
             # return backprojection_set, info
 
+
         for element in element_list:
-            if element.flag is not 'infeasible':
+            if element.flag != 'infeasible':
 
                 # TODO: populate backreachable_set_this_cell w/ element
 
@@ -201,32 +200,35 @@ class ClosedLoopNickPartitioner(ClosedLoopPartitioner):
                 # if overapprox && nstep, should use get_one_step_backprojection_set_overapprox
                 # if not overapprox, should use get_one_step_backprojection_set_underapprox
 
-                ############################
-                # Flag to use naive partitioning
-                if all_lps:
-                    idx1 = np.ones(2*num_states)
+                # ############################
+                # # Flag to use naive partitioning
+                # if all_lps:
+                #     idx1 = np.ones(2*num_states)
 
-                # TODO: get this working -- check which states are worth optimizing over.
-                # ... only do the optimization if idx[i] == True.
-                # by default, BP set of this cell should be A_t, b_NN -- update just the entries of b_NN that have idx[i] == True
-                # where A_NN, b_NN = range_to_polytope(ranges) and A_t_ = np.vstack([A_t, -A_t])
+                # # TODO: get this working -- check which states are worth optimizing over.
+                # # ... only do the optimization if idx[i] == True.
+                # # by default, BP set of this cell should be A_t, b_NN -- update just the entries of b_NN that have idx[i] == True
+                # # where A_NN, b_NN = range_to_polytope(ranges) and A_t_ = np.vstack([A_t, -A_t])
 
-                # Check for which states the optimization can possibly make the BP set more conservative
-                min_idx = xt_min < xt_range_min - 1e-5
-                max_idx = xt_max > xt_range_max + 1e-5
-                idx1 = np.hstack((max_idx, min_idx))
-                
+                # # Check for which states the optimization can possibly make the BP set more conservative
+                # min_idx = xt_min < xt_range_min - 1e-5
+                # max_idx = xt_max > xt_range_max + 1e-5
+                # idx1 = np.hstack((max_idx, min_idx))
 
-                # Check which state (if any) was already optimized during the BR set calculation
-                idx2 = np.invert((A_t_ == element.A_t_br).all(axis=1))
-                idx = np.vstack((idx1, idx2)).all(axis=0)
-                ############################
+                # # Check which state (if any) was already optimized during the BR set calculation
+                # idx2 = np.invert((A_t_ == element.A_t_br).all(axis=1))
+                # idx = np.vstack((idx1, idx2)).all(axis=0)
+                # ############################
 
 
                 if not slow_cvxpy:
                     # TODO: implement a version of get_one_step_backprojection_set_overapprox that
                     # sets up the LP once, then each call just sets the params and solves it.
                     raise NotImplementedError
+
+
+                backreachable_set_this_cell = constraints.LpConstraint(range=element.ranges)
+
                 backprojection_set_this_cell, this_info = propagator.get_one_step_backprojection_set(
                     backreachable_set_this_cell,
                     target_sets,

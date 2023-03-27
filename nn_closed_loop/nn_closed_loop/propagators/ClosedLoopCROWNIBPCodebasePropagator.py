@@ -314,13 +314,19 @@ class ClosedLoopCROWNIBPCodebasePropagator(ClosedLoopPropagator):
         '''
         raise NotImplementedError
 
-    def setup_LPs(self, nstep=False, modifier=0, infos=None, collected_input_constraints=None):
+    # def setup_LPs(self, nstep=False, modifier=0, infos=None, collected_input_constraints=None):
+    def setup_LPs(self, nstep=False, bp_sets=None):
         if nstep:
-            return self.setup_LPs_nstep(modifier=modifier, infos=infos, collected_input_constraints=collected_input_constraints)
+            return self.setup_LPs_nstep(modifier=modifier, infos=infos, bp_sets=bp_sets)
         else:
-            return self.setup_LPs_1step(modifier=modifier, infos=infos, collected_input_constraints=collected_input_constraints)
+            return self.setup_LPs_1step()
 
-    def setup_LPs_1step(self, modifier=0, infos=None, collected_input_constraints=None):
+    def setup_LPs_1step(self):
+
+        # TODO: accept this as arg
+        boundaries = "rectangle"
+
+
         num_states = self.dynamics.At.shape[0]
         num_control_inputs = self.dynamics.bt.shape[1]
 
@@ -331,7 +337,9 @@ class ClosedLoopCROWNIBPCodebasePropagator(ClosedLoopPropagator):
         upper_A = cp.Parameter((num_control_inputs, num_states))
         lower_sum_b = cp.Parameter(num_control_inputs)
         upper_sum_b = cp.Parameter(num_control_inputs)
-        if isinstance(collected_input_constraints[0], constraints.LpConstraint) or isinstance(collected_input_constraints[0], constraints.RotatedLpConstraint):
+
+        if boundaries == "rectangle":
+
             xt_min = cp.Parameter(num_states)
             xt_max = cp.Parameter(num_states)
 
@@ -360,13 +368,11 @@ class ClosedLoopCROWNIBPCodebasePropagator(ClosedLoopPropagator):
             constrs += [xt_min <= xt]
             constrs += [xt <= xt_max]
 
-
             # Dynamics must be satisfied
-
             constrs += [self.dynamics.dynamics_step(xt, ut) <= xt1_max]
             constrs += [self.dynamics.dynamics_step(xt, ut) >= xt1_min]
         
-        elif isinstance(collected_input_constraints[0], constraints.RotatedLpConstraint):
+        elif boundaries == "rotated":
             xt_min = cp.Parameter(num_states)
             xt_max = cp.Parameter(num_states)
 
@@ -410,12 +416,12 @@ class ClosedLoopCROWNIBPCodebasePropagator(ClosedLoopPropagator):
         return max_prob, min_prob, params
 
 
-    def setup_LPs_nstep(self, nstep=False, modifier=0, infos=None, collected_input_constraints=None):
+    def setup_LPs_nstep(self, nstep=False, modifier=0, infos=None, bp_sets=None):
         num_states = self.dynamics.At.shape[0]
         num_control_inputs = self.dynamics.bt.shape[1]
         
-        if isinstance(collected_input_constraints[0], constraints.LpConstraint):
-            num_steps = len(collected_input_constraints)
+        if isinstance(bp_sets[0], constraints.LpConstraint):
+            num_steps = len(bp_sets)
             xt = cp.Variable((num_states, num_steps+1))
             ut = cp.Variable((num_control_inputs, num_steps))
 
@@ -452,8 +458,8 @@ class ClosedLoopCROWNIBPCodebasePropagator(ClosedLoopPropagator):
                     upper_sum_b_list[t].value = infos[-t-modifier]['upper_sum_b']
                     lower_sum_b_list[t].value = infos[-t-modifier]['lower_sum_b']
 
-                    xt_min[t].value = collected_input_constraints[-t-modifier].range[:, 0]
-                    xt_max[t].value = collected_input_constraints[-t-modifier].range[:, 1]
+                    xt_min[t].value = bp_sets[-t-modifier].range[:, 0]
+                    xt_max[t].value = bp_sets[-t-modifier].range[:, 1]
 
                 # u_t bounded by CROWN bounds
                 constrs += [lower_A_list[t]@xt[:, t]+lower_sum_b_list[t] <= ut[:, t]]
@@ -466,9 +472,9 @@ class ClosedLoopCROWNIBPCodebasePropagator(ClosedLoopPropagator):
                 # x_t and x_{t+1} connected through system dynamics
                 constrs += [self.dynamics.dynamics_step(xt[:, t], ut[:, t]) == xt[:, t+1]]
 
-        elif isinstance(collected_input_constraints[0], constraints.RotatedLpConstraint):
+        elif isinstance(bp_sets[0], constraints.RotatedLpConstraint):
 
-            num_steps = len(collected_input_constraints)
+            num_steps = len(bp_sets)
             xt = cp.Variable((num_states, num_steps+1))
             ut = cp.Variable((num_control_inputs, num_steps))
 
@@ -512,11 +518,11 @@ class ClosedLoopCROWNIBPCodebasePropagator(ClosedLoopPropagator):
                     upper_sum_b_list[t].value = infos[-t-modifier]['upper_sum_b']
                     lower_sum_b_list[t].value = infos[-t-modifier]['lower_sum_b']
 
-                    theta = collected_input_constraints[-t-modifier].theta
+                    theta = bp_sets[-t-modifier].theta
 
                     R[t].value = np.array([[np.cos(theta), np.sin(theta)], [-np.sin(theta), np.cos(theta)]])
-                    W[t].value = collected_input_constraints[-t-modifier].width
-                    pose[t].value = collected_input_constraints[-t-modifier].pose
+                    W[t].value = bp_sets[-t-modifier].width
+                    pose[t].value = bp_sets[-t-modifier].pose
 
                     # Each xt must fall in the previously calculated (rotated) backprojection
                     constrs += [R[t]@xt[:, t] <= W[t] + R[t]@pose[t]]

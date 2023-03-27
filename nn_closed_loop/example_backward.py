@@ -388,7 +388,7 @@ def setup_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--partitioner",
         default="None",
-        choices=["None", "Uniform"],
+        choices=["None", "Uniform", "Nick"],
         help="which partitioner to use (work in progress for backward...)",
     )
     parser.add_argument(

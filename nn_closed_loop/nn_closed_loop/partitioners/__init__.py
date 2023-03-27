@@ -4,6 +4,7 @@ from .ClosedLoopUniformPartitioner import ClosedLoopUniformPartitioner
 from .ClosedLoopSimGuidedPartitioner import ClosedLoopSimGuidedPartitioner
 from .ClosedLoopGreedySimGuidedPartitioner import ClosedLoopGreedySimGuidedPartitioner
 from .ClosedLoopUnGuidedPartitioner import ClosedLoopUnGuidedPartitioner
+from .ClosedLoopNickPartitioner import ClosedLoopNickPartitioner
 
 partitioner_dict = {
     "None": ClosedLoopNoPartitioner,
@@ -11,4 +12,5 @@ partitioner_dict = {
     "SimGuided": ClosedLoopSimGuidedPartitioner,
     "GreedySimGuided": ClosedLoopGreedySimGuidedPartitioner,
     "UnGuided": ClosedLoopUnGuidedPartitioner,
+    "Nick": ClosedLoopNickPartitioner,
 }
