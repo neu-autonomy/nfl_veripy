@@ -172,6 +172,8 @@ class ClosedLoopNickPartitioner(ClosedLoopPartitioner):
             # backprojection_set = constraints.LpConstraint(range=np.hstack((np.inf*np.ones((num_states,1)), -np.inf*np.ones((num_states,1)))))
             # return backprojection_set, info
 
+        nominal_facets = np.vstack([np.eye(num_states), -np.eye(num_states)])
+
         for element in element_list:
             if element.flag != 'infeasible':
 
@@ -193,13 +195,14 @@ class ClosedLoopNickPartitioner(ClosedLoopPartitioner):
                     # of [I, -I] that could actually be worth optimizing over
                     min_idx = backreachable_set_this_cell.range[:, 0] < backprojection_set.range[:, 0] - 1e-5
                     max_idx = backreachable_set_this_cell.range[:, 1] > backprojection_set.range[:, 1] + 1e-5
-                    facet_inds_to_optimize = np.where(np.hstack((max_idx, min_idx)))[0]
+                    facets_to_optimize = np.hstack((max_idx, min_idx))
 
-                    # Nick -- do we need this?
-                    # # Check which state (if any) was already optimized during the BR set calculation
-                    # idx2 = np.invert((A_t_ == element.A_t_br).all(axis=1))
-                    # idx = np.vstack((idx1, idx2)).all(axis=0)
+                    if element.A_t_br is not None:
+                        # Check which state (if any) was already optimized during the BR set calculation
+                        idx2 = np.invert((nominal_facets == element.A_t_br).all(axis=1))
+                        facets_to_optimize = np.vstack((facets_to_optimize, idx2)).all(axis=0)
 
+                    facet_inds_to_optimize = np.where(facets_to_optimize)[0]
 
                 # TODO:
                 # if overapprox && nstep, should use get_refined_one_step_backprojection_set_overapprox
