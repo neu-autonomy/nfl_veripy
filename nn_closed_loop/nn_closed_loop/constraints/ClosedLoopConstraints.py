@@ -224,6 +224,9 @@ class PolytopeConstraint(Constraint):
         assert(self.A is not None)
         assert(self.b is not None)
         return self.A, self.b
+
+    def get_constraint_at_time_index(self, i: int) -> PolytopeConstraint:
+        return self
     
 
 class LpConstraint(Constraint):
@@ -357,6 +360,9 @@ class LpConstraint(Constraint):
         A = np.vstack([np.eye(num_states), -np.eye(num_states)])
         b = np.hstack([self.range[:, 1], -self.range[:, 0]])
         return A, b
+
+    def get_constraint_at_time_index(self, i: int) -> LpConstraint:
+        return self
 
 
 class MultiTimestepLpConstraint(LpConstraint):
