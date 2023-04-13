@@ -120,7 +120,7 @@ def main(args: argparse.Namespace) -> Tuple[Dict, Dict]:
         if args.state_feedback:
             dyn = dynamics.Quadrotor_v0()
         else:
-            dyn = dynamics.QuadrotorOutputFeedback()
+            dyn = dynamics.QuadrotorOutputFeedback_v0()
         if args.init_state_range is None:
             init_state_range = np.array(
                 [  # (num_inputs, 2)

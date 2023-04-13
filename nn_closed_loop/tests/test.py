@@ -86,8 +86,8 @@ class TestSum(unittest.TestCase):
     def test_breach_double_integrator(self):
         self.check_if_cmd_runs("ojcsys23/di_breach")
 
-    def test_rebreach_double_integrator(self):
-        self.check_if_cmd_runs("ojcsys23/di_rebreach")
+    def test_hybreach_double_integrator(self):
+        self.check_if_cmd_runs("ojcsys23/di_hybreach")
 
         # # Check that plot was generated
         # plot_filename = os.path.dirname(os.path.realpath(__file__)) + '/../results/analyzer/'
