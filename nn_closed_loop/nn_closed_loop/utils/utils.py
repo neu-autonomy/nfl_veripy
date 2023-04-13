@@ -96,29 +96,29 @@ def get_crown_matrices(propagator, state_set, num_control_inputs, sensor_noise):
 
 class CROWNMatrices:
     def __init__(self, lower_A, upper_A, lower_sum_b, upper_sum_b):
-        self.upper_A = upper_A
-        self.lower_A = lower_A
-        self.upper_sum_b = upper_sum_b
-        self.lower_sum_b = lower_sum_b
+        self.upper_A = upper_A.detach()
+        self.lower_A = lower_A.detach()
+        self.upper_sum_b = upper_sum_b.detach()
+        self.lower_sum_b = lower_sum_b.detach()
 
     def to_numpy(self):
         return self.upper_A_numpy, self.lower_A_numpy, self.upper_sum_b_numpy, self.lower_sum_b_numpy
 
     @property
     def lower_A_numpy(self):
-        return self.lower_A.detach().numpy()[0]
+        return self.lower_A.numpy()[0]
 
     @property
     def upper_A_numpy(self):
-        return self.upper_A.detach().numpy()[0]
+        return self.upper_A.numpy()[0]
 
     @property
     def lower_sum_b_numpy(self):
-        return self.lower_sum_b.detach().numpy()[0]
+        return self.lower_sum_b.numpy()[0]
 
     @property
     def upper_sum_b_numpy(self):
-        return self.upper_sum_b.detach().numpy()[0]
+        return self.upper_sum_b.numpy()[0]
 
 def plot_time_data(info):
     labels = {

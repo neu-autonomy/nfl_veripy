@@ -218,20 +218,6 @@ class ClosedLoopBackwardAnalyzer(analyzers.Analyzer):
                 show_samples=False,
             )
 
-        # Show the "true" N-Step backprojection set as a convex hull
-        backreachable_set = kwargs['per_timestep'][-1]['backreachable_set']
-        t_max = backprojection_sets.get_t_max()
-        if show_convex_hulls:
-            self.plot_true_backprojection_sets(
-                backreachable_set,
-                target_set,
-                t_max=t_max,
-                color=self.true_backprojection_set_color,
-                zorder=self.true_backprojection_set_zorder,
-                linestyle=self.true_backprojection_set_linestyle,
-                show_samples=False,
-            )
-
         # Sketchy workaround to trajectories not showing up
         if show_trajectories and initial_constraint is not None:
             self.dynamics.show_trajectories(

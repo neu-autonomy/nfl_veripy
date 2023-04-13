@@ -13,6 +13,12 @@ from typing import Optional, Union
 import nn_closed_loop.elements as elements
 import torch
 
+'''
+Note: This was an attempt to pull the partitioning logic from ACC23 out of the propagator.
+It doesn't fully work but I'll leave this here as an example in case we want to use it someday.
+For now, the ReBreach propagator will just do its partitioning internally.
+'''
+
 
 class ClosedLoopNickPartitioner(ClosedLoopPartitioner):
     def __init__(self, dynamics: dynamics.Dynamics, num_partitions: Union[None, int, np.ndarray] = 16, make_animation: bool = False, show_animation: bool = False):
@@ -172,7 +178,8 @@ class ClosedLoopNickPartitioner(ClosedLoopPartitioner):
             # backprojection_set = constraints.LpConstraint(range=np.hstack((np.inf*np.ones((num_states,1)), -np.inf*np.ones((num_states,1)))))
             # return backprojection_set, info
 
-        nominal_facets = np.vstack([np.eye(num_states), -np.eye(num_states)])
+        # TODO: re-formulate idx2 check to avoid needing to define/check this
+        nominal_facets = np.vstack([np.eye(self.dynamics.num_states), -np.eye(self.dynamics.num_states)])
 
         for element in element_list:
             if element.flag != 'infeasible':
@@ -180,9 +187,11 @@ class ClosedLoopNickPartitioner(ClosedLoopPartitioner):
                 if not self.slow_cvxpy:
                     # TODO: implement a version of get_one_step_backprojection_set_overapprox that
                     # sets up the LP once, then each call just sets the params and solves it.
+                    # This will be handled by a different propagator, rather than by the partitioner
                     raise NotImplementedError
 
                 backreachable_set_this_cell = constraints.LpConstraint(range=element.ranges)
+                backreachable_set_this_cell.crown_matrices = element.crown_bounds
 
                 # Choose which dimensions of this cell's BP set we want to optimize over
                 if self.all_lps:
@@ -203,11 +212,6 @@ class ClosedLoopNickPartitioner(ClosedLoopPartitioner):
                         facets_to_optimize = np.vstack((facets_to_optimize, idx2)).all(axis=0)
 
                     facet_inds_to_optimize = np.where(facets_to_optimize)[0]
-
-                # TODO:
-                # if overapprox && nstep, should use get_refined_one_step_backprojection_set_overapprox
-                # if overapprox && nstep, should use get_one_step_backprojection_set_overapprox
-                # if not overapprox, should use get_one_step_backprojection_set_underapprox
 
                 backprojection_set_this_cell, this_info = propagator.get_one_step_backprojection_set(
                     backreachable_set_this_cell,

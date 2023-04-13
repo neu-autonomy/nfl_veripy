@@ -23,8 +23,11 @@ def optimize_over_all_states(xt, constrs, facet_inds_to_optimize=None):
 
 def optimization_results_to_backprojection_set(status, b, backreachable_set):
 
+    if status == "infeasible" or status == "optimal_inaccurate":
+        return None
+
     num_states = b.shape[0] // 2
-    ranges = backreachable_set.range
+    ranges = np.empty_like(backreachable_set.range)
     ranges[:, 0] = np.maximum(backreachable_set.range[:, 0], -b[num_states:])
     ranges[:, 1] = np.minimum(backreachable_set.range[:, 1], b[:num_states])
     backprojection_set = constraints.LpConstraint(range=ranges)
