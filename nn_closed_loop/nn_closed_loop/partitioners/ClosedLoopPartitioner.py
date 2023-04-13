@@ -1,6 +1,5 @@
 import numpy as np
 import nn_partition.partitioners as partitioners
-from pandas.core.indexing import convert_to_index_sliceable
 import pypoman
 import matplotlib.pyplot as plt
 from matplotlib import cm
