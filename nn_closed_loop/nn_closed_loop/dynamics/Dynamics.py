@@ -161,14 +161,8 @@ class Dynamics:
             controller=controller,
             merge_cols=False,
         )
-        if isinstance(target_set, constraints.PolytopeConstraint):
-            A, b = target_set.A, target_set.b[0]
-        elif isinstance(target_set, constraints.LpConstraint):
-            A, b = range_to_polytope(target_set.range)
-        elif isinstance(target_set, constraints.RotatedLpConstraint):
-            A, b = range_to_polytope(target_set.bounding_box)
-        else:
-            raise NotImplementedError
+
+        A, b = target_set.get_polytope()
 
         # Find which of the xt+t_max points actually end up in the target set
         within_constraint_inds = np.where(

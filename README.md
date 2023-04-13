@@ -1,6 +1,6 @@
 ## Updates
 
-- **2023-04-22:** Add new jax-based propagators, which currently work for forward reachability (working version of backward methods from DRIP paper coming soon!). Cleaned up implementation of BReach-LP and HyBReach-LP from OJCSYS paper.
+- **2023-04-13:** Add new jax-based propagators, including some from [`DRIP` paper](https://arxiv.org/abs/2212.04646). Cleaned up implementation of BReach-LP and HyBReach-LP from OJCSYS paper.
 - **2022-06-20:** Add new backprojection code from [`BReach-LP` paper](https://arxiv.org/abs/2204.08319). More info [here](/docs/_static/cdc22/cdc22.md)
 - **2022-05-09:** Add new N-Step `ClosedLoopPropagator`. Rather than recursively computing reachable sets (suffers from the wrapping effect), we see improved performance by solving an LP directly for the reachable set N steps in the future. You can experiment with this using the `CROWNNStep` flag in `nn_closed_loop/example.py`.
 - **2022-05-09:** Add new MILP-based `ClosedLoopPropagator`, using [`OVERT`](https://github.com/sisl/OVERTVerify.jl). Note that this component requires a Julia installation, and we pass data between Python and Julia using a lightweight local HTTP server. More info [here](/docs/_static/other.md).

@@ -324,13 +324,12 @@ class ClosedLoopPartitioner(partitioners.Partitioner):
         # Given a target_set, compute the backreachable_set
         # that ensures that starting from within the backreachable_set
         # will lead to a state within the target_set
-        # import pdb; pdb.set_trace()
         info = {} # type: dict[str, Any]
         # if collected_input_constraints is None:
         #     collected_input_constraints = [input_constraint]
 
         # Extract elementwise bounds on xt1 from the lp-ball or polytope constraint
-        A_t1, b_t1, xt1_max, xt1_min, norm = target_sets.to_reachable_input_objects()
+        A_target, b_target = target_sets.get_constraint_at_time_index(-1).get_polytope()
 
         '''
         Step 1: 
@@ -349,20 +348,18 @@ class ClosedLoopPartitioner(partitioners.Partitioner):
             u_min = self.dynamics.u_limits[:, 0]
             u_max = self.dynamics.u_limits[:, 1]
 
-        num_states = xt1_min.shape[0]
-        num_control_inputs = self.dynamics.bt.shape[1]
+        num_states = self.dynamics.num_states
+        num_control_inputs = self.dynamics.num_inputs
         
-        xt = cp.Variable(xt1_min.shape)
+        xt = cp.Variable(num_states)
         ut = cp.Variable(num_control_inputs)
 
-        A_t = np.eye(xt1_min.shape[0])
+        A_t = np.eye(num_states)
         num_facets = A_t.shape[0]
         coords = np.empty((2*num_states, num_states))
 
         # For each dimension of the output constraint (facet/lp-dimension):
         # compute a bound of the NN output using the pre-computed matrices
-        xt = cp.Variable(xt1_min.shape)
-        ut = cp.Variable(num_control_inputs)
         constrs = []
         constrs += [u_min <= ut]
         constrs += [ut <= u_max]
@@ -377,13 +374,12 @@ class ClosedLoopPartitioner(partitioners.Partitioner):
         #     constrs += [self.dynamics.dynamics_step(xt,ut) <= x_ulim]
         #     constrs += [self.dynamics.dynamics_step(xt,ut) >= x_llim]
         
-        if self.dynamics.x_limits is not None:
-            for state in self.dynamics.x_limits:
-                constrs += [self.dynamics.x_limits[state][0] <= xt[state]]
-                constrs += [xt[state] <= self.dynamics.x_limits[state][1]]
+        # if self.dynamics.x_limits is not None:
+        #     for state in self.dynamics.x_limits:
+        #         constrs += [self.dynamics.x_limits[state][0] <= xt[state]]
+        #         constrs += [xt[state] <= self.dynamics.x_limits[state][1]]
 
-        constrs += [self.dynamics.dynamics_step(xt, ut) <= xt1_max]
-        constrs += [self.dynamics.dynamics_step(xt, ut) >= xt1_min]
+        constrs += [A_target@self.dynamics.dynamics_step(xt, ut) <= b_target]
 
         b, status = optimize_over_all_states(xt, constrs)
         ranges = np.vstack([-b[num_states:], b[:num_states]]).T

@@ -71,11 +71,11 @@ class TestSum(unittest.TestCase):
     def test_cdc_fig5(self):
         self.check_if_cmd_runs("cdc22_figures/fig5")
 
-    # def test_jax_bwd_di_lp(self):
-    #     self.check_if_cmd_runs("jax/jax_bwd_di_lp")
+    def test_jax_bwd_di_lp(self):
+        self.check_if_cmd_runs("jax/jax_bwd_di_lp")
 
-    # def test_jax_bwd_di_rect(self):
-    #     self.check_if_cmd_runs("jax/jax_bwd_di_rect")
+    def test_jax_bwd_di_rect(self):
+        self.check_if_cmd_runs("jax/jax_bwd_di_rect")
 
     def test_jax_fwd_double_integrator(self):
         self.check_if_cmd_runs("jax/jax_fwd_double_integrator")
