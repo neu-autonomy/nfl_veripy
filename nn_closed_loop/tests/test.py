@@ -83,6 +83,12 @@ class TestSum(unittest.TestCase):
     def test_jax_fwd_quadrotor(self):
         self.check_if_cmd_runs("jax/jax_fwd_quadrotor")
 
+    def test_breach_double_integrator(self):
+        self.check_if_cmd_runs("ojcsys23/di_breach")
+
+    def test_rebreach_double_integrator(self):
+        self.check_if_cmd_runs("ojcsys23/di_rebreach")
+
         # # Check that plot was generated
         # plot_filename = os.path.dirname(os.path.realpath(__file__)) + '/../results/analyzer/'
         # self.assertTrue(os.path.isfile(plot_filename))

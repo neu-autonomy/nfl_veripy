@@ -111,14 +111,14 @@ def main(args: argparse.Namespace) -> Tuple[Dict, Dict]:
                     [-np.pi/100, np.pi/100]
                 ]
             )
-    elif args.system == "quadrotor":
+    elif args.system == "quadrotor_v0":
         inputs_to_highlight = [
             {"dim": [0], "name": "$x$"},
             {"dim": [1], "name": "$y$"},
             {"dim": [2], "name": "$z$"},
         ]
         if args.state_feedback:
-            dyn = dynamics.Quadrotor()
+            dyn = dynamics.Quadrotor_v0()
         else:
             dyn = dynamics.QuadrotorOutputFeedback()
         if args.init_state_range is None:
@@ -391,7 +391,7 @@ def setup_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--system",
         default="double_integrator",
-        choices=["double_integrator", "quadrotor", "duffing", "iss", "ground_robot", "ground_robot_DI", "quadrotor_8D", "pendulum"],
+        choices=["double_integrator", "quadrotor_v0", "duffing", "iss", "ground_robot", "ground_robot_DI", "quadrotor_8D", "pendulum"],
         help="which system to analyze (default: double_integrator)",
     )
     parser.add_argument(

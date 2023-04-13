@@ -1,5 +1,6 @@
 python -m nn_closed_loop.example_backward \
     --propagator JaxLP \
+    --partitioner None \
     --state_feedback \
     --skip_show_plot \
     --overapprox \

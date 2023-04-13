@@ -1,7 +1,7 @@
 python -m nn_closed_loop.example \
     --partitioner None \
     --propagator JaxCROWNUnrolled \
-    --system quadrotor \
+    --system quadrotor_v0 \
     --state_feedback \
     --t_max 0.5 \
     --show_samples \

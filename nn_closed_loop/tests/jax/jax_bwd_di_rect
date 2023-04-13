@@ -1,5 +1,6 @@
 python -m nn_closed_loop.example_backward \
     --propagator JaxRectangle \
+    --partitioner None \
     --boundaries polytope \
     --state_feedback \
     --skip_show_plot \
