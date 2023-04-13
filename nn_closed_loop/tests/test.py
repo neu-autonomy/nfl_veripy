@@ -71,17 +71,23 @@ class TestSum(unittest.TestCase):
     def test_cdc_fig5(self):
         self.check_if_cmd_runs("cdc22_figures/fig5")
 
-    def test_jax_bwd_di_lp(self):
-        self.check_if_cmd_runs("jax/jax_bwd_di_lp")
-
-    def test_jax_bwd_di_rect(self):
-        self.check_if_cmd_runs("jax/jax_bwd_di_rect")
-
     def test_jax_fwd_double_integrator(self):
         self.check_if_cmd_runs("jax/jax_fwd_double_integrator")
 
     def test_jax_fwd_quadrotor(self):
         self.check_if_cmd_runs("jax/jax_fwd_quadrotor")
+
+    def test_lcss23_fig2_breachlp(self):
+        self.check_if_cmd_runs("lcss23/fig2_breachlp")
+
+    def test_lcss23_fig2_breachlp_iterate(self):
+        self.check_if_cmd_runs("lcss23/fig2_breachlp_iterate")
+
+    def test_lcss23_fig2_driphpoly1(self):
+        self.check_if_cmd_runs("lcss23/fig2_driphpoly1")
+
+    def test_lcss23_fig2_driphpoly5(self):
+        self.check_if_cmd_runs("lcss23/fig2_driphpoly5")
 
     def test_breach_double_integrator(self):
         self.check_if_cmd_runs("ojcsys23/di_breach")
