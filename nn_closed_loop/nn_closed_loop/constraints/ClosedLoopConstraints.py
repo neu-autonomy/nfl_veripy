@@ -463,7 +463,7 @@ class MultiTimestepPolytopeConstraint(PolytopeConstraint):
             raise ValueError('Trying to add_timestep_constraint but other.A or other.b are None.')
         if self.A is None or self.b is None:
             return other.to_multistep_constraint()
-        constraint = MultiTimestepPolytopeConstraint(A=self.A + other.A, b=[self.b, other.b])
+        constraint = MultiTimestepPolytopeConstraint(A=self.A + [other.A], b=self.b + [other.b])
         if len(self.cells) == 0:
             # We're adding cells to a constraint with no cells, so all those new cells should
             # use the constraint's existing value for its first N timesteps
