@@ -6,7 +6,7 @@ from matplotlib.patches import Rectangle
 from nn_partition.utils.utils import get_sampled_outputs, samples_to_range
 import os
 import time
-import imageio
+import imageio.v2 as imageio
 from pygifsicle import optimize
 
 label_dict = {
@@ -354,15 +354,15 @@ class Partitioner:
         title=None,
     ):
         if show_input:
-            self.ax_input.patches = self.default_patches[
-                self.input_axis
-            ].copy()
-            self.ax_input.lines = self.default_lines[self.input_axis].copy()
+            for patch in self.default_patches[self.input_axis]:
+                self.ax_input.add_patch(patch)
+            for line in self.default_lines[self.input_axis]:
+                self.ax_input.add_line(line)
         if show_output:
-            self.ax_output.patches = self.default_patches[
-                self.output_axis
-            ].copy()
-            self.ax_output.lines = self.default_lines[self.output_axis].copy()
+            for patch in self.default_patches[self.output_axis]:
+                self.ax_output.add_patch(patch)
+            for line in self.default_lines[self.output_axis]:
+                self.ax_output.add_line(line)
         input_dims_ = self.input_dims_
 
         # Rectangles that might still be outside the sim pts

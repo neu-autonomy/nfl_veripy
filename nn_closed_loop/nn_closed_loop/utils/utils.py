@@ -2,8 +2,13 @@ import pickle
 import numpy as np
 import os
 import torch
+import torch.nn as nn
 
 dir_path = os.path.dirname(os.path.realpath(__file__))
+
+
+def colors(t, cmap='tab10'):
+  return cm.get_cmap(cmap)(t % len(cm.get_cmap(cmap).colors))
 
 
 def save_dataset(xs, us, system="DoubleIntegrator", dataset_name="default"):
@@ -91,29 +96,157 @@ def get_crown_matrices(propagator, state_set, num_control_inputs, sensor_noise):
 
 class CROWNMatrices:
     def __init__(self, lower_A, upper_A, lower_sum_b, upper_sum_b):
-        self.upper_A = upper_A
-        self.lower_A = lower_A
-        self.upper_sum_b = upper_sum_b
-        self.lower_sum_b = lower_sum_b
+        self.upper_A = upper_A.detach()
+        self.lower_A = lower_A.detach()
+        self.upper_sum_b = upper_sum_b.detach()
+        self.lower_sum_b = lower_sum_b.detach()
 
     def to_numpy(self):
         return self.upper_A_numpy, self.lower_A_numpy, self.upper_sum_b_numpy, self.lower_sum_b_numpy
 
     @property
     def lower_A_numpy(self):
-        return self.lower_A.detach().numpy()[0]
+        return self.lower_A.numpy()[0]
 
     @property
     def upper_A_numpy(self):
-        return self.upper_A.detach().numpy()[0]
+        return self.upper_A.numpy()[0]
 
     @property
     def lower_sum_b_numpy(self):
-        return self.lower_sum_b.detach().numpy()[0]
+        return self.lower_sum_b.numpy()[0]
 
     @property
     def upper_sum_b_numpy(self):
-        return self.upper_sum_b.detach().numpy()[0]
+        return self.upper_sum_b.numpy()[0]
+
+def plot_time_data(info):
+    labels = {
+        'br_lp' : 'LPs (Backreach)', 
+        'bp_lp' : 'LPs (BReach)', 
+        'nstep_bp_lp' : 'LPs (ReBReach)', 
+        'crown' : 'CROWN (BReach)', 
+        'nstep_crown' : 'CROWN (ReBReach)', 
+        'other' : 'Other (BReach)', 
+        'nstep_other' : 'Other (ReBReach)'
+    }
+    num_entries = {}
+    vals = []
+    sums = []
+    for dict in info['per_timestep']:
+        step_values = {}
+        for key in labels:
+            if key in dict:
+                step_values[key] = sum(dict[key])
+                if key in num_entries:
+                    num_entries[key] += len(dict[key])
+                else:
+                    num_entries[key] = len(dict[key])
+            else:
+                step_values[key] = 0
+                if key in num_entries:
+                    num_entries[key] += 0
+                else:
+                    num_entries[key] = 0
+
+        
+        vals.append(step_values)
+
+    summed_vals = {
+        'br_lp' : [0], 
+        'bp_lp' : [0], 
+        'nstep_bp_lp' : [0], 
+        'crown' : [0], 
+        'nstep_crown' : [0], 
+        'other' : [0], 
+        'nstep_other' : [0]
+    }
+    for i in range(len(vals)):
+        for key in vals[i]:
+            
+            summed_vals[key].append(summed_vals[key][i]+vals[i][key])
+    summed_value_list = list(summed_vals.values())
+
+    if num_entries['bp_lp'] > 0:
+        print('Number of LPs solved (BReach): {}'.format(num_entries['bp_lp']))
+        print('Time per LP solved (BReach): {0:.4f}'.format(summed_vals['bp_lp'][-1]/num_entries['bp_lp']))
+    if num_entries['nstep_bp_lp'] > 0:
+        print('Number of LPs solved (ReBReach): {}'.format(num_entries['nstep_bp_lp']))
+        print('Time per LP solved (ReBReach): {0:.4f}'.format(summed_vals['nstep_bp_lp'][-1]/num_entries['nstep_bp_lp']))
+    print('Number of CROWN calculations (BReach): {}'.format(num_entries['crown']))
+
+    import matplotlib.pyplot as plt
+    fig, ax = plt.subplots()
+    from colour import Color
+    orange = Color("orange")
+    colors = list(orange.range_to(Color("purple"),len(vals)))
+    cm = plt.cm.get_cmap('tab20')
+    # import pdb; pdb.set_trace()
+    for i,dict in enumerate(vals):
+        # ax.bar(labels.values(), dict.values(), color=colors[i].hex_l, bottom=[x[i] for x in summed_value_list])
+        ax.bar(labels.values(), dict.values(), color=cm.colors[i], bottom=[x[i] for x in summed_value_list])
+    ax.set_ylabel('Time (s)', fontsize=12)
+    
+    try:
+        textstr = '\n'.join((
+            'Number of LPs (BReach): {}'.format(num_entries['bp_lp']),
+            'Time per LP (BReach): {0:.4f}'.format(summed_vals['bp_lp'][-1]/num_entries['bp_lp']),
+            'Number of LPs (ReBReach): {}'.format(num_entries['nstep_bp_lp']),
+            'Time per LP (ReBReach): {0:.4f}'.format(summed_vals['nstep_bp_lp'][-1]/num_entries['nstep_bp_lp'])))
+
+        # these are matplotlib.patch.Patch properties
+        # props = dict(boxstyle='round', facecolor='wheat', alpha=0.5)
+
+        # place a text box in upper left in axes coords
+        ax.text(0.5, 0.95, textstr, transform=ax.transAxes, fontsize=12, verticalalignment='top')
+    except:
+        try:
+            textstr = '\n'.join((
+            'Number of LPs (BReach): {}'.format(num_entries['bp_lp']),
+            'Time per LP (BReach): {0:.4f}'.format(summed_vals['bp_lp'][-1]/num_entries['bp_lp'])))
+            ax.text(0.5, 0.95, textstr, transform=ax.transAxes, fontsize=12, verticalalignment='top')
+        except:
+            pass
+
+
+
+    plt.xticks(rotation=60,fontsize=12)
+    plt.subplots_adjust(bottom=0.36)
+    ax.set_axisbelow(True)
+    ax.grid(axis='y')
+    plt.show()
+
+
+def create_cl_model(dynamics, num_steps):
+    path = "{}/../../models/{}/{}".format(dir_path, "Pendulum", "default/single_pendulum_small_controller.torch")
+    controller = dynamics.controller_module
+    # controller.load_state_dict(self.network.state_dict(), strict=False)
+    controller.load_state_dict(torch.load(path), strict=False)
+    dynamics = dynamics.dynamics_module
+    model = ClosedLoopDynamics(controller, dynamics, num_steps=num_steps)
+    return model
+
+
+
+# Define computation as a nn.Module.
+class ClosedLoopDynamics(nn.Module):
+  def __init__(self, controller, dynamics, num_steps=1):
+    super().__init__()
+    self.controller = controller
+    self.dynamics = dynamics
+    self.num_steps = num_steps
+
+  def forward(self, xt):
+
+    xts = [xt]
+    for i in range(self.num_steps):
+
+      ut = self.controller(xts[-1])
+      xt1 = self.dynamics(xts[-1], ut)
+
+      xts.append(xt1)
+
+    return xts[-1]
 
 
 if __name__ == "__main__":

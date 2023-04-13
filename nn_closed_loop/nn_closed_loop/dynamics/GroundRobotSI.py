@@ -10,19 +10,17 @@ class GroundRobotSI(DiscreteTimeDynamics):
 
         self.continuous_time = False
 
+
+        dt = 1
+
         At = np.eye(2)
-        bt = np.eye(2)
+        bt = np.eye(2)*dt
         ct = np.array([0.0, 0.0]).T
 
         # u_limits = None
-        u_limits = 1*np.array(
-            [
-                [-1, 1],
-                [-1, 1]
-            ]
-        )
+        u_limits = np.array([[-1,1], [-1,1]], dtype=float)
 
-        dt = 1.0
+        
 
         super().__init__(At=At, bt=bt, ct=ct, u_limits=u_limits, dt=dt)
 

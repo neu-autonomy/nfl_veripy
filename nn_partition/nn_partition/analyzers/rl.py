@@ -64,7 +64,6 @@ class RLAnalyzer(partition.Analyzer):
                                 fc='none', linewidth=linewidth,edgecolor=color,
                                 label="CROWN Bounds ({})".format(label_dict[self.partitioner.interior_condition]))
                 self.partitioner.ax_output.add_patch(rect)
-                self.partitioner.ax_output.patches.append(rect)
             elif self.partitioner.interior_condition == "lower_bnds":
                 
                 # Show Lower Bnds if we hadn't used the smarter strategy

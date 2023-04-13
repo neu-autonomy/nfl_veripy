@@ -1,0 +1,10 @@
+python -m nn_closed_loop.example_backward \
+    --propagator JaxLP \
+    --partitioner None \
+    --state_feedback \
+    --skip_show_plot \
+    --overapprox \
+    --system double_integrator \
+    --t_max 5 \
+    --plot_lims "[[-3.8,5.64],[-0.64,2.5]]" \
+    --show_convex_hulls

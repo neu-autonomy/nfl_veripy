@@ -1,3 +1,4 @@
+from re import U
 from nn_closed_loop.utils.utils import range_to_polytope
 import numpy as np
 import platform
@@ -5,7 +6,7 @@ if platform.system() == "Darwin":
     import matplotlib
     matplotlib.use('MACOSX')
 import matplotlib.pyplot as plt
-from matplotlib import cm
+from matplotlib import colormaps
 
 from nn_closed_loop.utils.nn_bounds import BoundClosedLoopController
 import nn_closed_loop.constraints as constraints
@@ -13,6 +14,7 @@ import torch
 import os
 import pickle
 from colour import Color
+import jax.numpy as jnp
 
 
 dir_path = os.path.dirname(os.path.realpath(__file__))
@@ -37,6 +39,16 @@ class Dynamics:
         self.bt = bt
         self.ct = ct
         self.num_states, self.num_inputs = bt.shape
+
+        # Store dynamics matrices as jnp arrays too
+        self.At_jnp = jnp.asarray(At)
+        self.bt_jnp = jnp.asarray(bt)
+        self.ct_jnp = jnp.asarray(ct)
+
+        # Store dynamics matrices as torch tensors too
+        self.At_torch = torch.Tensor(At)
+        self.bt_torch = torch.Tensor(bt)
+        self.ct_torch = torch.Tensor(ct)
 
         # Observation Dynamics and Noise
         if c is None:
@@ -76,8 +88,21 @@ class Dynamics:
     def dynamics_step(self, xs, us):
         raise NotImplementedError
 
+    def dynamics_step_jnp(self, xs, us):
+        raise NotImplementedError
+
+    def dynamics_step_torch(self, xs, us):
+        raise NotImplementedError
+
+    def tmax_to_num_timesteps(self, t_max):
+        num_timesteps = round(t_max / self.dt)
+        return num_timesteps
+
+    def num_timesteps_to_tmax(self, num_timesteps):
+        return num_timesteps * self.dt
+
     def colors(self, t_max):
-        return [cm.get_cmap(self.cmap_name)(i) for i in range(t_max + 1)]
+        return [colormaps[self.cmap_name](i) for i in range(t_max + 1)]
 
     def get_sampled_output_range(
         self, input_constraint, t_max=5, num_samples=1000, controller="mpc",
@@ -127,12 +152,12 @@ class Dynamics:
 
         return xs[:, 0, :], xs[:, 1, :]
 
-    def get_true_backprojection_set(self, backreachable_set, target_set, t_max=1, controller="mpc"):
-
+    def get_true_backprojection_set(self, backreachable_set, target_set, t_max=1, controller="mpc", num_samples=1e5):
+        
         xs, _ = self.collect_data(
             t_max,
             backreachable_set,
-            num_samples=1e6,
+            num_samples=num_samples,
             controller=controller,
             merge_cols=False,
         )
@@ -140,6 +165,8 @@ class Dynamics:
             A, b = target_set.A, target_set.b[0]
         elif isinstance(target_set, constraints.LpConstraint):
             A, b = range_to_polytope(target_set.range)
+        elif isinstance(target_set, constraints.RotatedLpConstraint):
+            A, b = range_to_polytope(target_set.bounding_box)
         else:
             raise NotImplementedError
 
@@ -157,6 +184,61 @@ class Dynamics:
         x_samples_inside_backprojection_set = xs[within_constraint_inds]
 
         return x_samples_inside_backprojection_set
+
+    def get_relaxed_backprojection_samples(self, start_regions, bp_sets, crown_bounds, target_set):
+        print('###################  #########################')
+        if not isinstance(bp_sets[-1], constraints.LpConstraint):
+            raise NotImplementedError
+        from copy import deepcopy
+        # start_min = start_region[:,0]
+        # start_max = start_region[:,1]
+        start_pts = [np.mean(start_region, axis=1) for start_region in start_regions]
+        points = deepcopy([start_pts])
+        t_max = len(bp_sets)-1
+        
+        for i in range(t_max):
+            # import pdb; pdb.set_trace()
+            upper_A, lower_A, upper_sum_b, lower_sum_b = crown_bounds[i]
+            print(upper_A)
+            print(lower_A)
+            print(upper_sum_b)
+            print(lower_sum_b)
+            while len(points[-1]) <= i+1:
+                # print(i)
+                # print(len(points[-1]))  
+                pt_sequence = points.pop()
+                pt = pt_sequence[-1]
+                
+                u_max = upper_A@pt+upper_sum_b
+                u_min = lower_A@pt+lower_sum_b
+                us = np.linspace(u_min, u_max, num=12)
+
+                for input in us:
+                    new_pt = self.dynamics_step(pt, input)
+                    new_seq = deepcopy(pt_sequence)
+                    new_seq.append(new_pt)
+
+                    # import pdb; pdb.set_trace()
+                    bp_range = bp_sets[i+1].range
+                    if (new_pt >= bp_range[:,0]).all() and (new_pt <= bp_range[:,1]).all():
+                        points = [new_seq] + points
+                # small_pt = self.dynamics_step(pt, u_min)
+                # big_pt = self.dynamics_step(pt, u_max)
+
+                # small_seq = deepcopy(pt_sequence)
+                # small_seq.append(small_pt)
+                # big_seq = deepcopy(pt_sequence)
+                # big_seq.append(big_pt)
+
+
+
+                # points = [big_seq] + points
+                # points = [small_seq] + points
+                
+                # import pdb; pdb.set_trace()
+            
+
+        return points
 
     def show_samples(
         self,
@@ -200,10 +282,10 @@ class Dynamics:
                 zorder=zorder,
             )
 
-        ax.set_xlabel("$x_" + str(input_dims[0][0]) + "$")
-        ax.set_ylabel("$x_" + str(input_dims[1][0]) + "$")
-        if len(input_dims) == 3:
-            ax.set_zlabel("$x_" + str(input_dims[2][0]) + "$")
+        # ax.set_xlabel("$x_" + str(input_dims[0][0]) + "$")
+        # ax.set_ylabel("$x_" + str(input_dims[1][0]) + "$")
+        # if len(input_dims) == 3:
+        #     ax.set_zlabel("$x_" + str(input_dims[2][0]) + "$")
 
         if save_plot:
             ax.savefig(plot_name)
@@ -249,7 +331,7 @@ class Dynamics:
 
         
         orange = Color("orange")
-        colors = list(orange.range_to(Color("purple"),num_timesteps))
+        colors = list(orange.range_to(Color("purple"),num_timesteps-1))
         # import pdb; pdb.set_trace()
         for traj in range(num_runs):
             if len(input_dims) == 2:
@@ -381,6 +463,8 @@ class Dynamics:
                 )
                 xs = xs[within_constraint_inds]
                 us = us[within_constraint_inds]
+        # elif isinstance(input_constraint, constraints.RotatedLpConstraint):
+            
         else:
             raise NotImplementedError
 
@@ -451,7 +535,14 @@ class ContinuousTimeDynamics(Dynamics):
 
     def dynamics_step(self, xs, us):
         xs_t1 = xs + self.dt * self.dynamics(xs, us)
-        
+        return xs_t1
+
+    def dynamics_jnp(self, xs, us):
+        xdot = jnp.dot(self.At_jnp, xs.T).T + jnp.dot(self.bt_jnp, us.T).T + self.ct_jnp
+        return xdot
+
+    def dynamics_step_jnp(self, xs, us):
+        xs_t1 = xs + self.dt * self.dynamics_jnp(xs, us)
         return xs_t1
 
 
@@ -481,10 +572,27 @@ class DiscreteTimeDynamics(Dynamics):
                     size=xs.shape,
                 )
                 xs_t1 += noise
+            # if self.x_limits is not None and isinstance(xs,np.ndarray):
+            #     for key in self.x_limits:
+            #         # import pdb; pdb.set_trace()
+            #         xs_t1[:, key] = np.minimum(xs_t1[:, key], self.x_limits[key][1])
+            #         xs_t1[:, key] = np.maximum(xs_t1[:, key], self.x_limits[key][0])
+
         else: # For solving LP
             xs_t1 = self.At@xs + self.bt@us + self.ct
+            # if self.x_limits is not None and isinstance(xs,np.ndarray):
+            #     for key in self.x_limits:
+            #         # import pdb; pdb.set_trace()
+            #         xs_t1[:, key] = np.minimum(xs_t1[:, key], self.x_limits[key][1])
+            #         xs_t1[:, key] = np.maximum(xs_t1[:, key], self.x_limits[key][0])
 
         return xs_t1
+
+    def dynamics_step_jnp(self, xs, us):
+        return jnp.dot(self.At_jnp, xs.T).T + jnp.dot(self.bt_jnp, us.T).T + self.ct_jnp
+
+    def dynamics_step_torch(self, xs, us):
+        return torch.mm(self.At_torch, xs.transpose(0,1)).transpose(0, 1) + torch.mm(self.bt_torch, us.transpose(0, 1)).transpose(0, 1) + self.ct_torch
 
 
 if __name__ == "__main__":

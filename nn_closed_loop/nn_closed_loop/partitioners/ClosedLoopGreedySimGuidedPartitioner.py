@@ -18,7 +18,7 @@ class ClosedLoopGreedySimGuidedPartitioner(ClosedLoopSimGuidedPartitioner):
                 # choose solely based on last timestep!
                 timestep_of_interest = -1
 
-                M_last_timestep = [(inp, out[timestep_of_interest]) for (inp, out) in M]
+                M_last_timestep = [(inp, out.range[timestep_of_interest]) for (inp, out) in M]
                 output_range_sim_last_timestep = output_range_sim[timestep_of_interest]
 
                 # look thru all output_range_s and see which are furthest from sim output range

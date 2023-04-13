@@ -40,3 +40,18 @@ python -m nn_closed_loop.example_backward \
     --t_max 2 \
     --show_plot --overapprox --skip_save_plot
 ```
+
+## mypy debugging
+
+Only the first time, get the type stubs for some installed pip pkgs using the typeshed (most that don't live in here are ignored in `mypy.ini`): 
+```bash
+mypy --install-types
+```
+
+Run this to check types of entire nn_closed_loop pkg (excluding a few files as defined in `mypy.ini`):
+```bash
+cd nn_closed_loop
+mypy -p nn_closed_loop
+```
+
+

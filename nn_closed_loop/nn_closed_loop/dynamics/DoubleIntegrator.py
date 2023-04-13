@@ -9,14 +9,17 @@ class DoubleIntegrator(DiscreteTimeDynamics):
 
         self.continuous_time = False
 
-        At = np.array([[1, 1], [0, 1]])
-        bt = np.array([[0.5], [1]])
+        # dt = 0.0625
+        dt = 1
+
+        At = np.array([[1, dt], [0, 1]])
+        bt = np.array([[0.5*dt*dt], [dt]])
         ct = np.array([0.0, 0.0]).T
 
         # u_limits = None
         u_limits = np.array([[-1.0, 1.0]])  # (u0_min, u0_max)
 
-        super().__init__(At=At, bt=bt, ct=ct, u_limits=u_limits)
+        super().__init__(At=At, bt=bt, ct=ct, dt=dt, u_limits=u_limits)
 
         self.cmap_name = "tab10"
 

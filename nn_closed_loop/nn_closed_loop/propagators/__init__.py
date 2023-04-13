@@ -7,7 +7,6 @@ from .ClosedLoopCROWNIBPCodebasePropagator import (
     ClosedLoopIBPPropagator,
     ClosedLoopCROWNPropagator,
     ClosedLoopCROWNNStepPropagator,
-    ClosedLoopCROWNRefinedPropagator,
     ClosedLoopFastLinPropagator,
 )
 from .ClosedLoopSeparablePropagator import (
@@ -15,11 +14,23 @@ from .ClosedLoopSeparablePropagator import (
     ClosedLoopSeparableIBPPropagator,
     ClosedLoopSeparableSGIBPPropagator,
 )
+from .ClosedLoopJaxVerifyPropagator import (
+    ClosedLoopJaxPropagator,
+    ClosedLoopJaxIterativePropagator,
+    ClosedLoopJaxUnrolledPropagator,
+    ClosedLoopJaxUnrolledJittedPropagator,
+    ClosedLoopJaxPolytopePropagator,
+    ClosedLoopJaxRectanglePropagator,
+    ClosedLoopJaxLPPropagator,
+    ClosedLoopJaxPolytopeJittedPropagator,
+    ClosedLoopJaxRectangleJittedPropagator,
+    ClosedLoopJaxLPJittedPropagator,
+)
+from .ClosedLoopAUTOLIRPAPropagator import ClosedLoopAUTOLIRPAPropagator
 
 propagator_dict = {
     "CROWN": ClosedLoopCROWNPropagator,
     "CROWNNStep": ClosedLoopCROWNNStepPropagator,
-    "CROWNRefined": ClosedLoopCROWNRefinedPropagator,
     "CROWNLP": ClosedLoopCROWNLPPropagator,
     "IBP": ClosedLoopIBPPropagator,
     "FastLin": ClosedLoopFastLinPropagator,
@@ -28,4 +39,19 @@ propagator_dict = {
     "SeparableIBP": ClosedLoopSeparableIBPPropagator,
     "SeparableSGIBP": ClosedLoopSeparableSGIBPPropagator,
     "OVERT": ClosedLoopOVERTPropagator,
+    "TorchBackwardCROWNReachLP": ClosedLoopCROWNPropagator,
+    "TorchBackwardCROWNNStep": ClosedLoopCROWNNStepPropagator,
+    "TorchCROWNLP": ClosedLoopCROWNLPPropagator,
+    "TorchIBP": ClosedLoopIBPPropagator,
+    "TorchFastLin": ClosedLoopFastLinPropagator,
+    "JaxCROWNIterative": ClosedLoopJaxIterativePropagator,
+    "JaxCROWNUnrolled": ClosedLoopJaxUnrolledPropagator,
+    "JaxUnrolledJitted": ClosedLoopJaxUnrolledJittedPropagator,
+    "JaxPolytope": ClosedLoopJaxPolytopePropagator,
+    "JaxRectangle": ClosedLoopJaxRectanglePropagator,
+    "JaxLP": ClosedLoopJaxLPPropagator,
+    "JaxPolytopeJitted": ClosedLoopJaxPolytopeJittedPropagator,
+    "JaxRectangleJitted": ClosedLoopJaxRectangleJittedPropagator,
+    "JaxLPJitted": ClosedLoopJaxLPJittedPropagator,
+    "AutoLiRPA": ClosedLoopAUTOLIRPAPropagator
 }

@@ -20,8 +20,8 @@ class ClosedLoopSeparablePropagator(ClosedLoopPropagator):
     '''
 
     def __init__(self, input_shape=None, dynamics=None):
-        ClosedLoopPropagator.__init__(
-            self, input_shape=input_shape, dynamics=dynamics
+        super().__init__(
+            input_shape=input_shape, dynamics=dynamics
         )
 
         self.partitioner_hyperparams = {
@@ -246,16 +246,16 @@ class ClosedLoopSeparablePropagator(ClosedLoopPropagator):
 
 class ClosedLoopSeparableCROWNPropagator(ClosedLoopSeparablePropagator):
     def __init__(self, input_shape=None, dynamics=None):
-        ClosedLoopSeparablePropagator.__init__(
-            self, input_shape=input_shape, dynamics=dynamics
+        super().__init__(
+            input_shape=input_shape, dynamics=dynamics
         )
         self.propagator_hyperparams["type"] = "CROWN_LIRPA"
 
 
 class ClosedLoopSeparableIBPPropagator(ClosedLoopSeparablePropagator):
     def __init__(self, input_shape=None, dynamics=None):
-        ClosedLoopSeparablePropagator.__init__(
-            self, input_shape=input_shape, dynamics=dynamics
+        super().__init__(
+            input_shape=input_shape, dynamics=dynamics
         )
         self.propagator_hyperparams["type"] = "IBP_LIRPA"
 
@@ -266,8 +266,8 @@ class ClosedLoopSeparableSGIBPPropagator(ClosedLoopSeparablePropagator):
     replacing reachODE with a closed-form/LP soln valid for DT plants
     '''
     def __init__(self, input_shape=None, dynamics=None):
-        ClosedLoopSeparablePropagator.__init__(
-            self, input_shape=input_shape, dynamics=dynamics
+        super().__init__(
+            input_shape=input_shape, dynamics=dynamics
         )
         self.partitioner_hyperparams["type"] = "SimGuided"
         self.partitioner_hyperparams["num_simulations"] = 1e5

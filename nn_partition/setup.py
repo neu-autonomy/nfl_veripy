@@ -6,7 +6,7 @@ setup(
     install_requires=[
         "torch",
         "alphashape",
-        "sklearn",
+        "scikit-learn",
         "scipy",
         "matplotlib",
         "imageio",

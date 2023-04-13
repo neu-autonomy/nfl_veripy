@@ -6,9 +6,13 @@ from itertools import product
 from copy import deepcopy
 from nn_closed_loop.utils.utils import range_to_polytope, get_crown_matrices
 
+import nn_closed_loop.dynamics as dynamics
+import nn_closed_loop.propagators as propagators
+from typing import Optional, Union
+
 
 class ClosedLoopUniformPartitioner(ClosedLoopPartitioner):
-    def __init__(self, dynamics, num_partitions=16, make_animation=False, show_animation=False):
+    def __init__(self, dynamics: dynamics.Dynamics, num_partitions: Union[None, int, np.ndarray] = 16, make_animation: bool = False, show_animation: bool = False):
         ClosedLoopPartitioner.__init__(self, dynamics=dynamics, make_animation=make_animation, show_animation=show_animation)
         self.num_partitions = num_partitions
         self.interior_condition = "linf"
@@ -17,14 +21,12 @@ class ClosedLoopUniformPartitioner(ClosedLoopPartitioner):
 
     def get_one_step_reachable_set(
         self,
-        input_constraint,
-        output_constraint,
-        propagator,
-        num_partitions=None,
-    ):
+        initial_set: constraints.SingleTimestepConstraint,
+        propagator: propagators.ClosedLoopPropagator,
+        num_partitions: Optional[np.ndarray] = None,
+    ) -> tuple[constraints.SingleTimestepConstraint, dict]:
         reachable_set, info = self.get_reachable_set(
-            input_constraint,
-            output_constraint,
+            initial_set,
             propagator,
             t_max=1,
             num_partitions=num_partitions,
@@ -33,14 +35,15 @@ class ClosedLoopUniformPartitioner(ClosedLoopPartitioner):
 
     def get_reachable_set(
         self,
-        input_constraint,
-        output_constraint,
-        propagator,
-        t_max,
-        num_partitions=None,
-    ):
+        initial_set: constraints.SingleTimestepConstraint,
+        propagator: propagators.ClosedLoopPropagator,
+        t_max: int,
+        num_partitions: Optional[np.ndarray] = None,
+    ) -> tuple[constraints.MultiTimestepConstraint, dict]:
 
-        input_range = input_constraint.to_range()
+        reachable_sets = constraints.create_empty_multi_timestep_constraint(propagator.boundary_type, num_facets=propagator.num_polytope_facets)
+
+        input_range = initial_set.to_range()
 
         info = {}
         num_propagator_calls = 0
@@ -76,43 +79,33 @@ class ClosedLoopUniformPartitioner(ClosedLoopPartitioner):
                 element_ + 1, slope
             )
 
-            input_constraint_this_cell = input_constraint.get_cell(input_range_this_cell)
+            initial_set_this_cell = initial_set.get_cell(input_range_this_cell)
 
-            output_constraint_this_cell, info_this_cell = propagator.get_reachable_set(
-                input_constraint_this_cell, deepcopy(output_constraint), t_max
+            reachable_sets_this_cell, info_this_cell = propagator.get_reachable_set(
+                initial_set_this_cell, t_max
             )
             num_propagator_calls += t_max
             info['nn_matrices'] = info_this_cell
 
-            reachable_set_this_cell = output_constraint.add_cell(output_constraint_this_cell)
-            ranges.append((input_range_this_cell, reachable_set_this_cell))
+            reachable_sets.add_cell(reachable_sets_this_cell)
+            ranges.append((input_range_this_cell, reachable_sets_this_cell))
+
+        reachable_sets.update_main_constraint_with_cells(overapprox=True)
 
         info["all_partitions"] = ranges
         info["num_propagator_calls"] = num_propagator_calls
         info["num_partitions"] = np.product(num_partitions)
 
-        return output_constraint, info
+        return reachable_sets, info
 
     def get_one_step_backprojection_set(
-        self, target_sets, propagator, num_partitions=None, overapprox=False
-    ):
+        self, target_sets: constraints.MultiTimestepConstraint, propagator: propagators.ClosedLoopPropagator, num_partitions=None, overapprox: bool = False
+    ) -> tuple[constraints.SingleTimestepConstraint, dict]:
 
-        backreachable_set, info = self.get_one_step_backreachable_set(target_sets[-1])
+        backreachable_set, info = self.get_one_step_backreachable_set(target_sets.get_constraint_at_time_index(-1))
         info['backreachable_set'] = backreachable_set
 
-        if overapprox:
-            # Set an empty Constraint that will get filled in
-            backprojection_set = constraints.LpConstraint(
-                range=np.vstack(
-                    (
-                        np.inf*np.ones(propagator.dynamics.num_states),
-                        -np.inf*np.ones(propagator.dynamics.num_states)
-                    )
-                ).T,
-                p=np.inf
-            )
-        else:
-            backprojection_set = constraints.PolytopeConstraint(A=[], b=[])
+        backprojection_set = constraints.create_empty_constraint(boundary_type=propagator.boundary_type, num_facets=propagator.num_polytope_facets)
 
         '''
         Partition the backreachable set (xt).
@@ -155,9 +148,9 @@ class ClosedLoopUniformPartitioner(ClosedLoopPartitioner):
                 overapprox=overapprox,
             )
 
-            backprojection_set += backprojection_set_this_cell
+            backprojection_set.add_cell(backprojection_set_this_cell)
 
-            # TODO: Store the detailed partitions in info
+        backprojection_set.update_main_constraint_with_cells(overapprox=overapprox)
 
         if overapprox:
 
