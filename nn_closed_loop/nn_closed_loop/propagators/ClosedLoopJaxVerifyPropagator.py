@@ -775,12 +775,14 @@ class ClosedLoopJaxUnrolledJittedPropagator(ClosedLoopJaxPropagator):
     self.reach_fn = get_multi_step_reachable_sets_unrolled
     self.verif_fn = jax_verify.backward_crown_bound_propagation
 
-  def get_reachable_set(self, input_constraint, t_max):
-    input_constraint_jit = input_constraint.to_jittable()
-    return self.get_reachable_set_jitted(input_constraint_jit, t_max)
+  def get_reachable_set(self, initial_state_set, t_max):
+    initial_state_set_jit = initial_state_set.to_jittable()
+    reachable_sets_jnp, info = self.get_reachable_set_jitted(initial_state_set_jit, t_max)
+    reachable_sets = constraints.MultiTimestepLpConstraint(range=np.array(reachable_sets_jnp))
+    return reachable_sets, info
 
   @functools.partial(jax.jit, static_argnames=['self', 't_max'])
-  def get_reachable_set_jitted(self, input_constraint_jit, t_max):
+  def get_reachable_set_jitted(self, initial_state_set_jit, t_max):
     num_timesteps = self.dynamics.tmax_to_num_timesteps(t_max)
 
     def bound_prop_fun_(inp_bound, fun_to_prop):
@@ -788,14 +790,13 @@ class ClosedLoopJaxUnrolledJittedPropagator(ClosedLoopJaxPropagator):
       bounds = self.verif_fn(fun_to_prop, inp_bound_unjit)
       lbs = jnp.array([bounds[i].lower for i in range(1, num_timesteps+1)])
       ubs = jnp.array([bounds[i].upper for i in range(1, num_timesteps+1)])
-      return jnp.stack([lbs, ubs]).transpose(2, 1, 3, 0).squeeze()
+      return jnp.stack([lbs, ubs]).transpose(1, 2, 0)
 
     fun_to_prop = functools.partial(predict_future_states, self.params,
                                     self.dynamics, num_timesteps)
-    reachable_sets = bound_prop_fun_(input_constraint_jit, fun_to_prop)
-    output_constraints = constraints.LpConstraint(range=reachable_sets)
+    reachable_sets_jnp = bound_prop_fun_(initial_state_set_jit, fun_to_prop)
 
-    return output_constraints, {}
+    return reachable_sets_jnp, {}
 
 
 @functools.partial(jax.jit, static_argnames=['fun_to_prop'])

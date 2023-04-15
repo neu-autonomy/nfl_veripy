@@ -12,4 +12,8 @@ from .ClosedLoopConstraints import (
     create_empty_multi_timestep_constraint,
     state_range_to_constraint,
     list_to_constraint,
+    unjit_polytope_constraints,
+    unjit_lp_constraints,
+    unjit_multi_timestep_polytope_constraints,
+    unjit_multi_timestep_lp_constraints,
 )

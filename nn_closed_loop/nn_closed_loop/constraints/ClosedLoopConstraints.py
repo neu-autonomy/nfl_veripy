@@ -9,6 +9,12 @@ from scipy.spatial import ConvexHull
 from typing import Optional, Union, TypeGuard, Any
 from nn_closed_loop.utils.utils import CROWNMatrices
 
+from jax import tree_util
+import collections
+import jax_verify
+import jax
+import jax.numpy as jnp
+
 
 class Constraint:
     def __init__(self):
@@ -228,6 +234,24 @@ class PolytopeConstraint(Constraint):
     def get_constraint_at_time_index(self, i: int) -> PolytopeConstraint:
         return self
     
+    def to_jittable(self):
+        return JittablePolytopeConstraint(self.A, self.b,
+                                {jax_verify.IntervalBound: None}, {})
+    
+    @classmethod
+    def from_jittable(cls, jittable_constraint):
+        return cls(
+            range=np.array([jittable_constraint.lower, jittable_constraint.upper]))
+
+    def _tree_flatten(self):
+        children = (self.A, self.b)  # arrays / dynamic values
+        aux_data = {}  # static values
+        return (children, aux_data)
+
+    @classmethod
+    def _tree_unflatten(cls, aux_data, children):
+        return cls(*children, **aux_data)
+
 
 class LpConstraint(Constraint):
     def __init__(self, range: Optional[np.ndarray] = None, p: float = np.inf, crown_matrices: Optional[CROWNMatrices] = None):
@@ -364,6 +388,24 @@ class LpConstraint(Constraint):
     def get_constraint_at_time_index(self, i: int) -> LpConstraint:
         return self
 
+    def to_jittable(self):
+        return JittableLpConstraint(self.range[..., 0], self.range[..., 1],
+                                {jax_verify.IntervalBound: None}, {})
+    
+    @classmethod
+    def from_jittable(cls, jittable_constraint):
+        return cls(
+            range=np.array([jittable_constraint.lower, jittable_constraint.upper]))
+
+    def _tree_flatten(self):
+        children = (self.range,)  # arrays / dynamic values
+        aux_data = {}  # static values
+        return (children, aux_data)
+
+    @classmethod
+    def _tree_unflatten(cls, aux_data, children):
+        return cls(*children, **aux_data)
+
 
 class MultiTimestepLpConstraint(LpConstraint):
     # range: (num_timesteps, num_states, 2)
@@ -426,6 +468,25 @@ class MultiTimestepLpConstraint(LpConstraint):
         if self.range is None:
             raise ValueError('Trying to convert to multistep constraint but self.range is None.')
         return self
+
+    def to_jittable(self):
+        return JittableMultiTimestepLpConstraint(self.range[..., 0], self.range[..., 1],
+                                {jax_verify.IntervalBound: None}, {})
+    
+    @classmethod
+    def from_jittable(cls, jittable_constraint):
+        return cls(
+            range=np.array([jittable_constraint.lower, jittable_constraint.upper]))
+
+    def _tree_flatten(self):
+        children = (self.range,)  # arrays / dynamic values
+        aux_data = {}  # static values
+        return (children, aux_data)
+
+    @classmethod
+    def _tree_unflatten(cls, aux_data, children):
+        return cls(*children, **aux_data)
+
 
 
 class MultiTimestepPolytopeConstraint(PolytopeConstraint):
@@ -500,8 +561,89 @@ class MultiTimestepPolytopeConstraint(PolytopeConstraint):
             raise ValueError('Trying to convert to multistep constraint but self.range is None.')
         return self
 
+    def to_jittable(self):
+        return JittableMultiTimestepPolytopeConstraint(self.range[..., 0], self.range[..., 1],
+                                {jax_verify.IntervalBound: None}, {})
+    
+    @classmethod
+    def from_jittable(cls, jittable_constraint):
+        return cls(
+            range=np.array([jittable_constraint.lower, jittable_constraint.upper]))
+
+    def _tree_flatten(self):
+        children = (self.range,)  # arrays / dynamic values
+        aux_data = {}  # static values
+        return (children, aux_data)
+
+    @classmethod
+    def _tree_unflatten(cls, aux_data, children):
+        return cls(*children, **aux_data)
+
 MultiTimestepConstraint = Union[MultiTimestepLpConstraint, MultiTimestepPolytopeConstraint]
 SingleTimestepConstraint = Union[LpConstraint, PolytopeConstraint]
+
+JittableLpConstraint = collections.namedtuple(
+    'JittableLpConstraint', ['lower', 'upper', 'bound_type', 'kwargs'])
+
+def unjit_lp_constraints(*inputs):
+  """Replace all the jittable bounds by standard bound objects."""
+  is_jittable_constraint = lambda b: isinstance(b, JittableLpConstraint)
+  unjit_bound = lambda b: next(iter(b.bound_type)).from_jittable(b)
+  return jax.tree_util.tree_map(
+      lambda b: unjit_bound(b) if is_jittable_constraint(b) else b,
+      inputs, is_leaf=is_jittable_constraint)
+
+tree_util.register_pytree_node(LpConstraint,
+                               LpConstraint._tree_flatten,
+                               LpConstraint._tree_unflatten)
+
+JittablePolytopeConstraint = collections.namedtuple(
+    'JittablePolytopeConstraint', ['A', 'b', 'bound_type', 'kwargs'])
+
+
+def unjit_polytope_constraints(*inputs):
+  """Replace all the jittable bounds by standard bound objects."""
+  is_jittable_constraint = lambda b: isinstance(b, JittablePolytopeConstraint)
+  unjit_bound = lambda b: next(iter(b.bound_type)).from_jittable(b)
+  return jax.tree_util.tree_map(
+      lambda b: unjit_bound(b) if is_jittable_constraint(b) else b,
+      inputs, is_leaf=is_jittable_constraint)
+
+tree_util.register_pytree_node(PolytopeConstraint,
+                               PolytopeConstraint._tree_flatten,
+                               PolytopeConstraint._tree_unflatten)
+
+JittableMultiTimestepLpConstraint = collections.namedtuple(
+    'JittableMultiTimestepLpConstraint', ['lower', 'upper', 'bound_type', 'kwargs'])
+
+def unjit_multi_timestep_lp_constraints(*inputs):
+  """Replace all the jittable bounds by standard bound objects."""
+  is_jittable_constraint = lambda b: isinstance(b, JittableMultiTimestepLpConstraint)
+  unjit_bound = lambda b: next(iter(b.bound_type)).from_jittable(b)
+  return jax.tree_util.tree_map(
+      lambda b: unjit_bound(b) if is_jittable_constraint(b) else b,
+      inputs, is_leaf=is_jittable_constraint)
+
+tree_util.register_pytree_node(MultiTimestepLpConstraint,
+                               MultiTimestepLpConstraint._tree_flatten,
+                               MultiTimestepLpConstraint._tree_unflatten)
+
+JittableMultiTimestepPolytopeConstraint = collections.namedtuple(
+    'JittableMultiTimestepPolytopeConstraint', ['A', 'b', 'bound_type', 'kwargs'])
+
+
+def unjit_multi_timestep_polytope_constraints(*inputs):
+  """Replace all the jittable bounds by standard bound objects."""
+  is_jittable_constraint = lambda b: isinstance(b, JittableMultiTimestepPolytopeConstraint)
+  unjit_bound = lambda b: next(iter(b.bound_type)).from_jittable(b)
+  return jax.tree_util.tree_map(
+      lambda b: unjit_bound(b) if is_jittable_constraint(b) else b,
+      inputs, is_leaf=is_jittable_constraint)
+
+tree_util.register_pytree_node(MultiTimestepPolytopeConstraint,
+                               MultiTimestepPolytopeConstraint._tree_flatten,
+                               MultiTimestepPolytopeConstraint._tree_unflatten)
+
 
 
 def make_rect_from_arr(arr: np.ndarray, dims: np.ndarray, color: str, linewidth: float, fc_color: str, ls: int, zorder: Optional[int] = None, angle: float = 0.) -> Rectangle:
