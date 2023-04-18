@@ -16,8 +16,8 @@ def enumerate_tests():
         config = str(path).split(dir_path)[1].split('.')[0]
         tests.append(config)
     tests_to_skip = [
-        "/param_version/icra21/fig3_reach_sdp",
-        "/param_version/icra21/fig3_reach_sdp_partition",
+        "/icra21/fig3_reach_sdp",
+        "/icra21/fig3_reach_sdp_partition",
     ]
     for test in tests_to_skip:
         tests.remove(test)
