@@ -1,0 +1,28 @@
+system:
+  type: Quadrotor_v0
+  feedback: OutputFeedback
+  controller: default
+
+analysis:
+  reachability_direction: forward
+  partitioner:
+    type: None
+  propagator:
+    type: CROWN
+    boundary_type: rectangle
+  initial_state_range: "[[4.65, 4.75], [4.65, 4.75], [2.95, 3.05], [0.94, 0.96], [-0.01, 0.01], [-0.01, 0.01]]"
+  t_max: 0.2
+  estimate_runtime: false
+  estimate_error: false
+
+visualization:
+  save_plot: true
+  show_plot: false
+  make_animation: false
+  show_animation: false
+  show_samples: true
+  show_trajectories: false
+  plot_dims: [0, 1, 2]
+  plot_axis_labels: ["$x$", "$y$", "$z$"]
+  plot_aspect: equal
+  plot_lims: null

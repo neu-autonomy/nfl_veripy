@@ -12,6 +12,7 @@ setup(
         "colour",
         "jax",
         "jax_verify",
+        "parameterized",
     ],
     packages=["nn_closed_loop"],
     # package_data={"nn_closed_loop": ["py.typed", "**/py.typed"]},

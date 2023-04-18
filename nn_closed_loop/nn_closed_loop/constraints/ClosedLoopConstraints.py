@@ -339,21 +339,12 @@ class LpConstraint(Constraint):
     def plot(self, ax, dims, color, fc_color="None", linewidth=3, zorder=2, plot_2d=True, ls='-'):
         if not plot_2d:
             return self.plot3d(ax, dims, color, fc_color=fc_color, linewidth=linewidth, zorder=zorder)
-        if isinstance(self.range, list) or (isinstance(self.range, np.ndarray) and self.range.ndim == 3):
-            for i in range(len(self.range)):
-                rect = make_rect_from_arr(self.range[i], dims, color, linewidth, fc_color, ls, zorder=zorder)
-                ax.add_patch(rect)
-        else:
-            rect = make_rect_from_arr(self.range, dims, color, linewidth, fc_color, ls, zorder=zorder)
-            ax.add_patch(rect)
+        rect = make_rect_from_arr(self.range, dims, color, linewidth, fc_color, ls, zorder=zorder)
+        ax.add_patch(rect)
         return [rect]
     
     def plot3d(self, ax, dims, color, fc_color="None", linewidth=1, zorder=2, plot_2d=True):
-        if isinstance(self.range, list) or (isinstance(self.range, np.ndarray) and self.range.ndim == 3):
-            for i in range(len(self.range)):
-                rect = rect_prism(*self.range[i][dims, :], ax, color, linewidth, fc_color, zorder=zorder)
-        else:
-            rect = rect_prism(*self.range[dims, :], ax, color, linewidth, fc_color, zorder=zorder)
+        rect = rect_prism(*self.range[dims, :], ax, color, linewidth, fc_color, zorder=zorder)
         return rect
 
     # other should really be Union[LpConstraint, MultiTimestepLpConstraint]
@@ -411,6 +402,19 @@ class MultiTimestepLpConstraint(LpConstraint):
     # range: (num_timesteps, num_states, 2)
     def __init__(self, range: Optional[np.ndarray] = None, p: float = np.inf, crown_matrices: Optional[CROWNMatrices] = None):
         super().__init__(range=range, p=p, crown_matrices=crown_matrices)
+
+    def plot(self, ax, dims, color, fc_color="None", linewidth=3, zorder=2, plot_2d=True, ls='-'):
+        if not plot_2d:
+            return self.plot3d(ax, dims, color, fc_color=fc_color, linewidth=linewidth, zorder=zorder)
+        for i in range(len(self.range)):
+            rect = make_rect_from_arr(self.range[i], dims, color, linewidth, fc_color, ls, zorder=zorder)
+            ax.add_patch(rect)
+        return [rect]
+    
+    def plot3d(self, ax, dims, color, fc_color="None", linewidth=1, zorder=2, plot_2d=True):
+        for i in range(len(self.range)):
+            rect = rect_prism(*self.range[i][dims, :], ax, color, linewidth, fc_color, zorder=zorder)
+        return rect
 
     def get_t_max(self) -> int:
         if self.range is None:
@@ -494,6 +498,18 @@ class MultiTimestepPolytopeConstraint(PolytopeConstraint):
     # b: [(num_facets_0,), ..., (num_facets_t,)] <- num_timesteps
     def __init__(self, A: Optional[np.ndarray] = None, b: Optional[np.ndarray] = None):
         super().__init__(A=A, b=b)
+
+    def plot(self, ax, dims, color, fc_color="None", linewidth=1.5, label=None, zorder=2, plot_2d=True, ls='-'):
+        if not plot_2d:
+            raise NotImplementedError
+
+        lines = []
+
+        for i in range(len(self.A)):
+            line = make_polytope_from_arrs(ax, self.A[i], self.b[i], color, label, zorder, ls, linewidth)
+            lines += line
+
+        return lines
 
     def get_t_max(self) -> int:
         if self.A is None:

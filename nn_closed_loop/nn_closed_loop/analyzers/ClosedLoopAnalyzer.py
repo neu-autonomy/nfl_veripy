@@ -73,8 +73,8 @@ class ClosedLoopAnalyzer(analyzers.Analyzer):
         show_trajectories: bool = False,
         aspect: str = "auto",
         plot_lims: Optional[str] = None,
-        labels: dict = {},
-        inputs_to_highlight: list[dict] = [{"dim": [0], "name": "$x_0$"}, {"dim": [1], "name": "$x_1$"}],
+        axis_labels: list = [],
+        axis_dims: list = [],
         dont_close: bool = True,
         controller_name: Optional[str] = None,
         **kwargs
@@ -86,7 +86,8 @@ class ClosedLoopAnalyzer(analyzers.Analyzer):
             self.propagator,
             show_samples=show_samples,
             show_trajectories=show_trajectories,
-            inputs_to_highlight=inputs_to_highlight,
+            axis_dims=axis_dims,
+            axis_labels=axis_labels,
             aspect=aspect,
             initial_set_color=self.initial_set_color,
             initial_set_zorder=self.initial_set_zorder,
@@ -119,12 +120,11 @@ class ClosedLoopAnalyzer(analyzers.Analyzer):
         x0_constraint = constraints.LpConstraint(
             range=x0, p=np.inf
         )
-        input_dims = [x["dim"] for x in inputs_to_highlight]
         if show_trajectories:
             self.dynamics.show_trajectories(
                 reachable_sets.get_t_max() * self.dynamics.dt,
                 initial_set,
-                input_dims=input_dims,
+                input_dims=inputs_to_highlight,
                 ax=self.partitioner.animate_axes,
                 controller=self.propagator.network,
             )

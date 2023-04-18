@@ -45,7 +45,7 @@ def rect_prism(x_range, y_range, z_range, axes, color, linewidth, fc_color, zord
 
 def main():
     fig = plt.figure()
-    ax = fig.gca(projection='3d')
+    ax = fig.add_subplot(projection='3d')
 
     rect_prism(np.array([-1, 1]),
                np.array([-1, 1]),
@@ -53,6 +53,7 @@ def main():
                axes=ax,
                color="r",
                linewidth=1,
+               fc_color="None",
                zorder=1)
     plt.show()
 

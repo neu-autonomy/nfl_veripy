@@ -127,7 +127,8 @@ class ClosedLoopPartitioner(partitioners.Partitioner):
         show_samples: bool = True,
         show_samples_from_cells: bool = True,
         show_trajectories: bool = False,
-        inputs_to_highlight: Optional[list] = None,
+        axis_labels: Optional[list] = None,
+        axis_dims: Optional[list] = None,
         aspect: str = "auto",
         initial_set_color: Optional[str] = None,
         initial_set_zorder: Optional[int] = None,
@@ -143,22 +144,13 @@ class ClosedLoopPartitioner(partitioners.Partitioner):
         self.default_patches = []
         self.default_lines = []
 
-        if inputs_to_highlight is None:
-            input_dims = [[0], [1]]
-            input_names = [
-                "State: {}".format(input_dims[0][0]),
-                "State: {}".format(input_dims[1][0]),
-            ]
-        else:
-            input_dims = [x["dim"] for x in inputs_to_highlight]
-            input_names = [x["name"] for x in inputs_to_highlight]
-        self.input_dims = input_dims
+        self.axis_dims = axis_dims
 
-        if len(input_dims) == 2:
+        if len(axis_dims) == 2:
             projection = None
             self.plot_2d = True
             self.linewidth = 2
-        elif len(input_dims) == 3:
+        elif len(axis_dims) == 3:
             projection = '3d'
             self.plot_2d = False
             self.linewidth = 1
@@ -181,7 +173,7 @@ class ClosedLoopPartitioner(partitioners.Partitioner):
                 initial_set,
                 ax=self.animate_axes,
                 controller=propagator.network,
-                input_dims=input_dims,
+                input_dims=axis_dims,
                 zorder=sample_zorder,
                 colors=sample_colors,
             )
@@ -193,7 +185,7 @@ class ClosedLoopPartitioner(partitioners.Partitioner):
                     initial_set_cell,
                     ax=self.animate_axes,
                     controller=propagator.network,
-                    input_dims=input_dims,
+                    input_dims=axis_dims,
                     zorder=sample_zorder,
                     colors=sample_colors,
                 )
@@ -204,25 +196,25 @@ class ClosedLoopPartitioner(partitioners.Partitioner):
                 initial_set,
                 ax=self.animate_axes,
                 controller=propagator.network,
-                input_dims=input_dims,
+                input_dims=axis_dims,
                 zorder=sample_zorder,
                 colors=sample_colors,
             )
 
-        self.animate_axes.set_xlabel(input_names[0])
-        self.animate_axes.set_ylabel(input_names[1])
+        self.animate_axes.set_xlabel(axis_labels[0])
+        self.animate_axes.set_ylabel(axis_labels[1])
         if not self.plot_2d:
-            self.animate_axes.set_zlabel(input_names[2])
+            self.animate_axes.set_zlabel(axis_labels[2])
 
         # Plot the initial state set's boundaries
         if initial_set_color is None:
             initial_set_color = "tab:grey"
-        rect = initial_set.plot(self.animate_axes, input_dims, initial_set_color, zorder=initial_set_zorder, linewidth=self.linewidth, plot_2d=self.plot_2d)
+        rect = initial_set.plot(self.animate_axes, axis_dims, initial_set_color, zorder=initial_set_zorder, linewidth=self.linewidth, plot_2d=self.plot_2d)
         self.default_patches += rect
 
         if show_samples_from_cells:
             for cell in initial_set.cells:
-                rect = initial_set_cell.plot(self.animate_axes, input_dims, initial_set_color, zorder=initial_set_zorder, linewidth=self.linewidth, plot_2d=self.plot_2d)
+                rect = initial_set_cell.plot(self.animate_axes, axis_dims, initial_set_color, zorder=initial_set_zorder, linewidth=self.linewidth, plot_2d=self.plot_2d)
                 self.default_patches += rect
 
         if extra_set_color is None:
@@ -254,7 +246,7 @@ class ClosedLoopPartitioner(partitioners.Partitioner):
             elif isinstance(item, Line2D):
                 self.animate_axes.add_line(item)
 
-        self.plot_reachable_sets(reachable_sets, self.input_dims, reachable_set_color=reachable_set_color, reachable_set_zorder=reachable_set_zorder, reachable_set_ls=reachable_set_ls)
+        self.plot_reachable_sets(reachable_sets, self.axis_dims, reachable_set_color=reachable_set_color, reachable_set_zorder=reachable_set_zorder, reachable_set_ls=reachable_set_ls)
 
         if plot_lims is not None:
             import ast
@@ -296,10 +288,7 @@ class ClosedLoopPartitioner(partitioners.Partitioner):
         if reachable_set_lw is None:
             reachable_set_lw = self.linewidth
         fc_color = "None"
-        if isinstance(constraint, constraints.LpConstraint) or isinstance(constraint, constraints.PolytopeConstraint):
-            constraint.plot(self.animate_axes, dims, reachable_set_color, fc_color=fc_color, zorder=reachable_set_zorder, plot_2d=self.plot_2d, linewidth=reachable_set_lw, ls=reachable_set_ls)
-        elif isinstance(constraint, constraints.RotatedLpConstraint):
-            constraint.plot(self.animate_axes)
+        constraint.plot(self.animate_axes, dims, reachable_set_color, fc_color=fc_color, zorder=reachable_set_zorder, plot_2d=self.plot_2d, linewidth=reachable_set_lw, ls=reachable_set_ls)
 
     def plot_partition(self, constraint, dims, color):
 
@@ -350,7 +339,7 @@ class ClosedLoopPartitioner(partitioners.Partitioner):
 
         num_states = self.dynamics.num_states
         num_control_inputs = self.dynamics.num_inputs
-        
+
         xt = cp.Variable(num_states)
         ut = cp.Variable(num_control_inputs)
 

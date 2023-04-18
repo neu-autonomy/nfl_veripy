@@ -9,12 +9,15 @@ from nn_closed_loop.utils.utils import range_to_polytope, get_crown_matrices
 import nn_closed_loop.dynamics as dynamics
 import nn_closed_loop.propagators as propagators
 from typing import Optional, Union
+import ast
 
 
 class ClosedLoopUniformPartitioner(ClosedLoopPartitioner):
     def __init__(self, dynamics: dynamics.Dynamics, num_partitions: Union[None, int, np.ndarray] = 16, make_animation: bool = False, show_animation: bool = False):
         ClosedLoopPartitioner.__init__(self, dynamics=dynamics, make_animation=make_animation, show_animation=show_animation)
-        self.num_partitions = num_partitions
+        self.num_partitions = np.array(
+            ast.literal_eval(num_partitions)
+        )
         self.interior_condition = "linf"
         self.show_animation = False
         self.make_animation = False
@@ -38,7 +41,6 @@ class ClosedLoopUniformPartitioner(ClosedLoopPartitioner):
         initial_set: constraints.SingleTimestepConstraint,
         propagator: propagators.ClosedLoopPropagator,
         t_max: int,
-        num_partitions: Optional[np.ndarray] = None,
     ) -> tuple[constraints.MultiTimestepConstraint, dict]:
 
         reachable_sets = constraints.create_empty_multi_timestep_constraint(propagator.boundary_type, num_facets=propagator.num_polytope_facets)
@@ -50,25 +52,14 @@ class ClosedLoopUniformPartitioner(ClosedLoopPartitioner):
 
         input_shape = input_range.shape[:-1]
 
-        if num_partitions is None:
-            num_partitions = np.ones(input_shape, dtype=int)
-            if (
-                isinstance(self.num_partitions, np.ndarray)
-                and input_shape == self.num_partitions.shape
-            ):
-                num_partitions = self.num_partitions
-            elif len(input_shape) > 1:
-                num_partitions[0, 0] = self.num_partitions
-            else:
-                num_partitions *= self.num_partitions
         slope = np.divide(
-            (input_range[..., 1] - input_range[..., 0]), num_partitions
+            (input_range[..., 1] - input_range[..., 0]), self.num_partitions
         )
 
         ranges = []
 
         for element in product(
-            *[range(num) for num in num_partitions.flatten()]
+            *[range(num) for num in self.num_partitions.flatten()]
         ):
             element_ = np.array(element).reshape(input_shape)
             input_range_this_cell = np.empty_like(input_range)
@@ -94,7 +85,7 @@ class ClosedLoopUniformPartitioner(ClosedLoopPartitioner):
 
         info["all_partitions"] = ranges
         info["num_propagator_calls"] = num_propagator_calls
-        info["num_partitions"] = np.product(num_partitions)
+        info["num_partitions"] = np.product(self.num_partitions)
 
         return reachable_sets, info
 
