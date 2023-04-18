@@ -1,8 +1,0 @@
-python -m nn_closed_loop.example \
-	--partitioner None \
-	--propagator JaxUnrolledJitted \
-	--system double_integrator \
-	--state_feedback \
-	--t_max 5 \
-	--show_samples \
-	--save_plot --skip_show_plot

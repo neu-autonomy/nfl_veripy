@@ -57,6 +57,7 @@ def save_model(model: Sequential, system: str = "DoubleIntegrator", model_name: 
 
 
 def load_controller(system: str = "DoubleIntegrator", model_name: str = "default", model_type: str = 'torch') -> Sequential:
+    if type(model_name) is not str: return model_name # TODO: update type in signature to properly reflect other options
     system = system.replace('OutputFeedback', '')  # remove OutputFeedback suffix if applicable
     path = "{}/../../models/{}/{}".format(dir_path, system, model_name)
     if system != "Taxinet":

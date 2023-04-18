@@ -73,15 +73,15 @@ class ClosedLoopBackwardAnalyzer(analyzers.Analyzer):
             **{**hyperparams, "dynamics": self.dynamics}
         )
 
-    def get_one_step_backprojection_set(self, target_set: constraints.SingleTimestepConstraint, num_partitions=None, overapprox: bool = False, refined: bool = False) -> tuple[constraints.MultiTimestepConstraint, dict]:
+    def get_one_step_backprojection_set(self, target_set: constraints.SingleTimestepConstraint, overapprox: bool = False) -> tuple[constraints.MultiTimestepConstraint, dict]:
         backprojection_set, info = self.partitioner.get_one_step_backprojection_set(
-            target_set, self.propagator, num_partitions=num_partitions, overapprox=overapprox, refined=refined
+            target_set, self.propagator, overapprox=overapprox
         )
         return backprojection_set, info
 
-    def get_backprojection_set(self, target_set: constraints.SingleTimestepConstraint, t_max: int, num_partitions=None, overapprox: bool = False) -> tuple[constraints.MultiTimestepConstraint, dict]:
+    def get_backprojection_set(self, target_set: constraints.SingleTimestepConstraint, t_max: int, overapprox: bool = False) -> tuple[constraints.MultiTimestepConstraint, dict]:
         backprojection_set, info = self.partitioner.get_backprojection_set(
-            target_set, self.propagator, t_max, num_partitions=num_partitions, overapprox=overapprox
+            target_set, self.propagator, t_max, overapprox=overapprox
         )
         return backprojection_set, info
     
@@ -113,9 +113,9 @@ class ClosedLoopBackwardAnalyzer(analyzers.Analyzer):
         show_trajectories: bool = False,
         show_convex_hulls: bool = False,
         aspect: str = "auto",
-        labels: dict = {},
+        axis_labels: list = [],
+        axis_dims: list = [],
         plot_lims: Optional[str] = None,
-        inputs_to_highlight: list[dict] = [{"dim": [0], "name": "$x_0$"}, {"dim": [1], "name": "$x_1$"}],
         controller_name: Optional[str] = None,
         show_BReach: bool = False,
     ) -> None:
@@ -128,7 +128,8 @@ class ClosedLoopBackwardAnalyzer(analyzers.Analyzer):
             self.propagator,
             show_samples=show_samples,
             show_samples_from_cells=show_samples_from_cells,
-            inputs_to_highlight=inputs_to_highlight,
+            axis_dims=axis_dims,
+            axis_labels=axis_labels,
             aspect=aspect,
             initial_set_color=self.estimated_backprojection_set_color,
             initial_set_zorder=self.estimated_backprojection_set_zorder,
@@ -146,10 +147,9 @@ class ClosedLoopBackwardAnalyzer(analyzers.Analyzer):
             show_trajectories=show_trajectories,
             show_convex_hulls=show_convex_hulls,
             show=show,
-            labels=labels,
             aspect=aspect,
             plot_lims=plot_lims,
-            inputs_to_highlight=inputs_to_highlight,
+            axis_dims=axis_dims,
             show_BReach=show_BReach,
             **info
         )
@@ -182,7 +182,7 @@ class ClosedLoopBackwardAnalyzer(analyzers.Analyzer):
         show_trajectories: bool = False,
         show_convex_hulls: bool = False,
         aspect: str = "auto",
-        labels: dict = {},
+        axis_labels: list = [],
         plot_lims: Optional[str] = None,
         inputs_to_highlight: Optional[list[dict]] = None,
         show_BReach: bool = False,
@@ -190,10 +190,10 @@ class ClosedLoopBackwardAnalyzer(analyzers.Analyzer):
     ) -> None:
 
         # Plot all our input constraints (i.e., our backprojection set estimates)
-        rects = backprojection_sets.plot(self.partitioner.animate_axes, self.partitioner.input_dims, self.estimated_backprojection_set_color, zorder=self.estimated_backprojection_set_zorder, linewidth=self.partitioner.linewidth, plot_2d=self.partitioner.plot_2d)
+        rects = backprojection_sets.plot(self.partitioner.animate_axes, self.partitioner.axis_dims, self.estimated_backprojection_set_color, zorder=self.estimated_backprojection_set_zorder, linewidth=self.partitioner.linewidth, plot_2d=self.partitioner.plot_2d)
         self.partitioner.default_patches += rects
         for cell in backprojection_sets.cells:
-            rects = cell.plot(self.partitioner.animate_axes, self.partitioner.input_dims, self.estimated_backprojection_set_color, zorder=self.estimated_backprojection_set_zorder, linewidth=self.partitioner.linewidth, plot_2d=self.partitioner.plot_2d)
+            rects = cell.plot(self.partitioner.animate_axes, self.partitioner.axis_dims, self.estimated_backprojection_set_color, zorder=self.estimated_backprojection_set_zorder, linewidth=self.partitioner.linewidth, plot_2d=self.partitioner.plot_2d)
             self.partitioner.default_patches += rects
 
         # Show the target set
@@ -258,7 +258,7 @@ class ClosedLoopBackwardAnalyzer(analyzers.Analyzer):
     def plot_backreachable_set(self, backreachable_set: constraints.SingleTimestepConstraint, color: str = 'cyan', zorder: Optional[int] = None, linestyle: str = '-') -> None:
         self.partitioner.plot_reachable_sets(
             backreachable_set,
-            self.partitioner.input_dims,
+            self.partitioner.axis_dims,
             reachable_set_color=color,
             reachable_set_zorder=zorder,
             reachable_set_ls=linestyle
@@ -267,7 +267,7 @@ class ClosedLoopBackwardAnalyzer(analyzers.Analyzer):
     def plot_target_set(self, target_set: constraints.SingleTimestepConstraint, color: str = 'cyan', zorder: Optional[int] = None, linestyle: str = '-', linewidth: float = 2.5) -> None:
         self.partitioner.plot_reachable_sets(
             target_set,
-            self.partitioner.input_dims,
+            self.partitioner.axis_dims,
             reachable_set_color=color,
             reachable_set_zorder=zorder,
             reachable_set_ls=linestyle,
@@ -277,7 +277,7 @@ class ClosedLoopBackwardAnalyzer(analyzers.Analyzer):
     def plot_tightened_backprojection_set(self, tightened_set: constraints.SingleTimestepConstraint, color: str = 'darkred', zorder: Optional[int] = None, linestyle: str = '-') -> None:
         self.partitioner.plot_reachable_sets(
             tightened_set,
-            self.partitioner.input_dims,
+            self.partitioner.axis_dims,
             reachable_set_color=color,
             reachable_set_zorder=zorder,
             reachable_set_ls=linestyle
@@ -317,7 +317,7 @@ class ClosedLoopBackwardAnalyzer(analyzers.Analyzer):
                 None,
                 ax=self.partitioner.animate_axes,
                 controller=None,
-                input_dims=self.partitioner.input_dims,
+                input_dims=self.partitioner.axis_dims,
                 zorder=1,
                 xs=np.dstack([xt_samples_inside_backprojection_set, xt1_from_those_samples_]).transpose(0, 2, 1),
                 colors=None
@@ -329,7 +329,7 @@ class ClosedLoopBackwardAnalyzer(analyzers.Analyzer):
             #     None,
             #     ax=self.partitioner.animate_axes,
             #     controller=None,
-            #     input_dims=self.partitioner.input_dims,
+            #     input_dims=self.partitioner.axis_dims,
             #     zorder=0,
             #     xs=np.dstack([xt_samples_from_backreachable_set, xt1_from_those_samples]).transpose(0, 2, 1),
             #     colors=['g', 'r']
@@ -342,7 +342,7 @@ class ClosedLoopBackwardAnalyzer(analyzers.Analyzer):
         # and it is computed only for one step, so that's an over-approximation
         conv_hull_line = plot_convex_hull(
             xt_samples_inside_backprojection_set,
-            dims=self.partitioner.input_dims,
+            dims=self.partitioner.axis_dims,
             color=color,
             linewidth=2,
             linestyle=linestyle,
@@ -369,7 +369,7 @@ class ClosedLoopBackwardAnalyzer(analyzers.Analyzer):
                 None,
                 ax=self.partitioner.animate_axes,
                 controller=None,
-                input_dims=self.partitioner.input_dims,
+                input_dims=self.partitioner.axis_dims,
                 zorder=1,
                 xs=x_samples_inside_backprojection_set, # np.dstack([x_samples_inside_backprojection_set, xt1_from_those_samples_]).transpose(0, 2, 1),
                 colors=None
@@ -382,7 +382,7 @@ class ClosedLoopBackwardAnalyzer(analyzers.Analyzer):
             #     None,
             #     ax=self.partitioner.animate_axes,
             #     controller=None,
-            #     input_dims=self.partitioner.input_dims,
+            #     input_dims=self.partitioner.axis_dims,
             #     zorder=0,
             #     xs=np.dstack([xt_samples_from_backreachable_set, xt1_from_those_samples]).transpose(0, 2, 1),
             #     colors=['g', 'r']
@@ -395,7 +395,7 @@ class ClosedLoopBackwardAnalyzer(analyzers.Analyzer):
         for t in range(t_max):
             conv_hull_line = plot_convex_hull(
                 x_samples_inside_backprojection_set[:, t, :],
-                dims=self.partitioner.input_dims,
+                dims=self.partitioner.axis_dims,
                 color=color,
                 linewidth=2,
                 linestyle=linestyle,

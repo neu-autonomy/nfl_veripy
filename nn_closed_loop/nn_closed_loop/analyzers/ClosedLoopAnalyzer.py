@@ -124,7 +124,7 @@ class ClosedLoopAnalyzer(analyzers.Analyzer):
             self.dynamics.show_trajectories(
                 reachable_sets.get_t_max() * self.dynamics.dt,
                 initial_set,
-                input_dims=inputs_to_highlight,
+                input_dims=axis_dims,
                 ax=self.partitioner.animate_axes,
                 controller=self.propagator.network,
             )

@@ -149,16 +149,16 @@ def main(args: argparse.Namespace) -> tuple[dict, dict]:
             ast.literal_eval(args.final_state_range)
         )
 
-    if args.num_partitions is None:
-        num_partitions = None
-    else:
-        num_partitions = np.array(
-            ast.literal_eval(args.num_partitions)
-        )
+    # if args.num_partitions is None:
+    #     num_partitions = None
+    # else:
+        # num_partitions = np.array(
+        #     ast.literal_eval(args.num_partitions)
+        # )
 
     partitioner_hyperparams = {
         "type": args.partitioner,
-        "num_partitions": num_partitions,
+        "num_partitions": args.num_partitions,
         "num_polytope_facets": args.num_polytope_facets,
     }
     propagator_hyperparams = {

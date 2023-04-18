@@ -90,7 +90,7 @@ class ClosedLoopUniformPartitioner(ClosedLoopPartitioner):
         return reachable_sets, info
 
     def get_one_step_backprojection_set(
-        self, target_sets: constraints.MultiTimestepConstraint, propagator: propagators.ClosedLoopPropagator, num_partitions=None, overapprox: bool = False
+        self, target_sets: constraints.MultiTimestepConstraint, propagator: propagators.ClosedLoopPropagator, overapprox: bool = False
     ) -> tuple[constraints.SingleTimestepConstraint, dict]:
 
         backreachable_set, info = self.get_one_step_backreachable_set(target_sets.get_constraint_at_time_index(-1))
@@ -108,18 +108,15 @@ class ClosedLoopUniformPartitioner(ClosedLoopPartitioner):
         '''
 
         # Setup the partitions
-        if num_partitions is None:
-            num_partitions = np.array([10, 10])
-
         input_range = backreachable_set.range
         input_shape = input_range.shape[:-1]
         slope = np.divide(
-            (input_range[..., 1] - input_range[..., 0]), num_partitions
+            (input_range[..., 1] - input_range[..., 0]), self.num_partitions
         )
 
         # Iterate through each partition
         for element in product(
-            *[range(int(num)) for num in num_partitions.flatten()]
+            *[range(int(num)) for num in self.num_partitions.flatten()]
         ):
             # Compute this partition's min/max xt values
             element = np.array(element).reshape(input_shape)

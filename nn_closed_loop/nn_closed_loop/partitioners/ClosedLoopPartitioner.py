@@ -380,7 +380,7 @@ class ClosedLoopPartitioner(partitioners.Partitioner):
         return backreachable_set, info
 
     def get_one_step_backprojection_set(
-        self, target_sets: constraints.MultiTimestepConstraint, propagator: propagators.ClosedLoopPropagator, num_partitions: Optional[np.ndarray] = None, overapprox: bool = False
+        self, target_sets: constraints.MultiTimestepConstraint, propagator: propagators.ClosedLoopPropagator, overapprox: bool = False
     ) -> tuple[constraints.SingleTimestepConstraint, dict]:
 
         backreachable_set, info = self.get_one_step_backreachable_set(target_sets)
@@ -422,7 +422,7 @@ class ClosedLoopPartitioner(partitioners.Partitioner):
     - info: TODO
     '''
     def get_backprojection_set(
-        self, target_set: constraints.SingleTimestepConstraint, propagator: propagators.ClosedLoopPropagator, t_max: int, num_partitions: Optional[np.ndarray] = None, overapprox: bool = False
+        self, target_set: constraints.SingleTimestepConstraint, propagator: propagators.ClosedLoopPropagator, t_max: int, overapprox: bool = False
     ) -> tuple[constraints.MultiTimestepConstraint, dict]:
 
         # Initialize data structures to hold results
@@ -433,7 +433,6 @@ class ClosedLoopPartitioner(partitioners.Partitioner):
         backprojection_set_this_timestep, info_this_timestep = self.get_one_step_backprojection_set(
             target_set.to_multistep_constraint(),
             propagator,
-            num_partitions=num_partitions,
             overapprox=overapprox,
         )
 
@@ -448,7 +447,6 @@ class ClosedLoopPartitioner(partitioners.Partitioner):
                 backprojection_set_this_timestep, info_this_timestep = self.get_one_step_backprojection_set(
                     target_set.add_timestep_constraint(backprojection_sets),
                     propagator,
-                    num_partitions=num_partitions,
                     overapprox=overapprox,
                 )
                 backprojection_sets = backprojection_sets.add_timestep_constraint(backprojection_set_this_timestep)
