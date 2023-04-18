@@ -22,6 +22,7 @@ def enumerate_tests():
     for test in tests_to_skip:
         tests.remove(test)
     tests = [[test] for test in tests]
+    return tests
 
 tests = enumerate_tests()
 

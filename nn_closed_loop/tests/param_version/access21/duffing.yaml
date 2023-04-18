@@ -1,0 +1,29 @@
+system:
+  type: Duffing
+  feedback: FullState
+  controller: default
+
+analysis:
+  reachability_direction: forward
+  partitioner:
+    type: None
+  propagator:
+    type: CROWN
+    boundary_type: rectangle
+  initial_state_range: "[[2.45, 2.55], [1.45, 1.55]]"
+  t_max: 0.3
+  estimate_runtime: false
+  estimate_error: false
+
+visualization:
+  save_plot: true
+  show_plot: false
+  make_animation: false
+  show_animation: false
+  show_samples: true
+  show_trajectories: false
+  show_samples_from_cells: true
+  plot_dims: [0, 1]
+  plot_axis_labels: ["$x_0$", "$x_1$"]
+  plot_aspect: auto
+  plot_lims: null

@@ -23,6 +23,8 @@ def get_dynamics_instance(system, state_feedback):
     dynamics_dict = {
         "DoubleIntegrator": DoubleIntegrator,
         "Quadrotor_v0": Quadrotor_v0,
+        "Duffing": Duffing,
+        "ISS": ISS,
     }
   else:   
     dynamics_dict = {
