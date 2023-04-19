@@ -1,19 +1,20 @@
-from .Dynamics import DiscreteTimeDynamics
 import numpy as np
 from scipy.linalg import solve_discrete_are
+
 from nn_closed_loop.utils.mpc import control_mpc
+
+from .Dynamics import DiscreteTimeDynamics
 
 
 class DoubleIntegrator(DiscreteTimeDynamics):
     def __init__(self):
-
         self.continuous_time = False
 
         # dt = 0.0625
         dt = 1
 
         At = np.array([[1, dt], [0, 1]])
-        bt = np.array([[0.5*dt*dt], [dt]])
+        bt = np.array([[0.5 * dt * dt], [dt]])
         ct = np.array([0.0, 0.0]).T
 
         # u_limits = None

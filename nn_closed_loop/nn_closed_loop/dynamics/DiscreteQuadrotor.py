@@ -1,13 +1,13 @@
-from .Dynamics import DiscreteTimeDynamics
 import numpy as np
 from scipy.linalg import solve_discrete_are
+
 from nn_closed_loop.utils.mpc import control_mpc
-import torch
+
+from .Dynamics import DiscreteTimeDynamics
 
 
 class DiscreteQuadrotor(DiscreteTimeDynamics):
     def __init__(self):
-
         self.continuous_time = False
 
         # dt = 0.125
@@ -19,14 +19,14 @@ class DiscreteQuadrotor(DiscreteTimeDynamics):
                 [0, 0, 1, 0, 0, dt],
                 [0, 0, 0, 1, 0, 0],
                 [0, 0, 0, 0, 1, 0],
-                [0, 0, 0, 0, 0, 1]
+                [0, 0, 0, 0, 0, 1],
             ]
         )
         bt = np.array(
             [
-                [0.5*dt, 0, 0],
-                [0, 0.5*dt, 0],
-                [0, 0, 0.5*dt],
+                [0.5 * dt, 0, 0],
+                [0, 0.5 * dt, 0],
+                [0, 0, 0.5 * dt],
                 [dt, 0, 0],
                 [0, dt, 0],
                 [0, 0, dt],
@@ -34,20 +34,13 @@ class DiscreteQuadrotor(DiscreteTimeDynamics):
         )
         ct = np.array([0.0, 0.0, 0.0, 0.0, 0.0, 0.0]).T
 
-        u_limits = np.array(
-            [
-                [-4, 4],
-                [-4, 4],
-                [-4, 4]
-            ]
-        )
+        u_limits = np.array([[-4, 4], [-4, 4], [-4, 4]])
 
         x_limits = {3: [-1, 1], 4: [-1, 1], 5: [-1, 1]}
 
-
-
-
-        super().__init__(At=At, bt=bt, ct=ct, u_limits=u_limits, dt=dt, x_limits=x_limits)
+        super().__init__(
+            At=At, bt=bt, ct=ct, u_limits=u_limits, dt=dt, x_limits=x_limits
+        )
 
         self.cmap_name = "tab10"
 
@@ -73,18 +66,27 @@ class DiscreteQuadrotor(DiscreteTimeDynamics):
             n_mpc=10,
             debug=False,
         )
-    
-    ## Control function for if model gives [v, w] command inputs 
-    # def control_nn(self, x, model):
-    #     if x.ndim == 1:
-    #         batch_x = np.expand_dims(x, axis=0)
-    #     else:
-    #         batch_x = x
-    #     us = model.forward(torch.Tensor(batch_x)).data.numpy()
-    #     if not hasattr(self, 'theta') or len(self.theta) != len(us):
-    #         self.theta = np.zeros(len(us))
-        
-    #     R = np.array([ [[np.cos(theta), -self.r*np.sin(theta)], [np.sin(theta), self.r*np.cos(theta)]] for theta in self.theta])
+
+        # Control function for if model gives [v, w] command inputs
+        # def control_nn(self, x, model):
+        #     if x.ndim == 1:
+        #         batch_x = np.expand_dims(x, axis=0)
+        #     else:
+        #         batch_x = x
+        #     us = model.forward(torch.Tensor(batch_x)).data.numpy()
+        #     if not hasattr(self, 'theta') or len(self.theta) != len(us):
+        #         self.theta = np.zeros(len(us))
+
+        # R = np.array(
+        #     [
+        #         [
+        #             [np.cos(theta), -self.r * np.sin(theta)],
+        #             [np.sin(theta), self.r * np.cos(theta)],
+        #         ]
+        #         for theta in self.theta
+        #     ]
+        # )
+
     #     us_transformed = np.array([R[i]@us[i] for i in range(len(us))])
 
     #     # print("theta: {}".format(self.theta[0]))

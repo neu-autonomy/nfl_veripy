@@ -1,12 +1,10 @@
-from .Dynamics import Dynamics
 import numpy as np
-from scipy.linalg import solve_discrete_are
-from nn_closed_loop.utils.mpc import control_mpc
+
+from .Dynamics import Dynamics
 
 
 class Unity(Dynamics):
     def __init__(self, nx=2, nu=2):
-
         self.continuous_time = False
 
         At = np.eye(nx)

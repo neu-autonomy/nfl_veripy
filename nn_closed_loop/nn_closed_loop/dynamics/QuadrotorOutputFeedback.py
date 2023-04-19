@@ -1,5 +1,6 @@
-from .Quadrotor import Quadrotor
 import numpy as np
+
+from .Quadrotor import Quadrotor
 
 
 class QuadrotorOutputFeedback(Quadrotor):

@@ -1,21 +1,22 @@
-from re import U
-from nn_closed_loop.utils.utils import range_to_polytope
-import numpy as np
 import platform
+
+import numpy as np
+
 if platform.system() == "Darwin":
     import matplotlib
-    matplotlib.use('MACOSX')
-import matplotlib.pyplot as plt
-from matplotlib import colormaps
 
-from nn_closed_loop.utils.nn_bounds import BoundClosedLoopController
-import nn_closed_loop.constraints as constraints
-import torch
+    matplotlib.use("MACOSX")
 import os
 import pickle
-from colour import Color
-import jax.numpy as jnp
 
+import jax.numpy as jnp
+import matplotlib.pyplot as plt
+import torch
+from colour import Color
+from matplotlib import colormaps
+
+import nn_closed_loop.constraints as constraints
+from nn_closed_loop.utils.nn_bounds import BoundClosedLoopController
 
 dir_path = os.path.dirname(os.path.realpath(__file__))
 
@@ -33,7 +34,6 @@ class Dynamics:
         process_noise=None,
         x_limits=None,
     ):
-
         # State dynamics
         self.At = At
         self.bt = bt
@@ -60,7 +60,7 @@ class Dynamics:
 
         # Min/max control inputs
         self.u_limits = u_limits
-            
+
         self.x_limits = x_limits
         self.dt = dt
 
@@ -105,10 +105,13 @@ class Dynamics:
         return [colormaps[self.cmap_name](i) for i in range(t_max + 1)]
 
     def get_sampled_output_range(
-        self, input_constraint, t_max=5, num_samples=1000, controller="mpc",
-        output_constraint=None
+        self,
+        input_constraint,
+        t_max=5,
+        num_samples=1000,
+        controller="mpc",
+        output_constraint=None,
     ):
-
         xs, us = self.collect_data(
             t_max,
             input_constraint,
@@ -123,7 +126,9 @@ class Dynamics:
             # hack: just return all the sampled pts for error calculator
             sampled_range = xs
             # num_facets = output_constraint.A.shape[0]
-            # all_pts = np.dot(output_constraint.A, xs.T.reshape(num_states, -1))
+            # all_pts = (
+            #     np.dot(output_constraint.A, xs.T.reshape(num_states, -1))
+            # )
             # all_pts = all_pts.reshape(num_facets, num_runs, num_timesteps)
             # all_pts = all_pts[..., 1:]  # drop zeroth timestep
             # sampled_range = np.max(all_pts, axis=1).T
@@ -138,10 +143,13 @@ class Dynamics:
         return sampled_range
 
     def get_state_and_next_state_samples(
-        self, input_constraint, t_max=1, num_samples=1000, controller="mpc",
+        self,
+        input_constraint,
+        t_max=1,
+        num_samples=1000,
+        controller="mpc",
         output_constraint=None,
     ):
-
         xs, us = self.collect_data(
             t_max,
             input_constraint,
@@ -152,8 +160,14 @@ class Dynamics:
 
         return xs[:, 0, :], xs[:, 1, :]
 
-    def get_true_backprojection_set(self, backreachable_set, target_set, t_max=1, controller="mpc", num_samples=1e5):
-        
+    def get_true_backprojection_set(
+        self,
+        backreachable_set,
+        target_set,
+        t_max=1,
+        controller="mpc",
+        num_samples=1e5,
+    ):
         xs, _ = self.collect_data(
             t_max,
             backreachable_set,
@@ -167,11 +181,7 @@ class Dynamics:
         # Find which of the xt+t_max points actually end up in the target set
         within_constraint_inds = np.where(
             np.all(
-                (
-                    np.dot(A, xs[:, -1, :].T)
-                    - np.expand_dims(b, axis=-1)
-                )
-                <= 0,
+                (np.dot(A, xs[:, -1, :].T) - np.expand_dims(b, axis=-1)) <= 0,
                 axis=0,
             )
         )
@@ -179,17 +189,22 @@ class Dynamics:
 
         return x_samples_inside_backprojection_set
 
-    def get_relaxed_backprojection_samples(self, start_regions, bp_sets, crown_bounds, target_set):
-        print('###################  #########################')
+    def get_relaxed_backprojection_samples(
+        self, start_regions, bp_sets, crown_bounds, target_set
+    ):
+        print("###################  #########################")
         if not isinstance(bp_sets[-1], constraints.LpConstraint):
             raise NotImplementedError
         from copy import deepcopy
+
         # start_min = start_region[:,0]
         # start_max = start_region[:,1]
-        start_pts = [np.mean(start_region, axis=1) for start_region in start_regions]
+        start_pts = [
+            np.mean(start_region, axis=1) for start_region in start_regions
+        ]
         points = deepcopy([start_pts])
-        t_max = len(bp_sets)-1
-        
+        t_max = len(bp_sets) - 1
+
         for i in range(t_max):
             # import pdb; pdb.set_trace()
             upper_A, lower_A, upper_sum_b, lower_sum_b = crown_bounds[i]
@@ -197,14 +212,14 @@ class Dynamics:
             print(lower_A)
             print(upper_sum_b)
             print(lower_sum_b)
-            while len(points[-1]) <= i+1:
+            while len(points[-1]) <= i + 1:
                 # print(i)
-                # print(len(points[-1]))  
+                # print(len(points[-1]))
                 pt_sequence = points.pop()
                 pt = pt_sequence[-1]
-                
-                u_max = upper_A@pt+upper_sum_b
-                u_min = lower_A@pt+lower_sum_b
+
+                u_max = upper_A @ pt + upper_sum_b
+                u_min = lower_A @ pt + lower_sum_b
                 us = np.linspace(u_min, u_max, num=12)
 
                 for input in us:
@@ -213,8 +228,10 @@ class Dynamics:
                     new_seq.append(new_pt)
 
                     # import pdb; pdb.set_trace()
-                    bp_range = bp_sets[i+1].range
-                    if (new_pt >= bp_range[:,0]).all() and (new_pt <= bp_range[:,1]).all():
+                    bp_range = bp_sets[i + 1].range
+                    if (new_pt >= bp_range[:, 0]).all() and (
+                        new_pt <= bp_range[:, 1]
+                    ).all():
                         points = [new_seq] + points
                 # small_pt = self.dynamics_step(pt, u_min)
                 # big_pt = self.dynamics_step(pt, u_max)
@@ -224,13 +241,10 @@ class Dynamics:
                 # big_seq = deepcopy(pt_sequence)
                 # big_seq.append(big_pt)
 
-
-
                 # points = [big_seq] + points
                 # points = [small_seq] + points
-                
+
                 # import pdb; pdb.set_trace()
-            
 
         return points
 
@@ -251,7 +265,7 @@ class Dynamics:
             if len(input_dims) == 2:
                 projection = None
             elif len(input_dims) == 3:
-                projection = '3d'
+                projection = "3d"
             ax = plt.subplot(projection=projection)
 
         if xs is None:
@@ -281,9 +295,6 @@ class Dynamics:
         # if len(input_dims) == 3:
         #     ax.set_zlabel("$x_" + str(input_dims[2][0]) + "$")
 
-        if save_plot:
-            ax.savefig(plot_name)
-
         if show:
             plt.show()
 
@@ -305,7 +316,7 @@ class Dynamics:
             if len(input_dims) == 2:
                 projection = None
             elif len(input_dims) == 3:
-                projection = '3d'
+                projection = "3d"
             ax = plt.subplot(projection=projection)
 
         num_trajectories = 100
@@ -313,7 +324,7 @@ class Dynamics:
             xs, us = self.collect_data(
                 t_max,
                 input_constraint,
-                num_samples=num_trajectories*(t_max+self.dt)/self.dt,
+                num_samples=num_trajectories * (t_max + self.dt) / self.dt,
                 controller=controller,
                 merge_cols=False,
             )
@@ -323,25 +334,24 @@ class Dynamics:
         if colors is None:
             colors = self.colors(num_timesteps)
 
-        
         orange = Color("orange")
-        colors = list(orange.range_to(Color("purple"),num_timesteps-1))
+        colors = list(orange.range_to(Color("purple"), num_timesteps - 1))
         # import pdb; pdb.set_trace()
         for traj in range(num_runs):
             if len(input_dims) == 2:
-                for seg in range(num_timesteps-1):
+                for seg in range(num_timesteps - 1):
                     ax.plot(
-                        xs[traj, seg:seg+2, 0],
-                        xs[traj, seg:seg+2, 1],
+                        xs[traj, seg : seg + 2, 0],
+                        xs[traj, seg : seg + 2, 1],
                         color=colors[seg].hex_l,
                         zorder=zorder,
                     )
             elif len(input_dims) == 3:
-                for seg in range(num_timesteps-1):
+                for seg in range(num_timesteps - 1):
                     ax.plot(
-                        xs[traj, seg:seg+2, 0],
-                        xs[traj, seg:seg+2, 1],
-                        xs[traj, seg:seg+2, 2],
+                        xs[traj, seg : seg + 2, 0],
+                        xs[traj, seg : seg + 2, 1],
+                        xs[traj, seg : seg + 2, 2],
                         color=colors[seg].hex_l,
                         zorder=zorder,
                     )
@@ -374,18 +384,17 @@ class Dynamics:
         controller="mpc",
         merge_cols=False,
     ):
-
         np.random.seed(0)
         num_timesteps = int(
             (t_max + self.dt + np.finfo(float).eps) / (self.dt)
         )
-        
+
         if collect_data:
             np.random.seed(1)
             num_runs = int(num_samples / num_timesteps)
             xs = np.zeros((num_runs, num_timesteps, self.num_states))
             us = np.zeros((num_runs, num_timesteps, self.num_inputs))
-        
+
         # Initial state
         if isinstance(input_constraint, constraints.LpConstraint):
             if input_constraint.p == np.inf:
@@ -399,26 +408,34 @@ class Dynamics:
         elif isinstance(input_constraint, constraints.PolytopeConstraint):
             init_state_range = input_constraint.to_linf()
             if isinstance(init_state_range, list):
-                # For backreachability, We will have N polytope input 
-                # constraints, so sample from those N sets individually then 
+                # For backreachability, We will have N polytope input
+                # constraints, so sample from those N sets individually then
                 # merge to get (xs, us)
 
                 # want total of num_runs samples, so allocate a (roughly)
                 # equal number of "runs" to each polytope
-                num_runs_ = np.append(np.arange(0, num_runs, num_runs // len(init_state_range)), num_runs)
+                num_runs_ = np.append(
+                    np.arange(0, num_runs, num_runs // len(init_state_range)),
+                    num_runs,
+                )
                 for i in range(len(init_state_range)):
                     # Sample a handful of points
                     xs_ = np.random.uniform(
                         low=init_state_range[i][:, 0],
                         high=init_state_range[i][:, 1],
-                        size=(num_runs_[i+1]-num_runs_[i], self.num_states),
+                        size=(
+                            num_runs_[i + 1] - num_runs_[i],
+                            self.num_states,
+                        ),
                     )
                     # check which of those are within this polytope
                     within_constraint_inds = np.where(
                         np.all(
                             (
                                 np.dot(input_constraint.A[i], xs_.T)
-                                - np.expand_dims(input_constraint.b[i], axis=-1)
+                                - np.expand_dims(
+                                    input_constraint.b[i], axis=-1
+                                )
                             )
                             <= 0,
                             axis=0,
@@ -458,14 +475,13 @@ class Dynamics:
                 xs = xs[within_constraint_inds]
                 us = us[within_constraint_inds]
         # elif isinstance(input_constraint, constraints.RotatedLpConstraint):
-            
+
         else:
             raise NotImplementedError
 
         t = 0
         step = 0
         while t < t_max:
-
             # Observe system (using observer matrix,
             # possibly adding measurement noise)
             obs = self.observe_step(xs[:, step, :])
@@ -508,13 +524,15 @@ class ContinuousTimeDynamics(Dynamics):
         c=None,
         sensor_noise=None,
         process_noise=None,
-        x_limits=None
+        x_limits=None,
     ):
-        super().__init__(At, bt, ct, u_limits, dt, c, sensor_noise, process_noise, x_limits)
+        super().__init__(
+            At, bt, ct, u_limits, dt, c, sensor_noise, process_noise, x_limits
+        )
         self.continuous_time = True
 
     def dynamics(self, xs, us):
-        if isinstance(xs,np.ndarray): # For tracking MC samples
+        if isinstance(xs, np.ndarray):  # For tracking MC samples
             xdot = (np.dot(self.At, xs.T) + np.dot(self.bt, us.T)).T + self.ct
             if self.process_noise is not None:
                 noise = np.random.uniform(
@@ -523,8 +541,8 @@ class ContinuousTimeDynamics(Dynamics):
                     size=xs.shape,
                 )
                 xdot += noise
-        else: # For solving LP
-            xdot = self.At@xs + self.bt@us + self.ct
+        else:  # For solving LP
+            xdot = self.At @ xs + self.bt @ us + self.ct
         return xdot
 
     def dynamics_step(self, xs, us):
@@ -532,7 +550,11 @@ class ContinuousTimeDynamics(Dynamics):
         return xs_t1
 
     def dynamics_jnp(self, xs, us):
-        xdot = jnp.dot(self.At_jnp, xs.T).T + jnp.dot(self.bt_jnp, us.T).T + self.ct_jnp
+        xdot = (
+            jnp.dot(self.At_jnp, xs.T).T
+            + jnp.dot(self.bt_jnp, us.T).T
+            + self.ct_jnp
+        )
         return xdot
 
     def dynamics_step_jnp(self, xs, us):
@@ -553,11 +575,13 @@ class DiscreteTimeDynamics(Dynamics):
         process_noise=None,
         x_limits=None,
     ):
-        super().__init__(At, bt, ct, u_limits, dt, c, sensor_noise, process_noise, x_limits)
+        super().__init__(
+            At, bt, ct, u_limits, dt, c, sensor_noise, process_noise, x_limits
+        )
         self.continuous_time = False
 
     def dynamics_step(self, xs, us):
-        if isinstance(xs, np.ndarray): # For tracking MC samples
+        if isinstance(xs, np.ndarray):  # For tracking MC samples
             xs_t1 = (np.dot(self.At, xs.T) + np.dot(self.bt, us.T)).T + self.ct
             if self.process_noise is not None:
                 noise = np.random.uniform(
@@ -566,38 +590,54 @@ class DiscreteTimeDynamics(Dynamics):
                     size=xs.shape,
                 )
                 xs_t1 += noise
-            # if self.x_limits is not None and isinstance(xs,np.ndarray):
+            # if self.x_limits is not None and isinstance(xs, np.ndarray):
             #     for key in self.x_limits:
-            #         # import pdb; pdb.set_trace()
-            #         xs_t1[:, key] = np.minimum(xs_t1[:, key], self.x_limits[key][1])
-            #         xs_t1[:, key] = np.maximum(xs_t1[:, key], self.x_limits[key][0])
+            #         xs_t1[:, key] = np.minimum(
+            #             xs_t1[:, key], self.x_limits[key][1]
+            #         )
+            #         xs_t1[:, key] = np.maximum(
+            #             xs_t1[:, key], self.x_limits[key][0]
+            #         )
 
-        else: # For solving LP
-            xs_t1 = self.At@xs + self.bt@us + self.ct
-            # if self.x_limits is not None and isinstance(xs,np.ndarray):
+        else:  # For solving LP
+            xs_t1 = self.At @ xs + self.bt @ us + self.ct
+            # if self.x_limits is not None and isinstance(xs, np.ndarray):
             #     for key in self.x_limits:
-            #         # import pdb; pdb.set_trace()
-            #         xs_t1[:, key] = np.minimum(xs_t1[:, key], self.x_limits[key][1])
-            #         xs_t1[:, key] = np.maximum(xs_t1[:, key], self.x_limits[key][0])
+            #         xs_t1[:, key] = np.minimum(
+            #             xs_t1[:, key], self.x_limits[key][1]
+            #         )
+            #         xs_t1[:, key] = np.maximum(
+            #             xs_t1[:, key], self.x_limits[key][0]
+            #         )
 
         return xs_t1
 
     def dynamics_step_jnp(self, xs, us):
-        return jnp.dot(self.At_jnp, xs.T).T + jnp.dot(self.bt_jnp, us.T).T + self.ct_jnp
+        return (
+            jnp.dot(self.At_jnp, xs.T).T
+            + jnp.dot(self.bt_jnp, us.T).T
+            + self.ct_jnp
+        )
 
     def dynamics_step_torch(self, xs, us):
-        return torch.mm(self.At_torch, xs.transpose(0,1)).transpose(0, 1) + torch.mm(self.bt_torch, us.transpose(0, 1)).transpose(0, 1) + self.ct_torch
+        return (
+            torch.mm(self.At_torch, xs.transpose(0, 1)).transpose(0, 1)
+            + torch.mm(self.bt_torch, us.transpose(0, 1)).transpose(0, 1)
+            + self.ct_torch
+        )
 
 
 if __name__ == "__main__":
-
     from nn_closed_loop.dynamics.DoubleIntegrator import DoubleIntegrator
+
     dynamics = DoubleIntegrator()
-    init_state_range = np.array([
-        # (num_inputs, 2)
-        [2.5, 3.0],  # x0min, x0max
-        [-0.25, 0.25],  # x1min, x1max
-    ])
+    init_state_range = np.array(
+        [
+            # (num_inputs, 2)
+            [2.5, 3.0],  # x0min, x0max
+            [-0.25, 0.25],  # x1min, x1max
+        ]
+    )
     xs, us = dynamics.collect_data(
         t_max=10,
         input_constraint=constraints.LpConstraint(
@@ -607,9 +647,13 @@ if __name__ == "__main__":
     )
     print(xs.shape, us.shape)
     system = "double_integrator"
-    with open(dir_path + "/../../datasets/{}/xs.pkl".format(system), "wb") as f:
+    with open(
+        dir_path + "/../../datasets/{}/xs.pkl".format(system), "wb"
+    ) as f:
         pickle.dump(xs, f)
-    with open(dir_path + "/../../datasets/{}/us.pkl".format(system), "wb") as f:
+    with open(
+        dir_path + "/../../datasets/{}/us.pkl".format(system), "wb"
+    ) as f:
         pickle.dump(us, f)
 
     # from nn_closed_loop.utils.nn import load_model
@@ -633,4 +677,11 @@ if __name__ == "__main__":
     # controller = load_model(name='quadrotor')
     # t_max = 15*dynamics.dt
     # input_constraint = LpConstraint(range=init_state_range, p=np.inf)
-    # dynamics.show_samples(t_max, input_constraint, save_plot=False, ax=None, show=True, controller=controller)
+    # dynamics.show_samples(
+    #     t_max,
+    #     input_constraint,
+    #     save_plot=False,
+    #     ax=None,
+    #     show=True,
+    #     controller=controller,
+    # )

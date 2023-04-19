@@ -1,47 +1,51 @@
-from .Dynamics import DiscreteTimeDynamics
 import numpy as np
 from scipy.linalg import solve_discrete_are
+
 from nn_closed_loop.utils.mpc import control_mpc
+
+from .Dynamics import DiscreteTimeDynamics
 
 
 class Taxinet(DiscreteTimeDynamics):
     def __init__(self):
-
         self.continuous_time = False
 
         # dt = 0.125
         dt = 1
-        
+
         v = 5
-        l = 5
+        ll = 5
 
         At = np.array(
             [
                 [1, 0, 0, 0],
                 [0, 1, 0, 0],
-                [0, 0, 1, np.pi/180*v*dt],
-                [0, 0, 0, 1]
+                [0, 0, 1, np.pi / 180 * v * dt],
+                [0, 0, 0, 1],
             ]
         )
-        bt = np.pi/180*np.array(
-            [
-                [0, 0],
-                [0, 0],
-                [0, 0],
-                [-v*0.74/l*dt, -v*0.44/l*dt]
-            ]
+        bt = (
+            np.pi
+            / 180
+            * np.array(
+                [
+                    [0, 0],
+                    [0, 0],
+                    [0, 0],
+                    [-v * 0.74 / ll * dt, -v * 0.44 / ll * dt],
+                ]
+            )
         )
 
         ct = np.array([0.0, 0.0, 0.0, 0.0]).T
 
         # u_limits = None
-        u_limits = np.array([
-            [-12, 12],
-            [-30, 30]
-        ])  # (u0_min, u0_max)
-        x_limits = {0: [-0.8,0.8], 1: [-0.8,0.8]}
+        u_limits = np.array([[-12, 12], [-30, 30]])  # (u0_min, u0_max)
+        x_limits = {0: [-0.8, 0.8], 1: [-0.8, 0.8]}
 
-        super().__init__(At=At, bt=bt, ct=ct, dt=dt, u_limits=u_limits, x_limits=x_limits)
+        super().__init__(
+            At=At, bt=bt, ct=ct, dt=dt, u_limits=u_limits, x_limits=x_limits
+        )
 
         self.cmap_name = "tab10"
 

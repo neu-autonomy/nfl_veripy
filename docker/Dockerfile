@@ -22,4 +22,7 @@ RUN python -m pip install --no-cache-dir -e jax_verify
 RUN python -m pip install --no-cache-dir -e nn_partition
 RUN python -m pip install --no-cache-dir -e nn_closed_loop
 
+ENV JAX_PLATFORMS cpu
+ENV TF_CPP_MIN_LOG_LEVEL '2'
+
 CMD ["/bin/bash"]

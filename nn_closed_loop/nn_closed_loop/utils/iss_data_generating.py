@@ -1,11 +1,12 @@
-from ISS import ISS
 import numpy as np
+
 import nn_closed_loop.constraints as constraints
+from nn_closed_loop.dynamics import ISS
 
 dynamics = ISS()
-init_state_range = 1*np.ones((dynamics.n, 2))
-init_state_range[:,0] = init_state_range[:,0] - 0.5
-init_state_range[:,1] = init_state_range[:,1] + 0.5
+init_state_range = 1 * np.ones((dynamics.n, 2))
+init_state_range[:, 0] = init_state_range[:, 0] - 0.5
+init_state_range[:, 1] = init_state_range[:, 1] + 0.5
 
 iss_xs, iss_us = dynamics.collect_data(
     t_max=0.5,

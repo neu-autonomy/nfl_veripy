@@ -1,5 +1,6 @@
-from .DoubleIntegrator import DoubleIntegrator
 import numpy as np
+
+from .DoubleIntegrator import DoubleIntegrator
 
 
 class DoubleIntegratorOutputFeedback(DoubleIntegrator):

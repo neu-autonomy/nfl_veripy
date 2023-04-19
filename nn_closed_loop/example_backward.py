@@ -1,8 +1,10 @@
 import os
-os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
+
+os.environ["TF_CPP_MIN_LOG_LEVEL"] = "2"
 import logging
 import jax
-logging.getLogger('jax._src.lib.xla_bridge').addFilter(lambda _: False)
+
+logging.getLogger("jax._src.lib.xla_bridge").addFilter(lambda _: False)
 
 import tensorflow as tf
 from nn_closed_loop.constraints.ClosedLoopConstraints import LpConstraint
@@ -20,10 +22,12 @@ import time
 def main(args: argparse.Namespace) -> tuple[dict, dict]:
     np.random.seed(seed=0)
     stats = {}
-    inputs_to_highlight=None
+    inputs_to_highlight = None
 
     if not args.state_feedback:
-        raise ValueError("Currently only support state feedback for backward reachability.")
+        raise ValueError(
+            "Currently only support state feedback for backward reachability."
+        )
 
     # Dynamics
     if args.system == "double_integrator":
@@ -34,7 +38,7 @@ def main(args: argparse.Namespace) -> tuple[dict, dict]:
                     [4.5, 5.0],  # x0min, x0max
                     [-0.25, 0.25],  # x1min, x1max
                 ]
-            )            
+            )
     elif args.system == "ground_robot":
         dyn = dynamics.GroundRobotSI()
         inputs_to_highlight = [
@@ -48,8 +52,8 @@ def main(args: argparse.Namespace) -> tuple[dict, dict]:
         if args.final_state_range is None:
             final_state_range = np.array(
                 [  # (num_inputs, 2)
-                    [-1., 1.],  # x0min, x0max
-                    [-1., 1.],  # x1min, x1max
+                    [-1.0, 1.0],  # x0min, x0max
+                    [-1.0, 1.0],  # x1min, x1max
                 ]
             )
     elif args.system == "ground_robot_DI":
@@ -76,8 +80,8 @@ def main(args: argparse.Namespace) -> tuple[dict, dict]:
         if args.final_state_range is None:
             final_state_range = np.array(
                 [  # (num_inputs, 2)
-                    [-1., 1.],  # x0min, x0max
-                    [-1., 1.],  # x1min, x1max
+                    [-1.0, 1.0],  # x0min, x0max
+                    [-1.0, 1.0],  # x1min, x1max
                     [1.5, 3.5],
                     dyn.x_limits[3],
                     dyn.x_limits[4],
@@ -145,16 +149,14 @@ def main(args: argparse.Namespace) -> tuple[dict, dict]:
         raise NotImplementedError
 
     if args.final_state_range is not None:
-        final_state_range = np.array(
-            ast.literal_eval(args.final_state_range)
-        )
+        final_state_range = np.array(ast.literal_eval(args.final_state_range))
 
     # if args.num_partitions is None:
     #     num_partitions = None
     # else:
-        # num_partitions = np.array(
-        #     ast.literal_eval(args.num_partitions)
-        # )
+    # num_partitions = np.array(
+    #     ast.literal_eval(args.num_partitions)
+    # )
 
     partitioner_hyperparams = {
         "type": args.partitioner,
@@ -172,9 +174,8 @@ def main(args: argparse.Namespace) -> tuple[dict, dict]:
     # Load NN control policy
     if isinstance(args.controller, str):
         controller = load_controller(
-            system=dyn.__class__.__name__,
-            model_name=args.controller
-            )
+            system=dyn.__class__.__name__, model_name=args.controller
+        )
     else:
         controller = args.controller
 
@@ -192,12 +193,22 @@ def main(args: argparse.Namespace) -> tuple[dict, dict]:
             range=final_state_range, p=np.inf
         )
     elif args.boundaries == "rotated":
-        raise NotImplementedError # TODO: convert this to target_set format
-        vertices = np.vstack((final_state_range.T, np.hstack((np.array([final_state_range[0, :]]).T, np.flip([final_state_range[1, :]]).T))))
+        raise NotImplementedError  # TODO: convert this to target_set format
+        vertices = np.vstack(
+            (
+                final_state_range.T,
+                np.hstack(
+                    (
+                        np.array([final_state_range[0, :]]).T,
+                        np.flip([final_state_range[1, :]]).T,
+                    )
+                ),
+            )
+        )
         W = final_state_range[:, 1] - final_state_range[:, 0]
         # import pdb; pdb.set_trace()
         output_constraint1 = constraints.RotatedLpConstraint(
-            pose=final_state_range[:, 0], W = W, theta=0, vertices = vertices
+            pose=final_state_range[:, 0], W=W, theta=0, vertices=vertices
         )
         input_constraint = constraints.RotatedLpConstraint()
         output_constraint = [output_constraint1]
@@ -214,17 +225,29 @@ def main(args: argparse.Namespace) -> tuple[dict, dict]:
         all_backprojection_sets = np.empty(args.num_calls, dtype=object)
         target_sets = np.empty(num_calls, dtype=object)
         for num in range(args.num_calls):
-            print('call: {}'.format(num))
+            print("call: {}".format(num))
             t_start = time.time()
-            backprojection_sets, analyzer_info = analyzer.get_backprojection_set(
-                target_set, t_max=args.t_max, num_partitions=num_partitions, overapprox=args.overapprox
+            (
+                backprojection_sets,
+                analyzer_info,
+            ) = analyzer.get_backprojection_set(
+                target_set,
+                t_max=args.t_max,
+                num_partitions=num_partitions,
+                overapprox=args.overapprox,
             )
             t_end = time.time()
             t = t_end - t_start
             times[num] = t
 
             if num == 0:
-                final_error, avg_error, all_error = analyzer.get_backprojection_error(target_set, backprojection_sets, t_max=args.t_max)
+                (
+                    final_error,
+                    avg_error,
+                    all_error,
+                ) = analyzer.get_backprojection_error(
+                    target_set, backprojection_sets, t_max=args.t_max
+                )
 
                 final_errors[num] = final_error
                 avg_errors[num] = avg_error
@@ -232,15 +255,13 @@ def main(args: argparse.Namespace) -> tuple[dict, dict]:
                 all_backprojection_sets[num] = backprojection_sets
                 target_sets[num] = target_sets
 
-
-
-        stats['runtimes'] = times
-        stats['final_step_errors'] = final_errors
-        stats['avg_errors'] = avg_errors
-        stats['all_errors'] = all_errors
-        stats['all_backprojection_sets'] = all_backprojection_sets
-        stats['target_sets'] = target_sets
-        stats['avg_runtime'] = times.mean()
+        stats["runtimes"] = times
+        stats["final_step_errors"] = final_errors
+        stats["avg_errors"] = avg_errors
+        stats["all_errors"] = all_errors
+        stats["all_backprojection_sets"] = all_backprojection_sets
+        stats["target_sets"] = target_sets
+        stats["avg_runtime"] = times.mean()
 
         print("All times: {}".format(times))
         print("Avg time: {} +/- {}".format(times.mean(), times.std()))
@@ -251,13 +272,16 @@ def main(args: argparse.Namespace) -> tuple[dict, dict]:
         # Run analysis once
         # Run analysis & generate a plot
         backprojection_sets, analyzer_info = analyzer.get_backprojection_set(
-            target_set, t_max=args.t_max, num_partitions=num_partitions, overapprox=args.overapprox
+            target_set,
+            t_max=args.t_max,
+            num_partitions=num_partitions,
+            overapprox=args.overapprox,
         )
-        stats['backprojection_sets'] = backprojection_sets
-        
-    controller_name=None
+        stats["backprojection_sets"] = backprojection_sets
+
+    controller_name = None
     if args.show_policy:
-        controller_name = vars(args)['controller']
+        controller_name = vars(args)["controller"]
 
     if args.save_plot:
         save_dir = "{}/results/examples_backward/".format(
@@ -320,9 +344,7 @@ def main(args: argparse.Namespace) -> tuple[dict, dict]:
     if args.init_state_range is None:
         init_constraint = None
     else:
-        init_state_range = np.array(
-            ast.literal_eval(args.init_state_range)
-        )
+        init_state_range = np.array(ast.literal_eval(args.init_state_range))
         init_constraint = LpConstraint(init_state_range)
 
     if args.show_plot or args.save_plot:
@@ -337,25 +359,32 @@ def main(args: argparse.Namespace) -> tuple[dict, dict]:
             inputs_to_highlight=inputs_to_highlight,
             show=args.show_plot,
             labels=args.plot_labels,
-            aspect=args.plot_aspect,#2.82
+            aspect=args.plot_aspect,  # 2.82
             plot_lims=args.plot_lims,
             initial_constraint=init_constraint,
             controller_name=controller_name,
-            show_BReach=args.show_BReach
+            show_BReach=args.show_BReach,
         )
 
     return stats, analyzer_info
 
 
 def setup_parser() -> argparse.ArgumentParser:
-
     parser = argparse.ArgumentParser(
         description="Backward analyze a closed loop system w/ NN controller."
     )
     parser.add_argument(
         "--system",
         default="double_integrator",
-        choices=["double_integrator", "quadrotor", "ground_robot", "ground_robot_DI", "4_double_integrators", "discrete_quadrotor", "taxinet"],
+        choices=[
+            "double_integrator",
+            "quadrotor",
+            "ground_robot",
+            "ground_robot_DI",
+            "4_double_integrators",
+            "discrete_quadrotor",
+            "taxinet",
+        ],
         help="which system to analyze (default: double_integrator_mpc)",
     )
     parser.add_argument(
@@ -394,7 +423,14 @@ def setup_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--propagator",
         default="CROWN",
-        choices=["CROWN", "CROWNNStep", "CROWNRefined", "JaxLP", "JaxRectangle", "JaxPolytope"],
+        choices=[
+            "CROWN",
+            "CROWNNStep",
+            "CROWNRefined",
+            "JaxLP",
+            "JaxRectangle",
+            "JaxPolytope",
+        ],
         help="which propagator to use (default: CROWN)",
     )
 
@@ -417,7 +453,7 @@ def setup_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument(
         "--t_max",
-        default=1.,
+        default=1.0,
         type=float,
         help="seconds into future to compute reachable sets (default: 2.)",
     )
@@ -466,7 +502,7 @@ def setup_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--plot_lims",
         default=None,
-        help='x and y lims on plot (default: None)',
+        help="x and y lims on plot (default: None)",
     )
 
     parser.add_argument(
@@ -490,31 +526,31 @@ def setup_parser() -> argparse.ArgumentParser:
         "--show_policy",
         dest="show_policy",
         action="store_true",
-        help="Displays policy as a function of state (only valid for ground_robot and ground_robot_DI)"
+        help="Displays policy as a function of state (only valid for ground_robot and ground_robot_DI)",
     )
     parser.add_argument(
         "--show_trajectories",
         dest="show_trajectories",
         action="store_true",
-        help="Show trajectories starting from initial condition"
+        help="Show trajectories starting from initial condition",
     )
     parser.add_argument(
         "--show_samples",
         dest="show_samples",
         action="store_true",
-        help="Show samples starting from initial condition"
+        help="Show samples starting from initial condition",
     )
     parser.add_argument(
         "--show_samples_from_cells",
         dest="show_samples_from_cells",
         action="store_true",
-        help="Show samples starting from each cell in initial condition"
+        help="Show samples starting from each cell in initial condition",
     )
     parser.add_argument(
         "--show_convex_hulls",
         dest="show_convex_hulls",
         action="store_true",
-        help="Show convex hulls of true backprojection sets"
+        help="Show convex hulls of true backprojection sets",
     )
     parser.add_argument(
         "--num_calls",
@@ -538,19 +574,18 @@ def setup_parser() -> argparse.ArgumentParser:
         "--all_lps",
         dest="all_lps",
         action="store_true",
-        help="Calculate LPs even if they can't change the resulting BP"
+        help="Calculate LPs even if they can't change the resulting BP",
     )
     parser.add_argument(
         "--slow_cvxpy",
         dest="slow_cvxpy",
         action="store_true",
-        help="Don't use disciplined parametric "
+        help="Don't use disciplined parametric ",
     )
     return parser
 
 
 if __name__ == "__main__":
-
     parser = setup_parser()
 
     args = parser.parse_args()

@@ -1,15 +1,17 @@
+import os
+
+import matplotlib.pyplot as plt
 import numpy as np
-from nn_closed_loop.utils.utils import save_dataset, load_dataset
-from nn_closed_loop.utils.nn import create_and_train_model, save_model
+
 import nn_closed_loop.constraints as constraints
 import nn_closed_loop.dynamics as dynamics
-import matplotlib.pyplot as plt
-import os
+from nn_closed_loop.utils.nn import create_and_train_model, save_model
+from nn_closed_loop.utils.utils import load_dataset, save_dataset
+
 dir_path = os.path.dirname(os.path.realpath(__file__))
 
 
 def generate_dataset(dyn, input_constraint, dataset_name="default", t_max=5):
-
     num_samples = 100
 
     xs, us = dyn.collect_data(
@@ -18,13 +20,15 @@ def generate_dataset(dyn, input_constraint, dataset_name="default", t_max=5):
         num_samples=num_samples,
     )
 
-    save_dataset(xs, us, system=dyn.__class__.__name__, dataset_name=dataset_name)
+    save_dataset(
+        xs, us, system=dyn.__class__.__name__, dataset_name=dataset_name
+    )
 
 
 def plot_dataset(xs, us, t_max):
-    xs = np.reshape(xs, (-1, t_max+1, xs.shape[-1]))
+    xs = np.reshape(xs, (-1, t_max + 1, xs.shape[-1]))
     for t in range(xs.shape[1]):
-        plt.plot(xs[:, t, 0], xs[:, t, 1], '.')
+        plt.plot(xs[:, t, 0], xs[:, t, 1], ".")
     plt.show()
 
 
@@ -46,19 +50,20 @@ def create_dataset_and_train_model(nx, nu, t_max=10):
     input_constraint = constraints.LpConstraint(
         range=init_state_range, p=np.inf
     )
-    dataset_name = "nx_{}_nu_{}_scalability".format(str(nx).zfill(3), str(nu).zfill(3))
+    dataset_name = "nx_{}_nu_{}_scalability".format(
+        str(nx).zfill(3), str(nu).zfill(3)
+    )
 
-    generate_dataset(dyn, input_constraint, dataset_name=dataset_name, t_max=t_max)
-    xs, us = load_dataset(system=dyn.__class__.__name__, dataset_name=dataset_name)
+    generate_dataset(
+        dyn, input_constraint, dataset_name=dataset_name, t_max=t_max
+    )
+    xs, us = load_dataset(
+        system=dyn.__class__.__name__, dataset_name=dataset_name
+    )
     # plot_dataset(xs, us, t_max)
 
     neurons_per_layer = [10, 10]
-    model = create_and_train_model(
-        neurons_per_layer,
-        xs,
-        us,
-        verbose=True
-        )
+    model = create_and_train_model(neurons_per_layer, xs, us, verbose=True)
 
     model_name = "nx_{}_nu_{}".format(str(nx).zfill(3), str(nu).zfill(3))
     save_model(model, system=dyn.__class__.__name__, model_name=model_name)
@@ -66,7 +71,7 @@ def create_dataset_and_train_model(nx, nu, t_max=10):
     # print(xs, us)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     nu = 2
     for nx in [1, 2, 3, 4, 5]:
         create_dataset_and_train_model(nx, nu)

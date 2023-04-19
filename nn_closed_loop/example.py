@@ -1,10 +1,11 @@
 import os
-os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
+
+os.environ["TF_CPP_MIN_LOG_LEVEL"] = "2"
 import logging
 import jax
-logging.getLogger('jax._src.lib.xla_bridge').addFilter(lambda _: False)
 
-import tensorflow as tf
+logging.getLogger("jax._src.lib.xla_bridge").addFilter(lambda _: False)
+
 import numpy as np
 import torch as th
 import nn_closed_loop.dynamics as dynamics
@@ -23,6 +24,7 @@ from typing import Dict, Tuple
 
 dir_path = os.path.dirname(os.path.realpath(__file__))
 
+
 def main(args: argparse.Namespace) -> Tuple[Dict, Dict]:
     np.random.seed(seed=0)
     stats = {}
@@ -34,7 +36,7 @@ def main(args: argparse.Namespace) -> Tuple[Dict, Dict]:
             {"dim": [1], "name": "$x_1$"},
         ]
         if args.state_feedback:
-            dyn = dynamics.DoubleIntegrator() # type: dynamics.Dynamics
+            dyn = dynamics.DoubleIntegrator()  # type: dynamics.Dynamics
         else:
             dyn = dynamics.DoubleIntegratorOutputFeedback()
         if args.init_state_range is None:
@@ -61,12 +63,7 @@ def main(args: argparse.Namespace) -> Tuple[Dict, Dict]:
                 ]
             )
         if args.final_state_range is None:
-            final_state_range = np.array(
-                [
-                    [-7.0, -6.5],
-                    [-0.5, 0.5]
-                ]
-            )
+            final_state_range = np.array([[-7.0, -6.5], [-0.5, 0.5]])
     elif args.system == "ground_robot_DI":
         inputs_to_highlight = [
             {"dim": [0], "name": "$p_x$"},
@@ -79,10 +76,10 @@ def main(args: argparse.Namespace) -> Tuple[Dict, Dict]:
         if args.init_state_range is None:
             init_state_range = np.array(
                 [  # (num_inputs, 2)
-                    [-7-0.25, -7+0.25],  # x0min, x0max
+                    [-7 - 0.25, -7 + 0.25],  # x0min, x0max
                     [-0.25, 0.25],  # x1min, x1max
                     [0.95, 0.99],
-                    [-0.01, 0.01]
+                    [-0.01, 0.01],
                 ]
             )
         if args.final_state_range is None:
@@ -91,7 +88,7 @@ def main(args: argparse.Namespace) -> Tuple[Dict, Dict]:
                     [-0.75, 0.75],  # x0min, x0max
                     [-0.75, 0.75],  # x1min, x1max
                     [-1, 1],
-                    [-1, 1]
+                    [-1, 1],
                 ]
             )
     elif args.system == "unicycle":
@@ -108,7 +105,7 @@ def main(args: argparse.Namespace) -> Tuple[Dict, Dict]:
                 [  # (num_inputs, 2)
                     [-0.25, 0.25],  # x0min, x0max
                     [-3.0, -2.5],  # x1min, x1max
-                    [-np.pi/100, np.pi/100]
+                    [-np.pi / 100, np.pi / 100],
                 ]
             )
     elif args.system == "quadrotor_v0":
@@ -131,8 +128,8 @@ def main(args: argparse.Namespace) -> Tuple[Dict, Dict]:
         if args.final_state_range is None:
             final_state_range = np.array(
                 [  # (num_inputs, 2)
-                    [-0.25, 0.5-0.25, 1, -0.2, -0.2, -0.2],
-                    [0.25, 0.5+0.25, 4, 0.2, 0.2, 0.2],
+                    [-0.25, 0.5 - 0.25, 1, -0.2, -0.2, -0.2],
+                    [0.25, 0.5 + 0.25, 4, 0.2, 0.2, 0.2],
                 ]
             ).T
     elif args.system == "quadrotor_8D":
@@ -155,8 +152,8 @@ def main(args: argparse.Namespace) -> Tuple[Dict, Dict]:
         if args.final_state_range is None:
             final_state_range = np.array(
                 [  # (num_inputs, 2)
-                    [-0.25, 0.5-0.25, 1, -0.2, -0.2, -0.2],
-                    [0.25, 0.5+0.25, 4, 0.2, 0.2, 0.2],
+                    [-0.25, 0.5 - 0.25, 1, -0.2, -0.2, -0.2],
+                    [0.25, 0.5 + 0.25, 4, 0.2, 0.2, 0.2],
                 ]
             ).T
     elif args.system == "duffing":
@@ -167,7 +164,7 @@ def main(args: argparse.Namespace) -> Tuple[Dict, Dict]:
         dyn = dynamics.Duffing()
         init_state_range = np.array(
             [  # (num_inputs, 2)
-                [2.45, 2.55],  # x0min, x0max 
+                [2.45, 2.55],  # x0min, x0max
                 [1.45, 1.55],  # x1min, x1max
             ]
         )
@@ -187,7 +184,9 @@ def main(args: argparse.Namespace) -> Tuple[Dict, Dict]:
         ]
         dyn = dynamics.Unity(args.nx, args.nu)
         if args.init_state_range is None:
-            init_state_range = np.vstack([-np.ones(args.nx), np.ones(args.nx)]).T
+            init_state_range = np.vstack(
+                [-np.ones(args.nx), np.ones(args.nx)]
+            ).T
         controller = load_controller_unity(args.nx, args.nu)
     elif args.system == "pendulum":
         inputs_to_highlight = [
@@ -201,36 +200,25 @@ def main(args: argparse.Namespace) -> Tuple[Dict, Dict]:
         if args.init_state_range is None:
             init_state_range = np.array(
                 [  # (num_inputs, 2)
-                    [1., 1.2],  # x0min, x0max
-                    [0., 0.2],  # x1min, x1max
+                    [1.0, 1.2],  # x0min, x0max
+                    [0.0, 0.2],  # x1min, x1max
                 ]
             )
         if args.final_state_range is None:
-            final_state_range = np.array(
-                [
-                    [-7.0, -6.5],
-                    [-0.5, 0.5]
-                ]
-            )
+            final_state_range = np.array([[-7.0, -6.5], [-0.5, 0.5]])
     else:
         raise NotImplementedError
 
     # Ingest init/final state range as arg
     if args.init_state_range is not None:
-        init_state_range = np.array(
-            ast.literal_eval(args.init_state_range)
-        )
+        init_state_range = np.array(ast.literal_eval(args.init_state_range))
     if args.final_state_range is not None:
-        final_state_range = np.array(
-            ast.literal_eval(args.final_state_range)
-        )
+        final_state_range = np.array(ast.literal_eval(args.final_state_range))
 
     if args.num_partitions is None:
         num_partitions = np.ones(2)
     else:
-        num_partitions = np.array(
-            ast.literal_eval(args.num_partitions)
-        )
+        num_partitions = np.array(ast.literal_eval(args.num_partitions))
 
     partitioner_hyperparams = {
         "type": args.partitioner,
@@ -251,9 +239,8 @@ def main(args: argparse.Namespace) -> Tuple[Dict, Dict]:
     # Load NN control policy
     if isinstance(args.controller, str):
         controller = load_controller(
-            system=dyn.__class__.__name__,
-            model_name=args.controller
-            )
+            system=dyn.__class__.__name__, model_name=args.controller
+        )
     else:
         controller = args.controller
 
@@ -262,7 +249,9 @@ def main(args: argparse.Namespace) -> Tuple[Dict, Dict]:
     analyzer.partitioner = partitioner_hyperparams
     analyzer.propagator = propagator_hyperparams
 
-    initial_state_set = constraints.state_range_to_constraint(init_state_range, args.boundaries)
+    initial_state_set = constraints.state_range_to_constraint(
+        init_state_range, args.boundaries
+    )
 
     if args.estimate_runtime:
         # Run the analyzer N times to compute an estimated runtime
@@ -272,7 +261,7 @@ def main(args: argparse.Namespace) -> Tuple[Dict, Dict]:
         all_errors = np.empty(args.num_calls, dtype=np.ndarray)
         all_reachable_sets = np.empty(args.num_calls, dtype=object)
         for num in range(args.num_calls):
-            print('call: {}'.format(num))
+            print("call: {}".format(num))
             t_start = time.time()
             reachable_sets, analyzer_info = analyzer.get_reachable_set(
                 initial_state_set, t_max=args.t_max
@@ -282,17 +271,19 @@ def main(args: argparse.Namespace) -> Tuple[Dict, Dict]:
             times[num] = t
 
             if num == 0:
-                final_error, avg_error, all_error = analyzer.get_error(initial_state_set, reachable_sets, t_max=args.t_max)
+                final_error, avg_error, all_error = analyzer.get_error(
+                    initial_state_set, reachable_sets, t_max=args.t_max
+                )
                 final_errors[num] = final_error
                 avg_errors[num] = avg_error
                 all_errors[num] = all_error
                 all_reachable_sets[num] = reachable_sets
 
-        stats['runtimes'] = times
-        stats['final_step_errors'] = final_errors
-        stats['avg_errors'] = avg_errors
-        stats['all_errors'] = all_errors
-        stats['reachable_sets'] = all_reachable_sets
+        stats["runtimes"] = times
+        stats["final_step_errors"] = final_errors
+        stats["avg_errors"] = avg_errors
+        stats["all_errors"] = all_errors
+        stats["reachable_sets"] = all_reachable_sets
 
         print("All times: {}".format(times))
         print("Avg time: {} +/- {}".format(times.mean(), times.std()))
@@ -304,13 +295,15 @@ def main(args: argparse.Namespace) -> Tuple[Dict, Dict]:
         )
         t_end = time.time()
         print(t_end - t_start)
-        stats['reachable_sets'] = reachable_sets
+        stats["reachable_sets"] = reachable_sets
 
     if args.estimate_error:
-        final_error, avg_error, errors = analyzer.get_error(initial_state_set, reachable_sets, t_max=args.t_max)
-        print('Final step approximation error: {}'.format(final_error))
-        print('Avg errors: {}'.format(avg_error))
-        print('All errors: {}'.format(errors))
+        final_error, avg_error, errors = analyzer.get_error(
+            initial_state_set, reachable_sets, t_max=args.t_max
+        )
+        print("Final step approximation error: {}".format(final_error))
+        print("Avg errors: {}".format(avg_error))
+        print("All errors: {}".format(errors))
 
     if args.save_plot:
         save_dir = "{}/results/examples/".format(
@@ -363,7 +356,7 @@ def main(args: argparse.Namespace) -> Tuple[Dict, Dict]:
                 analyzer_info["save_name"] + "_" + pars2
             )
         analyzer_info["save_name"] = analyzer_info["save_name"] + ".png"
-        
+
     if args.show_plot or args.save_plot:
         analyzer.visualize(
             initial_state_set,
@@ -384,14 +377,22 @@ def main(args: argparse.Namespace) -> Tuple[Dict, Dict]:
 
 
 def setup_parser() -> argparse.ArgumentParser:
-
     parser = argparse.ArgumentParser(
         description="Analyze a closed loop system w/ NN controller."
     )
     parser.add_argument(
         "--system",
         default="double_integrator",
-        choices=["double_integrator", "quadrotor_v0", "duffing", "iss", "ground_robot", "ground_robot_DI", "quadrotor_8D", "pendulum"],
+        choices=[
+            "double_integrator",
+            "quadrotor_v0",
+            "duffing",
+            "iss",
+            "ground_robot",
+            "ground_robot_DI",
+            "quadrotor_8D",
+            "pendulum",
+        ],
         help="which system to analyze (default: double_integrator)",
     )
     parser.add_argument(
@@ -431,13 +432,35 @@ def setup_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--partitioner",
         default="Uniform",
-        choices=["None", "Uniform", "SimGuided", "GreedySimGuided", "UnGuided"],
+        choices=[
+            "None",
+            "Uniform",
+            "SimGuided",
+            "GreedySimGuided",
+            "UnGuided",
+        ],
         help="which partitioner to use (default: Uniform)",
     )
     parser.add_argument(
         "--propagator",
         default="IBP",
-        choices=["IBP", "CROWN", "CROWNNStep", "FastLin", "SDP", "CROWNLP", "SeparableCROWN", "SeparableIBP", "SeparableSGIBP", "OVERT", "JaxForwardCROWN", "JaxCROWNIterative", "JaxCROWNUnrolled", "JaxUnrolledJitted", "AutoLiRPA"],
+        choices=[
+            "IBP",
+            "CROWN",
+            "CROWNNStep",
+            "FastLin",
+            "SDP",
+            "CROWNLP",
+            "SeparableCROWN",
+            "SeparableIBP",
+            "SeparableSGIBP",
+            "OVERT",
+            "JaxForwardCROWN",
+            "JaxCROWNIterative",
+            "JaxCROWNUnrolled",
+            "JaxUnrolledJitted",
+            "AutoLiRPA",
+        ],
         help="which propagator to use (default: IBP)",
     )
 
@@ -517,7 +540,7 @@ def setup_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--plot_lims",
         default=None,
-        help='x and y lims on plot (default: None)',
+        help="x and y lims on plot (default: None)",
     )
 
     parser.add_argument(
@@ -554,31 +577,31 @@ def setup_parser() -> argparse.ArgumentParser:
         "--show_obs",
         dest="show_obs",
         action="store_true",
-        help="Check final reachable set to see what parts backproject to initial state"
+        help="Check final reachable set to see what parts backproject to initial state",
     )
     parser.add_argument(
         "--show_policy",
         dest="show_policy",
         action="store_true",
-        help="Displays policy as a function of state (only valid for ground_robot and ground_robot_DI)"
+        help="Displays policy as a function of state (only valid for ground_robot and ground_robot_DI)",
     )
     parser.add_argument(
         "--show_trajectories",
         dest="show_trajectories",
         action="store_true",
-        help="Show trajectories starting from initial condition"
+        help="Show trajectories starting from initial condition",
     )
     parser.add_argument(
         "--show_samples",
         dest="show_samples",
         action="store_true",
-        help="Show samples starting from initial condition"
+        help="Show samples starting from initial condition",
     )
     parser.add_argument(
         "--show_convex_hulls",
         dest="show_convex_hulls",
         action="store_true",
-        help="Show convex hulls of true backprojection sets"
+        help="Show convex hulls of true backprojection sets",
     )
     parser.add_argument(
         "--show_BReach",
@@ -594,13 +617,10 @@ def setup_parser() -> argparse.ArgumentParser:
         help="how many times to call the analyzer to estimate runtime (default: 20)",
     )
 
-
-
     return parser
 
 
 if __name__ == "__main__":
-
     parser = setup_parser()
 
     args = parser.parse_args()

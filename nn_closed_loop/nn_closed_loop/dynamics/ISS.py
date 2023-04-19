@@ -1,22 +1,23 @@
-from .Dynamics import ContinuousTimeDynamics
+import os
+
 import numpy as np
+import scipy
+import scipy.io as sio
+
 from nn_closed_loop.utils.mpc import control_mpc
 
-import scipy.io as sio
-import scipy
-import os
+from .Dynamics import ContinuousTimeDynamics
 
 
 class ISS(ContinuousTimeDynamics):
     def __init__(self):
-
         mat_fname = "{}/../../datasets/iss/iss.mat".format(
             os.path.dirname(os.path.abspath(__file__))
         )
         mat_contents = sio.loadmat(mat_fname)
 
-        At = scipy.sparse.csr_matrix.toarray(mat_contents['A'])
-        bt = scipy.sparse.csr_matrix.toarray(mat_contents['B'])
+        At = scipy.sparse.csr_matrix.toarray(mat_contents["A"])
+        bt = scipy.sparse.csr_matrix.toarray(mat_contents["B"])
         n = 270
         m = 3
         ct = np.zeros(n).T
@@ -36,11 +37,11 @@ class ISS(ContinuousTimeDynamics):
         if not hasattr(self, "Q"):
             self.Q = np.eye(self.n)
         if not hasattr(self, "R"):
-            self.R = 0.01*np.eye(self.m)
+            self.R = 0.01 * np.eye(self.m)
         if not hasattr(self, "Pinf"):
             # self.Pinf = solve_discrete_are(self.At, self.bt, self.Q, self.R)
             # self.Pinf = np.zeros((self.n, self.n))
-            self.Pinf = 10000*np.eye(self.n)
+            self.Pinf = 10000 * np.eye(self.n)
 
         # self.u_limits[:, 0],
         # self.u_limits[:, 1],

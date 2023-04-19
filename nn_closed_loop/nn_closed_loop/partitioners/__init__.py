@@ -1,10 +1,12 @@
-from .ClosedLoopPartitioner import ClosedLoopPartitioner
-from .ClosedLoopNoPartitioner import ClosedLoopNoPartitioner
-from .ClosedLoopUniformPartitioner import ClosedLoopUniformPartitioner
-from .ClosedLoopSimGuidedPartitioner import ClosedLoopSimGuidedPartitioner
-from .ClosedLoopGreedySimGuidedPartitioner import ClosedLoopGreedySimGuidedPartitioner
-from .ClosedLoopUnGuidedPartitioner import ClosedLoopUnGuidedPartitioner
+from .ClosedLoopGreedySimGuidedPartitioner import (
+    ClosedLoopGreedySimGuidedPartitioner,
+)
 from .ClosedLoopNickPartitioner import ClosedLoopNickPartitioner
+from .ClosedLoopNoPartitioner import ClosedLoopNoPartitioner
+from .ClosedLoopPartitioner import ClosedLoopPartitioner  # noqa
+from .ClosedLoopSimGuidedPartitioner import ClosedLoopSimGuidedPartitioner
+from .ClosedLoopUnGuidedPartitioner import ClosedLoopUnGuidedPartitioner
+from .ClosedLoopUniformPartitioner import ClosedLoopUniformPartitioner
 
 partitioner_dict = {
     "None": ClosedLoopNoPartitioner,

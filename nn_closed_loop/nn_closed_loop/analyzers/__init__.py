@@ -1,2 +1,2 @@
-from .ClosedLoopAnalyzer import ClosedLoopAnalyzer
-from .ClosedLoopBackwardAnalyzer import ClosedLoopBackwardAnalyzer
+from .ClosedLoopAnalyzer import ClosedLoopAnalyzer  # noqa
+from .ClosedLoopBackwardAnalyzer import ClosedLoopBackwardAnalyzer  # noqa

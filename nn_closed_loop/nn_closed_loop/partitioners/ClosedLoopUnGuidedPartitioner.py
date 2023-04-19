@@ -1,10 +1,22 @@
-from .ClosedLoopSimGuidedPartitioner import ClosedLoopSimGuidedPartitioner
 import numpy as np
+
+from .ClosedLoopSimGuidedPartitioner import ClosedLoopSimGuidedPartitioner
 
 
 class ClosedLoopUnGuidedPartitioner(ClosedLoopSimGuidedPartitioner):
-    def __init__(self, dynamics, num_partitions=16, make_animation=False, show_animation=False):
-        ClosedLoopSimGuidedPartitioner.__init__(self, dynamics=dynamics, make_animation=make_animation, show_animation=show_animation)
+    def __init__(
+        self,
+        dynamics,
+        num_partitions=16,
+        make_animation=False,
+        show_animation=False,
+    ):
+        ClosedLoopSimGuidedPartitioner.__init__(
+            self,
+            dynamics=dynamics,
+            make_animation=make_animation,
+            show_animation=show_animation,
+        )
 
     def check_if_partition_within_sim_bnds(
         self, output_range, output_range_sim

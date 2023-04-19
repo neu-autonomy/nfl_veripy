@@ -1,5 +1,5 @@
-import numpy as np
 import cvxpy as cp
+import numpy as np
 
 
 def control_mpc(x0s, A, b, c, Q, R, P, u_min, u_max, n_mpc=10, debug=False):
@@ -17,8 +17,6 @@ def control_mpc(x0s, A, b, c, Q, R, P, u_min, u_max, n_mpc=10, debug=False):
         constrs.append(x[0, :] == x0)
         step = 0
         while step < n_mpc:
-
-            # import pdb; pdb.set_trace()
             constr = x[step + 1, :] == A @ x[step, :] + (b @ u[step, :]) + c
             constrs.append(constr)
 

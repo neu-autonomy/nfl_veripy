@@ -102,43 +102,19 @@ Please see the `jupyter_notebooks` folder for an interactive version of the abov
 * CDC '22: [README](/docs/_static/cdc22/cdc22.md)
 * ACC '23 (to appear): Coming soon!
 * OJCSYS '23 (to appear): Coming soon!
+* LCSS '23 (to appear): Coming soon!
 
-### If you find this code useful, please consider citing:
+### If you find this code useful, please consider citing our work:
 
-For the open-loop code:
-```
-@article{everett2020robustness,
-  title={Robustness Analysis of Neural Networks via Efficient Partitioning with Applications in Control Systems},
-  author={Everett, Michael and Habibi, Golnaz and How, Jonathan P},
-  journal={IEEE Control Systems Letters},
-  year={2021},
-  publisher={IEEE},
-  doi={10.1109/LCSYS.2020.3045323}
-}
-```
+* Everett, M. (2021, December). Neural network verification in control. In 2021 60th IEEE Conference on Decision and Control (CDC) (pp. 6326-6340). IEEE.
+* Everett, M., Habibi, G., & How, J. P. (2020). Robustness analysis of neural networks via efficient partitioning with applications in control systems. IEEE Control Systems Letters, 5(6), 2114-2119.
+* Everett, M., Habibi, G., Sun, C., & How, J. P. (2021). Reachability analysis of neural feedback loops. IEEE Access, 9, 163938-163953.
+* Everett, M., Habibi, G., & How, J. P. (2021, May). Efficient reachability analysis of closed-loop systems with neural network controllers. In 2021 IEEE International Conference on Robotics and Automation (ICRA) (pp. 4384-4390). IEEE.
+* Rober, N., Everett, M., & How, J. P. (2022, December). Backward reachability analysis for neural feedback loops. In 2022 IEEE 61st Conference on Decision and Control (CDC) (pp. 2897-2904). IEEE.
+* Rober, N., Everett, M., Zhang, S., & How, J. P. (2022). A Hybrid Partitioning Strategy for Backward Reachability of Neural Feedback Loops. arXiv preprint arXiv:2210.07918.
+* Rober, N., Katz, S. M., Sidrane, C., Yel, E., Everett, M., Kochenderfer, M. J., & How, J. P. (2023). Backward reachability analysis of neural feedback loops: Techniques for linear and nonlinear systems. IEEE Open Journal of Control Systems.
+* Everett, M., Bunel, R., & Omidshafiei, S. (2023). Drip: Domain refinement iteration with polytopes for backward reachability analysis of neural feedback loops. IEEE Control Systems Letters.
 
-For the closed-loop code:
-```
-@article{everett2021reachability,
-  title={Reachability Analysis of Neural Feedback Loops},
-  author={Everett, Michael and Habibi, Golnaz and Sun, Chuangchuang and How, Jonathan P},
-  journal={IEEE Access},
-  volume={9},
-  pages={163938--163953},
-  year={2021},
-  publisher={IEEE}
-}
-```
-
-For the backward reachability code:
-```
-@article{rober2022backward,
-  title={Backward Reachability Analysis for Neural Feedback Loops},
-  author={Rober, Nicholas and Everett, Michael and How, Jonathan P},
-  journal={arXiv preprint arXiv:2204.08319},
-  year={2022}
-}
-```
 
 ## Acknowledgements
 

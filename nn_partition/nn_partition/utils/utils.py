@@ -51,8 +51,6 @@ def samples_to_range(sampled_outputs):
 def stablebaselines2torch(good_sess, network_params, activation="relu"):
     import torch
 
-    # import tensorflow as tf
-
     obs_ph, numlayer, w_tsr, b_tsr = network_params
 
     modules = []

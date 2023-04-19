@@ -1,39 +1,38 @@
-from .Dynamics import DiscreteTimeDynamics
-import numpy as np
 import cvxpy as cp
+import numpy as np
 from scipy.linalg import solve_discrete_are
-import osqp
+
+from .Dynamics import DiscreteTimeDynamics
 
 
 class Quadrotor_8D(DiscreteTimeDynamics):
     def __init__(self):
-
         g = 9.8  # m/s^2
 
         At = np.zeros((8, 8))
         At = np.array(
             [
-                [1,0,0, 0.0995, 0,      0,      0,      0.0388],
-                [0,1,0, 0,      0.0995, 0,     -0.0388, 0     ],
-                [0,0,1, 0,      0,      0.0995, 0,      0     ],
-                [0,0,0, 0.9900, 0,      0,      0,      0.7758],
-                [0,0,0, 0,      0.9900, 0,     -0.7754, 0     ],
-                [0,0,0, 0,      0,      0.9900, 0,      0     ],
-                [0,0,0, 0,      0,      0,      0.5892, 0     ],
-                [0,0,0, 0,      0,      0,      0,      0.5901],
+                [1, 0, 0, 0.0995, 0, 0, 0, 0.0388],
+                [0, 1, 0, 0, 0.0995, 0, -0.0388, 0],
+                [0, 0, 1, 0, 0, 0.0995, 0, 0],
+                [0, 0, 0, 0.9900, 0, 0, 0, 0.7758],
+                [0, 0, 0, 0, 0.9900, 0, -0.7754, 0],
+                [0, 0, 0, 0, 0, 0.9900, 0, 0],
+                [0, 0, 0, 0, 0, 0, 0.5892, 0],
+                [0, 0, 0, 0, 0, 0, 0, 0.5901],
             ]
         )
 
         bt = np.array(
             [
-                [ 0,      0.0097, 0     ],
-                [-0.0096, 0,      0     ],
-                [ 0,      0,      0.0050],
-                [ 0,      0.1947, 0     ],
-                [-0.1925, 0,      0     ],
-                [ 0,      0,      0.0995],
-                [ 0.3946, 0,      0     ],
-                [ 0,      0.3991, 0     ]
+                [0, 0.0097, 0],
+                [-0.0096, 0, 0],
+                [0, 0, 0.0050],
+                [0, 0.1947, 0],
+                [-0.1925, 0, 0],
+                [0, 0, 0.0995],
+                [0.3946, 0, 0],
+                [0, 0.3991, 0],
             ]
         )
 
@@ -58,22 +57,22 @@ class Quadrotor_8D(DiscreteTimeDynamics):
         #         [-0.05, 0.05],
         #     ]
         # )
-        # 
-        x_limits=None   
+        #
+        x_limits = None
 
         dt = 0.1
 
-        super().__init__(At=At, bt=bt, ct=ct, u_limits=u_limits, dt=dt, x_limits=x_limits)
-        Q_ = np.zeros((6,6))
-        Q_[0,0], Q_[1,1], Q_[2,2] = 2, 2, 1
+        super().__init__(
+            At=At, bt=bt, ct=ct, u_limits=u_limits, dt=dt, x_limits=x_limits
+        )
+        Q_ = np.zeros((6, 6))
+        Q_[0, 0], Q_[1, 1], Q_[2, 2] = 2, 2, 1
         self.Q = Q_
-        self.R = 0.2*np.eye(3)
+        self.R = 0.2 * np.eye(3)
         self.safe_dist = 0.3
-        
 
         self.cmap_name = "tab20"
 
-    
     def control_mpc(self, x0):
         # LQR-MPC parameters
         if not hasattr(self, "Q"):
@@ -85,11 +84,7 @@ class Quadrotor_8D(DiscreteTimeDynamics):
         if not hasattr(self, "safe_dist"):
             self.safe_dist = 0.3
 
-        obstacle_coords = np.array(
-            [
-                [-1,0]
-            ]
-        )
+        obstacle_coords = np.array([[-1, 0]])
 
         return self.control_quadrotor_mpc(
             x0,
@@ -107,11 +102,25 @@ class Quadrotor_8D(DiscreteTimeDynamics):
             debug=False,
         )
 
-    
-    def control_quadrotor_mpc(self, x0s, A, b, c, Q, R, P, u_min, u_max, obstacle_coords, safe_dist, n_mpc=10, debug=False):
+    def control_quadrotor_mpc(
+        self,
+        x0s,
+        A,
+        b,
+        c,
+        Q,
+        R,
+        P,
+        u_min,
+        u_max,
+        obstacle_coords,
+        safe_dist,
+        n_mpc=10,
+        debug=False,
+    ):
         # TODO: account for final state constraint using O_inf
 
-        x0s[0] = np.array([-2,0.3,0.0,0,0,0])
+        x0s[0] = np.array([-2, 0.3, 0.0, 0, 0, 0])
 
         us = np.empty((x0s.shape[0], b.shape[1]))
         for i, x0 in enumerate(x0s):
@@ -125,9 +134,10 @@ class Quadrotor_8D(DiscreteTimeDynamics):
             constrs.append(x[0, :] == x0)
             step = 0
             while step < n_mpc:
-
                 # import pdb; pdb.set_trace()
-                constr = x[step + 1, :] == self.dynamics_step(x[step, :],u[step, :])
+                constr = x[step + 1, :] == self.dynamics_step(
+                    x[step, :], u[step, :]
+                )
                 constrs.append(constr)
 
                 # Input constraints
@@ -136,8 +146,7 @@ class Quadrotor_8D(DiscreteTimeDynamics):
 
                 # State constraints
                 for obstacle in obstacle_coords:
-                    # import pdb; pdb.set_trace()
-                    dist = cp.norm(x[step + 1, 0:2]-obstacle, np.inf)
+                    # dist = cp.norm(x[step + 1, 0:2] - obstacle, np.inf)
                     cost += cp.inv_prod(x[step + 1, 0:2])
 
                 constrs.append(x[step + 1, 3:] >= -0.5)
@@ -156,7 +165,6 @@ class Quadrotor_8D(DiscreteTimeDynamics):
 
             # Terminal state cost
             cost += cp.quad_form(x[n_mpc, :], P)
-            
 
             prob = cp.Problem(cp.Minimize(cost), constrs)
 
@@ -164,8 +172,6 @@ class Quadrotor_8D(DiscreteTimeDynamics):
 
             if debug:
                 print(x.value)
-
-            import pdb; pdb.set_trace()
 
             us[i] = u.value[0, :]
         return us

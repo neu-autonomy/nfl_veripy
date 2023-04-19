@@ -1,21 +1,22 @@
-import numpy as np
-import tensorflow as tf
-import torch
+"""Create and train simple neural networks."""
+
 import os
-
-os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
-from tensorflow.keras.models import Sequential
-from tensorflow.keras.layers import Dense
-from tensorflow.keras.models import model_from_json
-from crown_ibp.conversions.keras2torch import keras2torch
-
 from typing import Optional
+
+import numpy as np
+from tensorflow.keras.layers import Dense
+from tensorflow.keras.models import Sequential, load_model, model_from_json
+
+from crown_ibp.conversions.keras2torch import keras2torch
 
 dir_path = os.path.dirname(os.path.realpath(__file__))
 
 
 def create_model(
-    neurons_per_layer: list[int], input_shape: tuple, output_shape: tuple, activation: str = "relu"
+    neurons_per_layer: list[int],
+    input_shape: tuple,
+    output_shape: tuple,
+    activation: str = "relu",
 ) -> Sequential:
     model = Sequential()
     model.add(
@@ -33,16 +34,34 @@ def create_model(
 
 
 def create_and_train_model(
-    neurons_per_layer: list[int], xs: np.ndarray, us: np.ndarray, epochs: int = 20, batch_size: int = 32, verbose: bool = False, validation_split: float = 0.0
+    neurons_per_layer: list[int],
+    xs: np.ndarray,
+    us: np.ndarray,
+    epochs: int = 20,
+    batch_size: int = 32,
+    verbose: bool = False,
+    validation_split: float = 0.0,
 ) -> Sequential:
     model = create_model(
         neurons_per_layer, input_shape=xs.shape[1:], output_shape=us.shape[1:]
     )
-    model.fit(xs, us, epochs=epochs, batch_size=batch_size, verbose=verbose, validation_split=validation_split)
+    model.fit(
+        xs,
+        us,
+        epochs=epochs,
+        batch_size=batch_size,
+        verbose=verbose,
+        validation_split=validation_split,
+    )
     return model
 
 
-def save_model(model: Sequential, system: str = "DoubleIntegrator", model_name: str = "default", path: Optional[str] = None) -> None:
+def save_model(
+    model: Sequential,
+    system: str = "DoubleIntegrator",
+    model_name: str = "default",
+    path: Optional[str] = None,
+) -> None:
     if not path:
         path = "{}/../../models/{}/{}".format(dir_path, system, model_name)
     os.makedirs(path, exist_ok=True)
@@ -56,9 +75,17 @@ def save_model(model: Sequential, system: str = "DoubleIntegrator", model_name: 
     print("Saved model to disk")
 
 
-def load_controller(system: str = "DoubleIntegrator", model_name: str = "default", model_type: str = 'torch') -> Sequential:
-    if type(model_name) is not str: return model_name # TODO: update type in signature to properly reflect other options
-    system = system.replace('OutputFeedback', '')  # remove OutputFeedback suffix if applicable
+def load_controller(
+    system: str = "DoubleIntegrator",
+    model_name: str = "default",
+    model_type: str = "torch",
+) -> Sequential:
+    if type(model_name) is not str:
+        # TODO: update type in signature to properly reflect other options
+        return model_name
+    system = system.replace(
+        "OutputFeedback", ""
+    )  # remove OutputFeedback suffix if applicable
     path = "{}/../../models/{}/{}".format(dir_path, system, model_name)
     if system != "Taxinet":
         with open(path + "/model.json", "r") as f:
@@ -67,19 +94,14 @@ def load_controller(system: str = "DoubleIntegrator", model_name: str = "default
         model.load_weights(path + "/model.h5")
     else:
         # import pdb; pdb.set_trace()
-        model = tf.keras.models.load_model(path+'/model.h5')
-    
-    if model_type == 'keras':
+        model = load_model(path + "/model.h5")
+
+    if model_type == "keras":
         return model
     torch_model = keras2torch(model, "torch_model")
     weights = []
     for name, param in torch_model.named_parameters():
         weights.append(param.detach().numpy())
-
-    # np.savez("weights.npz", *weights)
-    # num_layers = len(model["weights"])
-	# layer_sizes = np.vstack(size(model["weights"][1], 2), [length(vec(model["biases"][i])) for i in 1:num_layers])
-    # np.savez("params.npz", X_mean=X_mean, X_std=X_std, Y_mean=Y_mean, Y_std=Y_std, layer_sizes=layer_sizes)
 
     return torch_model
 
@@ -87,7 +109,9 @@ def load_controller(system: str = "DoubleIntegrator", model_name: str = "default
 def load_controller_unity(nx: int, nu: int) -> Sequential:
     system = "unity"
     path = "{}/../../models/{}".format(dir_path, system)
-    model_name = "/nx_{}_nu_{}/model".format(str(nx).zfill(3), str(nu).zfill(3))
+    model_name = "/nx_{}_nu_{}/model".format(
+        str(nx).zfill(3), str(nu).zfill(3)
+    )
     filename = path + model_name + ".json"
     try:
         with open(filename, "r") as f:
@@ -96,14 +120,24 @@ def load_controller_unity(nx: int, nu: int) -> Sequential:
         model.load_weights(path + model_name + ".h5")
     except FileNotFoundError:
         model = create_model([5, 5], (nx,), (nu,))
-        save_model(model, system=system, model_name="nx_{}_nu_{}".format(str(nx).zfill(3), str(nu).zfill(3)))
+        save_model(
+            model,
+            system=system,
+            model_name="nx_{}_nu_{}".format(
+                str(nx).zfill(3), str(nu).zfill(3)
+            ),
+        )
     torch_model = keras2torch(model, "torch_model")
 
     return torch_model
 
 
-def rpm_converter(system="DoubleIntegrator", model_name="default", model_type='torch'):
-    system = system.replace('OutputFeedback', '')  # remove OutputFeedback suffix if applicable
+def rpm_converter(
+    system="DoubleIntegrator", model_name="default", model_type="torch"
+):
+    system = system.replace(
+        "OutputFeedback", ""
+    )  # remove OutputFeedback suffix if applicable
     path = "{}/../../models/{}/{}".format(dir_path, system, model_name)
     if system != "Taxinet":
         with open(path + "/model.json", "r") as f:
@@ -111,27 +145,15 @@ def rpm_converter(system="DoubleIntegrator", model_name="default", model_type='t
         model = model_from_json(loaded_model_json)
         model.load_weights(path + "/model.h5")
     else:
-        model = tf.keras.models.load_model(path+'/model.h5')
-
-    
+        model = load_model(path + "/model.h5")
 
     torch_model = keras2torch(model, "torch_model")
     weights = []
     for name, param in torch_model.named_parameters():
         weights.append(param.detach().numpy())
 
-    import pdb; pdb.set_trace()
-    # num_layers = len(model["weights"])
-	# layer_sizes = vcat(size(model["weights"][1], 2), [length(vec(model["biases"][i])) for i in 1:num_layers])
-
-    # np.savez("weights.npz", *weights)
-    # num_layers = len(model["weights"])
-	# layer_sizes = np.vstack(size(model["weights"][1], 2), [length(vec(model["biases"][i])) for i in 1:num_layers])
-    # np.savez("params.npz", X_mean=X_mean, X_std=X_std, Y_mean=Y_mean, Y_std=Y_std, layer_sizes=layer_sizes)
-
 
 def plot_data(xs: np.ndarray, us: np.ndarray, system: str) -> None:
-
     import matplotlib.pyplot as plt
 
     if system == "double_integrator":
@@ -146,29 +168,33 @@ def plot_data(xs: np.ndarray, us: np.ndarray, system: str) -> None:
     plt.show()
 
 
-def load_data(system: str = "double_integrator") -> tuple[np.ndarray, np.ndarray]:
-
+def load_data(
+    system: str = "double_integrator",
+) -> tuple[np.ndarray, np.ndarray]:
     if system == "double_integrator":
         import pickle
 
-        path = dir_path+"/../../datasets/double_integrator/"
+        path = dir_path + "/../../datasets/double_integrator/"
 
-        with open(path+"xs.pkl", 'rb') as f:
-            xs = pickle.load(f)            
-        with open(path+"us.pkl", 'rb') as f:
+        with open(path + "xs.pkl", "rb") as f:
+            xs = pickle.load(f)
+        with open(path + "us.pkl", "rb") as f:
             us = pickle.load(f)
 
     elif system == "quadrotor":
-
         import pandas as pd
 
         xs = (
-            pd.read_csv("~/Downloads/quadrotor_nlmpc_x.csv", sep=",", header=None)
+            pd.read_csv(
+                "~/Downloads/quadrotor_nlmpc_x.csv", sep=",", header=None
+            )
             .to_numpy()
             .T
         )
         us = (
-            pd.read_csv("~/Downloads/quadrotor_nlmpc_u.csv", sep=",", header=None)
+            pd.read_csv(
+                "~/Downloads/quadrotor_nlmpc_u.csv", sep=",", header=None
+            )
             .to_numpy()
             .T
         )
@@ -202,30 +228,20 @@ def create_and_save_deep_models() -> None:
             ),
         )
 
+
 def train_n_models(xs: np.ndarray, us: np.ndarray) -> None:
     num_models = 3
 
-    colors = ['r', 'c', 'b']
-
-    import matplotlib.pyplot as plt
-
-    import nn_closed_loop.dynamics as dynamics
     import nn_closed_loop.analyzers as analyzers
     import nn_closed_loop.constraints as constraints
-
-    fig = plt.figure()
-    ax = fig.add_subplot(projection='3d')
+    import nn_closed_loop.dynamics as dynamics
 
     for i in range(num_models):
         neurons_per_layer = [10, 5]
         # model = create_model(neurons_per_layer)
         model = create_and_train_model(
-            neurons_per_layer,
-            xs,
-            us,
-            epochs=1000,
-            verbose=False
-            )
+            neurons_per_layer, xs, us, epochs=1000, verbose=False
+        )
 
         us_pred = model.predict(xs)
         # ax.scatter(xs[:,0], xs[:,1], us_pred, color=colors[i])
@@ -265,18 +281,15 @@ def train_n_models(xs: np.ndarray, us: np.ndarray) -> None:
             show=True,
             aspect="auto",
             iteration=None,
-            inputs_to_highlight=[{"dim": [0], "name": "$x_0$"}, {"dim": [1], "name": "$x_1$"}],
+            inputs_to_highlight=[
+                {"dim": [0], "name": "$x_0$"},
+                {"dim": [1], "name": "$x_1$"},
+            ],
             **analyzer_info
         )
 
 
-    # ax.scatter(xs[:,0], xs[:,1], us, color='g')
-
-    # plt.show()
-
-
 if __name__ == "__main__":
-
     system = "double_integrator"
 
     # View some of the trajectory data

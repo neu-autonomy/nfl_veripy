@@ -1,5 +1,6 @@
-import numpy as np
 import cvxpy as cp
+import numpy as np
+
 import nn_closed_loop.constraints as constraints
 
 
@@ -7,9 +8,11 @@ def optimize_over_all_states(xt, constrs, facet_inds_to_optimize=None):
     num_states = xt.shape[0]
     obj_facets = np.vstack([np.eye(num_states), -np.eye(num_states)])
     obj_facets_i = cp.Parameter(num_states)
-    obj = obj_facets_i@xt
+    obj = obj_facets_i @ xt
     prob = cp.Problem(cp.Maximize(obj), constrs)
-    b = np.hstack([np.inf*np.ones((num_states,)), -np.inf*np.ones((num_states,))])
+    b = np.hstack(
+        [np.inf * np.ones((num_states,)), -np.inf * np.ones((num_states,))]
+    )
     # b = np.empty((2*num_states,))
     if facet_inds_to_optimize is None:
         num_facets = obj_facets.shape[0]
@@ -22,7 +25,6 @@ def optimize_over_all_states(xt, constrs, facet_inds_to_optimize=None):
 
 
 def optimization_results_to_backprojection_set(status, b, backreachable_set):
-
     if status == "infeasible" or status == "optimal_inaccurate":
         return None
 
@@ -33,5 +35,3 @@ def optimization_results_to_backprojection_set(status, b, backreachable_set):
     backprojection_set = constraints.LpConstraint(range=ranges)
 
     return backprojection_set
-
-

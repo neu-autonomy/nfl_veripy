@@ -1,27 +1,27 @@
-from .Dynamics import DiscreteTimeDynamics
 import numpy as np
-from scipy.linalg import solve_discrete_are
-from nn_closed_loop.utils.mpc import control_mpc
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from scipy.linalg import solve_discrete_are
+
+from nn_closed_loop.utils.mpc import control_mpc
+
+from .Dynamics import DiscreteTimeDynamics
 
 
 class Pendulum(DiscreteTimeDynamics):
     def __init__(self):
-
         self.continuous_time = False
 
         # dt = 0.0625
 
         dt = 0.1
-        self.g = 1
-        self.l = 0.5
-        self.m = 0.5
+        self.gravity = 1
+        self.length = 0.5
+        self.mass = 0.5
 
         self.dynamics_module = PendulumDynamics()
         self.controller_module = Controller()
-
 
         At = np.zeros((2, 2))
         bt = np.zeros((2, 1))
@@ -57,17 +57,19 @@ class Pendulum(DiscreteTimeDynamics):
         )
 
     def dynamics_step(self, xs, us):
-
         dt = self.dt
-        g = self.g
-        l = self.l
-        m = self.m
+        gravity = self.gravity
+        length = self.length
+        mass = self.mass
 
-        x0_t1 = xs[:, 0] + dt*xs[:, 1]
-        x1_t1 = xs[:, 1] + dt*(g/l)*np.sin(xs[:, 0]) + dt*us[:, 0]/(m*l**2)
+        x0_t1 = xs[:, 0] + dt * xs[:, 1]
+        x1_t1 = (
+            xs[:, 1]
+            + dt * (gravity / length) * np.sin(xs[:, 0])
+            + dt * us[:, 0] / (mass * length**2)
+        )
 
         xs_t1 = np.vstack((x0_t1, x1_t1)).T
-
 
         if self.process_noise is not None:
             noise = np.random.uniform(
@@ -78,41 +80,44 @@ class Pendulum(DiscreteTimeDynamics):
             xs_t1 += noise
 
         return xs_t1
-    
+
 
 # Define computation as a nn.Module.
 class PendulumDynamics(nn.Module):
-  def forward(self, xt, ut):
-    # got this from pg 15 of: https://arxiv.org/pdf/2108.01220.pdf
-    # updated to values from page 21
-    dt = 0.1
-    g = 1
-    l = 0.5
-    m = 0.5
+    def forward(self, xt, ut):
+        # got this from pg 15 of: https://arxiv.org/pdf/2108.01220.pdf
+        # updated to values from page 21
+        dt = 0.1
+        gravity = 1
+        length = 0.5
+        mass = 0.5
 
-    xt_0 = torch.matmul(xt, torch.Tensor([[1], [0]]))
-    xt_1 = torch.matmul(xt, torch.Tensor([[0], [1]]))
+        xt_0 = torch.matmul(xt, torch.Tensor([[1], [0]]))
+        xt_1 = torch.matmul(xt, torch.Tensor([[0], [1]]))
 
-    xt1_0 = torch.matmul(xt, torch.Tensor([[1.], [dt]]))
-    xt1_1 = xt_1 + dt*(g/l)*torch.sin(xt_0) + dt*ut/(m*l**2)
+        xt1_0 = torch.matmul(xt, torch.Tensor([[1.0], [dt]]))
+        xt1_1 = (
+            xt_1
+            + dt * (gravity / length) * torch.sin(xt_0)
+            + dt * ut / (mass * length**2)
+        )
 
-    xt1 = torch.cat([xt1_0, xt1_1], 1)
+        xt1 = torch.cat([xt1_0, xt1_1], 1)
 
-    return xt1
-  
+        return xt1
+
 
 class Controller(nn.Module):
-  def __init__(self):
-    super().__init__()
-    self.fc1 = nn.Linear(2, 25)
-    self.fc2 = nn.Linear(25, 25)
-    self.fc3 = nn.Linear(25, 1)
+    def __init__(self):
+        super().__init__()
+        self.fc1 = nn.Linear(2, 25)
+        self.fc2 = nn.Linear(25, 25)
+        self.fc3 = nn.Linear(25, 1)
 
-  def forward(self, xt):
+    def forward(self, xt):
+        # ut = F.relu(torch.matmul(xt, torch.Tensor([[1], [0]])))
+        output = F.relu(self.fc1(xt))
+        output = F.relu(self.fc2(output))
+        output = self.fc3(output)
 
-    # ut = F.relu(torch.matmul(xt, torch.Tensor([[1], [0]])))
-    output = F.relu(self.fc1(xt))
-    output = F.relu(self.fc2(output))
-    output = self.fc3(output)
-
-    return output
+        return output

@@ -1,13 +1,14 @@
-from .ClosedLoopPropagator import ClosedLoopPropagator
-import numpy as np
-import pypoman
-import nn_closed_loop.constraints as constraints
-import torch
-from nn_closed_loop.utils.utils import range_to_polytope
-import requests
 import json
-from copy import deepcopy
 import os
+from copy import deepcopy
+
+import numpy as np
+import requests
+import torch
+
+import nn_closed_loop.constraints as constraints
+
+from .ClosedLoopPropagator import ClosedLoopPropagator
 
 model_dir = "{}/../../models/nnet/".format(
     os.path.dirname(os.path.abspath(__file__))
@@ -17,14 +18,11 @@ os.makedirs(model_dir, exist_ok=True)
 
 class ClosedLoopOVERTPropagator(ClosedLoopPropagator):
     def __init__(self, input_shape=None, dynamics=None):
-        super().__init__(
-            input_shape=input_shape, dynamics=dynamics
-        )
-        self.url = 'http://localhost:8000/overt'
-        self.model_filename = model_dir+"/tmp_model.nnet"
+        super().__init__(input_shape=input_shape, dynamics=dynamics)
+        self.url = "http://localhost:8000/overt"
+        self.model_filename = model_dir + "/tmp_model.nnet"
 
     def torch2network(self, torch_model):
-
         # Write a .nnet file based on the torch_model
         act = None
         dims = []
@@ -39,7 +37,8 @@ class ClosedLoopOVERTPropagator(ClosedLoopPropagator):
                         act = "relu"
                     else:
                         print(
-                            "Multiple types of activations in your model --- unsuported by robust_sdp."
+                            "Multiple types of activations in your model ---"
+                            " unsuported by robust_sdp."
                         )
                         assert 0
                 elif isinstance(m, torch.nn.Linear):
@@ -48,9 +47,10 @@ class ClosedLoopOVERTPropagator(ClosedLoopPropagator):
                     print("That layer isn't supported.")
                     assert 0
             dims.append(m.out_features)
-            f.write(str(len(dims) - 1)+'\n')
-            f.write(', '.join([str(d) for d in dims])+'\n')
-            for i in range(5): f.write('0\n')
+            f.write(str(len(dims) - 1) + "\n")
+            f.write(", ".join([str(d) for d in dims]) + "\n")
+            for i in range(5):
+                f.write("0\n")
 
             for idx, m in enumerate(torch_model.modules()):
                 if isinstance(m, torch.nn.Sequential):
@@ -60,14 +60,15 @@ class ClosedLoopOVERTPropagator(ClosedLoopPropagator):
                         act = "relu"
                     else:
                         print(
-                            "Multiple types of activations in your model --- unsuported by robust_sdp."
+                            "Multiple types of activations in your model ---"
+                            " unsuported by robust_sdp."
                         )
                         assert 0
                 elif isinstance(m, torch.nn.Linear):
                     w = m.weight.data.numpy()
-                    np.savetxt(f, w, fmt="%s",delimiter=', ')
+                    np.savetxt(f, w, fmt="%s", delimiter=", ")
                     b = m.bias.data.numpy()
-                    np.savetxt(f, b, fmt="%s",delimiter=', ')
+                    np.savetxt(f, b, fmt="%s", delimiter=", ")
                 else:
                     print("That layer isn't supported.")
                     assert 0
@@ -81,25 +82,30 @@ class ClosedLoopOVERTPropagator(ClosedLoopPropagator):
         ).data.numpy()
 
     def get_reachable_set(self, input_constraint, output_constraint, t_max):
-
-        num_timesteps = len(np.arange(0 + self.dynamics.dt + 1e-10, t_max, self.dynamics.dt)) + 1
+        num_timesteps = (
+            len(
+                np.arange(
+                    0 + self.dynamics.dt + 1e-10, t_max, self.dynamics.dt
+                )
+            )
+            + 1
+        )
 
         if isinstance(input_constraint, constraints.PolytopeConstraint):
             raise NotImplementedError
         elif isinstance(input_constraint, constraints.LpConstraint):
             data = {
-                'input_set': {
-                    'low': input_constraint.range[..., 0].tolist(),
-                    'high': input_constraint.range[..., 1].tolist(),
+                "input_set": {
+                    "low": input_constraint.range[..., 0].tolist(),
+                    "high": input_constraint.range[..., 1].tolist(),
                 },
-                'num_timesteps': num_timesteps,
-                'controller': self.model_filename,
-                'dt': self.dynamics.dt,
-                'system': self.dynamics.__class__.__name__,
+                "num_timesteps": num_timesteps,
+                "controller": self.model_filename,
+                "dt": self.dynamics.dt,
+                "system": self.dynamics.__class__.__name__,
             }
-            response = requests.post(self.url, data = json.dumps(data))
+            response = requests.post(self.url, data=json.dumps(data))
             ranges_list = json.loads(response.text)["result"]
-            ranges = [np.array(r) for r in ranges_list]
 
             output_constraints = []
             for r in ranges_list:
@@ -109,5 +115,7 @@ class ClosedLoopOVERTPropagator(ClosedLoopPropagator):
 
         return output_constraints, {}
 
-    def get_one_step_backprojection_set(self, output_constraint, input_constraint, num_partitions=None):
+    def get_one_step_backprojection_set(
+        self, output_constraint, input_constraint, num_partitions=None
+    ):
         raise NotImplementedError

@@ -1,32 +1,32 @@
-from .ClosedLoopPropagator import ClosedLoopPropagator
-from .ClosedLoopSDPPropagator import ClosedLoopSDPPropagator
-from .ClosedLoopOVERTPropagator import ClosedLoopOVERTPropagator
-from .ClosedLoopCROWNIBPCodebasePropagator import (
+from .ClosedLoopAUTOLIRPAPropagator import ClosedLoopAUTOLIRPAPropagator
+from .ClosedLoopCROWNIBPCodebasePropagator import (  # noqa
     ClosedLoopCROWNIBPCodebasePropagator,
     ClosedLoopCROWNLPPropagator,
-    ClosedLoopIBPPropagator,
-    ClosedLoopCROWNPropagator,
     ClosedLoopCROWNNStepPropagator,
+    ClosedLoopCROWNPropagator,
     ClosedLoopFastLinPropagator,
+    ClosedLoopIBPPropagator,
 )
+from .ClosedLoopJaxVerifyPropagator import ClosedLoopJaxPropagator  # noqa
+from .ClosedLoopJaxVerifyPropagator import (
+    ClosedLoopJaxIterativePropagator,
+    ClosedLoopJaxLPJittedPropagator,
+    ClosedLoopJaxLPPropagator,
+    ClosedLoopJaxPolytopeJittedPropagator,
+    ClosedLoopJaxPolytopePropagator,
+    ClosedLoopJaxRectangleJittedPropagator,
+    ClosedLoopJaxRectanglePropagator,
+    ClosedLoopJaxUnrolledJittedPropagator,
+    ClosedLoopJaxUnrolledPropagator,
+)
+from .ClosedLoopOVERTPropagator import ClosedLoopOVERTPropagator
+from .ClosedLoopPropagator import ClosedLoopPropagator  # noqa
+from .ClosedLoopSDPPropagator import ClosedLoopSDPPropagator
 from .ClosedLoopSeparablePropagator import (
     ClosedLoopSeparableCROWNPropagator,
     ClosedLoopSeparableIBPPropagator,
     ClosedLoopSeparableSGIBPPropagator,
 )
-from .ClosedLoopJaxVerifyPropagator import (
-    ClosedLoopJaxPropagator,
-    ClosedLoopJaxIterativePropagator,
-    ClosedLoopJaxUnrolledPropagator,
-    ClosedLoopJaxUnrolledJittedPropagator,
-    ClosedLoopJaxPolytopePropagator,
-    ClosedLoopJaxRectanglePropagator,
-    ClosedLoopJaxLPPropagator,
-    ClosedLoopJaxPolytopeJittedPropagator,
-    ClosedLoopJaxRectangleJittedPropagator,
-    ClosedLoopJaxLPJittedPropagator,
-)
-from .ClosedLoopAUTOLIRPAPropagator import ClosedLoopAUTOLIRPAPropagator
 
 propagator_dict = {
     "CROWN": ClosedLoopCROWNPropagator,
@@ -53,5 +53,5 @@ propagator_dict = {
     "JaxPolytopeJitted": ClosedLoopJaxPolytopeJittedPropagator,
     "JaxRectangleJitted": ClosedLoopJaxRectangleJittedPropagator,
     "JaxLPJitted": ClosedLoopJaxLPJittedPropagator,
-    "AutoLiRPA": ClosedLoopAUTOLIRPAPropagator
+    "AutoLiRPA": ClosedLoopAUTOLIRPAPropagator,
 }

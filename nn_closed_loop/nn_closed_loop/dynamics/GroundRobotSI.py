@@ -1,26 +1,23 @@
-from .Dynamics import DiscreteTimeDynamics
 import numpy as np
 from scipy.linalg import solve_discrete_are
+
 from nn_closed_loop.utils.mpc import control_mpc
-import torch
+
+from .Dynamics import DiscreteTimeDynamics
 
 
 class GroundRobotSI(DiscreteTimeDynamics):
     def __init__(self):
-
         self.continuous_time = False
-
 
         dt = 1
 
         At = np.eye(2)
-        bt = np.eye(2)*dt
+        bt = np.eye(2) * dt
         ct = np.array([0.0, 0.0]).T
 
         # u_limits = None
-        u_limits = np.array([[-1,1], [-1,1]], dtype=float)
-
-        
+        u_limits = np.array([[-1, 1], [-1, 1]], dtype=float)
 
         super().__init__(At=At, bt=bt, ct=ct, u_limits=u_limits, dt=dt)
 
@@ -51,18 +48,27 @@ class GroundRobotSI(DiscreteTimeDynamics):
             n_mpc=10,
             debug=False,
         )
-    
-    ## Control function for if model gives [v, w] command inputs 
-    # def control_nn(self, x, model):
-    #     if x.ndim == 1:
-    #         batch_x = np.expand_dims(x, axis=0)
-    #     else:
-    #         batch_x = x
-    #     us = model.forward(torch.Tensor(batch_x)).data.numpy()
-    #     if not hasattr(self, 'theta') or len(self.theta) != len(us):
-    #         self.theta = np.zeros(len(us))
-        
-    #     R = np.array([ [[np.cos(theta), -self.r*np.sin(theta)], [np.sin(theta), self.r*np.cos(theta)]] for theta in self.theta])
+
+        # Control function for if model gives [v, w] command inputs
+        # def control_nn(self, x, model):
+        #     if x.ndim == 1:
+        #         batch_x = np.expand_dims(x, axis=0)
+        #     else:
+        #         batch_x = x
+        #     us = model.forward(torch.Tensor(batch_x)).data.numpy()
+        #     if not hasattr(self, 'theta') or len(self.theta) != len(us):
+        #         self.theta = np.zeros(len(us))
+
+        # R = np.array(
+        #     [
+        #         [
+        #             [np.cos(theta), -self.r * np.sin(theta)],
+        #             [np.sin(theta), self.r * np.cos(theta)],
+        #         ]
+        #         for theta in self.theta
+        #     ]
+        # )
+
     #     us_transformed = np.array([R[i]@us[i] for i in range(len(us))])
 
     #     # print("theta: {}".format(self.theta[0]))

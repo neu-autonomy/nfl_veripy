@@ -1,38 +1,36 @@
-from .ClosedLoopPropagator import ClosedLoopPropagator
-import numpy as np
-import nn_closed_loop.constraints as constraints
-from tqdm import tqdm
 import cvxpy as cp
+import numpy as np
+import torch
+from tqdm import tqdm
+
+import nn_closed_loop.constraints as constraints
 from nn_closed_loop.utils.reach_sdp import (
     getE_in,
     getE_mid,
     getE_out,
     getInputConstraints,
-    getOutputConstraints,
     getNNConstraints,
-    getInputConstraintsEllipsoid,
-    getOutputConstraintsEllipsoid,
+    getOutputConstraints,
 )
-from nn_closed_loop.utils.utils import range_to_polytope
-import torch
+
+from .ClosedLoopPropagator import ClosedLoopPropagator
 
 
 class ClosedLoopSDPPropagator(ClosedLoopPropagator):
     def __init__(
         self, input_shape=None, dynamics=None, cvxpy_solver="default"
     ):
-        super().__init__(
-            input_shape=input_shape, dynamics=dynamics
-        )
+        super().__init__(input_shape=input_shape, dynamics=dynamics)
         self.cvxpy_solver = cvxpy_solver
 
     def torch2network(self, torch_model):
         return torch_model
 
     def get_one_step_reachable_set(self, initial_set):
-
         A_inputs, b_inputs = initial_set.get_polytope()
-        reachable_set = constraints.create_empty_constraint(self.boundary_type, num_facets=self.num_polytope_facets)
+        reachable_set = constraints.create_empty_constraint(
+            self.boundary_type, num_facets=self.num_polytope_facets
+        )
         if isinstance(reachable_set, constraints.PolytopeConstraint):
             A_out = reachable_set.A
         elif isinstance(reachable_set, constraints.LpConstraint):
@@ -45,7 +43,8 @@ class ClosedLoopSDPPropagator(ClosedLoopPropagator):
 
         # Count number of units in each layer, except last layer
         # For keras:
-        # num_neurons = np.sum([layer.get_config()['units'] for layer in self.network.layers][:-1])
+        # num_neurons = np.sum([layer.get_config()['units'] for layer in
+        #  self.network.layers][:-1])
         # For torch:
         num_neurons = np.sum(
             [
@@ -91,7 +90,6 @@ class ClosedLoopSDPPropagator(ClosedLoopPropagator):
         num_facets = A_out.shape[0]
         bs = np.zeros((num_facets))
         for i in tqdm(range(num_facets)):
-
             S_i, reachable_set_constrs, b_i = getOutputConstraints(
                 num_states, A_out[i, :]
             )
@@ -118,7 +116,7 @@ class ClosedLoopSDPPropagator(ClosedLoopPropagator):
             reachable_set.b = bs
         elif isinstance(reachable_set, constraints.LpConstraint):
             reachable_set.range = np.empty((num_states, 2))
-            reachable_set.range[:, 0] = -bs[(num_facets // 2):]
-            reachable_set.range[:, 1] = bs[:(num_facets // 2)]
+            reachable_set.range[:, 0] = -bs[(num_facets // 2) :]
+            reachable_set.range[:, 1] = bs[: (num_facets // 2)]
 
         return reachable_set, {}

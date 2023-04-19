@@ -1,14 +1,14 @@
-from .Dynamics import ContinuousTimeDynamics
 import numpy as np
+
+from .Dynamics import ContinuousTimeDynamics
 
 
 class Duffing(ContinuousTimeDynamics):
     def __init__(self):
-
         dim = 2
         zeta = 0.3
         dt = 0.05
-        At = np.array([[0, 1], [-1, -2*zeta]], dtype=float)
+        At = np.array([[0, 1], [-1, -2 * zeta]], dtype=float)
 
         bt = np.zeros((dim, 1), dtype=float)
         bt[1][0] = 1.0

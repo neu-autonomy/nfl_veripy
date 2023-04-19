@@ -1,6 +1,7 @@
-import numpy as np
-import cvxpy as cp
 import itertools
+
+import cvxpy as cp
+import numpy as np
 from torch.nn import Linear
 
 
@@ -67,26 +68,28 @@ def getE_mid(num_states, num_neurons, num_inputs, model, u_limits):
         W_i = Ws[2 * layer].T
         bi = Ws[2 * layer + 1]
 
-        A[i: i + W_i.shape[0], j: j + W_i.shape[1]] = W_i
+        A[i : i + W_i.shape[0], j : j + W_i.shape[1]] = W_i
 
-        a[i: i + W_i.shape[0]] = bi
+        a[i : i + W_i.shape[0]] = bi
 
         i += W_i.shape[0]
         j += W_i.shape[1]
 
-    A[i: i + num_inputs, j: j + num_inputs] = -np.eye(num_inputs)
+    A[i : i + num_inputs, j : j + num_inputs] = -np.eye(num_inputs)
 
     B[-num_inputs:, -num_inputs:] = -np.eye(num_inputs)
-    B[-2 * num_inputs: -num_inputs, -2 * num_inputs: -num_inputs] = np.eye(
+    B[-2 * num_inputs : -num_inputs, -2 * num_inputs : -num_inputs] = np.eye(
         num_inputs
     )
-    B[0:num_neurons, num_states: num_states + num_neurons] = np.eye(
+    B[0:num_neurons, num_states : num_states + num_neurons] = np.eye(
         num_neurons
     )
 
     if u_limits is None:
         print(
-            "Can't set u_limits to None. Getting rid of u_limits requires a bit of implementation effort still. Also, don't set u_limits too big or the solutions are wrong."
+            "Can't set u_limits to None. Getting rid of u_limits requires a"
+            " bit of implementation effort still. Also, don't set u_limits too"
+            " big or the solutions are wrong."
         )
         raise NotImplementedError
         B = B[: -2 * num_inputs, : -2 * num_inputs]
@@ -96,9 +99,9 @@ def getE_mid(num_states, num_neurons, num_inputs, model, u_limits):
     else:
         u_min = u_limits[:, 0]
         u_max = u_limits[:, 1]
-        a[-2 * num_inputs: -num_inputs] -= u_min
+        a[-2 * num_inputs : -num_inputs] -= u_min
         a[-num_inputs:] = u_max
-        b[-2 * num_inputs: -num_inputs] = -u_min
+        b[-2 * num_inputs : -num_inputs] = -u_min
         b[-num_inputs:] = u_max
 
     a = np.expand_dims(a, axis=-1)
@@ -116,7 +119,7 @@ def getE_mid(num_states, num_neurons, num_inputs, model, u_limits):
 
 
 def getInputConstraints(num_states, m, A_inputs, b_inputs):
-    """ Set up M_in(P) which describes the input constraint """
+    """Set up M_in(P) which describes the input constraint"""
 
     # Set up P, the polyhedron constraint in state coordinates
     P = cp.Variable((num_states + 1, num_states + 1), symmetric=True)
@@ -142,7 +145,7 @@ def getInputConstraints(num_states, m, A_inputs, b_inputs):
 
 
 def getInputConstraintsEllipsoid(num_states, A, b):
-    """ Set up M_in(P) which describes the input constraint """
+    """Set up M_in(P) which describes the input constraint"""
 
     # Set up P, the ellipsoid constraint in state coordinates
     P = cp.Variable((num_states + 1, num_states + 1), symmetric=True)
@@ -159,7 +162,7 @@ def getInputConstraintsEllipsoid(num_states, A, b):
 
 
 def getNNConstraints(num_neurons, num_inputs):
-    """ Set up M_mid(Q) which describes the ReLU constraint """
+    """Set up M_mid(Q) which describes the ReLU constraint"""
     nn_constrs = []
 
     # Set up T
@@ -177,7 +180,7 @@ def getNNConstraints(num_neurons, num_inputs):
         if i == d - 1:
             second = 0
         else:
-            second = cp.sum(lamb_ij[i, i + 1:])
+            second = cp.sum(lamb_ij[i, i + 1 :])
         val = first + second + lamb_i[i]
         nn_constrs += [T[i, i] == val]
 
@@ -223,7 +226,7 @@ def getNNConstraints(num_neurons, num_inputs):
 
 
 def getOutputConstraints(num_states, a_i):
-    """ Set up M_out(S_i) which describes one halfplane of the reachable set """
+    """Set up M_out(S_i) which describes one halfplane of the reachable set"""
 
     # Set up S_i for one halfplane in state coordinates
     b_i = cp.Variable(1)
@@ -241,7 +244,7 @@ def getOutputConstraints(num_states, a_i):
 
 
 def getOutputConstraintsEllipsoid(num_states):
-    """ Set up M_out(S_i) which describes ... of the reachable set """
+    """Set up M_out(S_i) which describes ... of the reachable set"""
 
     A = cp.Variable((num_states, num_states))
     b = cp.Variable((num_states,))
@@ -257,9 +260,10 @@ def getOutputConstraintsEllipsoid(num_states):
 
 
 # def reachSDP_1(model, A_inputs, b_inputs, At, bt, ct, A_in, u_limits):
-
 #     # Count number of units in each layer, except last layer
-#     num_neurons = np.sum([layer.get_config()['units'] for layer in model.layers][:-1])
+#     num_neurons = np.sum(
+#         [layer.get_config()["units"] for layer in model.layers][:-1]
+#     )
 
 #     # Number of vertices in input polyhedron
 #     m = A_inputs.shape[0]
@@ -272,8 +276,12 @@ def getOutputConstraintsEllipsoid(num_states):
 #     E_out = getE_out(num_states, num_neurons, num_inputs, At, bt, ct)
 
 #     # Get P,Q,S and constraint lists
-#     # P, input_set_constrs = getInputConstraints(num_states, m, A_inputs, b_inputs)
-#     P, input_set_constrs = getInputConstraintsEllipsoid(num_states, m, A_inputs, b_inputs)
+#     # P, input_set_constrs = getInputConstraints(
+#     #     num_states, m, A_inputs, b_inputs
+#     # )
+#     P, input_set_constrs = getInputConstraintsEllipsoid(
+#         num_states, m, A_inputs, b_inputs
+#     )
 #     Q, nn_constrs = getNNConstraints(num_neurons, num_inputs)
 
 #     # M_in describes the input set in NN coords
@@ -283,8 +291,12 @@ def getOutputConstraintsEllipsoid(num_states):
 #     num_facets = A_in.shape[0]
 #     bs = np.zeros((num_facets))
 #     for i in tqdm(range(num_facets)):
-#         # S_i, reachable_set_constrs, b_i = getOutputConstraints(num_states, A_in[i,:])
-#         S_i, reachable_set_constrs, A, b = getOutputConstraintsEllipsoid(num_states)
+#         # S_i, reachable_set_constrs, b_i = getOutputConstraints(
+#         #     num_states, A_in[i, :]
+#         # )
+#         S_i, reachable_set_constrs, A, b = getOutputConstraintsEllipsoid(
+#             num_states
+#         )
 #         M_out = cp.quad_form(E_out, S_i)
 
 #         constraints = input_set_constrs + nn_constrs + reachable_set_constrs
@@ -305,23 +317,27 @@ def getOutputConstraintsEllipsoid(num_states):
 
 #     return bs
 
+
 # def reachSDP_n(n, model, A_inputs, b_inputs, At, bt, ct, A_in, u_limits):
 #     all_bs = []
 #     bs = reachSDP_1(model, A_inputs, b_inputs, At, bt, ct, A_in, u_limits)
 #     all_bs.append(bs)
-#     for i in range(1,n):
+#     for i in range(1, n):
 #         bs = reachSDP_1(model, A_in, bs, At, bt, ct, A_in, u_limits)
 #         all_bs.append(bs)
 #     return all_bs
+
 
 # def save_dataset(bs):
 #     with open("bs.pkl", "wb") as f:
 #         pickle.dump(bs, f)
 
+
 # def load_dataset():
 #     with open("bs.pkl", "rb") as f:
 #         bs = pickle.load(f)
 #     return bs
+
 
 # save_dataset(all_bs)
 # all_bs = load_dataset()
@@ -331,18 +347,18 @@ if __name__ == "__main__":
     np.set_printoptions(precision=1)
 
     # Initial state constraints
-    x0_min, x0_max = init_state_range[0, :]
-    x1_min, x1_max = init_state_range[1, :]
+    # x0_min, x0_max = init_state_range[0, :]
+    # x1_min, x1_max = init_state_range[1, :]
     # A_inputs: vectors of the facets of the input reachable set polyhedron
-    A_inputs = np.array([[-1, 0], [1, 0], [0, -1], [0, 1]])
-    b_inputs = np.array([-x0_min, x0_max, -x1_min, x1_max])
+    # A_inputs = np.array([[-1, 0], [1, 0], [0, -1], [0, 1]])
+    # b_inputs = np.array([-x0_min, x0_max, -x1_min, x1_max])
 
     # A_in: vectors of the facets of the output reachable set polyhedron
     A_in = np.array(
         [[1, -1, 0, 0, 1, -1, 1, -1], [0, 0, 1, -1, -1, 1, 1, -1]]
     ).T
 
-    bs = reachSDP_1(model, A_inputs, b_inputs, At, bt, ct, A_in, u_limits)
+    # bs = reachSDP_1(model, A_inputs, b_inputs, At, bt, ct, A_in, u_limits)
     # bs2 = reachSDP_1(model, A_in, bs, At, bt, ct, A_in)
 
     # all_bs = reachSDP_n(6, model, A_inputs, b_inputs, At, bt, ct, A_in)

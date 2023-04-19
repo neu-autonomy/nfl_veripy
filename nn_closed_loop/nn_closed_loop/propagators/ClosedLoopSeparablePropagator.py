@@ -1,28 +1,25 @@
-from .ClosedLoopPropagator import ClosedLoopPropagator
-from .ClosedLoopCROWNIBPCodebasePropagator import ClosedLoopCROWNPropagator
+import cvxpy as cp
 import numpy as np
 import pypoman
-import nn_closed_loop.constraints as constraints
 import torch
-from nn_closed_loop.utils.utils import range_to_polytope
-import cvxpy as cp
-from itertools import product
+
+import nn_closed_loop.constraints as constraints
 import nn_partition.analyzers as analyzers
+
+from .ClosedLoopPropagator import ClosedLoopPropagator
 
 
 class ClosedLoopSeparablePropagator(ClosedLoopPropagator):
-    '''
+    """
     Instead of relaxing NN then folding the relaxed NN into the optimization
     over next states, treat the dynamics and NN separately.
     ==> A generalization of the approach in [Xiang21TNNLS]
     First, find bounds on the set of controls that could be applied. Then, find
     bounds on the set of next states that could be achieved for any of those.
-    '''
+    """
 
     def __init__(self, input_shape=None, dynamics=None):
-        super().__init__(
-            input_shape=input_shape, dynamics=dynamics
-        )
+        super().__init__(input_shape=input_shape, dynamics=dynamics)
 
         self.partitioner_hyperparams = {
             "num_simulations": 1,
@@ -45,13 +42,14 @@ class ClosedLoopSeparablePropagator(ClosedLoopPropagator):
 
     def get_min_max_controls(self, nn_input_max, nn_input_min, C):
         input_range = np.stack([nn_input_min[0], nn_input_max[0]]).T
-        nn_output_range, analyzer_info = self.nn_analyzer.get_output_range(input_range)
-        u_min = nn_output_range[:,0]
-        u_max = nn_output_range[:,1]
+        nn_output_range, analyzer_info = self.nn_analyzer.get_output_range(
+            input_range
+        )
+        u_min = nn_output_range[:, 0]
+        u_max = nn_output_range[:, 1]
         return u_min, u_max
 
     def get_one_step_reachable_set(self, input_constraint, output_constraint):
-
         if isinstance(input_constraint, constraints.PolytopeConstraint):
             A_inputs = input_constraint.A
             b_inputs = input_constraint.b
@@ -61,7 +59,7 @@ class ClosedLoopSeparablePropagator(ClosedLoopPropagator):
                 vertices = np.stack(
                     pypoman.compute_polytope_vertices(A_inputs, b_inputs)
                 )
-            except:
+            except Exception:
                 # Sometimes get arithmetic error... this may fix it
                 vertices = np.stack(
                     pypoman.compute_polytope_vertices(
@@ -70,11 +68,9 @@ class ClosedLoopSeparablePropagator(ClosedLoopPropagator):
                 )
             x_max = np.max(vertices, 0)
             x_min = np.min(vertices, 0)
-            norm = np.inf
         elif isinstance(input_constraint, constraints.LpConstraint):
             x_min = input_constraint.range[..., 0]
             x_max = input_constraint.range[..., 1]
-            norm = input_constraint.p
             A_inputs = None
             b_inputs = None
         else:
@@ -107,7 +103,8 @@ class ClosedLoopSeparablePropagator(ClosedLoopPropagator):
 
         u_min, u_max = self.get_min_max_controls(nn_input_max, nn_input_min, C)
 
-        # # Sample a grid of pts from the input set, to get exact NN output polytope
+        # Sample a grid of pts from the input set, to get exact NN output
+        # polytope
         # x0 = np.linspace(x_min[0], x_max[0], num=10)
         # x1 = np.linspace(x_min[1], x_max[1], num=10)
         # xx, yy = np.meshgrid(x0, x1)
@@ -118,7 +115,8 @@ class ClosedLoopSeparablePropagator(ClosedLoopPropagator):
         # sampled_output_min = np.min(sampled_outputs.data.numpy())
         # sampled_output_max = np.max(sampled_outputs.data.numpy())
         # print("(u_min, u_max): ({.4f}, {.4f})".format(u_min, u_max))
-        # print("(sampled_min, sampled_max): ({.4f}, {.4f})".format(sampled_output_min, sampled_output_max))
+        # print("(sampled_min, sampled_max): ({.4f}, {.4f})".format(
+        # sampled_output_min, sampled_output_max))
 
         for i in range(num_facets):
             # For each dimension of the output constraint (facet/lp-dimension):
@@ -137,9 +135,7 @@ class ClosedLoopSeparablePropagator(ClosedLoopPropagator):
                 b_in=b_inputs,
             )
 
-            if isinstance(
-                output_constraint, constraints.PolytopeConstraint
-            ):
+            if isinstance(output_constraint, constraints.PolytopeConstraint):
                 bs[i] = A_out_xt1_max
             elif isinstance(output_constraint, constraints.LpConstraint):
                 ranges[i, 0] = A_out_xt1_min
@@ -155,10 +151,14 @@ class ClosedLoopSeparablePropagator(ClosedLoopPropagator):
             raise NotImplementedError
         return output_constraint, {}
 
-    def get_one_step_backprojection_set(self, output_constraint, input_constraint, num_partitions=None):
+    def get_one_step_backprojection_set(
+        self, output_constraint, input_constraint, num_partitions=None
+    ):
         raise NotImplementedError
 
-    def compute_bound(self, u_min, u_max, xt_max, xt_min, A_out, A_in=None, b_in=None):
+    def compute_bound(
+        self, u_min, u_max, xt_max, xt_min, A_out, A_in=None, b_in=None
+    ):
         if A_in is None or b_in is None:
             # Resort to cvxpy solver because polytope constraints
             (
@@ -167,11 +167,11 @@ class ClosedLoopSeparablePropagator(ClosedLoopPropagator):
             ) = self.compute_bound_lp(
                 u_min,
                 u_max,
-                x_max,
-                x_min,
-                A_out[i, :],
-                A_in=A_inputs,
-                b_in=b_inputs,
+                xt_max,
+                xt_min,
+                A_out,
+                A_in=A_in,
+                b_in=b_in,
             )
         else:
             # Can solve in closed-form
@@ -181,21 +181,24 @@ class ClosedLoopSeparablePropagator(ClosedLoopPropagator):
             ) = self.compute_bound_cf(
                 u_min,
                 u_max,
-                x_max,
-                x_min,
-                A_out[i, :],
+                xt_max,
+                xt_min,
+                A_out,
             )
 
         return A_out_xt1_max, A_out_xt1_min
 
-    def compute_bound_lp(self, u_min, u_max, xt_max, xt_min, A_out, A_in=None, b_in=None):
-
+    def compute_bound_lp(
+        self, u_min, u_max, xt_max, xt_min, A_out, A_in=None, b_in=None
+    ):
         num_states = 2
         num_control_inputs = 1
 
         xt = cp.Variable(num_states)
         u = cp.Variable(num_control_inputs)
-        cost = A_out.T @ (self.dynamics.At@xt + self.dynamics.bt@u + self.dynamics.ct)
+        cost = A_out.T @ (
+            self.dynamics.At @ xt + self.dynamics.bt @ u + self.dynamics.ct
+        )
 
         # Input set constraints
         constraints = []
@@ -224,55 +227,58 @@ class ClosedLoopSeparablePropagator(ClosedLoopPropagator):
 
         return ub, lb
 
-    def compute_bound_cf(self, u_min, u_max, xt_max, xt_min, A_out, A_in=None, b_in=None):
-
-        num_states = 2
-        num_control_inputs = 1
-
+    def compute_bound_cf(
+        self, u_min, u_max, xt_max, xt_min, A_out, A_in=None, b_in=None
+    ):
         # max Aout(At*xt + bt*u + ct) s.t. xt\inXt, u\inU
         # = max Aout([At bt ct]@[xt; u; 1]) s.t. xt\inXt, u\inU
         # = max D@z s.t. z\inZ, where D = Aout([At; bt; ct], z = [xt; u; 1]
         # = (max (z_eps*D)@a s.t. a\inA) + D@z_ctr, where a = z - z_ctr / z_eps
 
-        D = A_out@np.hstack([self.dynamics.At, self.dynamics.bt, np.expand_dims(self.dynamics.ct, axis=1)])
-        z0 = np.hstack([(xt_max + xt_min) / 2., (u_max + u_min) / 2., 1])
-        eps = np.hstack([(xt_max - xt_min) / 2., (u_max - u_min) / 2., 0])
+        D = A_out @ np.hstack(
+            [
+                self.dynamics.At,
+                self.dynamics.bt,
+                np.expand_dims(self.dynamics.ct, axis=1),
+            ]
+        )
+        z0 = np.hstack([(xt_max + xt_min) / 2.0, (u_max + u_min) / 2.0, 1])
+        eps = np.hstack([(xt_max - xt_min) / 2.0, (u_max - u_min) / 2.0, 0])
 
-        ub = np.sum(np.abs(np.multiply(eps, D))) + D@z0
-        lb = -np.sum(np.abs(np.multiply(eps, D))) + D@z0
+        ub = np.sum(np.abs(np.multiply(eps, D))) + D @ z0
+        lb = -np.sum(np.abs(np.multiply(eps, D))) + D @ z0
 
         return ub, lb
 
 
 class ClosedLoopSeparableCROWNPropagator(ClosedLoopSeparablePropagator):
     def __init__(self, input_shape=None, dynamics=None):
-        super().__init__(
-            input_shape=input_shape, dynamics=dynamics
-        )
+        super().__init__(input_shape=input_shape, dynamics=dynamics)
         self.propagator_hyperparams["type"] = "CROWN_LIRPA"
 
 
 class ClosedLoopSeparableIBPPropagator(ClosedLoopSeparablePropagator):
     def __init__(self, input_shape=None, dynamics=None):
-        super().__init__(
-            input_shape=input_shape, dynamics=dynamics
-        )
+        super().__init__(input_shape=input_shape, dynamics=dynamics)
         self.propagator_hyperparams["type"] = "IBP_LIRPA"
 
 
 class ClosedLoopSeparableSGIBPPropagator(ClosedLoopSeparablePropagator):
-    '''
+    """
     This is roughly the approach from [Xiang21TNNLS],
     replacing reachODE with a closed-form/LP soln valid for DT plants
-    '''
+    """
+
     def __init__(self, input_shape=None, dynamics=None):
-        super().__init__(
-            input_shape=input_shape, dynamics=dynamics
-        )
+        super().__init__(input_shape=input_shape, dynamics=dynamics)
         self.partitioner_hyperparams["type"] = "SimGuided"
         self.partitioner_hyperparams["num_simulations"] = 1e5
-        self.partitioner_hyperparams["termination_condition_type"] = "input_cell_size"
+        self.partitioner_hyperparams["termination_condition_type"] = (
+            "input_cell_size"
+        )
         self.partitioner_hyperparams["termination_condition_value"] = 0.1
-        # self.partitioner_hyperparams["termination_condition_type"] = "time_budget"
+        # self.partitioner_hyperparams["termination_condition_type"] = (
+        #     "time_budget"
+        # )
         # self.partitioner_hyperparams["termination_condition_value"] = 2.0
         self.propagator_hyperparams["type"] = "IBP_LIRPA"

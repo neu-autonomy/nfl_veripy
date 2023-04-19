@@ -1,9 +1,10 @@
-import torch
-import numpy as np
-from crown_ibp.bound_layers import BoundSequential
-import cvxpy as cp
-
 import logging
+
+import cvxpy as cp
+import numpy as np
+import torch
+
+from crown_ibp.bound_layers import BoundSequential
 
 logging.basicConfig(level=logging.INFO)
 # logging.basicConfig(level=logging.DEBUG)
@@ -16,7 +17,7 @@ class BoundClosedLoopController(BoundSequential):
         self.dynamics = dynamics
         self.try_to_use_closed_form = True
 
-    ## Convert a Pytorch model to a model with bounds
+    # Convert a Pytorch model to a model with bounds
     # @param sequential_model Input pytorch model
     # @return Converted model
     @staticmethod
@@ -29,62 +30,79 @@ class BoundClosedLoopController(BoundSequential):
             # Borrowing brilliant idea from Reach-SDP paper to add 2 ReLUs
             # to handle control limits
 
-            from crown_ibp.bound_layers import BoundReLU, BoundLinear
             from copy import deepcopy
+
+            from crown_ibp.bound_layers import BoundLinear, BoundReLU
 
             # To ensure CROWN doesn't exceed the control limits below
             if bound_opts is None:
                 bound_opts = {}
             else:
                 control_limit_bound_opts = deepcopy(bound_opts)
-            control_limit_bound_opts['zero-lb'] = True
-            control_limit_bound_opts['same-slope'] = False
+            control_limit_bound_opts["zero-lb"] = True
+            control_limit_bound_opts["same-slope"] = False
 
             num_inputs = dynamics.bt.shape[-1]
 
             # Last b += u_min
-            layers[-1].bias.data += -dynamics.u_limits[:,0].astype(np.float32)
+            layers[-1].bias.data += -dynamics.u_limits[:, 0].astype(np.float32)
 
             # ReLU
-            layers.append(BoundReLU(layers[-1], bound_opts=control_limit_bound_opts))
+            layers.append(
+                BoundReLU(layers[-1], bound_opts=control_limit_bound_opts)
+            )
 
             # W = -I, b = u_max - u_min
-            layer = BoundLinear(num_inputs, num_inputs, True, bound_opts=control_limit_bound_opts)
+            layer = BoundLinear(
+                num_inputs,
+                num_inputs,
+                True,
+                bound_opts=control_limit_bound_opts,
+            )
             layer.weight.data = -torch.eye(num_inputs)
-            layer.bias.data = torch.Tensor(dynamics.u_limits[:,1] - dynamics.u_limits[:,0])
+            layer.bias.data = torch.Tensor(
+                dynamics.u_limits[:, 1] - dynamics.u_limits[:, 0]
+            )
             layers.append(layer)
 
             # ReLU
-            layers.append(BoundReLU(layers[-1], bound_opts=control_limit_bound_opts))
+            layers.append(
+                BoundReLU(layers[-1], bound_opts=control_limit_bound_opts)
+            )
 
             # W = -I, b = u_max
-            layer = BoundLinear(num_inputs, num_inputs, True, bound_opts=control_limit_bound_opts)
+            layer = BoundLinear(
+                num_inputs,
+                num_inputs,
+                True,
+                bound_opts=control_limit_bound_opts,
+            )
             layer.weight.data = -torch.eye(num_inputs)
-            layer.bias.data = torch.Tensor(dynamics.u_limits[:,1])
+            layer.bias.data = torch.Tensor(dynamics.u_limits[:, 1])
             layers.append(layer)
 
         b = BoundClosedLoopController(dynamics=dynamics, layers=layers)
 
-        if 'try_to_use_closed_form' in bound_opts:
-            b.try_to_use_closed_form = bound_opts['try_to_use_closed_form']
+        if "try_to_use_closed_form" in bound_opts:
+            b.try_to_use_closed_form = bound_opts["try_to_use_closed_form"]
 
         return b
 
     def _add_dynamics(
         self, lower_A, upper_A, lower_sum_b, upper_sum_b, A_out, dynamics
     ):
-
         """
         From CROWN paper:
         Lambda = upper_A
         Omega = lower_A
         Delta = upper_sum_b
         Theta = lower_sum_b
-        --> These are the slopes and intercepts of the control input linear bounds
+        --> These are the slopes and intercepts of the control input lin bnds
         i.e., Omega x + Theta <= u <= Lambda x + Delta (forall x in X0)
         """
 
-        # Determine which control inputs should use max vs. min for biggest next state
+        # Determine which control inputs should use max vs. min for biggest
+        # next state
         flip = torch.matmul(A_out, torch.Tensor(np.array([dynamics.bt]))) < 0
         flip_A = flip.repeat(1, dynamics.num_states, 1).transpose(2, 1)
         flip_b = flip.squeeze(1)
@@ -120,10 +138,15 @@ class BoundClosedLoopController(BoundSequential):
             ).unsqueeze(-1)
         else:
             flip_sensor_noise_low = (
-                torch.matmul(A_out, torch.Tensor(np.array([dynamics.bt]))).bmm(xi) < 0
+                torch.matmul(A_out, torch.Tensor(np.array([dynamics.bt]))).bmm(
+                    xi
+                )
+                < 0
             )
             flip_sensor_noise_high = (
-                torch.matmul(A_out, torch.Tensor(np.array([dynamics.bt]))).bmm(upsilon)
+                torch.matmul(A_out, torch.Tensor(np.array([dynamics.bt]))).bmm(
+                    upsilon
+                )
                 < 0
             )
             sensor_noise_low = torch.where(
@@ -139,7 +162,9 @@ class BoundClosedLoopController(BoundSequential):
 
         # Compute slope and intercept of closed-loop system linear bounds
         if dynamics.continuous_time:
-            # x_{t+1} = x_t+dt*x_dot = x_t+dt*(Ax+bu+c) <= (I+dt*(A+bY))x + dt*(bG)
+            # x_{t+1} = (
+            #     x_t+dt*x_dot = x_t+dt*(Ax+bu+c) <= (I+dt*(A+bY))x + dt*(bG)
+            # )
             lower_A_with_dyn = torch.matmul(
                 A_out,
                 torch.eye(dynamics.num_states).unsqueeze(0)
@@ -162,17 +187,23 @@ class BoundClosedLoopController(BoundSequential):
                 A_out,
                 dynamics.dt
                 * (
-                    torch.Tensor(np.array([dynamics.bt])).bmm(gamma.unsqueeze(-1))
+                    torch.Tensor(np.array([dynamics.bt])).bmm(
+                        gamma.unsqueeze(-1)
+                    )
                     + torch.Tensor(np.array([dynamics.ct])).unsqueeze(-1)
                     + process_noise_low.unsqueeze(-1)
-                    + torch.Tensor(np.array([dynamics.bt])).bmm(xi).bmm(sensor_noise_low)
+                    + torch.Tensor(np.array([dynamics.bt]))
+                    .bmm(xi)
+                    .bmm(sensor_noise_low)
                 ),
             )
             upper_sum_b_with_dyn = torch.matmul(
                 A_out,
                 dynamics.dt
                 * (
-                    torch.Tensor(np.array([dynamics.bt])).bmm(psi.unsqueeze(-1))
+                    torch.Tensor(np.array([dynamics.bt])).bmm(
+                        psi.unsqueeze(-1)
+                    )
                     + torch.Tensor(np.array([dynamics.ct])).unsqueeze(-1)
                     + process_noise_high.unsqueeze(-1)
                     + torch.Tensor(np.array([dynamics.bt]))
@@ -197,7 +228,9 @@ class BoundClosedLoopController(BoundSequential):
                 torch.Tensor(np.array([dynamics.bt])).bmm(gamma.unsqueeze(-1))
                 + torch.Tensor(np.array([dynamics.ct])).unsqueeze(-1)
                 + process_noise_low.unsqueeze(-1)
-                + torch.Tensor(np.array([dynamics.bt])).bmm(xi).bmm(sensor_noise_low),
+                + torch.Tensor(np.array([dynamics.bt]))
+                .bmm(xi)
+                .bmm(sensor_noise_low),
             )
             upper_sum_b_with_dyn = torch.matmul(
                 A_out,
@@ -216,12 +249,12 @@ class BoundClosedLoopController(BoundSequential):
             upper_sum_b_with_dyn,
         )
 
-    ## High level function, will be called outside
+    # High level function, will be called outside
     # @param norm perturbation norm (np.inf, 2)
     # @param x_L lower bound of input, shape (batch, *image_shape)
     # @param x_U upper bound of input, shape (batch, *image_shape)
     # @param eps perturbation epsilon (not used for Linf)
-    # @param C vector of specification, shape (batch, specification_size, output_size)
+    # @param C vector of specification, shape (batch, spec_size, output_size)
     # @param upper compute CROWN upper bound
     # @param lower compute CROWN lower bound
     def backward_range(
@@ -260,7 +293,8 @@ class BoundClosedLoopController(BoundSequential):
             )
 
             if return_matrices:
-                # The caller doesn't care about the actual NN bounds, just the matrices (slope, intercept) used to compute them
+                # The caller doesn't care about the actual NN bounds,
+                # just the matrices (slope, intercept) used to compute them
                 return lower_A, upper_A, lower_sum_b, upper_sum_b
 
             ub, lb = self.compute_bound_from_matrices(
@@ -280,7 +314,9 @@ class BoundClosedLoopController(BoundSequential):
         A_out,
         dt,
     ):
-        if A_out[0][1] == 0.: #first dimension does not have non-linear terms
+        if (
+            A_out[0][1] == 0.0
+        ):  # first dimension does not have non-linear terms
             lb = self._get_concrete_bound_lpball(
                 lower_A_with_dyn,
                 lower_sum_b_with_dyn,
@@ -302,21 +338,21 @@ class BoundClosedLoopController(BoundSequential):
             lb = self._get_concrete_bound_cvx_rlx(
                 lower_A_with_dyn,
                 lower_sum_b_with_dyn,
-                sign=-1.,
+                sign=-1.0,
                 x_U=x_U,
                 x_L=x_L,
                 norm=norm,
-                c_Y=c_Y
+                c_Y=c_Y,
             )
             # lb = -5.
             ub = self._get_concrete_bound_cvx_rlx(
                 upper_A_with_dyn,
                 upper_sum_b_with_dyn,
-                sign=+1.,
+                sign=+1.0,
                 x_U=x_U,
                 x_L=x_L,
                 norm=norm,
-                c_Y=c_Y
+                c_Y=c_Y,
             )
         return ub, lb
 
@@ -405,7 +441,9 @@ class BoundClosedLoopController(BoundSequential):
         ub, lb = self._check_if_bnds_exist(ub=ub, lb=lb, x_U=x_U, x_L=x_L)
         return ub, lb
 
-    def _get_concrete_bound_linearprog(self, A, sum_b, A_in=None, b_in=None, x_U=None, x_L=None, sign=1):
+    def _get_concrete_bound_linearprog(
+        self, A, sum_b, A_in=None, b_in=None, x_U=None, x_L=None, sign=1
+    ):
         if A is None:
             return None
         A = A.view(A.size(0), A.size(1), -1)
@@ -470,14 +508,17 @@ class BoundClosedLoopController(BoundSequential):
             # deviation = A.norm(dual_norm, -1) * eps
             # bound = A.bmm(x) + sign * deviation.unsqueeze(-1)
 
-        # Add big summation term from Eq. 20 of: https://arxiv.org/pdf/1811.00866.pdf
+        # Add big summation term from Eq. 20 of:
+        # https://arxiv.org/pdf/1811.00866.pdf
         if sum_b.ndim == 3:
             sum_b = sum_b.squeeze(-1)
         bound = bound.squeeze(-1) + sum_b
 
         return bound.data.numpy()
 
-    def _get_concrete_bound_cvx_rlx(self, A, sum_b, x_U=None, x_L=None, norm=np.inf, sign=-1, c_Y=-0.05):
+    def _get_concrete_bound_cvx_rlx(
+        self, A, sum_b, x_U=None, x_L=None, norm=np.inf, sign=-1, c_Y=-0.05
+    ):
         # self, A, sum_b, x_U = None, x_L = None, norm = np.inf, sign = -1
         if A is None:
             return None
@@ -489,12 +530,14 @@ class BoundClosedLoopController(BoundSequential):
         n = c.shape[0]
 
         x = cp.Variable(n)
-        Y = cp.Variable((n+2, n+2), symmetric=True)
+        Y = cp.Variable((n + 2, n + 2), symmetric=True)
         # The operator >> denotes matrix inequality.
 
         cost = sign * (c.T @ x + c_Y * Y[2][0])
         # constraints = [A_in @ x <= b_in]
-        x_1_bound = np.array([x_L.data.numpy().squeeze(0)[0], x_U.data.numpy().squeeze(0)[0]])
+        x_1_bound = np.array(
+            [x_L.data.numpy().squeeze(0)[0], x_U.data.numpy().squeeze(0)[0]]
+        )
         constraints = []
         constraints += [
             x <= x_U.data.numpy().squeeze(0),
@@ -524,9 +567,10 @@ class BoundClosedLoopController(BoundSequential):
 
 
 if __name__ == "__main__":
-    from tensorflow.keras.models import model_from_json
-    from crown_ibp.conversions.keras2torch import keras2torch
     import matplotlib.pyplot as plt
+    from tensorflow.keras.models import model_from_json
+
+    from crown_ibp.conversions.keras2torch import keras2torch
 
     # load json and create model
     json_file = open("/Users/mfe/Downloads/model.json", "r")
@@ -621,21 +665,27 @@ if __name__ == "__main__":
     ###########################
 
     ###########################
-    # # To get closed loop system bounds (using dynamics):
-    # torch_model__ = BoundClosedLoopController.convert(torch_model, {"same-slope": True},
-    #     A_dyn=torch.Tensor([[[1., 1.], [0., 1.]]]), b_dyn=torch.Tensor([[[0.5], [1.0]]]), c_dyn=[])
+    # To get closed loop system bounds (using dynamics):
+    # torch_model__ = BoundClosedLoopController.convert(
+    #     torch_model,
+    #     {"same-slope": True},
+    #     A_dyn=torch.Tensor([[[1.0, 1.0], [0.0, 1.0]]]),
+    #     b_dyn=torch.Tensor([[[0.5], [1.0]]]),
+    #     c_dyn=[],
+    # )
     # x0_min, x0_max, x1_min, x1_max = [2.5, 3.0, -0.25, 0.25]
-    # x0_t1_max, _, x0_t1_min, _ = torch_model__.full_backward_range(norm=np.inf,
-    #                             x_U=torch.Tensor([[x0_max, x1_max]]),
-    #                             x_L=torch.Tensor([[x0_min, x1_min]]),
-    #                             upper=True, lower=True, C=torch.Tensor([[[1]]]),
-    #                             A_out=torch.Tensor([[-1,0]]),
-    #                             A_in=np.array([[-1,  0],
-    #                                         [ 1,  0],
-    #                                         [ 0, -1],
-    #                                         [ 0,  1]]),
-    #                             b_in=np.array([-2.5 ,  3.  ,  0.25,  0.25]))
-    # print("x0:", x0_t1_min.data.numpy()[0,0], x0_t1_max.data.numpy()[0,0])
+    # x0_t1_max, _, x0_t1_min, _ = torch_model__.full_backward_range(
+    #     norm=np.inf,
+    #     x_U=torch.Tensor([[x0_max, x1_max]]),
+    #     x_L=torch.Tensor([[x0_min, x1_min]]),
+    #     upper=True,
+    #     lower=True,
+    #     C=torch.Tensor([[[1]]]),
+    #     A_out=torch.Tensor([[-1, 0]]),
+    #     A_in=np.array([[-1, 0], [1, 0], [0, -1], [0, 1]]),
+    #     b_in=np.array([-2.5, 3.0, 0.25, 0.25]),
+    # )
+    # print("x0:", x0_t1_min.data.numpy()[0, 0], x0_t1_max.data.numpy()[0, 0])
 
     #
     ###########################
