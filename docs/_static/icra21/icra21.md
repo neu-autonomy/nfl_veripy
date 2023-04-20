@@ -4,7 +4,7 @@
 
 Reach-SDP (Final Step Error: `206`):
 ```bash
-python -m nn_closed_loop.example \
+python -m nfl_veripy.example \
 	--partitioner None \
 	--propagator SDP \
 	--system double_integrator \
@@ -16,7 +16,7 @@ Note: If SDP isn't working, consider using a different solver and/or making it v
 
 Reach-SDP-Partition (Final Step Error: `19.35`):
 ```bash
-python -m nn_closed_loop.example \
+python -m nfl_veripy.example \
 	--partitioner Uniform \
 	--propagator SDP \
 	--system double_integrator \
@@ -27,7 +27,7 @@ python -m nn_closed_loop.example \
 
 Reach-LP (Final Step Error: `848`):
 ```bash
-python -m nn_closed_loop.example \
+python -m nfl_veripy.example \
 	--partitioner None \
 	--propagator CROWN \
 	--system double_integrator \
@@ -38,7 +38,7 @@ python -m nn_closed_loop.example \
 
 Reach-LP-Partition (Final Step Error: `19.87`):
 ```bash
-python -m nn_closed_loop.example \
+python -m nfl_veripy.example \
 	--partitioner Uniform \
 	--propagator CROWN \
 	--system double_integrator \
@@ -57,7 +57,7 @@ Reach-SDP | Reach-SDP-Partition | Reach-LP | Reach-LP-Partition
 
 For Fig. 4b, use a polytope description of the reachable sets with different numbers of facets (just change `--num_polytope_facets`):
 ```bash
-python -m nn_closed_loop.example \
+python -m nfl_veripy.example \
 	--partitioner None \
 	--propagator CROWN \
 	--system double_integrator \
@@ -79,7 +79,7 @@ Note: currently this doesn't use the right NN model that was trained to drive th
 
 Fig 5a (no noise ==> `--state_feedback`):
 ```bash
-python -m nn_closed_loop.example \
+python -m nfl_veripy.example \
 	--partitioner None \
 	--propagator CROWN \
 	--system quadrotor \
@@ -92,7 +92,7 @@ python -m nn_closed_loop.example \
 
 Fig 5b (process & sensor noise ==> `--output_feedback`):
 ```bash
-python -m nn_closed_loop.example \
+python -m nfl_veripy.example \
 	--partitioner None \
 	--propagator CROWN \
 	--system quadrotor \

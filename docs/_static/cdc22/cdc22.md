@@ -14,7 +14,7 @@ We discuss a technique that can be used to determine over-approximations to the 
 Figure 3a (BReach-LP vs ReBReach-LP):
 
 ```bash
-python -m nn_closed_loop.example_backward \
+python -m nfl_veripy.example_backward \
     --propagator CROWNNStep \
     --partitioner None \
     --state_feedback \
@@ -32,7 +32,7 @@ python -m nn_closed_loop.example_backward \
 Figure 3b (BReach-LP vs ReBReach-LP Error Trend):
 
 ```bash
-python -m nn_closed_loop.backward_experiments
+python -m nfl_veripy.backward_experiments
 ```
 
 
@@ -42,12 +42,12 @@ Fig 3a | Fig 3b
 BReach-LP vs ReBReach-LP | Error Trend
 ![Fig. 3a](/docs/_static/cdc22/fig3/double_integrator_r1.png) | ![Fig. 3b](/docs/_static/cdc22/fig3/runtime_vs_error_2022_05_30__16_03_07_timestep.png)
 
-**Notice that figure 3b will not appear in a pop-up window, but rather is stored in nn_closed_loop/results/logs**
+**Notice that figure 3b will not appear in a pop-up window, but rather is stored in nfl_veripy/results/logs**
 
 Figure 4a:
 
 ```bash
-python -m nn_closed_loop.example \
+python -m nfl_veripy.example \
     --propagator CROWN \
     --partitioner Uniform \
     --state_feedback \
@@ -67,7 +67,7 @@ python -m nn_closed_loop.example \
 Figure 4b:
 
 ```bash
-python -m nn_closed_loop.example \
+python -m nfl_veripy.example \
     --propagator CROWN \
     --partitioner Uniform \
     --state_feedback \
@@ -86,7 +86,7 @@ python -m nn_closed_loop.example \
 Figure 4c:
 
 ```bash
-python -m nn_closed_loop.example_backward \
+python -m nfl_veripy.example_backward \
     --propagator CROWN \
     --partitioner None \
     --state_feedback \
@@ -110,7 +110,7 @@ Nominal Forward Reachability | Bifurcating Forward Reachability | Bifurcating Ba
 Figure 5:
 
 ```bash
-python -m nn_closed_loop.example_backward \
+python -m nfl_veripy.example_backward \
     --propagator CROWNNStep \
     --partitioner None \
     --state_feedback \

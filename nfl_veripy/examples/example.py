@@ -1,0 +1,644 @@
+import os
+
+os.environ["TF_CPP_MIN_LOG_LEVEL"] = "2"
+import logging
+
+import jax
+
+logging.getLogger("jax._src.lib.xla_bridge").addFilter(lambda _: False)
+
+import argparse
+import ast
+import time
+from typing import Dict, Tuple
+
+import nfl_veripy.analyzers as analyzers
+import nfl_veripy.constraints as constraints
+import nfl_veripy.dynamics as dynamics
+import numpy as np
+import torch as th
+from nfl_veripy.utils.nn import load_controller, load_controller_unity
+from nfl_veripy.utils.utils import get_polytope_A, range_to_polytope
+
+dir_path = os.path.dirname(os.path.realpath(__file__))
+
+
+def main(args: argparse.Namespace) -> Tuple[Dict, Dict]:
+    np.random.seed(seed=0)
+    stats = {}
+
+    # Dynamics
+    if args.system == "double_integrator":
+        inputs_to_highlight = [
+            {"dim": [0], "name": "$x_0$"},
+            {"dim": [1], "name": "$x_1$"},
+        ]
+        if args.state_feedback:
+            dyn = dynamics.DoubleIntegrator()  # type: dynamics.Dynamics
+        else:
+            dyn = dynamics.DoubleIntegratorOutputFeedback()
+        if args.init_state_range is None:
+            init_state_range = np.array(
+                [  # (num_inputs, 2)
+                    [2.5, 3.0],  # x0min, x0max
+                    [-0.25, 0.25],  # x1min, x1max
+                ]
+            )
+    elif args.system == "ground_robot":
+        inputs_to_highlight = [
+            {"dim": [0], "name": "$p_x \ (\mathrm{m})$"},
+            {"dim": [1], "name": "$p_y \ (\mathrm{m})$"},
+        ]
+        if args.state_feedback:
+            dyn = dynamics.GroundRobotSI()
+        else:
+            raise NotImplementedError
+        if args.init_state_range is None:
+            init_state_range = np.array(
+                [  # (num_inputs, 2)
+                    [-1.5, -0.5],  # x0min, x0max
+                    [-0.5, 0.5],  # x1min, x1max
+                ]
+            )
+        if args.final_state_range is None:
+            final_state_range = np.array([[-7.0, -6.5], [-0.5, 0.5]])
+    elif args.system == "ground_robot_DI":
+        inputs_to_highlight = [
+            {"dim": [0], "name": "$p_x$"},
+            {"dim": [1], "name": "$p_y$"},
+        ]
+        if args.state_feedback:
+            dyn = dynamics.GroundRobotDI()
+        else:
+            raise NotImplementedError
+        if args.init_state_range is None:
+            init_state_range = np.array(
+                [  # (num_inputs, 2)
+                    [-7 - 0.25, -7 + 0.25],  # x0min, x0max
+                    [-0.25, 0.25],  # x1min, x1max
+                    [0.95, 0.99],
+                    [-0.01, 0.01],
+                ]
+            )
+        if args.final_state_range is None:
+            final_state_range = np.array(
+                [  # (num_inputs, 2)
+                    [-0.75, 0.75],  # x0min, x0max
+                    [-0.75, 0.75],  # x1min, x1max
+                    [-1, 1],
+                    [-1, 1],
+                ]
+            )
+    elif args.system == "unicycle":
+        inputs_to_highlight = [
+            {"dim": [0], "name": "$x_0$"},
+            {"dim": [1], "name": "$x_1$"},
+        ]
+        if args.state_feedback:
+            dyn = dynamics.Unicycle()
+        else:
+            raise NotImplementedError
+        if args.init_state_range is None:
+            init_state_range = np.array(
+                [  # (num_inputs, 2)
+                    [-0.25, 0.25],  # x0min, x0max
+                    [-3.0, -2.5],  # x1min, x1max
+                    [-np.pi / 100, np.pi / 100],
+                ]
+            )
+    elif args.system == "quadrotor_v0":
+        inputs_to_highlight = [
+            {"dim": [0], "name": "$x$"},
+            {"dim": [1], "name": "$y$"},
+            {"dim": [2], "name": "$z$"},
+        ]
+        if args.state_feedback:
+            dyn = dynamics.Quadrotor_v0()
+        else:
+            dyn = dynamics.QuadrotorOutputFeedback_v0()
+        if args.init_state_range is None:
+            init_state_range = np.array(
+                [  # (num_inputs, 2)
+                    [4.65, 4.65, 2.95, 0.94, -0.01, -0.01],
+                    [4.75, 4.75, 3.05, 0.96, 0.01, 0.01],
+                ]
+            ).T
+        if args.final_state_range is None:
+            final_state_range = np.array(
+                [  # (num_inputs, 2)
+                    [-0.25, 0.5 - 0.25, 1, -0.2, -0.2, -0.2],
+                    [0.25, 0.5 + 0.25, 4, 0.2, 0.2, 0.2],
+                ]
+            ).T
+    elif args.system == "quadrotor_8D":
+        inputs_to_highlight = [
+            {"dim": [0], "name": "$x$"},
+            {"dim": [1], "name": "$y$"},
+            {"dim": [2], "name": "$z$"},
+        ]
+        if args.state_feedback:
+            dyn = dynamics.Quadrotor()
+        else:
+            dyn = dynamics.QuadrotorOutputFeedback()
+        if args.init_state_range is None:
+            init_state_range = np.array(
+                [  # (num_inputs, 2)
+                    [4.65, 4.65, 2.95, 0.94, -0.01, -0.01, 0, 0],
+                    [4.75, 4.75, 3.05, 0.96, 0.01, 0.01, 0, 0],
+                ]
+            ).T
+        if args.final_state_range is None:
+            final_state_range = np.array(
+                [  # (num_inputs, 2)
+                    [-0.25, 0.5 - 0.25, 1, -0.2, -0.2, -0.2],
+                    [0.25, 0.5 + 0.25, 4, 0.2, 0.2, 0.2],
+                ]
+            ).T
+    elif args.system == "duffing":
+        inputs_to_highlight = [
+            {"dim": [0], "name": "$x_0$"},
+            {"dim": [1], "name": "$x_1$"},
+        ]
+        dyn = dynamics.Duffing()
+        init_state_range = np.array(
+            [  # (num_inputs, 2)
+                [2.45, 2.55],  # x0min, x0max
+                [1.45, 1.55],  # x1min, x1max
+            ]
+        )
+    elif args.system == "iss":
+        inputs_to_highlight = [
+            {"dim": [0], "name": "$x_0$"},
+            {"dim": [1], "name": "$x_1$"},
+        ]
+        dyn = dynamics.ISS()
+        init_state_range = 100 * np.ones((dyn.n, 2))
+        init_state_range[:, 0] = init_state_range[:, 0] - 0.5
+        init_state_range[:, 1] = init_state_range[:, 1] + 0.5
+    elif args.system == "unity":
+        inputs_to_highlight = [
+            {"dim": [0], "name": "$x$"},
+            {"dim": [1], "name": "$y$"},
+        ]
+        dyn = dynamics.Unity(args.nx, args.nu)
+        if args.init_state_range is None:
+            init_state_range = np.vstack(
+                [-np.ones(args.nx), np.ones(args.nx)]
+            ).T
+        controller = load_controller_unity(args.nx, args.nu)
+    elif args.system == "pendulum":
+        inputs_to_highlight = [
+            {"dim": [0], "name": "$\theta \ (\mathrm{ rad })$"},
+            {"dim": [1], "name": "$\omega \ (\mathrm{rad/s})$"},
+        ]
+        if args.state_feedback:
+            dyn = dynamics.Pendulum()
+        else:
+            raise NotImplementedError
+        if args.init_state_range is None:
+            init_state_range = np.array(
+                [  # (num_inputs, 2)
+                    [1.0, 1.2],  # x0min, x0max
+                    [0.0, 0.2],  # x1min, x1max
+                ]
+            )
+        if args.final_state_range is None:
+            final_state_range = np.array([[-7.0, -6.5], [-0.5, 0.5]])
+    else:
+        raise NotImplementedError
+
+    # Ingest init/final state range as arg
+    if args.init_state_range is not None:
+        init_state_range = np.array(ast.literal_eval(args.init_state_range))
+    if args.final_state_range is not None:
+        final_state_range = np.array(ast.literal_eval(args.final_state_range))
+
+    if args.num_partitions is None:
+        num_partitions = np.ones(2)
+    else:
+        num_partitions = np.array(ast.literal_eval(args.num_partitions))
+
+    partitioner_hyperparams = {
+        "type": args.partitioner,
+        "num_partitions": num_partitions,
+        "make_animation": args.make_animation,
+        "show_animation": args.show_animation,
+        "num_polytope_facets": args.num_polytope_facets,
+    }
+    propagator_hyperparams = {
+        "type": args.propagator,
+        "input_shape": init_state_range.shape[:-1],
+        "boundary_type": args.boundaries,
+        "num_polytope_facets": args.num_polytope_facets,
+    }
+    if args.propagator == "SDP":
+        propagator_hyperparams["cvxpy_solver"] = args.cvxpy_solver
+
+    # Load NN control policy
+    if isinstance(args.controller, str):
+        controller = load_controller(
+            system=dyn.__class__.__name__, model_name=args.controller
+        )
+    else:
+        controller = args.controller
+
+    # Set up analyzer (+ parititoner + propagator)
+    analyzer = analyzers.ClosedLoopAnalyzer(controller, dyn)
+    analyzer.partitioner = partitioner_hyperparams
+    analyzer.propagator = propagator_hyperparams
+
+    initial_state_set = constraints.state_range_to_constraint(
+        init_state_range, args.boundaries
+    )
+
+    if args.estimate_runtime:
+        # Run the analyzer N times to compute an estimated runtime
+        times = np.empty(args.num_calls)
+        final_errors = np.empty(args.num_calls, dtype=np.ndarray)
+        avg_errors = np.empty(args.num_calls, dtype=np.ndarray)
+        all_errors = np.empty(args.num_calls, dtype=np.ndarray)
+        all_reachable_sets = np.empty(args.num_calls, dtype=object)
+        for num in range(args.num_calls):
+            print("call: {}".format(num))
+            t_start = time.time()
+            reachable_sets, analyzer_info = analyzer.get_reachable_set(
+                initial_state_set, t_max=args.t_max
+            )
+            t_end = time.time()
+            t = t_end - t_start
+            times[num] = t
+
+            if num == 0:
+                final_error, avg_error, all_error = analyzer.get_error(
+                    initial_state_set, reachable_sets, t_max=args.t_max
+                )
+                final_errors[num] = final_error
+                avg_errors[num] = avg_error
+                all_errors[num] = all_error
+                all_reachable_sets[num] = reachable_sets
+
+        stats["runtimes"] = times
+        stats["final_step_errors"] = final_errors
+        stats["avg_errors"] = avg_errors
+        stats["all_errors"] = all_errors
+        stats["reachable_sets"] = all_reachable_sets
+
+        print("All times: {}".format(times))
+        print("Avg time: {} +/- {}".format(times.mean(), times.std()))
+    else:
+        # Run analysis once
+        t_start = time.time()
+        reachable_sets, analyzer_info = analyzer.get_reachable_set(
+            initial_state_set, t_max=args.t_max
+        )
+        t_end = time.time()
+        print(t_end - t_start)
+        stats["reachable_sets"] = reachable_sets
+
+    if args.estimate_error:
+        final_error, avg_error, errors = analyzer.get_error(
+            initial_state_set, reachable_sets, t_max=args.t_max
+        )
+        print("Final step approximation error: {}".format(final_error))
+        print("Avg errors: {}".format(avg_error))
+        print("All errors: {}".format(errors))
+
+    if args.save_plot:
+        save_dir = "{}/results/examples/".format(
+            os.path.dirname(os.path.abspath(__file__))
+        )
+        os.makedirs(save_dir, exist_ok=True)
+
+        # Ugly logic to embed parameters in filename:
+        pars = "_".join(
+            [
+                str(key) + "_" + str(value)
+                for key, value in sorted(
+                    partitioner_hyperparams.items(), key=lambda kv: kv[0]
+                )
+                if key
+                not in [
+                    "make_animation",
+                    "show_animation",
+                    "type",
+                    "num_partitions",
+                ]
+            ]
+        )
+        pars2 = "_".join(
+            [
+                str(key) + "_" + str(value)
+                for key, value in sorted(
+                    propagator_hyperparams.items(), key=lambda kv: kv[0]
+                )
+                if key not in ["input_shape", "type"]
+            ]
+        )
+        analyzer_info["save_name"] = (
+            save_dir
+            + dyn.name
+            + pars
+            + "_"
+            + partitioner_hyperparams["type"]
+            + "_"
+            + propagator_hyperparams["type"]
+            + "_"
+            + "tmax"
+            + "_"
+            + str(round(args.t_max, 1))
+            + "_"
+            + args.boundaries
+        )
+        if len(pars2) > 0:
+            analyzer_info["save_name"] = (
+                analyzer_info["save_name"] + "_" + pars2
+            )
+        analyzer_info["save_name"] = analyzer_info["save_name"] + ".png"
+
+    if args.show_plot or args.save_plot:
+        analyzer.visualize(
+            initial_state_set,
+            reachable_sets,
+            show_samples=args.show_samples,
+            show_trajectories=args.show_trajectories,
+            show=args.show_plot,
+            labels=args.plot_labels,
+            aspect=args.plot_aspect,
+            plot_lims=args.plot_lims,
+            iteration=None,
+            inputs_to_highlight=inputs_to_highlight,
+            controller_name=None,
+            **analyzer_info
+        )
+
+    return stats, analyzer_info
+
+
+def setup_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(
+        description="Analyze a closed loop system w/ NN controller."
+    )
+    parser.add_argument(
+        "--system",
+        default="double_integrator",
+        choices=[
+            "double_integrator",
+            "quadrotor_v0",
+            "duffing",
+            "iss",
+            "ground_robot",
+            "ground_robot_DI",
+            "quadrotor_8D",
+            "pendulum",
+        ],
+        help="which system to analyze (default: double_integrator)",
+    )
+    parser.add_argument(
+        "--controller",
+        default="default",
+        help=(
+            "which NN controller to load (e.g., sine_wave_controller for"
+            " ground_robot) (default: default)"
+        ),
+    )
+    parser.add_argument(
+        "--init_state_range",
+        default=None,
+        help="2*num_states values (default: None)",
+    )
+
+    parser.add_argument(
+        "--final_state_range",
+        default=None,
+        help="2*num_states values (default: None)",
+    )
+
+    parser.add_argument(
+        "--state_feedback",
+        dest="state_feedback",
+        action="store_true",
+        help="whether to save the visualization",
+    )
+    parser.add_argument(
+        "--output_feedback", dest="state_feedback", action="store_false"
+    )
+    parser.set_defaults(state_feedback=True)
+
+    parser.add_argument(
+        "--cvxpy_solver",
+        default="default",
+        choices=["MOSEK", "default"],
+        help="which solver to use with cvxpy (default: default)",
+    )
+    parser.add_argument(
+        "--partitioner",
+        default="Uniform",
+        choices=[
+            "None",
+            "Uniform",
+            "SimGuided",
+            "GreedySimGuided",
+            "UnGuided",
+        ],
+        help="which partitioner to use (default: Uniform)",
+    )
+    parser.add_argument(
+        "--propagator",
+        default="IBP",
+        choices=[
+            "IBP",
+            "CROWN",
+            "CROWNNStep",
+            "FastLin",
+            "SDP",
+            "CROWNLP",
+            "SeparableCROWN",
+            "SeparableIBP",
+            "SeparableSGIBP",
+            "OVERT",
+            "JaxForwardCROWN",
+            "JaxCROWNIterative",
+            "JaxCROWNUnrolled",
+            "JaxUnrolledJitted",
+            "AutoLiRPA",
+        ],
+        help="which propagator to use (default: IBP)",
+    )
+
+    parser.add_argument(
+        "--num_partitions",
+        default=None,
+        help="how many cells per dimension to use (default: None)",
+    )
+    parser.add_argument(
+        "--boundaries",
+        default="rectangle",
+        choices=["rectangle", "polytope"],
+        help=(
+            "what shape of convex set to bound reachable sets (default:"
+            " rectangle)"
+        ),
+    )
+    parser.add_argument(
+        "--num_polytope_facets",
+        default=8,
+        type=int,
+        help="how many facets on constraint polytopes (default: 8)",
+    )
+    parser.add_argument(
+        "--t_max",
+        default=2.0,
+        type=float,
+        help="seconds into future to compute reachable sets (default: 2.)",
+    )
+
+    parser.add_argument(
+        "--estimate_runtime", dest="estimate_runtime", action="store_true"
+    )
+    parser.set_defaults(estimate_runtime=False)
+
+    parser.add_argument(
+        "--estimate_error", dest="estimate_error", action="store_true"
+    )
+    parser.add_argument(
+        "--skip_estimate_error", dest="estimate_error", action="store_false"
+    )
+    parser.set_defaults(estimate_error=True)
+
+    parser.add_argument(
+        "--save_plot",
+        dest="save_plot",
+        action="store_true",
+        help="whether to save the visualization",
+    )
+    parser.add_argument(
+        "--skip_save_plot", dest="save_plot", action="store_false"
+    )
+    parser.set_defaults(save_plot=True)
+
+    parser.add_argument(
+        "--show_plot",
+        dest="show_plot",
+        action="store_true",
+        help="whether to show the visualization",
+    )
+    parser.add_argument(
+        "--skip_show_plot", dest="show_plot", action="store_false"
+    )
+    parser.set_defaults(show_plot=False)
+
+    parser.add_argument(
+        "--plot_labels",
+        metavar="N",
+        default=["x_0", "x_1"],
+        type=str,
+        nargs="+",
+        help='x and y labels on input plot (default: ["Input", None])',
+    )
+    parser.add_argument(
+        "--plot_aspect",
+        default="auto",
+        choices=["auto", "equal"],
+        help="aspect ratio on input partition plot (default: auto)",
+    )
+    parser.add_argument(
+        "--plot_lims",
+        default=None,
+        help="x and y lims on plot (default: None)",
+    )
+
+    parser.add_argument(
+        "--make_animation",
+        dest="make_animation",
+        action="store_true",
+        help="whether to animate the partitioning process",
+    )
+    parser.add_argument(
+        "--skip_make_animation", dest="make_animation", action="store_false"
+    )
+    parser.set_defaults(make_animation=False)
+    parser.add_argument(
+        "--show_animation",
+        dest="show_animation",
+        action="store_true",
+        help="whether to show animation of the partitioning process",
+    )
+    parser.add_argument(
+        "--skip_show_animation", dest="show_animation", action="store_false"
+    )
+    parser.set_defaults(show_animation=False)
+    parser.add_argument(
+        "--nx",
+        default=2,
+        help="number of states - only used for scalability expt (default: 2)",
+    )
+    parser.add_argument(
+        "--nu",
+        default=2,
+        help=(
+            "number of control inputs - only used for scalability expt"
+            " (default: 2)"
+        ),
+    )
+    parser.add_argument(
+        "--show_obs",
+        dest="show_obs",
+        action="store_true",
+        help=(
+            "Check final reachable set to see what parts backproject to"
+            " initial state"
+        ),
+    )
+    parser.add_argument(
+        "--show_policy",
+        dest="show_policy",
+        action="store_true",
+        help=(
+            "Displays policy as a function of state (only valid for"
+            " ground_robot and ground_robot_DI)"
+        ),
+    )
+    parser.add_argument(
+        "--show_trajectories",
+        dest="show_trajectories",
+        action="store_true",
+        help="Show trajectories starting from initial condition",
+    )
+    parser.add_argument(
+        "--show_samples",
+        dest="show_samples",
+        action="store_true",
+        help="Show samples starting from initial condition",
+    )
+    parser.add_argument(
+        "--show_convex_hulls",
+        dest="show_convex_hulls",
+        action="store_true",
+        help="Show convex hulls of true backprojection sets",
+    )
+    parser.add_argument(
+        "--show_BReach",
+        dest="show_BReach",
+        action="store_true",
+        help="whether to show results of BReach-LP when using ReBReach-LP",
+    )
+    parser.set_defaults(show_BReach=False)
+    parser.add_argument(
+        "--num_calls",
+        default=20,
+        type=int,
+        help=(
+            "how many times to call the analyzer to estimate runtime"
+            " (default: 20)"
+        ),
+    )
+
+    return parser
+
+
+if __name__ == "__main__":
+    parser = setup_parser()
+
+    args = parser.parse_args()
+
+    main(args)

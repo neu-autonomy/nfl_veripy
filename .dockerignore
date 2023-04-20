@@ -13,8 +13,8 @@ docs/
 jupyter_notebooks/
 matlab_codes/
 
-nn_closed_loop/datasets
-nn_closed_loop/results
+nfl_veripy/datasets
+nfl_veripy/results
 
 nn_partition/results
 nn_partition/pkls

@@ -14,13 +14,13 @@ COPY . $APPPATH
 WORKDIR $APPPATH
 
 RUN python -m pip install --no-cache-dir torch==1.12.0+cpu torchvision==0.13.0+cpu -f https://download.pytorch.org/whl/torch_stable.html
-RUN python -m pip install --no-cache-dir tensorflow-cpu
-RUN python -m pip install --no-cache-dir -e crown_ibp 
-RUN python -m pip install --no-cache-dir -e auto_LiRPA
-RUN python -m pip install --no-cache-dir -e robust_sdp
-RUN python -m pip install --no-cache-dir -e jax_verify
-RUN python -m pip install --no-cache-dir -e nn_partition
-RUN python -m pip install --no-cache-dir -e nn_closed_loop
+# RUN python -m pip install --no-cache-dir tensorflow-cpu
+# RUN python -m pip install --no-cache-dir -e crown_ibp 
+# RUN python -m pip install --no-cache-dir -e auto_LiRPA
+# RUN python -m pip install --no-cache-dir -e robust_sdp
+# RUN python -m pip install --no-cache-dir -e jax_verify
+# RUN python -m pip install --no-cache-dir -e nn_partition
+RUN python -m pip install --no-cache-dir -e nfl_veripy
 
 ENV JAX_PLATFORMS cpu
 ENV TF_CPP_MIN_LOG_LEVEL '2'

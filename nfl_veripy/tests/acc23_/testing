@@ -1,0 +1,15 @@
+Ground Robot
+python -m nfl_veripy.example_backward     --propagator CROWN     --partitioner None     --state_feedback     --show_plot     --overapprox     --system ground_robot     --controller buggy_complex_potential_field3     --t_max 1     --plot_lims [[-7.2,3],[-7.2,7.2]]     --num_partitions 100     --init_state_range [[-6,-5],[-.5,.5]]     --final_state_range [[-1,1],[-1,1]] --refined --show_trajectories --show_convex_hulls --estimate_runtime
+
+Double Integrators:
+python -m nfl_veripy.example_backward     --propagator CROWN     --partitioner None     --state_feedback     --show_plot     --overapprox     --system double_integrator     --t_max 1     --num_partitions 9     --plot_lims [[-3.2,5.64],[-0.64,2.5]]     --show_convex_hulls     --show_BReach --estimate_runtime --refined
+
+
+GR 11/22/22
+python -m nfl_veripy.example_backward     --propagator CROWN     --partitioner None     --state_feedback     --show_plot     --overapprox     --system ground_robot     --controller complex_potential_field     --t_max 9     --plot_lims [[-7.2,3],[-7.2,7.2]]     --num_partitions [8,8]     --init_state_range [[-5.5,-4.5],[-.5,.5]]     --final_state_range [[-1,1],[-1,1]] --refined --show_trajectories --partition_heuristic uniform
+
+Disc Quad 11/22/22
+python -m nfl_veripy.example_backward     --propagator CROWN     --partitioner None     --state_feedback     --show_plot     --overapprox     --system discrete_quadrotor     --controller discrete_quad_avoid_origin_maneuver_2     --t_max 6     --num_partitions 750     --init_state_range [[-5.25,-4.75],[-.25,.25],[2.25,2.75],[0.95,0.99],[-0.01,0.01],[-0.01,0.01]]     --final_state_range [[-1,1],[-1,1],[1.5,3.5],[-1,1],[-1,1],[-1,1]] --refined --show_trajectories
+
+DI 11/22/22
+python -m nfl_veripy.example_backward     --propagator CROWN     --partitioner None     --state_feedback     --show_plot     --overapprox     --system double_integrator     --t_max 5     --num_partitions 256     --plot_lims [[-2.88,-0.66],[0.265,1.075]]     --show_convex_hulls     --show_BReach --estimate_runtime --refined

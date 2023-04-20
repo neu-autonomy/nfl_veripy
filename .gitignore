@@ -24,16 +24,16 @@ results/
 
 /venv
 
-nn_closed_loop/models/double_integrator_mpc
-nn_closed_loop/models/quadrotor
-nn_closed_loop/models/quadrotor_small
-nn_closed_loop/datasets/double_integrator.zip
-nn_closed_loop/nn_closed_loop/utils/leftover_ipynb.py
-nn_closed_loop/models/unity/model_*
-nn_closed_loop/models/nnet/
-nn_closed_loop/models/unity/
-nn_closed_loop/datasets/DoubleIntegrator/
-nn_closed_loop/datasets/Unity/
+nfl_veripy/models/double_integrator_mpc
+nfl_veripy/models/quadrotor
+nfl_veripy/models/quadrotor_small
+nfl_veripy/datasets/double_integrator.zip
+nfl_veripy/nfl_veripy/utils/leftover_ipynb.py
+nfl_veripy/models/unity/model_*
+nfl_veripy/models/nnet/
+nfl_veripy/models/unity/
+nfl_veripy/datasets/DoubleIntegrator/
+nfl_veripy/datasets/Unity/
 
 nn_partition/models/nnet/
 
