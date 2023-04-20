@@ -1,0 +1,50 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "nfl_veripy"
+version = "0.0.1a1"
+authors = [
+    { name = "Michael Everett", email = "m.everett@northeastern.edu" },
+    { name = "Nicholas Rober", email = "nrober@mit.edu" },
+]
+description = "A small example package"
+readme = "README.md"
+requires-python = ">=3.7"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+]
+license = { file = "LICENSE" }
+dependencies = [
+    "torch",
+    "matplotlib",
+    "pandas",
+    "tabulate",
+    "colour",
+    "jax",
+    "jax_verify",
+    "crown_ibp",
+    "auto_LiRPA",
+    "parameterized",
+    "pypoman",
+    "alphashape",
+    "scikit-learn",
+    "scipy",
+    "imageio",
+    "tqdm",
+    "pyclipper",
+    "pygifsicle",
+]
+
+[project.urls]
+repository = "https://github.com/mit-acl/nn_robustness_analysis.git"
+
+[tool.hatch.build]
+ignore-vcs = true
+include = ["/src", "/tests", "/models"]
+
+[tool.hatch.metadata]
+allow-direct-references = true

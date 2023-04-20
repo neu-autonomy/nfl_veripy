@@ -5,10 +5,10 @@ virtualenv --python=/usr/bin/python3.8 venv
 source venv/bin/activate
 pip3.8 install -r requirements.txt
 
-export PYTHONPATH=$PYTHONPATH:/home/nrober/code/nn_robustness_analysis/nn_closed_loop
+export PYTHONPATH=$PYTHONPATH:/home/nrober/code/nn_robustness_analysis/nfl_veripy
 
 # run ...!
-python3.8 -m nn_closed_loop.example_backward \
+python3.8 -m nfl_veripy.example_backward \
 --propagator CROWN \
 --partitioner None \
 --state_feedback \

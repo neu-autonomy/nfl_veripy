@@ -51,10 +51,6 @@ class TestSum(unittest.TestCase):
     def test_commands_run(self, config):
         self.check_if_cmd_runs(config)
 
-        # # Check that plot was generated
-        # plot_filename = os.path.dirname(os.path.realpath(__file__)) + '/../results/analyzer/'
-        # self.assertTrue(os.path.isfile(plot_filename))
-
 
 if __name__ == "__main__":
     unittest.main()

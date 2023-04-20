@@ -1,20 +1,14 @@
 ## Updates
 
+- **2023-04-19:** Major cleanup and re-branding of repo, released PyPi package for easier usability!
 - **2023-04-13:** Add new jax-based propagators, including some from [`DRIP` paper](https://arxiv.org/abs/2212.04646). Cleaned up implementation of BReach-LP and HyBReach-LP from OJCSYS paper.
 - **2022-06-20:** Add new backprojection code from [`BReach-LP` paper](https://arxiv.org/abs/2204.08319). More info [here](/docs/_static/cdc22/cdc22.md)
-- **2022-05-09:** Add new N-Step `ClosedLoopPropagator`. Rather than recursively computing reachable sets (suffers from the wrapping effect), we see improved performance by solving an LP directly for the reachable set N steps in the future. You can experiment with this using the `CROWNNStep` flag in `nn_closed_loop/example.py`.
+- **2022-05-09:** Add new N-Step `ClosedLoopPropagator`. Rather than recursively computing reachable sets (suffers from the wrapping effect), we see improved performance by solving an LP directly for the reachable set N steps in the future. You can experiment with this using the `CROWNNStep` flag in `nfl_veripy/example.py`.
 - **2022-05-09:** Add new MILP-based `ClosedLoopPropagator`, using [`OVERT`](https://github.com/sisl/OVERTVerify.jl). Note that this component requires a Julia installation, and we pass data between Python and Julia using a lightweight local HTTP server. More info [here](/docs/_static/other.md).
 
 ## About
 
-### `nn_partition`: Open-Loop Analysis (NNs in Isolation)
-
-**Handles problems such as:**
-- Given a set of possible NN inputs and a trained NN, compute outer bounds on the set of possible NN outputs.
-
-For more info, please see [this README](/docs/_static/access21/access21.md).
-
-### `nn_closed_loop`: Closed-Loop Analysis (NNs in feedback loops) -- includes Reach-LP and BReach-LP
+### `nfl_veripy`: Closed-Loop Analysis (NNs in feedback loops) -- includes Reach-LP and BReach-LP
 
 **Handles problems such as:**
 - Given a set of possible initial states, a trained NN controller, and a known dynamics model, compute outer bounds on the set of possible future states (**forward reachable sets**).
@@ -24,70 +18,22 @@ For more info, please see [this README](/docs/_static/access21/access21.md) and 
 
 ## Setup
 
-### Get the code
-
+If you just want to run the code, you can simply install our package via pip:
 ```bash
-git clone --recursive <this_repo>
+pip install "jax_verify @ git+https://gitlab.com/mit-acl/ford_ugvs/jax_verify.git" "crown_ibp @ git+https://gitlab.com/mit-acl/ford_ugvs/crown_ibp.git"
+pip install nfl_veripy
 ```
-
-### Install
-
-You *might* need to install these dependencies on Linux (for `cvxpy`'s SCS solver and to generate reasonably sized animation files) (did not need to on OSX):
-```bash
-sudo apt-get install libblas-dev liblapack-dev gifsicle
-```
-
-Create a `virtualenv` for this repo:
-```bash
-python -m virtualenv venv
-source venv/bin/activate
-```
-
-Install the various python packages in this repo:
-```bash
-python -m pip install -e crown_ibp 
-python -m pip install -e auto_LiRPA
-python -m pip install -e robust_sdp
-python -m pip install -e nn_partition
-python -m pip install -e nn_closed_loop
-```
-
-You're good to go!
 
 ### Simple Examples
 
-Try running a simple example where the Analyzer computes bounds on the NN output (given bounds on the NN input):
+Compute forward reachable sets for a closed-loop system with a pre-trained NN control policy:
 ```bash
-python -m nn_partition.example \
-	--partitioner GreedySimGuided \
-	--propagator CROWN_LIRPA \
-	--term_type time_budget \
-	--term_val 2 \
-	--interior_condition lower_bnds \
-	--model random_weights \
-	--activation relu \
-	--show_input --show_output --show_plot
+python -m nfl_veripy.example --config nfl_veripy/tests/icra21/fig3_reach_lp
 ```
 
-Or, compute reachable sets for a closed-loop system with a pre-trained NN control policy:
+Compute backward reachable sets for a closed-loop system with a pre-trained NN control policy:
 ```bash
-python -m nn_closed_loop.example \
-	--partitioner None \
-	--propagator CROWN \
-	--system double_integrator \
-	--state_feedback \
-	--t_max 5 \
-	--show_plot
-```
-
-Or, compute backward reachable sets for a closed-loop system with a pre-trained NN control policy:
-```bash
-python -m nn_closed_loop.example_backward \
-	--partitioner None \
-	--propagator CROWN \
-	--system double_integrator \
-	--state_feedback \
-	--show_plot --boundaries polytope
+python -m nfl_veripy.example --config nfl_veripy/tests/ojcsys/di_breach
 ```
 
 ### Jupyter Notebooks
@@ -118,7 +64,7 @@ Please see the `jupyter_notebooks` folder for an interactive version of the abov
 
 ## Acknowledgements
 
-This research is supported by Ford Motor Company.
+This research is supported in part by Ford Motor Company.
 
 We build on excellent open-source repositories from the neural network analysis community. These repositories are imported as Git submodules or re-implemented in Python here, with some changes to reflect the slightly different problem statements:
 * [`auto_LIRPA`](https://github.com/KaidiXu/auto_LiRPA)
@@ -132,3 +78,47 @@ We build on excellent open-source repositories from the neural network analysis 
 
 - [ ] add rtdocs (auto-fill code snippets from test files)
 - [ ] add installation instructions & tests for julia code
+
+
+## Developer Setup
+
+If you want to work directly with the source code, here is how we set up our development environments.
+
+### Get the code
+
+```bash
+git clone --recursive <this_repo>
+```
+
+### Install
+
+You *might* need to install these dependencies on Linux (for `cvxpy`'s SCS solver and to generate reasonably sized animation files) (did not need to on OSX):
+```bash
+sudo apt-get install libblas-dev liblapack-dev gifsicle
+```
+
+Create a `virtualenv` for this repo:
+```bash
+python -m virtualenv venv
+source venv/bin/activate
+```
+
+Install the various python packages in this repo:
+```bash
+python -m pip install -e crown_ibp
+python -m pip install -e auto_LiRPA
+python -m pip install -e robust_sdp
+python -m pip install -e nfl_veripy
+```
+
+You're good to go!
+
+## packaging info
+
+```bash
+cd nfl_veripy
+python -m build
+python -m twine upload --repository testpypi dist/nfl_veripy-0.0.1a0*
+python -m pip install --extra-index-url https://test.pypi.org/simple/ nfl-veripy
+
+```

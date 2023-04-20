@@ -9,6 +9,8 @@ data
 *.egg-info
 *.DS_Store
 *.ipynb_checkpoints/
+dist/
+.mypy_cache
 
 torch_model
 tmp_model
@@ -20,20 +22,20 @@ partition/results
 
 results/
 
-/models
+# /models
 
 /venv
 
-nfl_veripy/models/double_integrator_mpc
-nfl_veripy/models/quadrotor
-nfl_veripy/models/quadrotor_small
-nfl_veripy/datasets/double_integrator.zip
-nfl_veripy/nfl_veripy/utils/leftover_ipynb.py
-nfl_veripy/models/unity/model_*
-nfl_veripy/models/nnet/
-nfl_veripy/models/unity/
-nfl_veripy/datasets/DoubleIntegrator/
-nfl_veripy/datasets/Unity/
+models/double_integrator_mpc
+models/quadrotor
+models/quadrotor_small
+datasets/double_integrator.zip
+nfl_veripy/utils/leftover_ipynb.py
+models/unity/model_*
+models/nnet/
+models/unity/
+datasets/DoubleIntegrator/
+datasets/Unity/
 
 nn_partition/models/nnet/
 

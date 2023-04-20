@@ -1,15 +1,15 @@
 [submodule "crown_ibp"]
-	path = crown_ibp
+	path = third_party/crown_ibp
 	url = https://gitlab.com/mit-acl/ford_ugvs/crown_ibp.git
 [submodule "RobustNN"]
-	path = robust_sdp
+	path = third_party/robust_sdp
 	url = https://gitlab.com/mit-acl/ford_ugvs/robust_sdp.git
 [submodule "auto_LiRPA"]
-	path = auto_LiRPA
+	path = third_party/auto_LiRPA
 	url = https://github.com/KaidiXu/auto_LiRPA.git
 [submodule "jax_verify"]
-	path = jax_verify
+	path = third_party/jax_verify
 	url = https://gitlab.com/mit-acl/ford_ugvs/jax_verify.git
 [submodule "alpha-beta-CROWN"]
-	path = alpha-beta-CROWN
+	path = third_party/alpha-beta-CROWN
 	url = https://github.com/huanzhang12/alpha-beta-CROWN
