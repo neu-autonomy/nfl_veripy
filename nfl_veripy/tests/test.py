@@ -39,7 +39,7 @@ print("---------------------------------")
 
 class TestSum(unittest.TestCase):
     def check_if_cmd_runs(self, config):
-        base_cmd = "python -m nfl_veripy.example_cfg --config {}/{}"
+        base_cmd = "python -m nfl_veripy.example --config {}/{}"
         command = base_cmd.format(dir_path, config)
 
         # Check that code runs without error

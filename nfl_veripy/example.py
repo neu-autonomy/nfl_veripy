@@ -6,11 +6,12 @@ import os
 import time
 from typing import Dict, Tuple
 
+import numpy as np
+import yaml
+
 import nfl_veripy.analyzers as analyzers
 import nfl_veripy.constraints as constraints
 import nfl_veripy.dynamics as dynamics
-import numpy as np
-import yaml
 from nfl_veripy.utils.nn import load_controller
 
 dir_path = os.path.dirname(os.path.realpath(__file__))
