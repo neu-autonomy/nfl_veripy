@@ -13,7 +13,7 @@
 `nfl_veripy` is a Python codebase for formal safety verification of neural feedback loops (NFLs).
 An example of an NFL is a dynamical system controlled by a neural network policy.
 
-**`nfl_veripy` handles problems such as:**
+Currently, **`nfl_veripy` handles problems such as:**
 - Given a set of possible initial states, a trained NN controller, and a known dynamics model, compute outer bounds on the set of possible future states (**forward reachable sets**).
 - Given a set of terminal states, a trained NN controller, and a known dynamics model, compute inner/outer bounds on the set of possible initial states that will/won't lead to the terminal state set (**backprojection sets**).
 
