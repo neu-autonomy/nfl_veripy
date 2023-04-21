@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "nfl_veripy"
-version = "0.0.1a1"
+version = "0.0.1a3"
 authors = [
     { name = "Michael Everett", email = "m.everett@northeastern.edu" },
     { name = "Nicholas Rober", email = "nrober@mit.edu" },
@@ -43,8 +43,6 @@ dependencies = [
 repository = "https://github.com/mit-acl/nn_robustness_analysis.git"
 
 [tool.hatch.build]
-ignore-vcs = true
-include = ["/src", "/tests", "/models"]
+exclude = ["/third_party", "/deprecated", "/docker", "/docs"]
 
-[tool.hatch.metadata]
-allow-direct-references = true
+# TODO: add an option that includes some model files/datasets?

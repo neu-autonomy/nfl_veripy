@@ -119,6 +119,8 @@ You're good to go!
 cd nfl_veripy
 python -m build
 python -m twine upload --repository testpypi dist/nfl_veripy-0.0.1a0*
-python -m pip install --extra-index-url https://test.pypi.org/simple/ nfl-veripy
+
+python -m pip install "jax_verify @ git+https://gitlab.com/mit-acl/ford_ugvs/jax_verify.git" "crown_ibp @ git+https://gitlab.com/mit-acl/ford_ugvs/crown_ibp.git"
+python -m pip install --extra-index-url https://test.pypi.org/simple/ nfl-veripy==0.0.1.a3
 
 ```
