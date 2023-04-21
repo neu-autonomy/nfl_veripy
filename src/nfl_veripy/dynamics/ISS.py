@@ -3,6 +3,7 @@ import os
 import numpy as np
 import scipy
 import scipy.io as sio
+
 from nfl_veripy.utils.mpc import control_mpc
 
 from .Dynamics import ContinuousTimeDynamics
@@ -10,7 +11,7 @@ from .Dynamics import ContinuousTimeDynamics
 
 class ISS(ContinuousTimeDynamics):
     def __init__(self):
-        mat_fname = "{}/../../datasets/iss/iss.mat".format(
+        mat_fname = "{}/../_static/datasets/iss/iss.mat".format(
             os.path.dirname(os.path.abspath(__file__))
         )
         mat_contents = sio.loadmat(mat_fname)
