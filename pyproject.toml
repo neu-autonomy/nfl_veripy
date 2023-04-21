@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "nfl_veripy"
-version = "0.0.1a3"
+version = "0.0.1"
 authors = [
     { name = "Michael Everett", email = "m.everett@northeastern.edu" },
     { name = "Nicholas Rober", email = "nrober@mit.edu" },

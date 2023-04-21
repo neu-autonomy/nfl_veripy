@@ -1,5 +1,27 @@
 ## Other Stuff
 
+
+### [deprecated] Jupyter Notebooks
+
+Please see the `jupyter_notebooks` folder for an interactive version of the above examples.
+
+## packaging info
+
+```bash
+cd nfl_veripy
+python -m build
+python -m twine upload --repository testpypi dist/nfl_veripy-0.0.1a0*
+
+python -m pip install "jax_verify @ git+https://gitlab.com/mit-acl/ford_ugvs/jax_verify.git" "crown_ibp @ git+https://gitlab.com/mit-acl/ford_ugvs/crown_ibp.git"
+python -m pip install --extra-index-url https://test.pypi.org/simple/ nfl-veripy==0.0.1.a4
+
+```
+
+Aside: We acknowledge that the method for installing `jax_verify` and `crown_ibp` (dependencies of `nfl_veripy`) in the non-developer setup way is a little unconventional.
+It would be better to simply include these as dependencies of `nfl_veripy` and let pip find those packages, but (a) those packages are not available (or are too outdated) on PyPI, and (b) it is not allowed to include dependencies with direct URLs when releasing a package on PyPI.
+If there's a better way of doing this we would love to hear about it!
+
+
 ### OVERT.jl
 
 - Install julia (v1.5) via https://julialang.org/downloads

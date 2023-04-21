@@ -38,3 +38,5 @@ datasets/DoubleIntegrator/
 datasets/Unity/
 
 nn_partition/models/nnet/
+
+venv*

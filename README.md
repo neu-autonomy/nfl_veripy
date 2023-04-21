@@ -1,6 +1,8 @@
+# nfl_veripy: Formal Verification of Neural Feedback Loops (NFLs)
+
 ## Updates
 
-- **2023-04-19:** Major cleanup and re-branding of repo, released PyPi package for easier usability!
+- **2023-04-21:** Major cleanup and re-branding of repo, released PyPi package for easier usability!
 - **2023-04-13:** Add new jax-based propagators, including some from [`DRIP` paper](https://arxiv.org/abs/2212.04646). Cleaned up implementation of BReach-LP and HyBReach-LP from OJCSYS paper.
 - **2022-06-20:** Add new backprojection code from [`BReach-LP` paper](https://arxiv.org/abs/2204.08319). More info [here](/docs/_static/cdc22/cdc22.md)
 - **2022-05-09:** Add new N-Step `ClosedLoopPropagator`. Rather than recursively computing reachable sets (suffers from the wrapping effect), we see improved performance by solving an LP directly for the reachable set N steps in the future. You can experiment with this using the `CROWNNStep` flag in `nfl_veripy/example.py`.
@@ -8,9 +10,10 @@
 
 ## About
 
-### `nfl_veripy`: Closed-Loop Analysis (NNs in feedback loops) -- includes Reach-LP and BReach-LP
+`nfl_veripy` is a Python codebase for formal safety verification of neural feedback loops (NFLs).
+An example of an NFL is a dynamical system controlled by a neural network policy.
 
-**Handles problems such as:**
+**`nfl_veripy` handles problems such as:**
 - Given a set of possible initial states, a trained NN controller, and a known dynamics model, compute outer bounds on the set of possible future states (**forward reachable sets**).
 - Given a set of terminal states, a trained NN controller, and a known dynamics model, compute inner/outer bounds on the set of possible initial states that will/won't lead to the terminal state set (**backprojection sets**).
 
@@ -20,12 +23,11 @@ For more info, please see [this README](/docs/_static/access21/access21.md) and 
 
 If you just want to run the code, you can simply install our package via pip:
 ```bash
-pip install "jax_verify @ git+https://gitlab.com/mit-acl/ford_ugvs/jax_verify.git" "crown_ibp @ git+https://gitlab.com/mit-acl/ford_ugvs/crown_ibp.git" nfl_veripy
+pip install \
+    "jax_verify @ git+https://gitlab.com/mit-acl/ford_ugvs/jax_verify.git" \
+    "crown_ibp @ git+https://gitlab.com/mit-acl/ford_ugvs/crown_ibp.git" \
+    nfl_veripy
 ```
-
-Aside: We acknowledge that the above method for installing `jax_verify` and `crown_ibp` (dependencies of `nfl_veripy`) in the above way is a little unconventional.
-It would be better to simply include these as dependencies of `nfl_veripy` and let pip find those packages, but (a) those packages are not available (or are too outdated) on PyPI, and (b) it is not allowed to include dependencies with direct URLs when releasing a package on PyPI.
-If there's a better way of doing this we would love to hear about it!
 
 ### Simple Examples
 
@@ -38,10 +40,6 @@ Compute backward reachable sets for a closed-loop system with a pre-trained NN c
 ```bash
 python -m nfl_veripy.example --config example_configs/ojcsys23/di_breach.yaml
 ```
-
-### Jupyter Notebooks
-
-Please see the `jupyter_notebooks` folder for an interactive version of the above examples.
 
 ### Replicate plots from the papers:
 
@@ -76,13 +74,6 @@ We build on excellent open-source repositories from the neural network analysis 
 * [`nnv`](https://github.com/verivital/nnv)
 * [`jax_verify`](https://github.com/deepmind/jax_verify)
 
-
-## TODOS:
-
-- [ ] add rtdocs (auto-fill code snippets from test files)
-- [ ] add installation instructions & tests for julia code
-
-
 ## Developer Setup
 
 If you want to work directly with the source code, here is how we set up our development environments.
@@ -112,15 +103,3 @@ python -m pip install -e third_party/crown_ibp third_party/jax_verify third_part
 ```
 
 You're good to go!
-
-## packaging info
-
-```bash
-cd nfl_veripy
-python -m build
-python -m twine upload --repository testpypi dist/nfl_veripy-0.0.1a0*
-
-python -m pip install "jax_verify @ git+https://gitlab.com/mit-acl/ford_ugvs/jax_verify.git" "crown_ibp @ git+https://gitlab.com/mit-acl/ford_ugvs/crown_ibp.git"
-python -m pip install --extra-index-url https://test.pypi.org/simple/ nfl-veripy==0.0.1.a3
-
-```
