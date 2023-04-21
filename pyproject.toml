@@ -40,7 +40,7 @@ dependencies = [
 ]
 
 [project.urls]
-repository = "https://github.com/mit-acl/nn_robustness_analysis.git"
+repository = "https://github.com/mit-acl/nfl_veripy.git"
 
 [tool.hatch.build]
 exclude = ["/third_party", "/deprecated", "/docker", "/docs"]
