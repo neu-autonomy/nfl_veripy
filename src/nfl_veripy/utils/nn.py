@@ -4,10 +4,9 @@ import os
 from typing import Optional
 
 import numpy as np
+from crown_ibp.conversions.keras2torch import keras2torch
 from tensorflow.keras.layers import Dense
 from tensorflow.keras.models import Sequential, load_model, model_from_json
-
-from crown_ibp.conversions.keras2torch import keras2torch
 
 dir_path = os.path.dirname(os.path.realpath(__file__))
 
@@ -63,7 +62,9 @@ def save_model(
     path: Optional[str] = None,
 ) -> None:
     if not path:
-        path = "{}/../../models/{}/{}".format(dir_path, system, model_name)
+        path = "{}/../_static/models/{}/{}".format(
+            dir_path, system, model_name
+        )
     os.makedirs(path, exist_ok=True)
     # serialize model to JSON
     model_json = model.to_json()
@@ -86,14 +87,13 @@ def load_controller(
     system = system.replace(
         "OutputFeedback", ""
     )  # remove OutputFeedback suffix if applicable
-    path = "{}/../../models/{}/{}".format(dir_path, system, model_name)
+    path = "{}/../_static/models/{}/{}".format(dir_path, system, model_name)
     if system != "Taxinet":
         with open(path + "/model.json", "r") as f:
             loaded_model_json = f.read()
         model = model_from_json(loaded_model_json)
         model.load_weights(path + "/model.h5")
     else:
-        # import pdb; pdb.set_trace()
         model = load_model(path + "/model.h5")
 
     if model_type == "keras":
@@ -108,7 +108,7 @@ def load_controller(
 
 def load_controller_unity(nx: int, nu: int) -> Sequential:
     system = "unity"
-    path = "{}/../../models/{}".format(dir_path, system)
+    path = "{}/../_static/models/{}".format(dir_path, system)
     model_name = "/nx_{}_nu_{}/model".format(
         str(nx).zfill(3), str(nu).zfill(3)
     )
@@ -138,7 +138,7 @@ def rpm_converter(
     system = system.replace(
         "OutputFeedback", ""
     )  # remove OutputFeedback suffix if applicable
-    path = "{}/../../models/{}/{}".format(dir_path, system, model_name)
+    path = "{}/../_static/models/{}/{}".format(dir_path, system, model_name)
     if system != "Taxinet":
         with open(path + "/model.json", "r") as f:
             loaded_model_json = f.read()
@@ -174,7 +174,7 @@ def load_data(
     if system == "double_integrator":
         import pickle
 
-        path = dir_path + "/../../datasets/double_integrator/"
+        path = dir_path + "/../_static/datasets/double_integrator/"
 
         with open(path + "xs.pkl", "rb") as f:
             xs = pickle.load(f)
@@ -223,7 +223,7 @@ def create_and_save_deep_models() -> None:
             model,
             system="model",
             path=dir_path
-            + "/models/double_integrator_test_{}/".format(
+            + "../_static/models/double_integrator_test_{}/".format(
                 "_".join(map(str, neurons_per_layer))
             ),
         )
@@ -285,7 +285,7 @@ def train_n_models(xs: np.ndarray, us: np.ndarray) -> None:
                 {"dim": [0], "name": "$x_0$"},
                 {"dim": [1], "name": "$x_1$"},
             ],
-            **analyzer_info
+            **analyzer_info,
         )
 
 

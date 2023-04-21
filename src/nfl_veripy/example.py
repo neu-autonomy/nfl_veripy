@@ -388,11 +388,24 @@ def setup_parser() -> dict:
     parser.add_argument(
         "--config",
         type=str,
-        help="file system to analyze (default: double_integrator)",
+        help=(
+            "Absolute or relative path to yaml file describing experiment"
+            " configuration. Note: if this arg starts with 'example_configs/',"
+            " the configs in the installed package will be used (ignoring the"
+            " pwd)."
+        ),
     )
 
     args = parser.parse_args()
-    with open(f"{args.config}.yaml", mode="r", encoding="utf-8") as file:
+
+    if args.config.startswith("example_configs/"):
+        # Use the config files in the pip-installed package
+        param_filename = f"{dir_path}/_static/{args.config}"
+    else:
+        # Use the absolute/relative path provided in args.config
+        param_filename = f"{args.config}"
+
+    with open(param_filename, mode="r", encoding="utf-8") as file:
         params = yaml.load(file, yaml.Loader)
 
     return params

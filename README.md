@@ -28,12 +28,12 @@ pip install nfl_veripy
 
 Compute forward reachable sets for a closed-loop system with a pre-trained NN control policy:
 ```bash
-python -m nfl_veripy.example --config nfl_veripy/tests/icra21/fig3_reach_lp
+python -m nfl_veripy.example --config example_configs/icra21/fig3_reach_lp.yaml
 ```
 
 Compute backward reachable sets for a closed-loop system with a pre-trained NN control policy:
 ```bash
-python -m nfl_veripy.example --config nfl_veripy/tests/ojcsys/di_breach
+python -m nfl_veripy.example --config example_configs/ojcsys23/di_breach.yaml
 ```
 
 ### Jupyter Notebooks
@@ -103,12 +103,9 @@ python -m virtualenv venv
 source venv/bin/activate
 ```
 
-Install the various python packages in this repo:
+Install the various python packages in this repo in editable mode (`-e`):
 ```bash
-python -m pip install -e crown_ibp
-python -m pip install -e auto_LiRPA
-python -m pip install -e robust_sdp
-python -m pip install -e nfl_veripy
+python -m pip install -e third_party/crown_ibp third_party/jax_verify third_party/auto_LiRPA .
 ```
 
 You're good to go!

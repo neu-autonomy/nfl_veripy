@@ -21,7 +21,7 @@ build_container:
   only:
     changes:
       - docker/Dockerfile
-      - nfl_veripy/setup.py
+      - pyproject.toml
   script:
     - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
     - docker build --pull -t $CONTAINER_TEST_IMAGE -f docker/Dockerfile .
@@ -36,7 +36,7 @@ test_closed_loop:
   script:
     - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
     - docker pull $CONTAINER_TEST_IMAGE
-    - docker run -v /builds/mit-acl/ford_ugvs/nn_robustness_analysis:/home/nn_robustness_analysis $CONTAINER_TEST_IMAGE python -m nfl_veripy.tests.test
+    - docker run -v /builds/mit-acl/ford_ugvs/nn_robustness_analysis:/home/nn_robustness_analysis $CONTAINER_TEST_IMAGE python tests/test.py
 
 # release-image:
 #   stage: release

@@ -14,13 +14,7 @@ COPY . $APPPATH
 WORKDIR $APPPATH
 
 RUN python -m pip install --no-cache-dir torch==1.12.0+cpu torchvision==0.13.0+cpu -f https://download.pytorch.org/whl/torch_stable.html
-# RUN python -m pip install --no-cache-dir tensorflow-cpu
-# RUN python -m pip install --no-cache-dir -e crown_ibp 
-# RUN python -m pip install --no-cache-dir -e auto_LiRPA
-# RUN python -m pip install --no-cache-dir -e robust_sdp
-# RUN python -m pip install --no-cache-dir -e jax_verify
-# RUN python -m pip install --no-cache-dir -e nn_partition
-RUN python -m pip install --no-cache-dir -e nfl_veripy
+RUN python -m pip install --no-cache-dir -e "jax_verify @ git+https://gitlab.com/mit-acl/ford_ugvs/jax_verify.git" "crown_ibp @ git+https://gitlab.com/mit-acl/ford_ugvs/crown_ibp.git" .
 
 ENV JAX_PLATFORMS cpu
 ENV TF_CPP_MIN_LOG_LEVEL '2'
