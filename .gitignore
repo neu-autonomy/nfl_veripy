@@ -40,3 +40,4 @@ datasets/Unity/
 nn_partition/models/nnet/
 
 venv*
+.vscode
