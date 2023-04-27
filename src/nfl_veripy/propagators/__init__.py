@@ -1,3 +1,10 @@
+from .AutoLIRPA import (
+    CROWNAutoLIRPAPropagator,
+    CROWNIBPAutoLIRPAPropagator,
+    ExhaustiveAutoLIRPAPropagator,
+    FastLinAutoLIRPAPropagator,
+    IBPAutoLIRPAPropagator,
+)
 from .ClosedLoopAUTOLIRPAPropagator import ClosedLoopAUTOLIRPAPropagator
 from .ClosedLoopCROWNIBPCodebasePropagator import (  # noqa
     ClosedLoopCROWNIBPCodebasePropagator,
@@ -27,6 +34,9 @@ from .ClosedLoopSeparablePropagator import (
     ClosedLoopSeparableIBPPropagator,
     ClosedLoopSeparableSGIBPPropagator,
 )
+from .CrownIBP import CROWNPropagator, IBPPropagator
+from .Propagator import Propagator  # noqa
+from .SDP import SDPPropagator
 
 propagator_dict = {
     "CROWN": ClosedLoopCROWNPropagator,
@@ -56,16 +66,6 @@ propagator_dict = {
     "AutoLiRPA": ClosedLoopAUTOLIRPAPropagator,
 }
 
-from .AutoLIRPA import (
-    CROWNAutoLIRPAPropagator,
-    CROWNIBPAutoLIRPAPropagator,
-    ExhaustiveAutoLIRPAPropagator,
-    FastLinAutoLIRPAPropagator,
-    IBPAutoLIRPAPropagator,
-)
-from .CrownIBP import CROWNPropagator, IBPPropagator
-from .Propagator import Propagator
-from .SDP import SDPPropagator
 
 open_loop_propagator_dict = {
     "IBP": IBPPropagator,

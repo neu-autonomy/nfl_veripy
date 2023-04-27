@@ -1,26 +1,20 @@
 import numpy as np
 
+import nfl_veripy.dynamics as dynamics
+
 from .ClosedLoopSimGuidedPartitioner import ClosedLoopSimGuidedPartitioner
 
 
 class ClosedLoopUnGuidedPartitioner(ClosedLoopSimGuidedPartitioner):
     def __init__(
         self,
-        dynamics,
-        num_partitions=16,
-        make_animation=False,
-        show_animation=False,
+        dynamics: dynamics.Dynamics,
     ):
-        ClosedLoopSimGuidedPartitioner.__init__(
-            self,
-            dynamics=dynamics,
-            make_animation=make_animation,
-            show_animation=show_animation,
-        )
+        super().__init__(dynamics=dynamics)
 
     def check_if_partition_within_sim_bnds(
         self, output_range, output_range_sim
-    ):
+    ) -> bool:
         return False
 
     def get_sampled_out_range_guidance(

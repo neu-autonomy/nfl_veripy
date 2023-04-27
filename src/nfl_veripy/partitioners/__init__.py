@@ -1,3 +1,8 @@
+from typing import Type
+
+from .AdaptiveGreedySimGuidedPartitioner import (
+    AdaptiveGreedySimGuidedPartitioner,
+)
 from .ClosedLoopGreedySimGuidedPartitioner import (
     ClosedLoopGreedySimGuidedPartitioner,
 )
@@ -7,8 +12,14 @@ from .ClosedLoopPartitioner import ClosedLoopPartitioner  # noqa
 from .ClosedLoopSimGuidedPartitioner import ClosedLoopSimGuidedPartitioner
 from .ClosedLoopUnGuidedPartitioner import ClosedLoopUnGuidedPartitioner
 from .ClosedLoopUniformPartitioner import ClosedLoopUniformPartitioner
+from .GreedySimGuidedPartitioner import GreedySimGuidedPartitioner
+from .NoPartitioner import NoPartitioner
+from .Partitioner import Partitioner  # noqa
+from .SimGuidedPartitioner import SimGuidedPartitioner
+from .UnGuidedPartitioner import UnGuidedPartitioner
+from .UniformPartitioner import UniformPartitioner
 
-partitioner_dict = {
+partitioner_dict: dict[str, Type[ClosedLoopPartitioner]] = {
     "None": ClosedLoopNoPartitioner,
     "Uniform": ClosedLoopUniformPartitioner,
     "SimGuided": ClosedLoopSimGuidedPartitioner,
@@ -17,16 +28,6 @@ partitioner_dict = {
     "Nick": ClosedLoopNickPartitioner,
 }
 
-
-from .AdaptiveGreedySimGuidedPartitioner import (
-    AdaptiveGreedySimGuidedPartitioner,
-)
-from .GreedySimGuidedPartitioner import GreedySimGuidedPartitioner
-from .NoPartitioner import NoPartitioner
-from .Partitioner import Partitioner
-from .SimGuidedPartitioner import SimGuidedPartitioner
-from .UnGuidedPartitioner import UnGuidedPartitioner
-from .UniformPartitioner import UniformPartitioner
 
 open_loop_partitioner_dict = {
     "None": NoPartitioner,

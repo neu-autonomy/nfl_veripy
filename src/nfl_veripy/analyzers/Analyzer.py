@@ -1,6 +1,7 @@
 import inspect
 
 import matplotlib.pyplot as plt
+import numpy as np
 from scipy.spatial import ConvexHull
 
 import nfl_veripy.partitioners as partitioners
@@ -98,7 +99,7 @@ class Analyzer:
         title=None,
         labels={},
         aspects={},
-        **kwargs
+        **kwargs,
     ):
         # sampled_outputs = self.get_sampled_outputs(input_range)
         # output_range_exact = self.samples_to_range(sampled_outputs)
@@ -156,22 +157,32 @@ class Analyzer:
         else:
             plt.close()
 
-    def get_sampled_outputs(self, input_range, N=1000):
-        return get_sampled_outputs(input_range, self.propagator, N=N)
+    def get_sampled_outputs(
+        self, input_range: np.ndarray, num_samples: int = 1000
+    ):
+        return get_sampled_outputs(
+            input_range, self.propagator, num_samples=num_samples
+        )
 
     def samples_to_range(self, sampled_outputs):
         return samples_to_range(sampled_outputs)
 
-    def get_exact_output_range(self, input_range, N=int(1e4)):
-        sampled_outputs = self.get_sampled_outputs(input_range, N=N)
+    def get_exact_output_range(
+        self, input_range: np.ndarray, num_samples: int = int(1e4)
+    ) -> np.ndarray:
+        sampled_outputs = self.get_sampled_outputs(
+            input_range, num_samples=num_samples
+        )
         output_range = self.samples_to_range(sampled_outputs)
         return output_range
 
-    def get_exact_hull(self, input_range, N=int(1e4)):
-        sampled_outputs = self.get_sampled_outputs(input_range, N=N)
+    def get_exact_hull(self, input_range, num_samples=int(1e4)):
+        sampled_outputs = self.get_sampled_outputs(
+            input_range, num_samples=num_samples
+        )
         return ConvexHull(sampled_outputs)
 
-    def get_error(self, input_range, output_range, **analyzer_info):
+    def get_error_np(self, input_range, output_range, **analyzer_info):
         if self.partitioner.interior_condition == "convex_hull":
             exact_hull = self.get_exact_hull(input_range)
 

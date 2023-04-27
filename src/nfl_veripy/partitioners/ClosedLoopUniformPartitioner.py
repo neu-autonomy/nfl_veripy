@@ -1,11 +1,11 @@
-import ast
 from itertools import product
-from typing import Optional, Union
+from typing import Optional
+
+import numpy as np
 
 import nfl_veripy.constraints as constraints
 import nfl_veripy.dynamics as dynamics
 import nfl_veripy.propagators as propagators
-import numpy as np
 from nfl_veripy.utils.utils import get_crown_matrices
 
 from .ClosedLoopPartitioner import ClosedLoopPartitioner
@@ -15,20 +15,13 @@ class ClosedLoopUniformPartitioner(ClosedLoopPartitioner):
     def __init__(
         self,
         dynamics: dynamics.Dynamics,
-        num_partitions: Union[None, int, np.ndarray] = 16,
-        make_animation: bool = False,
-        show_animation: bool = False,
     ):
-        ClosedLoopPartitioner.__init__(
-            self,
-            dynamics=dynamics,
-            make_animation=make_animation,
-            show_animation=show_animation,
-        )
-        self.num_partitions = np.array(ast.literal_eval(num_partitions))
-        self.interior_condition = "linf"
-        self.show_animation = False
-        self.make_animation = False
+        super().__init__(dynamics=dynamics)
+        self.num_partitions: np.ndarray = np.array([4, 4])
+        self.interior_condition: str = "linf"
+
+    # TODO: set num_partitions attr properly using
+    # np.array(ast.literal_eval(num_partitions))
 
     def get_one_step_reachable_set(
         self,
@@ -40,9 +33,8 @@ class ClosedLoopUniformPartitioner(ClosedLoopPartitioner):
             initial_set,
             propagator,
             t_max=1,
-            num_partitions=num_partitions,
         )
-        return reachable_set, info
+        return reachable_set.get_constraint_at_time_index(0), info
 
     def get_reachable_set(
         self,

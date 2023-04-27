@@ -64,11 +64,15 @@ class ClosedLoopBackwardAnalyzer(analyzers.Analyzer):
         return propagators.propagator_dict
 
     def instantiate_partitioner(
-        self, partitioner: str, hyperparams: dict[str, Any]
+        self, partitioner_name: str, hyperparams: dict[str, Any]
     ) -> partitioners.ClosedLoopPartitioner:
-        return partitioners.partitioner_dict[partitioner](
-            **{**hyperparams, "dynamics": self.dynamics}
+        partitioner = partitioners.partitioner_dict[partitioner_name](
+            self.dynamics
         )
+        for key, value in hyperparams.items():
+            if hasattr(partitioner, key):
+                setattr(partitioner, key, value)
+        return partitioner
 
     def instantiate_propagator(
         self, propagator: str, hyperparams: dict[str, Any]
@@ -184,7 +188,7 @@ class ClosedLoopBackwardAnalyzer(analyzers.Analyzer):
             plot_lims=plot_lims,
             axis_dims=axis_dims,
             show_BReach=show_BReach,
-            **info
+            **info,
         )
         self.partitioner.animate_fig.tight_layout()
 
@@ -219,7 +223,7 @@ class ClosedLoopBackwardAnalyzer(analyzers.Analyzer):
         plot_lims: Optional[str] = None,
         inputs_to_highlight: Optional[list[dict]] = None,
         show_BReach: bool = False,
-        **kwargs
+        **kwargs,
     ) -> None:
         rects = backprojection_sets.plot(
             self.partitioner.animate_axes,

@@ -1,6 +1,5 @@
 import os
 import pickle
-import time
 
 import numpy as np
 import torch
@@ -17,8 +16,7 @@ def bisect(input_range):
 def sect(input_range, num_sects=3, select="random"):
     input_shape = input_range.shape[:-1]
     if select == "random":
-        # doesnt work
-        input_dim_to_sect = np.random.randint(0, num_inputs)
+        raise NotImplementedError
     else:
         lengths = input_range[..., 1] - input_range[..., 0]
         input_dim_to_sect = np.unravel_index(lengths.argmax(), lengths.shape)
@@ -37,10 +35,12 @@ def sect(input_range, num_sects=3, select="random"):
     return input_ranges
 
 
-def get_sampled_outputs(input_range, propagator, N=1000):
+def get_sampled_outputs(
+    input_range: np.ndarray, propagator, num_samples: int = 1000
+) -> np.ndarray:
     input_shape = input_range.shape[:-1]
     sampled_inputs = np.random.uniform(
-        input_range[..., 0], input_range[..., 1], (N,) + input_shape
+        input_range[..., 0], input_range[..., 1], (num_samples,) + input_shape
     )
 
     sampled_outputs = propagator.forward_pass(sampled_inputs)
@@ -69,7 +69,7 @@ def stablebaselines2torch(good_sess, network_params, activation="relu"):
         w = good_sess.run(w_tsr[i]).T
         b = good_sess.run(b_tsr[i])
         linear = torch.nn.Linear(w.shape[1], w.shape[0])
-        # print("Layer {}: Input: {}, Output: {}".format(i, w.shape[1], w.shape[0]))
+        # print(f"Layer {i}: Input: {w.shape[1]}, Output: {w.shape[0]}")
         # print("Bias {}: shape: {}".format(b, b.shape))
         # print(w)
         # import pdb; pdb.set_trace()

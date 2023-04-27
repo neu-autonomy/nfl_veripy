@@ -16,27 +16,18 @@ class ClosedLoopSimGuidedPartitioner(ClosedLoopPartitioner):
     def __init__(
         self,
         dynamics: dynamics.Dynamics,
-        num_partitions: Union[None, int, np.ndarray] = 16,
-        make_animation: bool = False,
-        show_animation: bool = False,
     ):
-        ClosedLoopPartitioner.__init__(
-            self,
-            dynamics=dynamics,
-            make_animation=make_animation,
-            show_animation=show_animation,
-        )
-        self.num_partitions = num_partitions
-        self.interior_condition = "linf"
+        super().__init__(dynamics=dynamics)
+        self.interior_condition: str = "linf"
 
-        self.termination_condition_type = "num_propagator_calls"
-        self.termination_condition_value = 200
+        self.termination_condition_type: str = "num_propagator_calls"
+        self.termination_condition_value: int = 200
 
-        self.reachable_set_color = "tab:blue"
-        self.reachable_set_zorder = 2
-        self.initial_set_color = "tab:red"
-        self.initial_set_zorder = 2
-        self.sample_zorder = 1
+        self.reachable_set_color: str = "tab:blue"
+        self.reachable_set_zorder: int = 2
+        self.initial_set_color: str = "tab:red"
+        self.initial_set_zorder: int = 2
+        self.sample_zorder: int = 1
 
     def check_termination(  # type: ignore
         self,
@@ -60,9 +51,8 @@ class ClosedLoopSimGuidedPartitioner(ClosedLoopPartitioner):
             initial_set,
             propagator,
             t_max=1,
-            num_partitions=num_partitions,
         )
-        return reachable_set, info
+        return reachable_set.get_constraint_at_time_index(0), info
 
     def get_reachable_set(
         self,

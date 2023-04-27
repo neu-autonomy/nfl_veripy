@@ -23,15 +23,13 @@ class ClosedLoopPartitioner(Partitioner):
     def __init__(
         self,
         dynamics: dynamics.Dynamics,
-        make_animation: bool = False,
-        show_animation: bool = False,
     ):
         super().__init__()
         self.dynamics = dynamics
 
         # Animation-related flags
-        self.make_animation = make_animation
-        self.show_animation = show_animation
+        self.make_animation: bool = False
+        self.show_animation: bool = False
         self.tmp_animation_save_dir = "{}/../../results/tmp_animation/".format(
             os.path.dirname(os.path.abspath(__file__))
         )
@@ -76,7 +74,7 @@ class ClosedLoopPartitioner(Partitioner):
         if isinstance(initial_set, constraints.LpConstraint) and isinstance(
             reachable_sets, constraints.MultiTimestepLpConstraint
         ):
-            estimated_reachable_set_ranges = reachable_sets.to_range()
+            estimated_reachable_set_ranges = reachable_sets.range
             true_reachable_set_ranges = self.get_sampled_out_range(
                 initial_set, propagator, t_max, num_samples=1000
             )
@@ -172,8 +170,8 @@ class ClosedLoopPartitioner(Partitioner):
         show_samples: bool = True,
         show_samples_from_cells: bool = True,
         show_trajectories: bool = False,
-        axis_labels: Optional[list] = None,
-        axis_dims: Optional[list] = None,
+        axis_labels: list = ["$x_0$", "$x_1$"],
+        axis_dims: list = [0, 1],
         aspect: str = "auto",
         initial_set_color: Optional[str] = None,
         initial_set_zorder: Optional[int] = None,

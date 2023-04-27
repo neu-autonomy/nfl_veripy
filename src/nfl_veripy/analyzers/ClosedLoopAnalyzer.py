@@ -91,7 +91,7 @@ class ClosedLoopAnalyzer(Analyzer):
         axis_dims: list = [],
         dont_close: bool = True,
         controller_name: Optional[str] = None,
-        **kwargs
+        **kwargs,
     ) -> None:
         self.partitioner.setup_visualization(
             initial_set,
@@ -147,13 +147,15 @@ class ClosedLoopAnalyzer(Analyzer):
             plt.close()
 
     def get_sampled_outputs(
-        self, input_range: np.ndarray, N: int = 1000
+        self, input_range: np.ndarray, num_samples: int = 1000
     ) -> np.ndarray:
-        return get_sampled_outputs(input_range, self.propagator, N=N)
+        return get_sampled_outputs(
+            input_range, self.propagator, num_samples=num_samples
+        )
 
     def get_sampled_output_range(
         self,
-        initial_set: constraints.Constraint,
+        initial_set: constraints.SingleTimestepConstraint,
         t_max: int = 5,
         num_samples: int = 1000,
     ) -> np.ndarray:
@@ -161,19 +163,14 @@ class ClosedLoopAnalyzer(Analyzer):
             initial_set, self.propagator, t_max, num_samples
         )
 
-    def get_output_range(
-        self,
-        initial_set: constraints.SingleTimestepConstraint,
-        reachable_sets: constraints.Constraint,
-    ) -> np.ndarray:  # type: ignore[override]
-        # TODO: when is this used? if used changed reachable_sets type to
-        # multitimestep. if not used, delete?
-        return self.partitioner.get_output_range(initial_set, reachable_sets)
-
     def get_exact_output_range(
-        self, input_range: np.ndarray
-    ) -> np.ndarray:  # type: ignore[override]
-        sampled_outputs = self.get_sampled_outputs(input_range)
+        self,
+        input_range: np.ndarray,
+        num_samples: int = int(1e4),
+    ) -> np.ndarray:
+        sampled_outputs = self.get_sampled_outputs(
+            input_range, num_samples=num_samples
+        )
         output_range = samples_to_range(sampled_outputs)
         return output_range
 
@@ -182,7 +179,7 @@ class ClosedLoopAnalyzer(Analyzer):
         initial_set: constraints.SingleTimestepConstraint,
         reachable_sets: constraints.MultiTimestepConstraint,
         t_max: int,
-    ):  # type: ignore[override]
+    ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
         return self.partitioner.get_error(
             initial_set, reachable_sets, self.propagator, t_max
         )

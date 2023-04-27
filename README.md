@@ -99,7 +99,10 @@ source venv/bin/activate
 
 Install the various python packages in this repo in editable mode (`-e`):
 ```bash
-python -m pip install -e third_party/crown_ibp third_party/jax_verify third_party/auto_LiRPA .
+python -m pip install -e third_party/crown_ibp
+python -m pip install -e third_party/jax_verify
+python -m pip install -e third_party/auto_LiRPA
+python -m pip install -e .
 ```
 
 You're good to go!

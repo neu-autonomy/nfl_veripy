@@ -37,6 +37,8 @@ dependencies = [
     "tqdm",
     "pyclipper",
     "pygifsicle",
+    "mypy",
+    "pylint",
 ]
 
 [project.urls]
