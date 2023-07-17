@@ -5,9 +5,12 @@ import itertools
 import cvxpy as cp
 import jax
 import jax.numpy as jnp
+import jax_verify
 import numpy as np
 import pypoman
 import torch
+from tqdm import tqdm
+
 from nfl_veripy import constraints
 from nfl_veripy.utils.closed_loop_verification_jax import (
     backward_crown_bound_propagation_linfun,
@@ -19,9 +22,6 @@ from nfl_veripy.utils.nn_jax import (
     predict_next_state,
 )
 from nfl_veripy.utils.utils import range_to_polytope
-from tqdm import tqdm
-
-import jax_verify
 
 from .ClosedLoopPropagator import ClosedLoopPropagator
 
@@ -114,20 +114,22 @@ class ClosedLoopJaxIterativePropagator(ClosedLoopJaxPropagator):
         for _ in range(num_timesteps):
             xt_bounds = self.verif_fn(fun_to_prop, xt_bounds)
             all_bounds.append(xt_bounds)
-        reachable_sets = jnp.array(
+        reachable_sets_jnp = jnp.array(
             [
                 jnp.array([all_bounds[i].lower, all_bounds[i].upper]).T
                 for i in range(1, len(all_bounds))
             ]
         )
 
-        reachable_sets = np.array(reachable_sets[:, :, 0, :])
+        reachable_sets_np = np.array(reachable_sets_jnp[:, :, 0, :])
 
-        output_constraints = constraints.MultiTimestepLpConstraint(
-            range=reachable_sets
+        reachable_sets = constraints.MultiTimestepConstraint(
+            constraints=[
+                constraints.LpConstraint(range=r) for r in reachable_sets_np
+            ]
         )
 
-        return output_constraints, {}
+        return reachable_sets, {}
 
     def get_backprojection_set(
         self,
@@ -967,15 +969,19 @@ class ClosedLoopJaxUnrolledPropagator(ClosedLoopJaxPropagator):
 
         lbs = jnp.array([bounds[i].lower for i in range(1, num_timesteps + 1)])
         ubs = jnp.array([bounds[i].upper for i in range(1, num_timesteps + 1)])
-        reachable_sets = jnp.stack([lbs, ubs]).transpose(2, 1, 3, 0).squeeze()
-
-        reachable_sets = np.array(reachable_sets)
-
-        output_constraints = constraints.MultiTimestepLpConstraint(
-            range=reachable_sets
+        reachable_sets_jnp = (
+            jnp.stack([lbs, ubs]).transpose(2, 1, 3, 0).squeeze()
         )
 
-        return output_constraints, {}
+        reachable_sets_np = np.array(reachable_sets_jnp)
+
+        reachable_sets = constraints.MultiTimestepConstraint(
+            constraints=[
+                constraints.LpConstraint(range=r) for r in reachable_sets_np
+            ]
+        )
+
+        return reachable_sets, {}
 
 
 class ClosedLoopJaxUnrolledJittedPropagator(ClosedLoopJaxPropagator):
@@ -992,8 +998,10 @@ class ClosedLoopJaxUnrolledJittedPropagator(ClosedLoopJaxPropagator):
         reachable_sets_jnp, info = self.get_reachable_set_jitted(
             initial_state_set_jit, t_max
         )
-        reachable_sets = constraints.MultiTimestepLpConstraint(
-            range=np.array(reachable_sets_jnp)
+        reachable_sets = constraints.MultiTimestepConstraint(
+            constraints=[
+                constraints.LpConstraint(range=r) for r in reachable_sets_jnp
+            ]
         )
         return reachable_sets, info
 

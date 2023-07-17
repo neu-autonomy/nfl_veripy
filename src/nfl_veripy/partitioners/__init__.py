@@ -6,7 +6,6 @@ from .AdaptiveGreedySimGuidedPartitioner import (
 from .ClosedLoopGreedySimGuidedPartitioner import (
     ClosedLoopGreedySimGuidedPartitioner,
 )
-from .ClosedLoopNickPartitioner import ClosedLoopNickPartitioner
 from .ClosedLoopNoPartitioner import ClosedLoopNoPartitioner
 from .ClosedLoopPartitioner import ClosedLoopPartitioner  # noqa
 from .ClosedLoopSimGuidedPartitioner import ClosedLoopSimGuidedPartitioner
@@ -25,7 +24,6 @@ partitioner_dict: dict[str, Type[ClosedLoopPartitioner]] = {
     "SimGuided": ClosedLoopSimGuidedPartitioner,
     "GreedySimGuided": ClosedLoopGreedySimGuidedPartitioner,
     "UnGuided": ClosedLoopUnGuidedPartitioner,
-    "Nick": ClosedLoopNickPartitioner,
 }
 
 

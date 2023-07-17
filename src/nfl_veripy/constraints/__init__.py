@@ -7,25 +7,15 @@ from nfl_veripy.constraints.constraint_utils import (  # noqa
     RotatedLpConstraint,
     make_rect_from_arr,
 )
-from nfl_veripy.constraints.LpConstraint import (  # noqa
+from nfl_veripy.constraints.Constraints import (  # noqa
     LpConstraint,
-    MultiTimestepLpConstraint,
-    unjit_lp_constraints,
-    unjit_multi_timestep_lp_constraints,
-)
-from nfl_veripy.constraints.PolytopeConstraint import (  # noqa
-    MultiTimestepPolytopeConstraint,
+    MultiTimestepConstraint,
     PolytopeConstraint,
-    unjit_multi_timestep_polytope_constraints,
+    SingleTimestepConstraint,
+    unjit_lp_constraints,
     unjit_polytope_constraints,
 )
 from nfl_veripy.utils.utils import get_polytope_A, range_to_polytope
-
-MultiTimestepConstraint = Union[
-    MultiTimestepLpConstraint,
-    MultiTimestepPolytopeConstraint,
-]
-SingleTimestepConstraint = Union[LpConstraint, PolytopeConstraint]
 
 
 def create_empty_constraint(
@@ -46,12 +36,12 @@ def create_empty_multi_timestep_constraint(
 ) -> MultiTimestepConstraint:
     if boundary_type == "polytope":
         if num_facets:
-            return MultiTimestepPolytopeConstraint(
+            return MultiTimestepConstraint(
                 constraints=[PolytopeConstraint(A=get_polytope_A(num_facets))]
             )
-        return MultiTimestepPolytopeConstraint()
+        return MultiTimestepConstraint()
     elif boundary_type == "rectangle":
-        return MultiTimestepLpConstraint()
+        return MultiTimestepConstraint()
     else:
         raise NotImplementedError
 
@@ -86,19 +76,9 @@ def is_npndarray_list(xs: list[Any]) -> TypeGuard[list[np.ndarray]]:
 
 
 def list_to_constraint(
-    reachable_sets: Union[list[LpConstraint], list[PolytopeConstraint]]
+    reachable_sets: list[SingleTimestepConstraint],
 ) -> MultiTimestepConstraint:
-    if is_lp_constraint_list(reachable_sets):
-        return MultiTimestepLpConstraint(constraints=reachable_sets)
-    elif is_polytope_constraint_list(reachable_sets):
-        As = [r.A for r in reachable_sets]
-        bs = [r.b for r in reachable_sets]
-        assert is_npndarray_list(As)  # ensure all As are not None
-        assert is_npndarray_list(bs)  # ensure all bs are not None
-        return MultiTimestepPolytopeConstraint(
-            constraints=[PolytopeConstraint(A=A, b=b) for A, b in zip(As, bs)]
-        )
-    else:
-        raise ValueError(
-            "reachable_sets list contains constraints with None range or A, b."
-        )
+    return MultiTimestepConstraint(constraints=reachable_sets)
+
+
+Constraint = Union[SingleTimestepConstraint, MultiTimestepConstraint]

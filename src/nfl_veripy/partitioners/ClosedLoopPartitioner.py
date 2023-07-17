@@ -3,11 +3,13 @@ from copy import deepcopy
 from typing import Any, Optional, Union
 
 import cvxpy as cp
+import imageio.v2 as imageio
 import matplotlib.pyplot as plt
 import numpy as np
 import pypoman
 from matplotlib.lines import Line2D
 from matplotlib.patches import Patch
+from pygifsicle import optimize
 from scipy.spatial import ConvexHull
 
 import nfl_veripy.constraints as constraints
@@ -16,15 +18,12 @@ import nfl_veripy.propagators as propagators
 from nfl_veripy.utils.optimization_utils import optimize_over_all_states
 from nfl_veripy.utils.utils import range_to_polytope
 
-from .Partitioner import Partitioner
 
-
-class ClosedLoopPartitioner(Partitioner):
+class ClosedLoopPartitioner:
     def __init__(
         self,
         dynamics: dynamics.Dynamics,
     ):
-        super().__init__()
         self.dynamics = dynamics
 
         # Animation-related flags
@@ -36,6 +35,12 @@ class ClosedLoopPartitioner(Partitioner):
         self.animation_save_dir = "{}/../../results/animations/".format(
             os.path.dirname(os.path.abspath(__file__))
         )
+
+    def get_tmp_animation_filename(self, iteration):
+        filename = self.tmp_animation_save_dir + "tmp_{}.png".format(
+            str(iteration).zfill(6)
+        )
+        return filename
 
     def get_one_step_reachable_set(
         self,
@@ -71,9 +76,7 @@ class ClosedLoopPartitioner(Partitioner):
     ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
         errors = []
 
-        if isinstance(initial_set, constraints.LpConstraint) and isinstance(
-            reachable_sets, constraints.MultiTimestepLpConstraint
-        ):
+        if isinstance(initial_set, constraints.LpConstraint):
             estimated_reachable_set_ranges = reachable_sets.range
             true_reachable_set_ranges = self.get_sampled_out_range(
                 initial_set, propagator, t_max, num_samples=1000
@@ -89,11 +92,7 @@ class ClosedLoopPartitioner(Partitioner):
                     - estimated_reachable_set_ranges[t][..., 0]
                 )
                 errors.append((estimated_area - true_area) / true_area)
-        elif isinstance(
-            initial_set, constraints.PolytopeConstraint
-        ) and isinstance(
-            reachable_sets, constraints.MultiTimestepPolytopeConstraint
-        ):
+        elif isinstance(initial_set, constraints.PolytopeConstraint):
             # Note: This compares the estimated polytope
             # with the "best" polytope with those facets.
             # There could be a much better polytope with lots of facets.
@@ -111,14 +110,10 @@ class ClosedLoopPartitioner(Partitioner):
             for t in range(num_steps):
                 true_hull = ConvexHull(true_verts[:, t + 1, :])
                 true_area = true_hull.volume
-                if reachable_sets.A is None or reachable_sets.b is None:
-                    raise ValueError(
-                        "Can't compute polygon hull because reachable_sets has"
-                        " Nones in it."
-                    )
-                estimated_verts = pypoman.polygon.compute_polygon_hull(
-                    reachable_sets.A[t], reachable_sets.b[t]
-                )
+                A, b = reachable_sets.get_constraint_at_time_index(
+                    t
+                ).get_polytope()
+                estimated_verts = pypoman.polygon.compute_polygon_hull(A, b)
                 estimated_hull = ConvexHull(estimated_verts)
                 estimated_area = estimated_hull.volume
                 errors.append((estimated_area - true_area) / true_area)
@@ -137,9 +132,7 @@ class ClosedLoopPartitioner(Partitioner):
         propagator: propagators.ClosedLoopPropagator,
         t_max: int = 5,
         num_samples: int = 1000,
-        output_constraint: Optional[
-            constraints.SingleTimestepConstraint
-        ] = None,
+        output_constraint: Optional[constraints.Constraint] = None,
     ) -> np.ndarray:
         # TODO: change output_constraint to better name
         return self.dynamics.get_sampled_output_range(
@@ -185,8 +178,8 @@ class ClosedLoopPartitioner(Partitioner):
         plot_lims: Optional[list] = None,
         controller_name: Optional[str] = None,
     ) -> None:
-        self.default_patches = []
-        self.default_lines = []
+        self.default_patches: list = []
+        self.default_lines: list = []
 
         self.axis_dims = axis_dims
 
@@ -262,18 +255,18 @@ class ClosedLoopPartitioner(Partitioner):
         if not self.plot_2d:
             self.animate_axes.set_zlabel(axis_labels[2])
 
-        # Plot the initial state set's boundaries
-        if initial_set_color is None:
-            initial_set_color = "tab:grey"
-        rect = initial_set.plot(
-            self.animate_axes,
-            axis_dims,
-            initial_set_color,
-            zorder=initial_set_zorder,
-            linewidth=self.linewidth,
-            plot_2d=self.plot_2d,
-        )
-        self.default_patches += rect
+        # # Plot the initial state set's boundaries
+        # if initial_set_color is None:
+        #     initial_set_color = "tab:grey"
+        # rect = initial_set.plot(
+        #     self.animate_axes,
+        #     axis_dims,
+        #     initial_set_color,
+        #     zorder=initial_set_zorder,
+        #     linewidth=self.linewidth,
+        #     plot_2d=self.plot_2d,
+        # )
+        # self.default_patches += rect
 
         if show_samples_from_cells:
             for cell in initial_set.cells:
@@ -628,14 +621,14 @@ class ClosedLoopPartitioner(Partitioner):
         if isinstance(target_set, constraints.LpConstraint):
             Ats, bts = range_to_polytope(target_set.range)
             true_verts_reversed = self.dynamics.get_true_backprojection_set(
-                backprojection_sets[-1],
+                backprojection_sets.get_constraint_at_time_index(-1),
                 target_set,
                 t_max,
                 controller=propagator.network,
                 num_samples=1e8,
             )
             true_verts = np.flip(true_verts_reversed, axis=1)
-            num_steps = len(backprojection_sets)
+            num_steps = backprojection_sets.get_t_max()
 
             x_range = x_max - x_min
             true_area = np.prod(x_range)
@@ -647,7 +640,9 @@ class ClosedLoopPartitioner(Partitioner):
             # true_hull = ConvexHull(true_verts[:, t+1, :])
             # true_area = true_hull.volume
 
-            Abp, bbp = range_to_polytope(backprojection_sets[t].range)
+            Abp, bbp = backprojection_sets.get_constraint_at_time_index(
+                t
+            ).get_polytope()
             estimated_verts = pypoman.polygon.compute_polygon_hull(Abp, bbp)
             estimated_hull = ConvexHull(estimated_verts)
             estimated_area = estimated_hull.volume
@@ -709,13 +704,13 @@ class ClosedLoopPartitioner(Partitioner):
             # with the "best" polytope with those facets.
             # There could be a much better polytope with lots of facets.
             true_verts_reversed = self.dynamics.get_true_backprojection_set(
-                backprojection_sets[-1],
+                backprojection_sets.get_constraint_at_time_index(-1),
                 target_set,
                 t_max,
                 controller=propagator.network,
             )
             true_verts = np.flip(true_verts_reversed, axis=1)
-            num_steps = len(backprojection_sets)
+            num_steps = backprojection_sets.get_t_max()
 
             for t in range(num_steps):
                 x_min = np.min(true_verts[:, t + 1, :], axis=0)
@@ -724,8 +719,11 @@ class ClosedLoopPartitioner(Partitioner):
                 x_range = x_max - x_min
                 true_area = np.prod(x_range)
 
+                Abp, bbp = backprojection_sets.get_constraint_at_time_index(
+                    t
+                ).get_polytope()
                 estimated_verts = pypoman.polygon.compute_polygon_hull(
-                    backprojection_sets[t].A[0], backprojection_sets[t].b[0]
+                    Abp, bbp
                 )
                 estimated_hull = ConvexHull(estimated_verts)
                 estimated_area = estimated_hull.volume
@@ -761,3 +759,36 @@ class ClosedLoopPartitioner(Partitioner):
         input_constraint = input_constraint_.copy()
 
         return input_constraint, info
+
+    def compile_animation(
+        self, iteration, delete_files=False, start_iteration=0, duration=0.1
+    ):
+        filenames = [
+            self.get_tmp_animation_filename(i)
+            for i in range(start_iteration, iteration)
+        ]
+        images = []
+        for filename in filenames:
+            try:
+                image = imageio.imread(filename)
+            except FileNotFoundError:
+                # not every iteration has a plot
+                continue
+            images.append(image)
+            if filename == filenames[-1]:
+                for i in range(10):
+                    images.append(imageio.imread(filename))
+            if delete_files:
+                os.remove(filename)
+
+        # Save the gif in a new animations sub-folder
+        os.makedirs(self.animation_save_dir, exist_ok=True)
+        animation_filename = (
+            self.animation_save_dir + self.get_animation_filename()
+        )
+        imageio.mimsave(animation_filename, images, duration=duration)
+        optimize(animation_filename)  # compress gif file size
+
+    def get_animation_filename(self):
+        animation_filename = self.__class__.__name__ + ".gif"
+        return animation_filename

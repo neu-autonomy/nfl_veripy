@@ -15,11 +15,13 @@ import nfl_veripy.partitioners as partitioners
 import nfl_veripy.propagators as propagators
 from nfl_veripy.utils.utils import get_sampled_outputs, samples_to_range
 
+from .Analyzer import Analyzer
+
 # plt.rcParams['mathtext.fontset'] = 'stix'
 # plt.rcParams['font.family'] = 'STIXGeneral'
 
 
-class ClosedLoopBackwardAnalyzer(analyzers.Analyzer):
+class ClosedLoopBackwardAnalyzer(Analyzer):
     def __init__(
         self, torch_model: torch.nn.Sequential, dynamics: dynamics.Dynamics
     ):
@@ -264,7 +266,7 @@ class ClosedLoopBackwardAnalyzer(analyzers.Analyzer):
                 color=self.true_backprojection_set_color,
                 zorder=self.true_backprojection_set_zorder,
                 linestyle=self.true_backprojection_set_linestyle,
-                show_samples=False,
+                show_samples=True,
             )
 
         # Sketchy workaround to trajectories not showing up
@@ -467,7 +469,6 @@ class ClosedLoopBackwardAnalyzer(analyzers.Analyzer):
                 xs=x_samples_inside_backprojection_set,
                 colors=None,
             )
-            print(self.partitioner.animate_axes.get_ylabel())
 
         # Compute and draw a convex hull around all the backprojection set
         # samples. This is our "true" backprojection set -- but...

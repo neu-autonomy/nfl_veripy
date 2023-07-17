@@ -51,8 +51,6 @@ class ClosedLoopUniformPartitioner(ClosedLoopPartitioner):
         info = {}
         num_propagator_calls = 0
 
-        input_shape = input_range.shape[:-1]
-
         slope = np.divide(
             (input_range[..., 1] - input_range[..., 0]), self.num_partitions
         )
@@ -62,13 +60,13 @@ class ClosedLoopUniformPartitioner(ClosedLoopPartitioner):
         for element in product(
             *[range(num) for num in self.num_partitions.flatten()]
         ):
-            element_ = np.array(element).reshape(input_shape)
+            element_this_cell = np.array(element)
             input_range_this_cell = np.empty_like(input_range)
             input_range_this_cell[..., 0] = input_range[..., 0] + np.multiply(
-                element_, slope
+                element_this_cell, slope
             )
             input_range_this_cell[..., 1] = input_range[..., 0] + np.multiply(
-                element_ + 1, slope
+                element_this_cell + 1, slope
             )
 
             initial_set_this_cell = initial_set.get_cell(input_range_this_cell)
@@ -116,8 +114,8 @@ class ClosedLoopUniformPartitioner(ClosedLoopPartitioner):
         """
 
         # Setup the partitions
+        assert backreachable_set.range is not None
         input_range = backreachable_set.range
-        input_shape = input_range.shape[:-1]
         slope = np.divide(
             (input_range[..., 1] - input_range[..., 0]), self.num_partitions
         )
@@ -127,16 +125,17 @@ class ClosedLoopUniformPartitioner(ClosedLoopPartitioner):
             *[range(int(num)) for num in self.num_partitions.flatten()]
         ):
             # Compute this partition's min/max xt values
-            element = np.array(element).reshape(input_shape)
-            backreachable_set_this_cell = constraints.LpConstraint(
-                range=np.empty_like(input_range), p=np.inf
+            element_this_cell = np.array(element)
+            ranges = np.empty_like(input_range)
+            ranges[:, 0] = input_range[:, 0] + np.multiply(
+                element_this_cell, slope
             )
-            backreachable_set_this_cell.range[:, 0] = input_range[
-                :, 0
-            ] + np.multiply(element, slope)
-            backreachable_set_this_cell.range[:, 1] = input_range[
-                :, 0
-            ] + np.multiply(element + 1, slope)
+            ranges[:, 1] = input_range[:, 0] + np.multiply(
+                element_this_cell + 1, slope
+            )
+            backreachable_set_this_cell = constraints.LpConstraint(
+                range=ranges, p=np.inf
+            )
 
             backprojection_set_this_cell, this_info = (
                 propagator.get_one_step_backprojection_set(

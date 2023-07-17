@@ -2,11 +2,12 @@ from copy import deepcopy
 from typing import Optional
 
 import cvxpy as cp
-import nfl_veripy.constraints as constraints
-import nfl_veripy.dynamics as dynamics
 import numpy as np
 import pypoman
 import torch
+
+import nfl_veripy.constraints as constraints
+import nfl_veripy.dynamics as dynamics
 from nfl_veripy.utils.nn_bounds import BoundClosedLoopController
 from nfl_veripy.utils.optimization_utils import (
     optimization_results_to_backprojection_set,
@@ -52,9 +53,6 @@ class ClosedLoopCROWNIBPCodebasePropagator(ClosedLoopPropagator):
     def get_one_step_reachable_set(
         self, initial_set: constraints.SingleTimestepConstraint
     ) -> tuple[constraints.SingleTimestepConstraint, dict]:
-        # initial_set: constraints.LpConstraint(range=(num_states, 2))
-        # reachable_set: constraints.LpConstraint(range=(num_states, 2))
-
         A_inputs, b_inputs, x_max, x_min, norm = (
             initial_set.to_reachable_input_objects()
         )
@@ -153,7 +151,7 @@ class ClosedLoopCROWNIBPCodebasePropagator(ClosedLoopPropagator):
         target_sets: constraints.MultiTimestepConstraint,
         overapprox: bool = False,
         infos: dict = {},
-        facet_inds_to_optimize: Optional[np.array] = None,
+        facet_inds_to_optimize: Optional[np.ndarray] = None,
     ) -> tuple[Optional[constraints.SingleTimestepConstraint], dict]:
         backreachable_set.crown_matrices = get_crown_matrices(
             self,
@@ -243,9 +241,11 @@ class ClosedLoopCROWNIBPCodebasePropagator(ClosedLoopPropagator):
         self,
         backreachable_set: constraints.SingleTimestepConstraint,
         target_sets: constraints.MultiTimestepConstraint,
-        facet_inds_to_optimize: Optional[np.array] = None,
+        facet_inds_to_optimize: Optional[np.ndarray] = None,
     ) -> Optional[constraints.SingleTimestepConstraint]:
-        backprojection_set = deepcopy(backreachable_set)
+        backprojection_set: Optional[constraints.SingleTimestepConstraint] = (
+            deepcopy(backreachable_set)
+        )
         for _ in range(self.num_iterations):
             if backprojection_set is None:
                 continue
@@ -277,7 +277,7 @@ class ClosedLoopCROWNIBPCodebasePropagator(ClosedLoopPropagator):
         self,
         backreachable_set: constraints.SingleTimestepConstraint,
         target_sets: constraints.MultiTimestepConstraint,
-        facet_inds_to_optimize: Optional[np.array] = None,
+        facet_inds_to_optimize: Optional[np.ndarray] = None,
     ) -> Optional[constraints.SingleTimestepConstraint]:
         num_states, num_control_inputs = self.dynamics.bt.shape
 
@@ -771,7 +771,7 @@ class ClosedLoopCROWNNStepPropagator(ClosedLoopCROWNPropagator):
         self,
         backreachable_set: constraints.SingleTimestepConstraint,
         target_sets: constraints.MultiTimestepConstraint,
-        facet_inds_to_optimize: Optional[np.array] = None,
+        facet_inds_to_optimize: Optional[np.ndarray] = None,
     ) -> Optional[constraints.SingleTimestepConstraint]:
         # The only difference between this and
         # CROWNPropagator.improve_one_step_backprojection_set_overapprox

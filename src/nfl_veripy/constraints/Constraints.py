@@ -10,7 +10,10 @@ import numpy as np
 import pypoman
 from scipy.spatial import ConvexHull
 
-from nfl_veripy.constraints.constraint_utils import make_rect_from_arr
+from nfl_veripy.constraints.constraint_utils import (
+    make_polytope_from_arrs,
+    make_rect_from_arr,
+)
 from nfl_veripy.utils.plot_rect_prism import rect_prism
 from nfl_veripy.utils.utils import CROWNMatrices, range_to_polytope
 
@@ -161,27 +164,18 @@ class LpConstraint:
         return rect
 
     def add_timestep_constraint(
-        self, other: Union[LpConstraint, MultiTimestepLpConstraint]
-    ) -> MultiTimestepLpConstraint:
-        if self.range is None:
-            raise ValueError(
-                "Trying to add_timestep_constraint but self.range is None."
-            )
-        if other.range is None:
-            raise ValueError(
-                "Trying to add_timestep_constraint but other.range is None."
-            )
-        return MultiTimestepLpConstraint(
-            constraints=[self] + other.to_multistep_constraint().constraints
-        )
+        self, other: Union[SingleTimestepConstraint, MultiTimestepConstraint]
+    ) -> MultiTimestepConstraint:
+        constraints = [self] + other.to_multistep_constraint().constraints
+        return MultiTimestepConstraint(constraints=constraints)
 
-    def to_multistep_constraint(self) -> MultiTimestepLpConstraint:
+    def to_multistep_constraint(self) -> MultiTimestepConstraint:
         if self.range is None:
             raise ValueError(
                 "Trying to convert to multistep constraint but self.range is"
                 " None."
             )
-        return MultiTimestepLpConstraint(constraints=[self])
+        return MultiTimestepConstraint(constraints=[self])
 
     def get_area(self) -> float:
         Abp, bbp = range_to_polytope(self.range)
@@ -252,15 +246,15 @@ jax.tree_util.register_pytree_node(
 )
 
 
-class MultiTimestepLpConstraint:
+class MultiTimestepConstraint:
     # range: (num_timesteps, num_states, 2)
     def __init__(
         self,
-        constraints: list[LpConstraint] = [],
+        constraints: list[SingleTimestepConstraint] = [],
         # crown_matrices: Optional[CROWNMatrices] = None,
     ):
         self.constraints = constraints
-        self.cells: list[MultiTimestepLpConstraint] = []
+        self.cells: list[MultiTimestepConstraint] = []
 
     @property
     def range(self) -> np.ndarray:
@@ -347,15 +341,15 @@ class MultiTimestepLpConstraint:
         return A_inputs, b_inputs, x_max, x_min, norm
 
     def add_timestep_constraint(
-        self, other: Union[LpConstraint, MultiTimestepLpConstraint]
-    ) -> MultiTimestepLpConstraint:
+        self, other: Union[SingleTimestepConstraint, MultiTimestepConstraint]
+    ) -> MultiTimestepConstraint:
         if other.range is None:
             raise ValueError(
                 "Trying to add_timestep_constraint but other.range is None."
             )
         if self.range is None:
             return other.to_multistep_constraint()
-        return MultiTimestepLpConstraint(
+        return MultiTimestepConstraint(
             constraints=self.constraints
             + [
                 constraint
@@ -363,10 +357,10 @@ class MultiTimestepLpConstraint:
             ]
         )
 
-    def get_constraint_at_time_index(self, i: int) -> LpConstraint:
-        return LpConstraint(range=self.constraints[i].range)
+    def get_constraint_at_time_index(self, i: int) -> SingleTimestepConstraint:
+        return self.constraints[i]
 
-    def add_cell(self, other: Optional[MultiTimestepLpConstraint]) -> None:
+    def add_cell(self, other: Optional[MultiTimestepConstraint]) -> None:
         if other is None:
             return
 
@@ -392,7 +386,7 @@ class MultiTimestepLpConstraint:
 
         self.main_constraint_stale = False
 
-    def to_multistep_constraint(self) -> MultiTimestepLpConstraint:
+    def to_multistep_constraint(self) -> MultiTimestepConstraint:
         if self.range is None:
             raise ValueError(
                 "Trying to convert to multistep constraint but self.range is"
@@ -401,7 +395,7 @@ class MultiTimestepLpConstraint:
         return self
 
     def to_jittable(self):
-        return JittableMultiTimestepLpConstraint(
+        return JittableMultiTimestepConstraint(
             self.range[..., 0],
             self.range[..., 1],
             {jax_verify.IntervalBound: None},
@@ -426,17 +420,17 @@ class MultiTimestepLpConstraint:
         return cls(*children, **aux_data)
 
 
-JittableMultiTimestepLpConstraint = collections.namedtuple(
-    "JittableMultiTimestepLpConstraint",
+JittableMultiTimestepConstraint = collections.namedtuple(
+    "JittableMultiTimestepConstraint",
     ["lower", "upper", "bound_type", "kwargs"],
 )
 
 
-def unjit_multi_timestep_lp_constraints(*inputs):
+def unjit_multi_timestep_constraints(*inputs):
     """Replace all the jittable bounds by standard bound objects."""
 
     def is_jittable_constraint(b):
-        return isinstance(b, JittableMultiTimestepLpConstraint)
+        return isinstance(b, JittableMultiTimestepConstraint)
 
     def unjit_bound(b):
         return next(iter(b.bound_type)).from_jittable(b)
@@ -449,210 +443,309 @@ def unjit_multi_timestep_lp_constraints(*inputs):
 
 
 jax.tree_util.register_pytree_node(
-    MultiTimestepLpConstraint,
-    MultiTimestepLpConstraint._tree_flatten,
-    MultiTimestepLpConstraint._tree_unflatten,
+    MultiTimestepConstraint,
+    MultiTimestepConstraint._tree_flatten,
+    MultiTimestepConstraint._tree_unflatten,
 )
 
 
-# class MultiTimestepLpConstraint:
-#     # range: (num_timesteps, num_states, 2)
-#     def __init__(
-#         self,
-#         constraints: list[LpConstraint] = [],
-#         # crown_matrices: Optional[CROWNMatrices] = None,
-#     ):
-#         self.constraints = constraints
-#         self.cells: list[MultiTimestepLpConstraint] = []
+class PolytopeConstraint:
+    """Represents single timestep's set of states with a H-rep polytope."""
 
-#     @property
-#     def range(self) -> np.ndarray:
-#         return np.array([constraint.range for constraint in self.constraints])
+    def __init__(
+        self, A: Optional[np.ndarray] = None, b: Optional[np.ndarray] = None
+    ):
+        super().__init__()
+        self.A = A
+        self.b = b
+        self.cells: list[PolytopeConstraint] = []
+        self.crown_matrices: Optional[CROWNMatrices] = None
+        self.main_constraint_stale = False
 
-#     def plot(
-#         self,
-#         ax,
-#         dims,
-#         color,
-#         fc_color="None",
-#         linewidth=3,
-#         zorder=2,
-#         plot_2d=True,
-#         ls="-",
-#     ):
-#         if not plot_2d:
-#             return self.plot3d(
-#                 ax,
-#                 dims,
-#                 color,
-#                 fc_color=fc_color,
-#                 linewidth=linewidth,
-#                 zorder=zorder,
-#             )
-#         for i in range(len(self.range)):
-#             rect = make_rect_from_arr(
-#                 self.constraints[i].range,
-#                 dims,
-#                 color,
-#                 linewidth,
-#                 fc_color,
-#                 ls,
-#                 zorder=zorder,
-#             )
-#             ax.add_patch(rect)
-#         return [rect]
+    def update_main_constraint_with_cells(self, overapprox: bool) -> None:
+        if len(self.cells) == 0:
+            raise ValueError("Can't update because self.cells is empty.")
+        elif len(self.cells) == 1:
+            self.A = self.cells[0].A
+            self.b = self.cells[0].b
+            self.main_constraint_stale = False
+        else:
+            if overapprox:
+                # TODO: compute all vertices, then get conv hull using pypoman
+                raise NotImplementedError
+            else:
+                # Simplest under-approximation of union of polytopes is one of
+                # those polytopes :/
+                # TODO: compute a better under-approximation :)
+                self.A = self.cells[0].A
+                self.b = self.cells[0].b
+                self.main_constraint_stale = False
 
-#     def plot3d(
-#         self,
-#         ax,
-#         dims,
-#         color,
-#         fc_color="None",
-#         linewidth=1,
-#         zorder=2,
-#         plot_2d=True,
-#     ):
-#         for i in range(len(self.range)):
-#             rect = rect_prism(
-#                 *self.constraints[i].range[dims, :],
-#                 ax,
-#                 color,
-#                 linewidth,
-#                 fc_color,
-#                 zorder=zorder,
-#             )
-#         return rect
+    def add_cell(self, other: Optional[PolytopeConstraint]) -> None:
+        if other is None:
+            return
 
-#     def get_t_max(self) -> int:
-#         return len(self.constraints)
+        self.cells.append(other)
+        self.main_constraint_stale = True
 
-#     def to_reachable_input_objects(
-#         self,
-#     ) -> tuple[
-#         Optional[np.ndarray],
-#         Optional[np.ndarray],
-#         np.ndarray,
-#         np.ndarray,
-#         float,
-#     ]:
-#         assert len(self.constraints) > 0
-#         last_constraint = self.constraints[-1]
-#         if last_constraint.range is None:
-#             raise ValueError(
-#                 "Can't convert LpConstraint to reachable_input_objects, since"
-#                 " self.range is None."
-#             )
-#         x_min = last_constraint.range[:, 0]
-#         x_max = last_constraint.range[:, 1]
-#         norm = last_constraint.p
-#         A_inputs = None
-#         b_inputs = None
-#         return A_inputs, b_inputs, x_max, x_min, norm
+    def get_cell(self, input_range: np.ndarray) -> PolytopeConstraint:
+        # This is a disaster hack to partition polytopes
+        A_rect, b_rect = range_to_polytope(input_range)
+        rectangle_verts = pypoman.polygon.compute_polygon_hull(A_rect, b_rect)
+        input_polytope_verts = pypoman.polygon.compute_polygon_hull(
+            self.A, self.b
+        )
+        partition_verts = pypoman.intersection.intersect_polygons(
+            input_polytope_verts, rectangle_verts
+        )
+        (
+            A_inputs_,
+            b_inputs_,
+        ) = pypoman.duality.compute_polytope_halfspaces(partition_verts)
+        constraint = self.__class__(A_inputs_, b_inputs_)
+        return constraint
 
-#     def add_timestep_constraint(
-#         self, other: Union[LpConstraint, MultiTimestepLpConstraint]
-#     ) -> MultiTimestepLpConstraint:
-#         if other.range is None:
-#             raise ValueError(
-#                 "Trying to add_timestep_constraint but other.range is None."
-#             )
-#         if self.range is None:
-#             return other.to_multistep_constraint()
-#         return MultiTimestepLpConstraint(
-#             constraints=self.constraints
-#             + [
-#                 constraint
-#                 for constraint in other.to_multistep_constraint().constraints
-#             ]
-#         )
+    @property
+    def range(self) -> np.ndarray:
+        return self.to_range()
 
-#     def get_constraint_at_time_index(self, i: int) -> LpConstraint:
-#         return LpConstraint(range=self.constraints[i].range)
+    @property
+    def p(self) -> float:
+        return np.inf
 
-#     def add_cell(self, other: Optional[MultiTimestepLpConstraint]) -> None:
-#         if other is None:
-#             return
+    def to_range(self) -> np.ndarray:
+        if self.A is None or self.b is None:
+            raise ValueError(
+                "Can't convert PolytopeConstraint to range, since self.A or"
+                " self.b are None."
+            )
 
-#         self.cells.append(other)
-#         self.main_constraint_stale = True
+        # only used to compute slope in non-closedloop manner...
+        input_polytope_verts = pypoman.duality.compute_polytope_vertices(
+            self.A, self.b
+        )
+        input_range = np.empty((self.A.shape[1], 2))
+        input_range[:, 0] = np.min(np.stack(input_polytope_verts), axis=0)
+        input_range[:, 1] = np.max(np.stack(input_polytope_verts), axis=0)
+        return input_range
 
-#     def update_main_constraint_with_cells(self, overapprox: bool) -> None:
-#         if overapprox:
-#             # get min of all mins, get max of all maxes
-#             tmp = np.stack(
-#                 [c.range for c in self.cells if c.range is not None],
-#                 axis=-1,
-#             )
-#             ranges = np.empty_like(self.cells[0].range)
-#             ranges[..., 0] = np.min(tmp[..., 0, :], axis=-1)
-#             ranges[..., 1] = np.max(tmp[..., 1, :], axis=-1)
-#             self.constraints = []
-#             for t, range in enumerate(ranges):
-#                 self.constraints.append(LpConstraint(range=range))
+    def set_bound(self, i: int, max_value: float, min_value: float) -> None:
+        if self.b is None:
+            raise ValueError(
+                "Can't set bound on PolytopeConstraint, since self.b is None."
+            )
+        self.b[i] = max_value
 
-#         else:
-#             raise NotImplementedError
+    def to_reachable_input_objects(
+        self,
+    ) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, float]:
+        if self.A is None or self.b is None:
+            raise ValueError(
+                "Can't convert PolytopeConstraint to"
+                " to_reachable_input_objects, since self.A or self.b are None."
+            )
 
-#         self.main_constraint_stale = False
+        A_inputs = self.A
+        b_inputs = self.b
 
-#     def to_multistep_constraint(self) -> MultiTimestepLpConstraint:
-#         if self.range is None:
-#             raise ValueError(
-#                 "Trying to convert to multistep constraint but self.range is"
-#                 " None."
-#             )
-#         return self
+        # Get bounds on each state from A_inputs, b_inputs
+        try:
+            vertices_list = pypoman.compute_polytope_vertices(
+                A_inputs, b_inputs
+            )  # type: list[np.ndarray]
+        except Exception:
+            # Sometimes get arithmetic error... this may fix it
+            vertices_list = pypoman.compute_polytope_vertices(
+                A_inputs, b_inputs + 1e-6
+            )
+        vertices = np.stack(vertices_list)
+        x_max = np.max(vertices, 0)  # type: np.ndarray
+        x_min = np.min(vertices, 0)  # type: np.ndarray
+        norm = np.inf
+        return A_inputs, b_inputs, x_max, x_min, norm
 
-#     def to_jittable(self):
-#         return JittableMultiTimestepLpConstraint(
-#             self.range[..., 0],
-#             self.range[..., 1],
-#             {jax_verify.IntervalBound: None},
-#             {},
-#         )
+    def to_fwd_reachable_output_objects(
+        self, num_states: int
+    ) -> tuple[np.ndarray, int]:
+        if self.A is None:
+            raise ValueError(
+                "Can't convert PolytopeConstraint to"
+                " to_fwd_reachable_output_objects, since self.A is None."
+            )
+        A_out = self.A
+        num_facets = A_out.shape[0]
+        self.b = np.zeros((num_facets))
+        return A_out, num_facets
 
-#     @classmethod
-#     def from_jittable(cls, jittable_constraint):
-#         return cls(
-#             range=np.array(
-#                 [jittable_constraint.lower, jittable_constraint.upper]
-#             )
-#         )
+    def to_linf(self) -> np.ndarray:
+        if isinstance(self.A, list):
+            # Mainly for backreachability, return a list of ranges if
+            # the constraint contains a list of polytopes
+            ranges = []
+            for A, b in zip(self.A, self.b):
+                vertices = np.stack(
+                    pypoman.duality.compute_polytope_vertices(A, b)
+                )
+                ranges.append(
+                    np.dstack(
+                        [np.min(vertices, axis=0), np.max(vertices, axis=0)]
+                    )[0]
+                )
+        else:
+            vertices = np.stack(
+                pypoman.duality.compute_polytope_vertices(self.A, self.b)
+            )
+            ranges = np.dstack(
+                [np.min(vertices, axis=0), np.max(vertices, axis=0)]
+            )[0]
+        return ranges
 
-#     def _tree_flatten(self):
-#         children = (self.range,)  # arrays / dynamic values
-#         aux_data = {}  # static values
-#         return (children, aux_data)
+    def plot(
+        self,
+        ax,
+        dims,
+        color,
+        fc_color="None",
+        linewidth=1.5,
+        label=None,
+        zorder=2,
+        plot_2d=True,
+        ls="-",
+    ):
+        if not plot_2d:
+            raise NotImplementedError
 
-#     @classmethod
-#     def _tree_unflatten(cls, aux_data, children):
-#         return cls(*children, **aux_data)
+        # TODO: this doesn't use the computed input_dims...
+
+        if linewidth != 2.5:
+            linewidth = 1.5
+
+        lines = []
+
+        if isinstance(self.A, list):
+            # Backward reachability
+            # input_constraint.A will be a list
+            # of polytope facets, whose union is the estimated
+            # backprojection set
+
+            for A, b in zip(self.A, self.b):
+                line = make_polytope_from_arrs(
+                    ax,
+                    A,
+                    b,
+                    color,
+                    label,
+                    zorder,
+                    ls,
+                    linewidth,
+                )
+                lines += line
+
+        else:
+            # Forward reachability
+            if isinstance(self.b, np.ndarray) and self.b.ndim == 1:
+                line = make_polytope_from_arrs(
+                    ax, self.A, self.b, color, label, zorder, ls, linewidth
+                )
+                lines += line
+            else:
+                for A, b in zip(self.A, self.b):
+                    line = make_polytope_from_arrs(
+                        ax,
+                        A,
+                        b,
+                        color,
+                        label,
+                        zorder,
+                        ls,
+                        linewidth,
+                    )
+                    lines += line
+
+        return lines
+
+    def add_timestep_constraint(
+        self,
+        other: Union[SingleTimestepConstraint, MultiTimestepConstraint],
+    ) -> MultiTimestepConstraint:
+        constraints = [self] + other.to_multistep_constraint().constraints
+        return MultiTimestepConstraint(constraints=constraints)
+
+    def to_multistep_constraint(self) -> MultiTimestepConstraint:
+        if self.A is None or self.b is None:
+            raise ValueError(
+                "Trying to convert to multistep constraint but self.A or"
+                " self.b are None."
+            )
+        constraint = MultiTimestepConstraint(constraints=[self])
+        constraint.cells = [
+            cell.to_multistep_constraint() for cell in self.cells
+        ]
+        return constraint
+
+    def get_area(self) -> float:
+        estimated_verts = pypoman.polygon.compute_polygon_hull(self.A, self.b)
+        estimated_hull = ConvexHull(estimated_verts)
+        estimated_area = estimated_hull.volume
+        return estimated_area
+
+    def get_polytope(self) -> tuple[np.ndarray, np.ndarray]:
+        assert self.A is not None
+        assert self.b is not None
+        return self.A, self.b
+
+    def get_constraint_at_time_index(self, i: int) -> PolytopeConstraint:
+        return self
+
+    def to_jittable(self):
+        return JittablePolytopeConstraint(
+            self.A, self.b, {jax_verify.IntervalBound: None}, {}
+        )
+
+    @classmethod
+    def from_jittable(cls, jittable_constraint):
+        return cls(
+            range=np.array(
+                [jittable_constraint.lower, jittable_constraint.upper]
+            )
+        )
+
+    def _tree_flatten(self):
+        children = (self.A, self.b)  # arrays / dynamic values
+        aux_data = {}  # static values
+        return (children, aux_data)
+
+    @classmethod
+    def _tree_unflatten(cls, aux_data, children):
+        return cls(*children, **aux_data)
 
 
-# JittableMultiTimestepLpConstraint = collections.namedtuple(
-#     "JittableMultiTimestepLpConstraint",
-#     ["lower", "upper", "bound_type", "kwargs"],
-# )
+JittablePolytopeConstraint = collections.namedtuple(
+    "JittablePolytopeConstraint", ["A", "b", "bound_type", "kwargs"]
+)
 
 
-# def unjit_multi_timestep_lp_constraints(*inputs):
-#     """Replace all the jittable bounds by standard bound objects."""
+def unjit_polytope_constraints(*inputs):
+    """Replace all the jittable bounds by standard bound objects."""
 
-#     def is_jittable_constraint(b):
-#         return isinstance(b, JittableMultiTimestepLpConstraint)
+    def is_jittable_constraint(b):
+        return isinstance(b, JittablePolytopeConstraint)
 
-#     def unjit_bound(b):
-#         return next(iter(b.bound_type)).from_jittable(b)
+    def unjit_bound(b):
+        return next(iter(b.bound_type)).from_jittable(b)
 
-#     return jax.tree_util.tree_map(
-#         lambda b: unjit_bound(b) if is_jittable_constraint(b) else b,
-#         inputs,
-#         is_leaf=is_jittable_constraint,
-#     )
+    return jax.tree_util.tree_map(
+        lambda b: unjit_bound(b) if is_jittable_constraint(b) else b,
+        inputs,
+        is_leaf=is_jittable_constraint,
+    )
 
 
-# jax.tree_util.register_pytree_node(
-#     MultiTimestepLpConstraint,
-#     MultiTimestepLpConstraint._tree_flatten,
-#     MultiTimestepLpConstraint._tree_unflatten,
-# )
+jax.tree_util.register_pytree_node(
+    PolytopeConstraint,
+    PolytopeConstraint._tree_flatten,
+    PolytopeConstraint._tree_unflatten,
+)
+
+
+SingleTimestepConstraint = Union[LpConstraint, PolytopeConstraint]

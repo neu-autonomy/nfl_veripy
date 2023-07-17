@@ -1,6 +1,6 @@
 import time
 from itertools import product
-from typing import Union
+from typing import Optional, Union
 
 import numpy as np
 
@@ -31,7 +31,7 @@ class ClosedLoopSimGuidedPartitioner(ClosedLoopPartitioner):
 
     def check_termination(  # type: ignore
         self,
-        num_propagator_calls: int,
+        num_propagator_calls: float,
     ) -> bool:
         if self.termination_condition_type == "num_propagator_calls":
             terminate = (
@@ -97,10 +97,8 @@ class ClosedLoopSimGuidedPartitioner(ClosedLoopPartitioner):
                 reachable_sets,
                 propagator,
                 show_samples=True,
-                inputs_to_highlight=[
-                    {"dim": [0], "name": "$x_0$"},
-                    {"dim": [1], "name": "$x_1$"},
-                ],
+                axis_dims=[[0], [1]],
+                axis_labels=["$x_0$", "$x_1$"],
                 aspect="auto",
                 initial_set_color=self.initial_set_color,
                 initial_set_zorder=self.initial_set_zorder,
@@ -124,8 +122,10 @@ class ClosedLoopSimGuidedPartitioner(ClosedLoopPartitioner):
         # info["all_partitions"] = ranges
         info["num_propagator_calls"] = num_propagator_calls
 
-        reachable_sets = constraints.MultiTimestepLpConstraint(
-            range=reachable_sets_range
+        reachable_sets = constraints.MultiTimestepConstraint(
+            constraints=[
+                constraints.LpConstraint(range=r) for r in reachable_sets_range
+            ]
         )
 
         return reachable_sets, info
@@ -146,7 +146,7 @@ class ClosedLoopSimGuidedPartitioner(ClosedLoopPartitioner):
         ],
         reachable_set_range_sim,
         sect_method: str,
-        num_propagator_calls: int,
+        num_propagator_calls: float,
         initial_set: constraints.SingleTimestepConstraint,
         u_e,
         propagator: propagators.ClosedLoopPropagator,
@@ -295,8 +295,21 @@ class ClosedLoopSimGuidedPartitioner(ClosedLoopPartitioner):
         maxs = np.max(tmp[..., 1], axis=0)
         return np.stack([mins, maxs], axis=2)
 
-    def grab_from_M(self, M, output_range_sim=None):
-        return M.pop(0)
+    def grab_from_M(
+        self,
+        M: list[
+            tuple[
+                constraints.SingleTimestepConstraint,
+                constraints.MultiTimestepConstraint,
+            ]
+        ],
+        output_range_sim: Optional[np.ndarray],
+    ) -> tuple[
+        constraints.SingleTimestepConstraint,
+        constraints.MultiTimestepConstraint,
+    ]:
+        input_range, output_range = M.pop(0)
+        return input_range, output_range
 
     def check_if_partition_within_sim_bnds(
         self, reachable_set, reachable_set_range_sim
