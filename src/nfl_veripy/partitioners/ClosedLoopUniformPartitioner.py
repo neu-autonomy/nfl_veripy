@@ -1,5 +1,5 @@
 from itertools import product
-from typing import Optional
+from typing import Any, Optional
 
 import numpy as np
 
@@ -48,7 +48,7 @@ class ClosedLoopUniformPartitioner(ClosedLoopPartitioner):
 
         input_range = initial_set.to_range()
 
-        info = {}
+        info = {}  # type: dict[str, Any]
         num_propagator_calls = 0
 
         slope = np.divide(
@@ -144,8 +144,9 @@ class ClosedLoopUniformPartitioner(ClosedLoopPartitioner):
                     overapprox=overapprox,
                 )
             )
-
-            backprojection_set.add_cell(backprojection_set_this_cell)
+            backprojection_set.add_cell(
+                backprojection_set_this_cell  # type: ignore
+            )
 
         backprojection_set.update_main_constraint_with_cells(
             overapprox=overapprox

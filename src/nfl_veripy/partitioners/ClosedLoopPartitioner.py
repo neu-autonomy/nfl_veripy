@@ -488,7 +488,7 @@ class ClosedLoopPartitioner:
         target_sets: constraints.MultiTimestepConstraint,
         propagator: propagators.ClosedLoopPropagator,
         overapprox: bool = False,
-    ) -> tuple[constraints.SingleTimestepConstraint, dict]:
+    ) -> tuple[Optional[constraints.SingleTimestepConstraint], dict]:
         backreachable_set, info = self.get_one_step_backreachable_set(
             target_sets
         )
@@ -555,6 +555,7 @@ class ClosedLoopPartitioner:
         )
 
         # Store that step's results
+        assert backprojection_set_this_timestep is not None
         backprojection_sets = backprojection_sets.add_timestep_constraint(
             backprojection_set_this_timestep
         )
@@ -576,6 +577,7 @@ class ClosedLoopPartitioner:
                         overapprox=overapprox,
                     )
                 )
+                assert backprojection_set_this_timestep is not None
                 backprojection_sets = (
                     backprojection_sets.add_timestep_constraint(
                         backprojection_set_this_timestep

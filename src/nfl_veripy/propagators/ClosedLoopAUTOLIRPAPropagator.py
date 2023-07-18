@@ -1,12 +1,14 @@
 import os
 from copy import deepcopy
+from typing import Any
 
-import nfl_veripy.constraints as constraints
 import numpy as np
 import torch
-from nfl_veripy.utils.utils import create_cl_model
-
 from auto_LiRPA import BoundedModule, BoundedTensor, PerturbationLpNorm
+
+import nfl_veripy.constraints as constraints
+import nfl_veripy.dynamics as dynamics
+from nfl_veripy.utils.utils import create_cl_model
 
 from .ClosedLoopPropagator import ClosedLoopPropagator
 
@@ -14,58 +16,61 @@ dir_path = os.path.dirname(os.path.realpath(__file__))
 
 
 class ClosedLoopAUTOLIRPAPropagator(ClosedLoopPropagator):
-    def __init__(self, input_shape=None, dynamics=None):
-        ClosedLoopPropagator.__init__(
-            self, input_shape=input_shape, dynamics=dynamics
-        )
+    def __init__(self, dynamics: dynamics.Dynamics):
+        super().__init__(dynamics=dynamics)
 
-    def torch2network(self, torch_model):
+    def torch2network(
+        self, torch_model: torch.nn.Sequential
+    ) -> torch.nn.Sequential:
         return torch_model
 
-    def forward_pass(self, input_data):
+    def forward_pass(self, input_data: np.ndarray) -> np.ndarray:
         return self.network(
             torch.Tensor(input_data), method_opt=None
         ).data.numpy()
 
-    def get_reachable_set(self, input_constraint, output_constraint, t_max):
-        output_constraints = []
-        # import pdb; pdb.set_trace()
-        info = {"per_timestep": []}
-        output_constraint, this_info = self.get_one_step_reachable_set(
-            input_constraint, output_constraint, 0
+    def get_reachable_set(
+        self, initial_set: constraints.SingleTimestepConstraint, t_max: int
+    ) -> tuple[constraints.MultiTimestepConstraint, dict]:
+        reachable_sets_list = []
+        info = {"per_timestep": []}  # type: dict[str, Any]
+        reachable_set, this_info = self.get_N_step_reachable_set(
+            initial_set, 0
         )
-        output_constraints.append(deepcopy(output_constraint))
+        reachable_sets_list.append(deepcopy(reachable_set))
         info["per_timestep"].append(this_info)
         step_num = 1
         for i in np.arange(
             0 + self.dynamics.dt + 1e-10, t_max, self.dynamics.dt
         ):
-            next_output_constraint = deepcopy(output_constraint)
-            output_constraint, this_info = self.get_one_step_reachable_set(
-                input_constraint, next_output_constraint, step_num
+            reachable_set, this_info = self.get_N_step_reachable_set(
+                reachable_set, step_num
             )
-            output_constraints.append(deepcopy(output_constraint))
+            reachable_sets_list.append(deepcopy(reachable_set))
             info["per_timestep"].append(this_info)
             step_num += 1
 
-        return output_constraints, info
+        reachable_sets = constraints.list_to_constraint(reachable_sets_list)
 
-    def get_one_step_reachable_set(
-        self, input_constraint, output_constraint, t
-    ):
-        if isinstance(input_constraint, constraints.LpConstraint):
-            x_range = input_constraint.range
-        else:
-            raise NotImplementedError
+        return reachable_sets, info
+
+    def get_N_step_reachable_set(
+        self,
+        initial_set: constraints.SingleTimestepConstraint,
+        num_steps: int,
+    ) -> tuple[constraints.SingleTimestepConstraint, dict]:
+        initial_set_range = initial_set.to_range()
 
         nominal_input = (
-            torch.Tensor([x_range[:, 1]]) + torch.Tensor([x_range[:, 0]])
+            torch.Tensor([initial_set_range[:, 1]])
+            + torch.Tensor([initial_set_range[:, 0]])
         ) / 2.0
         eps = (
-            torch.Tensor([x_range[:, 1]]) - torch.Tensor([x_range[:, 0]])
+            torch.Tensor([initial_set_range[:, 1]])
+            - torch.Tensor([initial_set_range[:, 0]])
         ) / 2.0
 
-        model = create_cl_model(self.dynamics, t + 1)
+        model = create_cl_model(self.dynamics, num_steps + 1)
 
         ptb = PerturbationLpNorm(norm=np.inf, eps=eps)
         my_input = BoundedTensor(nominal_input, ptb)
@@ -73,7 +78,8 @@ class ClosedLoopAUTOLIRPAPropagator(ClosedLoopPropagator):
         model = BoundedModule(model, nominal_input)
 
         lb, ub = model.compute_bounds(x=(my_input,), method="backward")
-        output_constraint.range = np.vstack(
-            (lb.detach().numpy(), ub.detach().numpy())
-        ).T
-        return output_constraint, {}
+
+        reachable_set = constraints.LpConstraint(
+            range=np.vstack((lb.detach().numpy(), ub.detach().numpy())).T
+        )
+        return reachable_set, {}

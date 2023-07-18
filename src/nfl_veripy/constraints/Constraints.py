@@ -32,7 +32,8 @@ class LpConstraint:
         self.p = p
         self.crown_matrices = crown_matrices
         self.cells = []  # type: list[LpConstraint]
-        self.main_constraint_stale = False
+        self.main_constraint_stale: bool = False
+        self.is_infeasible: bool = False
 
     def set_bound(self, i: int, max_value: float, min_value: float) -> None:
         if self.range is None:
@@ -92,6 +93,10 @@ class LpConstraint:
             raise NotImplementedError
 
         self.main_constraint_stale = False
+
+    def get_vertices(self) -> np.ndarray:
+        Abp, bbp = range_to_polytope(self.range)
+        return np.stack(pypoman.polygon.compute_polygon_hull(Abp, bbp))
 
     def to_reachable_input_objects(
         self,
@@ -460,7 +465,8 @@ class PolytopeConstraint:
         self.b = b
         self.cells: list[PolytopeConstraint] = []
         self.crown_matrices: Optional[CROWNMatrices] = None
-        self.main_constraint_stale = False
+        self.main_constraint_stale: bool = False
+        self.is_infeasible: bool = False
 
     def update_main_constraint_with_cells(self, overapprox: bool) -> None:
         if len(self.cells) == 0:
@@ -513,6 +519,11 @@ class PolytopeConstraint:
     def p(self) -> float:
         return np.inf
 
+    def get_vertices(self) -> np.ndarray:
+        return np.stack(
+            pypoman.duality.compute_polytope_vertices(self.A, self.b)
+        )
+
     def to_range(self) -> np.ndarray:
         if self.A is None or self.b is None:
             raise ValueError(
@@ -521,12 +532,10 @@ class PolytopeConstraint:
             )
 
         # only used to compute slope in non-closedloop manner...
-        input_polytope_verts = pypoman.duality.compute_polytope_vertices(
-            self.A, self.b
-        )
+        input_polytope_verts = self.get_vertices()
         input_range = np.empty((self.A.shape[1], 2))
-        input_range[:, 0] = np.min(np.stack(input_polytope_verts), axis=0)
-        input_range[:, 1] = np.max(np.stack(input_polytope_verts), axis=0)
+        input_range[:, 0] = np.min(input_polytope_verts, axis=0)
+        input_range[:, 1] = np.max(input_polytope_verts, axis=0)
         return input_range
 
     def set_bound(self, i: int, max_value: float, min_value: float) -> None:
@@ -749,3 +758,6 @@ jax.tree_util.register_pytree_node(
 
 
 SingleTimestepConstraint = Union[LpConstraint, PolytopeConstraint]
+JittableSingleTimestepConstraint = Union[
+    JittableLpConstraint, JittablePolytopeConstraint
+]

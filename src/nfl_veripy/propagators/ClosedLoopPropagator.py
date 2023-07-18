@@ -1,35 +1,47 @@
 from copy import deepcopy
 from itertools import product
+from typing import Any, Optional
 
 import numpy as np
 from torch.multiprocessing import Pool
 
 import nfl_veripy.constraints as constraints
+import nfl_veripy.dynamics as dynamics
 
-from .Propagator import Propagator
 
-
-class ClosedLoopPropagator(Propagator):
+class ClosedLoopPropagator:
     def __init__(
         self,
-        input_shape=None,
-        dynamics=None,
-        boundary_type="rectangle",
-        num_polytope_facets=None,
+        dynamics: dynamics.Dynamics,
     ):
-        super().__init__(input_shape=input_shape)
         self.dynamics = dynamics
-        self.boundary_type = boundary_type
-        self.num_polytope_facets = num_polytope_facets
 
-    def get_one_step_reachable_set(self, input_constraint):
+        self.boundary_type: str = "rectangle"
+        self.num_polytope_facets: Optional[int] = None
+        self.num_iterations: int = 1
+
+    @property
+    def network(self):
+        return self._network
+
+    @network.setter
+    def network(self, network):
+        self._network = self.torch2network(network)
+
+    def get_one_step_reachable_set(
+        self, initial_set: constraints.SingleTimestepConstraint
+    ) -> tuple[constraints.SingleTimestepConstraint, dict]:
         raise NotImplementedError
 
-    def get_reachable_set(self, initial_set, t_max):
-        reachable_sets = []
-        info = {"per_timestep": []}
+    def get_reachable_set(
+        self,
+        initial_set: constraints.SingleTimestepConstraint,
+        t_max: int,
+    ) -> tuple[constraints.MultiTimestepConstraint, dict]:
+        reachable_sets_list = []
+        info = {"per_timestep": []}  # type: dict[str, Any]
         reachable_set, this_info = self.get_one_step_reachable_set(initial_set)
-        reachable_sets.append(deepcopy(reachable_set))
+        reachable_sets_list.append(deepcopy(reachable_set))
         info["per_timestep"].append(this_info)
         for i in np.arange(
             0 + self.dynamics.dt + 1e-10, t_max, self.dynamics.dt
@@ -38,68 +50,22 @@ class ClosedLoopPropagator(Propagator):
             reachable_set, this_info = self.get_one_step_reachable_set(
                 next_initial_set
             )
-            reachable_sets.append(deepcopy(reachable_set))
+            reachable_sets_list.append(deepcopy(reachable_set))
             info["per_timestep"].append(this_info)
 
-        reachable_sets = constraints.list_to_constraint(reachable_sets)
+        reachable_sets = constraints.list_to_constraint(reachable_sets_list)
 
         return reachable_sets, info
 
     def get_one_step_backprojection_set(
-        self, backreachable_set, target_sets, overapprox=False
-    ):
+        self,
+        backreachable_set: constraints.SingleTimestepConstraint,
+        target_sets: constraints.MultiTimestepConstraint,
+        overapprox: bool = False,
+        info: dict = {},
+        facet_inds_to_optimize: Optional[np.ndarray] = None,
+    ) -> tuple[Optional[constraints.SingleTimestepConstraint], dict]:
         raise NotImplementedError
-
-    def get_backprojection_set(
-        self,
-        target_sets,
-        t_max,
-        num_partitions=None,
-        overapprox=False,
-        refined=False,
-        heuristic="guided",
-        all_lps=False,
-        slow_cvxpy=False,
-    ):
-        backprojection_set_list = []
-        tightened_infos_list = []
-        if not isinstance(target_sets, list):
-            target_set_list = [deepcopy(target_sets)]
-        else:
-            target_set_list = deepcopy(target_sets)
-
-        for target_set in target_set_list:
-            backprojection_sets, tightened_infos = (
-                self.get_single_target_backprojection_set(
-                    target_set,
-                    t_max=t_max,
-                    num_partitions=num_partitions,
-                    overapprox=overapprox,
-                    refined=refined,
-                )
-            )
-
-            backprojection_set_list.append(deepcopy(backprojection_sets))
-            tightened_infos_list.append(deepcopy(tightened_infos))
-
-        return backprojection_set_list, tightened_infos_list
-
-    def get_single_target_backprojection_set(
-        self,
-        target_set,
-        t_max,
-        num_partitions=None,
-        overapprox=False,
-        refined=False,
-    ):
-        backprojection_set, info = self.get_one_step_backprojection_set(
-            target_set,
-            num_partitions=num_partitions,
-            overapprox=overapprox,
-            refined=refined,
-        )
-
-        return backprojection_set, info
 
     def get_single_element_backprojection_set(
         self,

@@ -8,6 +8,10 @@ from nfl_veripy.constraints.constraint_utils import (  # noqa
     make_rect_from_arr,
 )
 from nfl_veripy.constraints.Constraints import (  # noqa
+    JittableLpConstraint,
+    JittableMultiTimestepConstraint,
+    JittablePolytopeConstraint,
+    JittableSingleTimestepConstraint,
     LpConstraint,
     MultiTimestepConstraint,
     PolytopeConstraint,
@@ -82,3 +86,6 @@ def list_to_constraint(
 
 
 Constraint = Union[SingleTimestepConstraint, MultiTimestepConstraint]
+JittableConstraint = Union[
+    JittableSingleTimestepConstraint, JittableMultiTimestepConstraint
+]

@@ -1,6 +1,6 @@
 import time
 from itertools import product
-from typing import Optional, Union
+from typing import Any, Optional, Union
 
 import numpy as np
 
@@ -62,7 +62,7 @@ class ClosedLoopSimGuidedPartitioner(ClosedLoopPartitioner):
         num_partitions: Union[None, int, list, np.ndarray] = None,
     ) -> tuple[constraints.MultiTimestepConstraint, dict]:
         t_start_overall = time.time()
-        info = {}
+        info = {}  # type: dict[str, Any]
         propagator_computation_time = 0.0
 
         # Algorithm 1 of (Xiang, 2020): https://arxiv.org/pdf/2004.12273.pdf
@@ -94,7 +94,7 @@ class ClosedLoopSimGuidedPartitioner(ClosedLoopPartitioner):
         if self.make_animation:
             self.setup_visualization(
                 initial_set,
-                reachable_sets,
+                t_max,
                 propagator,
                 show_samples=True,
                 axis_dims=[[0], [1]],
@@ -152,7 +152,7 @@ class ClosedLoopSimGuidedPartitioner(ClosedLoopPartitioner):
         propagator: propagators.ClosedLoopPropagator,
         propagator_computation_time: float,
         t_start_overall: float,
-        t_max: float,
+        t_max: int,
     ) -> tuple[np.ndarray, dict]:
         if self.make_animation:
             self.call_visualizer(

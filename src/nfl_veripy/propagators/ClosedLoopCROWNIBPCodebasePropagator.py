@@ -19,23 +19,10 @@ from .ClosedLoopPropagator import ClosedLoopPropagator
 
 
 class ClosedLoopCROWNIBPCodebasePropagator(ClosedLoopPropagator):
-    def __init__(
-        self,
-        input_shape: Optional[np.ndarray] = None,
-        dynamics: Optional[dynamics.Dynamics] = None,
-        boundary_type: str = "rectangle",
-        num_polytope_facets: Optional[int] = None,
-        num_iterations: int = 1,
-    ):
-        super().__init__(
-            input_shape=input_shape,
-            dynamics=dynamics,
-            boundary_type=boundary_type,
-            num_polytope_facets=num_polytope_facets,
-        )
+    def __init__(self, dynamics: dynamics.Dynamics):
+        super().__init__(dynamics=dynamics)
         self.params: dict[str, bool] = {}
         self.method_opt: str = "TODO"
-        self.num_iterations = num_iterations
 
     def torch2network(
         self, torch_model: torch.nn.Sequential
@@ -150,7 +137,7 @@ class ClosedLoopCROWNIBPCodebasePropagator(ClosedLoopPropagator):
         backreachable_set: constraints.SingleTimestepConstraint,
         target_sets: constraints.MultiTimestepConstraint,
         overapprox: bool = False,
-        infos: dict = {},
+        info: dict = {},
         facet_inds_to_optimize: Optional[np.ndarray] = None,
     ) -> tuple[Optional[constraints.SingleTimestepConstraint], dict]:
         backreachable_set.crown_matrices = get_crown_matrices(
@@ -175,7 +162,7 @@ class ClosedLoopCROWNIBPCodebasePropagator(ClosedLoopPropagator):
                 )
             )
 
-        return backprojection_set, infos
+        return backprojection_set, info
 
     """
     Inputs:
@@ -617,21 +604,8 @@ class ClosedLoopCROWNIBPCodebasePropagator(ClosedLoopPropagator):
 
 
 class ClosedLoopIBPPropagator(ClosedLoopCROWNIBPCodebasePropagator):
-    def __init__(
-        self,
-        input_shape: Optional[np.ndarray] = None,
-        dynamics: Optional[dynamics.Dynamics] = None,
-        boundary_type: str = "rectangle",
-        num_polytope_facets: Optional[int] = None,
-        num_iterations: int = 1,
-    ):
-        super().__init__(
-            input_shape=input_shape,
-            dynamics=dynamics,
-            boundary_type=boundary_type,
-            num_polytope_facets=num_polytope_facets,
-            num_iterations=num_iterations,
-        )
+    def __init__(self, dynamics: dynamics.Dynamics):
+        super().__init__(dynamics=dynamics)
         raise NotImplementedError
         # TODO: Write nn_bounds.py:BoundClosedLoopController:interval_range
         # (using bound_layers.py:BoundSequential:interval_range)
@@ -640,21 +614,8 @@ class ClosedLoopIBPPropagator(ClosedLoopCROWNIBPCodebasePropagator):
 
 
 class ClosedLoopCROWNPropagator(ClosedLoopCROWNIBPCodebasePropagator):
-    def __init__(
-        self,
-        input_shape: Optional[np.ndarray] = None,
-        dynamics: Optional[dynamics.Dynamics] = None,
-        boundary_type: str = "rectangle",
-        num_polytope_facets: Optional[int] = None,
-        num_iterations: int = 1,
-    ):
-        super().__init__(
-            input_shape=input_shape,
-            dynamics=dynamics,
-            boundary_type=boundary_type,
-            num_polytope_facets=num_polytope_facets,
-            num_iterations=num_iterations,
-        )
+    def __init__(self, dynamics: dynamics.Dynamics):
+        super().__init__(dynamics=dynamics)
         self.method_opt = "full_backward_range"
         # self.params = {"same-slope": False, "zero-lb": True}
         self.params = {"same-slope": False}
@@ -663,58 +624,21 @@ class ClosedLoopCROWNPropagator(ClosedLoopCROWNIBPCodebasePropagator):
 class ClosedLoopCROWNLPPropagator(ClosedLoopCROWNPropagator):
     # Same as ClosedLoopCROWNPropagator but don't allow the
     # use of closed-form soln to the optimization, even if it's possible
-    def __init__(
-        self,
-        input_shape: Optional[np.ndarray] = None,
-        dynamics: Optional[dynamics.Dynamics] = None,
-        boundary_type: str = "rectangle",
-        num_polytope_facets: Optional[int] = None,
-        num_iterations: int = 1,
-    ):
-        super().__init__(
-            input_shape=input_shape,
-            dynamics=dynamics,
-            boundary_type=boundary_type,
-        )
+    def __init__(self, dynamics: dynamics.Dynamics):
+        super().__init__(dynamics=dynamics)
         self.params["try_to_use_closed_form"] = False
 
 
 class ClosedLoopFastLinPropagator(ClosedLoopCROWNIBPCodebasePropagator):
-    def __init__(
-        self,
-        input_shape: Optional[np.ndarray] = None,
-        dynamics: Optional[dynamics.Dynamics] = None,
-        boundary_type: str = "rectangle",
-        num_polytope_facets: Optional[int] = None,
-        num_iterations: int = 1,
-    ):
-        super().__init__(
-            input_shape=input_shape,
-            dynamics=dynamics,
-            boundary_type=boundary_type,
-            num_polytope_facets=num_polytope_facets,
-            num_iterations=num_iterations,
-        )
+    def __init__(self, dynamics: dynamics.Dynamics):
+        super().__init__(dynamics=dynamics)
         self.method_opt = "full_backward_range"
         self.params = {"same-slope": True}
 
 
 class ClosedLoopCROWNNStepPropagator(ClosedLoopCROWNPropagator):
-    def __init__(
-        self,
-        input_shape: Optional[np.ndarray] = None,
-        dynamics: Optional[dynamics.Dynamics] = None,
-        boundary_type: str = "rectangle",
-        num_polytope_facets: Optional[int] = None,
-        num_iterations: int = 1,
-    ):
-        super().__init__(
-            input_shape=input_shape,
-            dynamics=dynamics,
-            boundary_type=boundary_type,
-            num_polytope_facets=num_polytope_facets,
-            num_iterations=num_iterations,
-        )
+    def __init__(self, dynamics: dynamics.Dynamics):
+        super().__init__(dynamics=dynamics)
 
     def get_reachable_set(
         self, initial_set: constraints.SingleTimestepConstraint, t_max: int
@@ -725,7 +649,7 @@ class ClosedLoopCROWNNStepPropagator(ClosedLoopCROWNPropagator):
         reachable_sets, infos = super().get_reachable_set(initial_set, t_max)
 
         # "undo" packaging of reachable_sets to simply get a list of the ranges
-        reachable_sets = [
+        reachable_sets_list = [
             constraints.LpConstraint(range=r) for r in reachable_sets.range
         ]
 
@@ -734,25 +658,26 @@ class ClosedLoopCROWNNStepPropagator(ClosedLoopCROWNPropagator):
             []
         )  # type: list[constraints.SingleTimestepConstraint]
         tightened_infos = deepcopy(infos)
-        N = len(reachable_sets)
+        N = len(reachable_sets_list)
         for t in range(2, N + 1):
             # N-step analysis accepts as input:
             # [1st output constraint, {2,...,t} tightened output constraints,
             #  dummy output constraint]
             reachable_set, info = self.get_N_step_reachable_set(
                 initial_set,
-                reachable_sets[:1]
+                reachable_sets_list[:1]
                 + tightened_reachable_sets
-                + reachable_sets[:1],
+                + reachable_sets_list[:1],
                 infos["per_timestep"][:t],
             )
             tightened_reachable_sets.append(reachable_set)
             tightened_infos["per_timestep"][t - 1] = info
 
-        # "redo" packaging of reachable_sets as
-        #  range=(num_timesteps, num_states, 2)
+        tightened_reachable_sets_list = (
+            reachable_sets_list[:1] + tightened_reachable_sets
+        )
         reachable_sets = constraints.list_to_constraint(
-            reachable_sets[:1] + tightened_reachable_sets
+            tightened_reachable_sets_list
         )
 
         # Do N-step "symbolic" refinement
