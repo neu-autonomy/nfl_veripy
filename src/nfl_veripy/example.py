@@ -1,20 +1,28 @@
 """Runs a closed-loop reachability experiment according to a param file."""
 
-import argparse
-import ast
-import os
-import time
-from typing import Dict, Tuple
+from nfl_veripy.utils.utils import suppress_unecessary_logs
 
-import numpy as np
-import yaml
+suppress_unecessary_logs()  # needs to happen before other imports
 
-import nfl_veripy.analyzers as analyzers
-import nfl_veripy.constraints as constraints
-import nfl_veripy.dynamics as dynamics
-from nfl_veripy.utils.nn import load_controller
+import argparse  # noqa: E402
+import ast  # noqa: E402
+import logging  # noqa: E402
+import os  # noqa: E402
+import time  # noqa: E402
+from typing import Dict, Tuple  # noqa: E402
+
+import numpy as np  # noqa: E402
+import yaml  # noqa: E402
+
+import nfl_veripy.analyzers as analyzers  # noqa: E402
+import nfl_veripy.constraints as constraints  # noqa: E402
+import nfl_veripy.dynamics as dynamics  # noqa: E402
+from nfl_veripy.utils.nn import load_controller  # noqa: E402
 
 dir_path = os.path.dirname(os.path.realpath(__file__))
+
+logger = logging.getLogger(__name__)
+logger.setLevel(level=logging.INFO)
 
 
 def main_forward(params: dict) -> Tuple[Dict, Dict]:
@@ -59,7 +67,7 @@ def main_forward(params: dict) -> Tuple[Dict, Dict]:
             params["analysis"]["num_calls"], dtype=object
         )
         for num in range(params["analysis"]["num_calls"]):
-            print(f"call: {num}")
+            logger.info(f"call: {num}")
             t_start = time.time()
             reachable_sets, analyzer_info = analyzer.get_reachable_set(
                 initial_state_set, t_max=params["analysis"]["t_max"]
@@ -84,8 +92,8 @@ def main_forward(params: dict) -> Tuple[Dict, Dict]:
         stats["all_errors"] = all_errors
         stats["reachable_sets"] = all_reachable_sets
 
-        print(f"All times: {times}")
-        print(f"Avg time: {times.mean()} +/- {times.std()}")
+        logger.info(f"All times: {times}")
+        logger.info(f"Avg time: {times.mean()} +/- {times.std()}")
     else:
         # Run analysis once
         t_start = time.time()
@@ -93,7 +101,7 @@ def main_forward(params: dict) -> Tuple[Dict, Dict]:
             initial_state_set, t_max=params["analysis"]["t_max"]
         )
         t_end = time.time()
-        print(t_end - t_start)
+        logger.info(f"Runtime: {t_end - t_start} sec.")
         stats["reachable_sets"] = reachable_sets
 
     if params["analysis"]["estimate_error"]:
@@ -102,9 +110,9 @@ def main_forward(params: dict) -> Tuple[Dict, Dict]:
             reachable_sets,
             t_max=params["analysis"]["t_max"],
         )
-        print(f"Final step approximation error: {final_error}")
-        print(f"Avg errors: {avg_error}")
-        print(f"All errors: {errors}")
+        logger.info(f"Final step approximation error: {final_error}")
+        logger.info(f"Avg errors: {avg_error}")
+        logger.info(f"All errors: {errors}")
 
     if params["visualization"]["save_plot"]:
         this_file_dir = os.path.dirname(os.path.abspath(__file__))
@@ -229,7 +237,7 @@ def main_backward(params: dict) -> tuple[dict, dict]:
         )
         target_sets = np.empty(params["analysis"]["num_calls"], dtype=object)
         for num in range(params["analysis"]["num_calls"]):
-            print(f"call: {num}")
+            logger.info(f"call: {num}")
             t_start = time.time()
             (
                 backprojection_sets,
@@ -267,10 +275,10 @@ def main_backward(params: dict) -> tuple[dict, dict]:
         stats["target_sets"] = target_sets
         stats["avg_runtime"] = times.mean()
 
-        print(f"All times: {times}")
-        print(f"Avg time: {times.mean()} +/- {times.std()}")
-        print(f"Final Error: {final_errors[-1]}")
-        print(f"Avg Error: {avg_errors[-1]}")
+        logger.info(f"All times: {times}")
+        logger.info(f"Avg time: {times.mean()} +/- {times.std()}")
+        logger.info(f"Final Error: {final_errors[-1]}")
+        logger.info(f"Avg Error: {avg_errors[-1]}")
     else:
         # Run analysis once
         # Run analysis & generate a plot
