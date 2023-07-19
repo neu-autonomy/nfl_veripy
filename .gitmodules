@@ -9,7 +9,7 @@
 	url = https://github.com/KaidiXu/auto_LiRPA.git
 [submodule "jax_verify"]
 	path = third_party/jax_verify
-	url = https://gitlab.com/mit-acl/ford_ugvs/jax_verify.git
+	url = https://gitlab.com/neu-autonomy/certifiable-learning/jax_verify.git
 [submodule "alpha-beta-CROWN"]
 	path = third_party/alpha-beta-CROWN
 	url = https://github.com/huanzhang12/alpha-beta-CROWN
