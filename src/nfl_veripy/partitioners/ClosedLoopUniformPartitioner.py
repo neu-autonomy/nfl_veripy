@@ -1,3 +1,4 @@
+import ast
 from itertools import product
 from typing import Any, Optional
 
@@ -20,8 +21,16 @@ class ClosedLoopUniformPartitioner(ClosedLoopPartitioner):
         self.num_partitions: np.ndarray = np.array([4, 4])
         self.interior_condition: str = "linf"
 
-    # TODO: set num_partitions attr properly using
-    # np.array(ast.literal_eval(num_partitions))
+    @property
+    def num_partitions(self):
+        return self._num_partitions
+
+    @num_partitions.setter
+    def num_partitions(self, value):
+        if type(value) == np.ndarray:
+            self._num_partitions = value
+        elif type(value) == str:
+            self._num_partitions = np.array(ast.literal_eval(value))
 
     def get_one_step_reachable_set(
         self,

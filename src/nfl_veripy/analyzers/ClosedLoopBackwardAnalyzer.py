@@ -77,11 +77,15 @@ class ClosedLoopBackwardAnalyzer(Analyzer):
         return partitioner
 
     def instantiate_propagator(
-        self, propagator: str, hyperparams: dict[str, Any]
+        self, propagator_name: str, hyperparams: dict[str, Any]
     ) -> propagators.ClosedLoopPropagator:
-        return propagators.propagator_dict[propagator](
-            **{**hyperparams, "dynamics": self.dynamics}
+        propagator = propagators.propagator_dict[propagator_name](
+            self.dynamics
         )
+        for key, value in hyperparams.items():
+            if hasattr(propagator, key):
+                setattr(propagator, key, value)
+        return propagator
 
     def get_one_step_backprojection_set(
         self,

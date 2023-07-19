@@ -1,5 +1,3 @@
-import inspect
-
 import matplotlib.pyplot as plt
 import numpy as np
 from scipy.spatial import ConvexHull
@@ -40,13 +38,6 @@ class Analyzer:
         hyperparams_ = hyperparams.copy()
         partitioner = hyperparams_.pop("type", None)
 
-        # Make sure we don't send any args to a partitioner that can't handle
-        # them. e.g, don't give NoPartitioner a time budget
-        args = inspect.getfullargspec(self.partitioner_dict[partitioner]).args
-        for hyperparam in hyperparams:
-            if hyperparam not in args:
-                hyperparams_.pop(hyperparam, None)
-
         self._partitioner = self.instantiate_partitioner(
             partitioner, hyperparams_
         )
@@ -64,13 +55,6 @@ class Analyzer:
             return
         hyperparams_ = hyperparams.copy()
         propagator = hyperparams_.pop("type", None)
-
-        # Make sure we don't send any args to a propagator that can't handle
-        # them.
-        args = inspect.getfullargspec(self.propagator_dict[propagator]).args
-        for hyperparam in hyperparams:
-            if hyperparam not in args:
-                hyperparams_.pop(hyperparam, None)
 
         self._propagator = self.instantiate_propagator(
             propagator, hyperparams_
