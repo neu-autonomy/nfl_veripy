@@ -1,9 +1,9 @@
 [submodule "crown_ibp"]
 	path = third_party/crown_ibp
-	url = https://gitlab.com/mit-acl/ford_ugvs/crown_ibp.git
+	url = https://gitlab.com/neu-autonomy/certifiable-learning/crown_ibp.git
 [submodule "RobustNN"]
 	path = third_party/robust_sdp
-	url = https://gitlab.com/mit-acl/ford_ugvs/robust_sdp.git
+	url = https://gitlab.com/neu-autonomy/certifiable-learning/robust_sdp.git
 [submodule "auto_LiRPA"]
 	path = third_party/auto_LiRPA
 	url = https://github.com/KaidiXu/auto_LiRPA.git
