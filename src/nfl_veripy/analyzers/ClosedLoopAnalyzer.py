@@ -41,18 +41,26 @@ class ClosedLoopAnalyzer(Analyzer):
         return propagators.propagator_dict
 
     def instantiate_partitioner(
-        self, partitioner: str, hyperparams: dict[str, Any]
+        self, partitioner_name: str, hyperparams: dict[str, Any]
     ) -> partitioners.ClosedLoopPartitioner:
-        return self.partitioner_dict[partitioner](
-            **{**hyperparams, "dynamics": self.dynamics}
+        partitioner = partitioners.partitioner_dict[partitioner_name](
+            self.dynamics
         )
+        for key, value in hyperparams.items():
+            if hasattr(partitioner, key):
+                setattr(partitioner, key, value)
+        return partitioner
 
     def instantiate_propagator(
-        self, propagator: str, hyperparams: dict[str, Any]
+        self, propagator_name: str, hyperparams: dict[str, Any]
     ) -> propagators.ClosedLoopPropagator:
-        return self.propagator_dict[propagator](
-            **{**hyperparams, "dynamics": self.dynamics}
+        propagator = propagators.propagator_dict[propagator_name](
+            self.dynamics
         )
+        for key, value in hyperparams.items():
+            if hasattr(propagator, key):
+                setattr(propagator, key, value)
+        return propagator
 
     def get_one_step_reachable_set(
         self, initial_set: constraints.SingleTimestepConstraint
