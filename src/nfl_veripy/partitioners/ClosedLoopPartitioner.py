@@ -1,15 +1,9 @@
-import os
 from copy import deepcopy
 from typing import Any, Optional, Union
 
 import cvxpy as cp
-import imageio.v2 as imageio
-import matplotlib.pyplot as plt
 import numpy as np
 import pypoman
-from matplotlib.lines import Line2D
-from matplotlib.patches import Patch
-from pygifsicle import optimize
 from scipy.spatial import ConvexHull
 
 import nfl_veripy.constraints as constraints

@@ -1,7 +1,5 @@
-import ast
-from typing import Any, Optional
+from typing import Any
 
-import matplotlib.pyplot as plt
 import numpy as np
 import torch
 
@@ -9,6 +7,7 @@ import nfl_veripy.constraints as constraints
 import nfl_veripy.dynamics as dynamics
 import nfl_veripy.partitioners as partitioners
 import nfl_veripy.propagators as propagators
+import nfl_veripy.visualizers as visualizers
 from nfl_veripy.utils.utils import get_sampled_outputs, samples_to_range
 
 from .Analyzer import Analyzer
@@ -24,13 +23,6 @@ class ClosedLoopAnalyzer(Analyzer):
         self.torch_model = torch_model
         self.dynamics = dynamics
         super().__init__(torch_model=torch_model)
-        self.reachable_set_color = "tab:blue"
-        self.reachable_set_zorder = 2
-        self.initial_set_color = "k"
-        self.initial_set_zorder = 2
-        self.target_set_color = "tab:red"
-        self.target_set_zorder = 2
-        self.sample_zorder = 1
 
     @property
     def partitioner_dict(self) -> dict:
@@ -62,6 +54,15 @@ class ClosedLoopAnalyzer(Analyzer):
                 setattr(propagator, key, value)
         return propagator
 
+    def instantiate_visualizer(
+        self, visualizer_name: str, hyperparams: dict[str, Any]
+    ) -> visualizers.Visualizer:
+        visualizer = visualizers.Visualizer(self.dynamics)
+        for key, value in hyperparams.items():
+            if hasattr(visualizer, key):
+                setattr(visualizer, key, value)
+        return visualizer
+
     def get_one_step_reachable_set(
         self, initial_set: constraints.SingleTimestepConstraint
     ) -> tuple[constraints.SingleTimestepConstraint, dict]:
@@ -83,76 +84,16 @@ class ClosedLoopAnalyzer(Analyzer):
         )
         return reachable_set, info
 
-    def visualize(  # type: ignore[override]
+    def visualize(
         self,
         initial_set: constraints.SingleTimestepConstraint,
         reachable_sets: constraints.MultiTimestepConstraint,
-        target_constraint: Optional[
-            constraints.SingleTimestepConstraint
-        ] = None,
-        show: bool = True,
-        show_samples: bool = False,
-        show_trajectories: bool = False,
-        aspect: str = "auto",
-        plot_lims: Optional[str] = None,
-        axis_labels: list = [],
-        axis_dims: list = [],
-        dont_close: bool = True,
-        controller_name: Optional[str] = None,
+        network: torch.nn.Sequential,
         **kwargs,
     ) -> None:
-        self.partitioner.setup_visualization(
-            initial_set,
-            reachable_sets.get_t_max(),
-            self.propagator,
-            show_samples=show_samples,
-            show_trajectories=show_trajectories,
-            axis_dims=axis_dims,
-            axis_labels=axis_labels,
-            aspect=aspect,
-            initial_set_color=self.initial_set_color,
-            initial_set_zorder=self.initial_set_zorder,
-            extra_set_color=self.target_set_color,
-            extra_set_zorder=self.target_set_zorder,
-            sample_zorder=self.sample_zorder,
-            extra_constraint=target_constraint,
-            plot_lims=plot_lims,
-            controller_name=controller_name,
+        self.visualizer.visualize(
+            initial_set, reachable_sets, network, **kwargs
         )
-        self.partitioner.visualize(
-            kwargs.get(
-                "exterior_partitions", kwargs.get("all_partitions", [])
-            ),
-            kwargs.get("interior_partitions", []),
-            reachable_sets,
-            kwargs.get("iteration", None),
-            reachable_set_color=self.reachable_set_color,
-            reachable_set_zorder=self.reachable_set_zorder,
-        )
-
-        if show_trajectories:
-            self.dynamics.show_trajectories(
-                reachable_sets.get_t_max() * self.dynamics.dt,
-                initial_set,
-                input_dims=axis_dims,
-                ax=self.partitioner.animate_axes,
-                controller=self.propagator.network,
-            )
-
-        self.partitioner.animate_fig.tight_layout()
-
-        if plot_lims is not None:
-            plot_lims_arr = np.array(ast.literal_eval(plot_lims))
-            self.partitioner.animate_axes.set_xlim(plot_lims_arr[0])
-            self.partitioner.animate_axes.set_ylim(plot_lims_arr[1])
-
-        if "save_name" in kwargs and kwargs["save_name"] is not None:
-            plt.savefig(kwargs["save_name"])
-
-        if show:
-            plt.show()
-        elif not dont_close:
-            plt.close()
 
     def get_sampled_outputs(
         self, input_range: np.ndarray, num_samples: int = 1000

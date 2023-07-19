@@ -1,3 +1,22 @@
+import ast
+import os
+from typing import Optional
+
+import imageio.v2 as imageio
+import matplotlib.pyplot as plt
+import numpy as np
+import torch
+from matplotlib.lines import Line2D
+from matplotlib.patches import Patch
+from pygifsicle import optimize
+
+import nfl_veripy.constraints as constraints
+import nfl_veripy.dynamics as dynamics
+from nfl_veripy.utils.controller_generation import (
+    display_ground_robot_control_field,
+)
+
+
 class Visualizer:
     def __init__(
         self,
@@ -15,6 +34,84 @@ class Visualizer:
             os.path.dirname(os.path.abspath(__file__))
         )
 
+        self.reachable_set_color: str = "tab:blue"
+        self.reachable_set_zorder: int = 2
+        self.reachable_set_ls: str = "-"
+        self.reachable_set_lw: int = 1
+        self.initial_set_color: str = "k"
+        self.initial_set_zorder: int = 2
+        self.target_set_color: str = "tab:red"
+        self.target_set_zorder: int = 2
+        self.sample_zorder: int = 1
+        self.sample_colors: Optional[str] = None
+
+        self.show_samples: bool = True
+        self.show_samples_from_cells: bool = False
+        self.show_trajectories: bool = False
+        self.show: bool = False
+        self.save_plot: bool = True
+        self.axis_labels: list = ["$x_0$", "$x_1$"]
+        self.plot_dims: list = [0, 1]
+        self.aspect: str = "auto"
+        self.plot_lims: Optional[list] = None
+        self.controller_name: Optional[str] = None
+        self.tight_layout: bool = True
+
+        self.plot_filename: Optional[str] = None
+        self.network: Optional[torch.nn.Sequential] = None
+
+    @property
+    def plot_dims(self):
+        return self._plot_dims
+
+    @plot_dims.setter
+    def plot_dims(self, plot_dims):
+        self._plot_dims = [[a] for a in plot_dims]
+
+        if len(plot_dims) == 2:
+            self.projection = None
+            self.plot_2d = True
+            self.linewidth = 2
+        elif len(plot_dims) == 3:
+            self.projection = "3d"
+            self.plot_2d = False
+            self.linewidth = 1
+            self.aspect = "auto"
+
+    def visualize(
+        self,
+        initial_set: constraints.SingleTimestepConstraint,
+        reachable_sets: constraints.MultiTimestepConstraint,
+        network: torch.nn.Sequential,
+        **kwargs: dict,
+    ) -> None:
+        self.network = network
+        self.setup_visualization(
+            initial_set,
+            reachable_sets.get_t_max(),
+        )
+
+        # kwargs.get(
+        #         "exterior_partitions", kwargs.get("all_partitions", [])
+        #     ),
+        #     kwargs.get("interior_partitions", []),
+
+        self.visualize_estimates(reachable_sets)
+
+        if self.tight_layout:
+            self.animate_fig.tight_layout()
+
+        if self.plot_lims is not None:
+            plot_lims_arr = np.array(ast.literal_eval(self.plot_lims))
+            self.animate_axes.set_xlim(plot_lims_arr[0])
+            self.animate_axes.set_ylim(plot_lims_arr[1])
+
+        if self.save_plot:
+            plt.savefig(self.plot_filename)
+
+        if self.show:
+            plt.show()
+
     def get_tmp_animation_filename(self, iteration):
         filename = self.tmp_animation_save_dir + "tmp_{}.png".format(
             str(iteration).zfill(6)
@@ -25,153 +122,74 @@ class Visualizer:
         self,
         initial_set: constraints.SingleTimestepConstraint,
         t_max: int,
-        propagator: propagators.ClosedLoopPropagator,
-        show_samples: bool = True,
-        show_samples_from_cells: bool = True,
-        show_trajectories: bool = False,
-        axis_labels: list = ["$x_0$", "$x_1$"],
-        axis_dims: list = [0, 1],
-        aspect: str = "auto",
-        initial_set_color: Optional[str] = None,
-        initial_set_zorder: Optional[int] = None,
-        extra_set_color: Optional[str] = None,
-        extra_set_zorder: Optional[int] = None,
-        sample_zorder: Optional[int] = None,
-        sample_colors: Optional[str] = None,
-        extra_constraint: Optional[
-            constraints.SingleTimestepConstraint
-        ] = None,
-        plot_lims: Optional[list] = None,
-        controller_name: Optional[str] = None,
     ) -> None:
         self.default_patches: list = []
         self.default_lines: list = []
 
-        self.axis_dims = axis_dims
-
-        if len(axis_dims) == 2:
-            projection = None
-            self.plot_2d = True
-            self.linewidth = 2
-        elif len(axis_dims) == 3:
-            projection = "3d"
-            self.plot_2d = False
-            self.linewidth = 1
-            aspect = "auto"
-
         self.animate_fig, self.animate_axes = plt.subplots(
-            1, 1, subplot_kw=dict(projection=projection)
+            1, 1, subplot_kw=dict(projection=self.projection)
         )
-        if controller_name is not None:
-            from nfl_veripy.utils.controller_generation import (
-                display_ground_robot_control_field,
-            )
-
+        if self.controller_name is not None:
             display_ground_robot_control_field(
-                name=controller_name, ax=self.animate_axes
+                name=self.controller_name, ax=self.animate_axes
             )
 
-        # if controller_name is not None:
-        #     from nfl_veripy.utils.controller_generation import (
-        #         display_ground_robot_DI_control_field,
-        #     )
+        self.animate_axes.set_aspect(self.aspect)
 
-        #     display_ground_robot_DI_control_field(
-        #         name=controller_name, ax=self.animate_axes
-        #     )
-
-        self.animate_axes.set_aspect(aspect)
-
-        if show_samples:
+        if self.show_samples:
             self.dynamics.show_samples(
                 t_max * self.dynamics.dt,
                 initial_set,
                 ax=self.animate_axes,
-                controller=propagator.network,
-                input_dims=axis_dims,
-                zorder=sample_zorder,
-                colors=sample_colors,
+                controller=self.network,
+                input_dims=self.plot_dims,
+                zorder=self.sample_zorder,
+                colors=self.sample_colors,
             )
 
-        if show_samples_from_cells:
+        if self.show_samples_from_cells:
             for initial_set_cell in initial_set.cells:
                 self.dynamics.show_samples(
                     t_max * self.dynamics.dt,
                     initial_set_cell,
                     ax=self.animate_axes,
-                    controller=propagator.network,
-                    input_dims=axis_dims,
-                    zorder=sample_zorder,
-                    colors=sample_colors,
+                    controller=self.network,
+                    input_dims=self.plot_dims,
+                    zorder=self.sample_zorder,
+                    colors=self.sample_colors,
                 )
 
-        if show_trajectories:
+        if self.show_trajectories:
             self.dynamics.show_trajectories(
                 t_max * self.dynamics.dt,
                 initial_set,
                 ax=self.animate_axes,
-                controller=propagator.network,
-                input_dims=axis_dims,
-                zorder=sample_zorder,
-                colors=sample_colors,
+                controller=self.network,
+                input_dims=self.plot_dims,
+                zorder=self.sample_zorder,
+                colors=self.sample_colors,
             )
 
-        self.animate_axes.set_xlabel(axis_labels[0])
-        self.animate_axes.set_ylabel(axis_labels[1])
+        self.animate_axes.set_xlabel(self.axis_labels[0])
+        self.animate_axes.set_ylabel(self.axis_labels[1])
         if not self.plot_2d:
-            self.animate_axes.set_zlabel(axis_labels[2])
+            self.animate_axes.set_zlabel(self.axis_labels[2])
 
-        # # Plot the initial state set's boundaries
-        # if initial_set_color is None:
-        #     initial_set_color = "tab:grey"
-        # rect = initial_set.plot(
-        #     self.animate_axes,
-        #     axis_dims,
-        #     initial_set_color,
-        #     zorder=initial_set_zorder,
-        #     linewidth=self.linewidth,
-        #     plot_2d=self.plot_2d,
-        # )
-        # self.default_patches += rect
-
-        if show_samples_from_cells:
+        if self.show_samples_from_cells:
             for cell in initial_set.cells:
                 rect = initial_set_cell.plot(
                     self.animate_axes,
-                    axis_dims,
-                    initial_set_color,
-                    zorder=initial_set_zorder,
+                    self.plot_dims,
+                    self.initial_set_color,
+                    zorder=self.initial_set_zorder,
                     linewidth=self.linewidth,
                     plot_2d=self.plot_2d,
                 )
                 self.default_patches += rect
 
-        if extra_set_color is None:
-            extra_set_color = "tab:red"
-        # if extra_constraint[0] is not None:
-        #     for i in range(len(extra_constraint)):
-        #         rect = extra_constraint[i].plot(
-        #             self.animate_axes,
-        #             input_dims,
-        #             extra_set_color,
-        #             zorder=extra_set_zorder,
-        #             linewidth=self.linewidth,
-        #             plot_2d=self.plot_2d,
-        #         )
-        #         self.default_patches += rect
-
-    def visualize(  # type: ignore
+    def visualize_estimates(
         self,
-        M: list,
-        interior_M: list,
         reachable_sets: constraints.MultiTimestepConstraint,
-        iteration: int = 0,
-        title: Optional[str] = None,
-        reachable_set_color: Optional[str] = None,
-        reachable_set_zorder: Optional[int] = None,
-        reachable_set_ls: Optional[str] = None,
-        dont_tighten_layout: bool = False,
-        plot_lims: Optional[str] = None,
     ) -> None:
         # Bring forward whatever default items should be in the plot
         # (e.g., MC samples, initial state set boundaries)
@@ -181,70 +199,45 @@ class Visualizer:
             elif isinstance(item, Line2D):
                 self.animate_axes.add_line(item)
 
-        self.plot_reachable_sets(
-            reachable_sets,
-            self.axis_dims,
-            reachable_set_color=reachable_set_color,
-            reachable_set_zorder=reachable_set_zorder,
-            reachable_set_ls=reachable_set_ls,
-        )
+        self.plot_reachable_sets(reachable_sets)
 
-        if plot_lims is not None:
-            import ast
+        # # Do auxiliary stuff to make sure animations look nice
+        # if title is not None:
+        #     plt.suptitle(title)
 
-            plot_lims_arr = np.array(ast.literal_eval(plot_lims))
-            plt.xlim(plot_lims_arr[0])
-            plt.ylim(plot_lims_arr[1])
+        # if (iteration == 0 or iteration == -1) and not dont_tighten_layout:
+        #     plt.tight_layout()
 
-        # Do auxiliary stuff to make sure animations look nice
-        if title is not None:
-            plt.suptitle(title)
+        # if self.show_animation:
+        #     plt.pause(0.01)
 
-        if (iteration == 0 or iteration == -1) and not dont_tighten_layout:
-            plt.tight_layout()
+        # if self.make_animation and iteration is not None:
+        #     os.makedirs(self.tmp_animation_save_dir, exist_ok=True)
+        #     filename = self.get_tmp_animation_filename(iteration)
+        #     plt.savefig(filename)
 
-        if self.show_animation:
-            plt.pause(0.01)
-
-        if self.make_animation and iteration is not None:
-            os.makedirs(self.tmp_animation_save_dir, exist_ok=True)
-            filename = self.get_tmp_animation_filename(iteration)
-            plt.savefig(filename)
-
-        if self.make_animation and not self.plot_2d:
-            # Make an animated 3d view
-            os.makedirs(self.tmp_animation_save_dir, exist_ok=True)
-            for i, angle in enumerate(range(-100, 0, 2)):
-                self.animate_axes.view_init(30, angle)
-                filename = self.get_tmp_animation_filename(i)
-                plt.savefig(filename)
-            self.compile_animation(i, delete_files=True, duration=0.2)
+        # if self.make_animation and not self.plot_2d:
+        #     # Make an animated 3d view
+        #     os.makedirs(self.tmp_animation_save_dir, exist_ok=True)
+        #     for i, angle in enumerate(range(-100, 0, 2)):
+        #         self.animate_axes.view_init(30, angle)
+        #         filename = self.get_tmp_animation_filename(i)
+        #         plt.savefig(filename)
+        #     self.compile_animation(i, delete_files=True, duration=0.2)
 
     def plot_reachable_sets(
         self,
         constraint: constraints.MultiTimestepConstraint,
-        dims: list,
-        reachable_set_color: Optional[str] = None,
-        reachable_set_zorder: Optional[int] = None,
-        reachable_set_ls: Optional[str] = None,
-        reachable_set_lw: Optional[int] = None,
     ):
-        if reachable_set_color is None:
-            reachable_set_color = "tab:blue"
-        if reachable_set_ls is None:
-            reachable_set_ls = "-"
-        if reachable_set_lw is None:
-            reachable_set_lw = self.linewidth
-        fc_color = "None"
         constraint.plot(
             self.animate_axes,
-            dims,
-            reachable_set_color,
-            fc_color=fc_color,
-            zorder=reachable_set_zorder,
+            self.plot_dims,
+            self.reachable_set_color,
+            fc_color="None",
+            zorder=self.reachable_set_zorder,
             plot_2d=self.plot_2d,
-            linewidth=reachable_set_lw,
-            ls=reachable_set_ls,
+            linewidth=self.reachable_set_lw,
+            ls=self.reachable_set_ls,
         )
 
     def plot_partition(self, constraint, dims, color):
@@ -304,3 +297,103 @@ class Visualizer:
     def get_animation_filename(self):
         animation_filename = self.__class__.__name__ + ".gif"
         return animation_filename
+
+    # from Analyzer.py
+    def visualize_from_analyzer(
+        self,
+        input_range,
+        output_range_estimate,
+        show=True,
+        show_samples=True,
+        show_legend=True,
+        show_input=True,
+        show_output=True,
+        title=None,
+        labels={},
+        aspects={},
+        **kwargs,
+    ):
+        # sampled_outputs = self.get_sampled_outputs(input_range)
+        # output_range_exact = self.samples_to_range(sampled_outputs)
+
+        self.partitioner.setup_visualization(
+            input_range,
+            output_range_estimate,
+            self.propagator,
+            show_samples=show_samples,
+            inputs_to_highlight=kwargs.get("inputs_to_highlight", None),
+            outputs_to_highlight=kwargs.get("outputs_to_highlight", None),
+            show_input=show_input,
+            show_output=show_output,
+            labels=labels,
+            aspects=aspects,
+        )
+        self.partitioner.visualize(
+            kwargs.get(
+                "exterior_partitions", kwargs.get("all_partitions", [])
+            ),
+            kwargs.get("interior_partitions", []),
+            output_range_estimate,
+            show_input=show_input,
+            show_output=show_output,
+        )
+
+        if show_legend:
+            if show_input:
+                self.partitioner.input_axis.legend(
+                    bbox_to_anchor=(0, 1.02, 1, 0.2),
+                    loc="lower left",
+                    mode="expand",
+                    borderaxespad=0,
+                    ncol=1,
+                )
+            if show_output:
+                self.partitioner.output_axis.legend(
+                    bbox_to_anchor=(0, 1.02, 1, 0.2),
+                    loc="lower left",
+                    mode="expand",
+                    borderaxespad=0,
+                    ncol=2,
+                )
+
+        if title is not None:
+            plt.title(title)
+
+        plt.tight_layout()
+
+        if "save_name" in kwargs and kwargs["save_name"] is not None:
+            plt.savefig(kwargs["save_name"])
+
+        if show:
+            plt.show()
+        else:
+            plt.close()
+
+    # from closedloopsimguidedpartitioner
+    def call_visualizer(
+        self,
+        output_range_sim,
+        M,
+        num_propagator_calls,
+        interior_M,
+        iteration,
+        dont_tighten_layout=False,
+    ):
+        u_e = self.squash_down_to_one_range(output_range_sim, M)
+        # title = "# Partitions: {}, Error: {}".format(
+        #     str(len(M) + len(interior_M)), str(round(error, 3))
+        # )
+        title = "# Propagator Calls: {}".format(str(int(num_propagator_calls)))
+        # title = None
+
+        output_constraint = constraints.LpConstraint(range=u_e)
+        self.visualize(
+            M,
+            interior_M,
+            output_constraint,
+            iteration=iteration,
+            title=title,
+            reachable_set_color=self.reachable_set_color,
+            reachable_set_zorder=self.reachable_set_zorder,
+            dont_tighten_layout=dont_tighten_layout,
+        )

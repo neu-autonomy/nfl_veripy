@@ -29,6 +29,43 @@ def suppress_unecessary_logs():
     logging.getLogger("numexpr.utils").addFilter(filter_numexpr_thread_msgs)
 
 
+def get_plot_filename(params):
+    this_file_dir = os.path.dirname(os.path.abspath(__file__))
+    save_dir = f"{this_file_dir}/results/examples/"
+    os.makedirs(save_dir, exist_ok=True)
+
+    # Ugly logic to embed parameters in filename:
+    # pars = "_".join(
+    #     [
+    #         str(key) + "_" + str(value)
+    #         for key, value in sorted(
+    #             params["analysis"]["partitioner"].items(),
+    #             key=lambda kv: kv[0],
+    #         )
+    #         if key
+    #         not in [
+    #             "make_animation",
+    #             "show_animation",
+    #             "type",
+    #             "num_partitions",
+    #         ]
+    #     ]
+    # )
+    # pars2 = "_".join(
+    #     [
+    #         str(key) + "_" + str(value)
+    #         for key, value in sorted(
+    #             params["analysis"]["propagator"].items(),
+    #             key=lambda kv: kv[0],
+    #         )
+    #         if key not in ["input_shape", "type"]
+    #     ]
+    # )
+    plot_filename = f'{save_dir}/{params["system"]["type"]}_{params["system"]["feedback"]}_{params["analysis"]["partitioner"]["type"]}_{params["analysis"]["propagator"]["type"]}_tmax_{str(round(params["analysis"]["t_max"], 1))}_{params["analysis"]["propagator"]["boundary_type"]}'  # noqa: E501
+    plot_filename += ".png"
+    return plot_filename
+
+
 def bisect(input_range):
     return sect(input_range, num_sects=2)
 

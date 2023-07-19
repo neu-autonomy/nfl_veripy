@@ -91,20 +91,6 @@ class ClosedLoopSimGuidedPartitioner(ClosedLoopPartitioner):
 
         M = [(initial_set, reachable_sets)]  # (Line 4)
 
-        if self.make_animation:
-            self.setup_visualization(
-                initial_set,
-                t_max,
-                propagator,
-                show_samples=True,
-                axis_dims=[[0], [1]],
-                axis_labels=["$x_0$", "$x_1$"],
-                aspect="auto",
-                initial_set_color=self.initial_set_color,
-                initial_set_zorder=self.initial_set_zorder,
-                sample_zorder=self.sample_zorder,
-            )
-
         reachable_sets_range, info = self.partition_loop(
             M,
             interior_M,
@@ -117,6 +103,7 @@ class ClosedLoopSimGuidedPartitioner(ClosedLoopPartitioner):
             propagator_computation_time,
             t_start_overall,
             t_max,
+            info,
         )
 
         # info["all_partitions"] = ranges
@@ -153,15 +140,15 @@ class ClosedLoopSimGuidedPartitioner(ClosedLoopPartitioner):
         propagator_computation_time: float,
         t_start_overall: float,
         t_max: int,
+        info: dict,
     ) -> tuple[np.ndarray, dict]:
-        if self.make_animation:
-            self.call_visualizer(
-                reachable_set_range_sim,
-                M + interior_M,
-                num_propagator_calls,
-                interior_M,
-                iteration=-1,
-            )
+        # Store these items at each iteration for eventual visualization
+        info["iterations"] = {}
+        info["iterations"][-1] = {
+            "M": M,
+            "interior_M": interior_M,
+            "num_propagator_calls": num_propagator_calls,
+        }
 
         # Used by UnGuided, SimGuided, GreedySimGuided, etc.
         iteration = 0
@@ -215,15 +202,11 @@ class ClosedLoopSimGuidedPartitioner(ClosedLoopPartitioner):
                 else:  # Lines 19-20
                     M.append((initial_set_this_cell, reachable_set_this_cell))
 
-                if self.make_animation:
-                    self.call_visualizer(
-                        reachable_set_range_sim,
-                        M + interior_M,
-                        num_propagator_calls,
-                        interior_M,
-                        iteration=iteration,
-                        dont_tighten_layout=False,
-                    )
+                info["iterations"][iteration] = {
+                    "M": M,
+                    "interior_M": interior_M,
+                    "num_propagator_calls": num_propagator_calls,
+                }
             iteration += 1
 
         # Line 24
@@ -237,51 +220,7 @@ class ClosedLoopSimGuidedPartitioner(ClosedLoopPartitioner):
             ranges.append((m[0].range, m[1].range))
         info["all_partitions"] = ranges
 
-        # Stats & Visualization
-        # info = self.compile_info(
-        #     reachable_set_range_sim,
-        #     M,
-        #     interior_M,
-        #     num_propagator_calls,
-        #     t_end_overall,
-        #     t_start_overall,
-        #     propagator_computation_time,
-        #     iteration,
-        # )
-        if self.make_animation:
-            self.compile_animation(
-                iteration, delete_files=False, start_iteration=-1
-            )
-
         return u_e, info
-
-    def call_visualizer(
-        self,
-        output_range_sim,
-        M,
-        num_propagator_calls,
-        interior_M,
-        iteration,
-        dont_tighten_layout=False,
-    ):
-        u_e = self.squash_down_to_one_range(output_range_sim, M)
-        # title = "# Partitions: {}, Error: {}".format(
-        #     str(len(M) + len(interior_M)), str(round(error, 3))
-        # )
-        title = "# Propagator Calls: {}".format(str(int(num_propagator_calls)))
-        # title = None
-
-        output_constraint = constraints.LpConstraint(range=u_e)
-        self.visualize(
-            M,
-            interior_M,
-            output_constraint,
-            iteration=iteration,
-            title=title,
-            reachable_set_color=self.reachable_set_color,
-            reachable_set_zorder=self.reachable_set_zorder,
-            dont_tighten_layout=dont_tighten_layout,
-        )
 
     def squash_down_to_one_range(self, output_range_sim, M):
         # (len(M)+1, t_max, n_states, 2)
@@ -330,6 +269,8 @@ class ClosedLoopSimGuidedPartitioner(ClosedLoopPartitioner):
     def get_one_step_backprojection_set(
         self, target_sets, propagator, num_partitions=None, overapprox=False
     ):
+        # Currently this seems to just copy-paste the uniform partitioning code
+        raise NotImplementedError
         backreachable_set, info = self.get_one_step_backreachable_set(
             target_sets[-1]
         )
