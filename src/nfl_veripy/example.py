@@ -420,6 +420,7 @@ def setup_parser() -> dict:
 
 
 if __name__ == "__main__":
+    print("~~ test change ~~")
     experiment_params = setup_parser()
 
     if experiment_params["analysis"]["reachability_direction"] == "forward":
