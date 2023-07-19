@@ -22,6 +22,8 @@ build_container:
     changes:
       - docker/Dockerfile
       - pyproject.toml
+      - third_party
+      - .gitlab-ci.yml
   script:
     - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
     - docker build --pull -t $CONTAINER_TEST_IMAGE -f docker/Dockerfile .
@@ -29,10 +31,6 @@ build_container:
 
 test_closed_loop:
   stage: test
-  # only:
-  #   changes:
-  #     - docker/Dockerfile
-  #     - nfl_veripy
   script:
     - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
     - docker pull $CONTAINER_TEST_IMAGE
