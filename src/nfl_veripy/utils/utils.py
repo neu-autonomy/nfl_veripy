@@ -13,23 +13,22 @@ dir_path = os.path.dirname(os.path.realpath(__file__))
 def suppress_unecessary_logs():
     logging.captureWarnings(True)
 
-    def filter_depr_msgs(record):
-        show = not (
-            "DeprecationWarning: pkg_resources is deprecated" in record.args[0]
-            or "DeprecationWarning: Deprecated call" in record.args[0]
-        )
-        return show
-
-    logging.getLogger("py.warnings").addFilter(filter_depr_msgs)
-
-    def filter_numexpr_thread_msgs(record):
-        show = not ("NumExpr defaulting to" in record.msg)
-        return show
-
-    logging.getLogger("numexpr.utils").addFilter(filter_numexpr_thread_msgs)
-
+    # https://github.com/google/jax/issues/6805
     logging.getLogger("jax._src.xla_bridge").addFilter(
         logging.Filter("No GPU/TPU found, falling back to CPU.")
+    )
+
+    # caused by matplotlib? should be fixed in v3.8.0 (not yet released)
+    logging.getLogger("py.warnings").addFilter(
+        logging.Filter("DeprecationWarning: pkg_resources is deprecated")
+    )
+    logging.getLogger("py.warnings").addFilter(
+        logging.Filter("DeprecationWarning: Deprecated call")
+    )
+
+    # caused by numpy??
+    logging.getLogger("numexpr.utils").addFilter(
+        logging.Filter("NumExpr defaulting to")
     )
 
 
