@@ -23,9 +23,10 @@ RUN python -m pip install --no-cache-dir \
 RUN python -m pip install --no-cache-dir -e \
     third_party/crown_ibp \
     third_party/jax_verify \
-    third_party/auto_LiRPA \
-    .
+    third_party/auto_LiRPA
 # RUN python -m pip install --no-cache-dir "jax_verify @ git+https://gitlab.com/mit-acl/ford_ugvs/jax_verify.git" "crown_ibp @ git+https://gitlab.com/mit-acl/ford_ugvs/crown_ibp.git" .
+
+RUN python -m pip install -e .
 
 # Suppress annoying warnings from tensorflow & jax
 ENV JAX_PLATFORMS cpu

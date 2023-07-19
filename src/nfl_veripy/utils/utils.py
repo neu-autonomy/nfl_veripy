@@ -28,6 +28,10 @@ def suppress_unecessary_logs():
 
     logging.getLogger("numexpr.utils").addFilter(filter_numexpr_thread_msgs)
 
+    logging.getLogger("jax._src.xla_bridge").addFilter(
+        logging.Filter("No GPU/TPU found, falling back to CPU.")
+    )
+
 
 def bisect(input_range):
     return sect(input_range, num_sects=2)
