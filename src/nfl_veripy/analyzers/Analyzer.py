@@ -4,6 +4,7 @@ from scipy.spatial import ConvexHull
 
 import nfl_veripy.partitioners as partitioners
 import nfl_veripy.propagators as propagators
+import nfl_veripy.visualizers as visualizers
 from nfl_veripy.utils.utils import get_sampled_outputs, samples_to_range
 
 plt.rcParams["mathtext.fontset"] = "stix"
@@ -17,6 +18,7 @@ class Analyzer:
 
         self.partitioner = None
         self.propagator = None
+        self.visualizer = None
 
     @property
     def partitioner_dict(self):
