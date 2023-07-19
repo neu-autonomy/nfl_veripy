@@ -20,7 +20,7 @@ RUN python -m pip install --no-cache-dir \
     -f https://download.pytorch.org/whl/torch_stable.html
 
 # Install our local (non-pypi) dependencies and nfl_veripy
-RUN python -m pip install --no-cache-dir \
+RUN python -m pip install --no-cache-dir -e \
     third_party/crown_ibp \
     third_party/jax_verify \
     third_party/auto_LiRPA \

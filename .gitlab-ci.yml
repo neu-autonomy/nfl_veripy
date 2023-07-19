@@ -23,7 +23,7 @@ build_container:
       - docker/Dockerfile
       - pyproject.toml
       - third_party
-      # - .gitlab-ci.yml
+      - .gitlab-ci.yml
       - .gitmodules
   script:
     - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
@@ -33,11 +33,9 @@ build_container:
 test_closed_loop:
   stage: test
   script:
-    - ls /builds/neu-autonomy/certifiable-learning/nfl_veripy
-    - cat /builds/neu-autonomy/certifiable-learning/nfl_veripy/src/nfl_veripy/analyzers/ClosedLoopAnalyzer.py
-    # - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
-    # - docker pull $CONTAINER_TEST_IMAGE
-    # - docker run -v /builds/neu-autonomy/certifiable-learning/nfl_veripy:/home/nfl_veripy $CONTAINER_TEST_IMAGE python tests/test.py
+    - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
+    - docker pull $CONTAINER_TEST_IMAGE
+    - docker run -v /builds/neu-autonomy/certifiable-learning/nfl_veripy:/home/nfl_veripy $CONTAINER_TEST_IMAGE python tests/test.py
 
 # release-image:
 #   stage: release
