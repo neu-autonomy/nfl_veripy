@@ -33,12 +33,13 @@ build_container:
 test_closed_loop:
   stage: test
   script:
-    - ls
-    - ls /builds
-    - cat /builds/neu-autonomy/certifiable-learning/nfl_veripy/src/nfl_veripy/analyzers/ClosedLoopBackwardAnalyzer.py
-    # - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
-    # - docker pull $CONTAINER_TEST_IMAGE
-    # - docker run -v /builds/neu-autonomy/certifiable-learning/nfl_veripy:/home/nfl_veripy $CONTAINER_TEST_IMAGE python tests/test.py
+    - pwd
+    # - ls
+    # - ls /builds
+    # - cat /builds/neu-autonomy/certifiable-learning/nfl_veripy/src/nfl_veripy/analyzers/ClosedLoopBackwardAnalyzer.py
+    - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
+    - docker pull $CONTAINER_TEST_IMAGE
+    - docker run -v .:/home/nfl_veripy $CONTAINER_TEST_IMAGE python tests/test.py
 
 # release-image:
 #   stage: release
