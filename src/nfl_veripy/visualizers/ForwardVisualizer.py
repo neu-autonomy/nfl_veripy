@@ -60,7 +60,7 @@ class ForwardVisualizer:
         self.show_trajectories: bool = False
         self.show: bool = False
         self.save_plot: bool = True
-        self.axis_labels: list = ["$x_0$", "$x_1$"]
+        self.plot_axis_labels: list = ["$x_0$", "$x_1$"]
         self.plot_dims: list = [0, 1]
         self.aspect: str = "auto"
         self.plot_lims: Optional[list] = None
@@ -191,10 +191,10 @@ class ForwardVisualizer:
                 colors=self.sample_colors,
             )
 
-        self.animate_axes.set_xlabel(self.axis_labels[0])
-        self.animate_axes.set_ylabel(self.axis_labels[1])
+        self.animate_axes.set_xlabel(self.plot_axis_labels[0])
+        self.animate_axes.set_ylabel(self.plot_axis_labels[1])
         if not self.plot_2d:
-            self.animate_axes.set_zlabel(self.axis_labels[2])
+            self.animate_axes.set_zlabel(self.plot_axis_labels[2])
 
     def visualize_estimates(
         self,
