@@ -4,12 +4,12 @@ build-backend = "hatchling.build"
 
 [project]
 name = "nfl_veripy"
-version = "0.0.1"
+version = "0.0.2"
 authors = [
     { name = "Michael Everett", email = "m.everett@northeastern.edu" },
     { name = "Nicholas Rober", email = "nrober@mit.edu" },
 ]
-description = "A small example package"
+description = "Formal verification of neural feedback loops (NFLs)"
 readme = "README.md"
 requires-python = ">=3.7"
 classifiers = [
@@ -42,7 +42,7 @@ dependencies = [
 ]
 
 [project.urls]
-repository = "https://github.com/mit-acl/nfl_veripy.git"
+repository = "https://github.com/neu-autonomy/nfl_veripy.git"
 
 [tool.hatch.build]
 exclude = ["/third_party", "/deprecated", "/docker", "/docs"]
