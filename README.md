@@ -25,8 +25,8 @@ For more info, please see [this README](/docs/_static/access21/access21.md) and 
 If you just want to run the code, you can simply install our package via pip:
 ```bash
 pip install \
-    "jax_verify @ git+https://gitlab.com/mit-acl/ford_ugvs/jax_verify.git" \
-    "crown_ibp @ git+https://gitlab.com/mit-acl/ford_ugvs/crown_ibp.git" \
+    "jax_verify @ git+https://gitlab.com/neu-autonomy/certifiable-learning/jax_verify.git" \
+    "crown_ibp @ git+https://gitlab.com/neu-autonomy/certifiable-learning/crown_ibp.git" \
     nfl_veripy
 ```
 
@@ -66,7 +66,7 @@ python -m nfl_veripy.example --config example_configs/ojcsys23/di_breach.yaml
 
 ## Acknowledgements
 
-This research is supported in part by Ford Motor Company.
+This research was supported in part by Ford Motor Company.
 
 We build on excellent open-source repositories from the neural network analysis community. These repositories are imported as Git submodules or re-implemented in Python here, with some changes to reflect the slightly different problem statements:
 * [`auto_LIRPA`](https://github.com/KaidiXu/auto_LiRPA)
