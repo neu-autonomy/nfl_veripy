@@ -2,6 +2,7 @@
 
 ## Updates
 
+- **2023-07-20:** Added typing hints and re-factored visualization code as separate from other components.
 - **2023-04-21:** Major cleanup and re-branding of repo, released PyPi package for easier usability!
 - **2023-04-13:** Add new jax-based propagators, including some from [`DRIP` paper](https://arxiv.org/abs/2212.04646). Cleaned up implementation of BReach-LP and HyBReach-LP from OJCSYS paper.
 - **2022-06-20:** Add new backprojection code from [`BReach-LP` paper](https://arxiv.org/abs/2204.08319). More info [here](/docs/_static/cdc22/cdc22.md)
