@@ -241,10 +241,6 @@ def main_backward(params: dict) -> tuple[dict, dict]:
         or params["visualization"]["save_plot"]
     ):
         analyzer.visualizer.plot_filename = get_plot_filename(params)
-        # print(params["analysis"].get("initial_state_range", None))
-        # analyzer.visualizer.initial_state_set = params["analysis"].get(
-        # "initial_state_range", None
-        # )
         analyzer.visualize(
             target_set,
             backprojection_sets,

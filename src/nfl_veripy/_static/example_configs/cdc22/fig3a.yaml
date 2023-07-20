@@ -33,3 +33,5 @@ visualization:
   show_true_backprojection_sets: true
   show_target_set: true
   show_true_backprojection_set_samples: true
+  show_backprojection_sets: true
+  show_backprojection_set_cells: true

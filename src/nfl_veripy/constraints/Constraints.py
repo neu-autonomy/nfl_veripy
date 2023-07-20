@@ -285,17 +285,10 @@ class MultiTimestepConstraint:
                 linewidth=linewidth,
                 zorder=zorder,
             )
-        for i in range(len(self.range)):
-            rect = make_rect_from_arr(
-                self.constraints[i].range,
-                dims,
-                color,
-                linewidth,
-                fc_color,
-                ls,
-                zorder=zorder,
+        for constraint in self.constraints:
+            rect = constraint.plot(
+                ax, dims, color, fc_color, linewidth, zorder=zorder
             )
-            ax.add_patch(rect)
         return [rect]
 
     def plot3d(

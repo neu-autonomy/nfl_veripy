@@ -63,38 +63,43 @@ class BackwardVisualizer:
 
         self.true_backprojection_set_color: str = "k"
         self.true_backprojection_set_zorder: int = 3
-        self.true_backprojection_set_linestyle: str = "-"
-        self.true_backprojection_set_linewidth: int = 2
+        self.true_backprojection_set_ls: str = "-"
+        self.true_backprojection_set_lw: int = 2
 
         self.estimated_backprojection_set_color: str = "tab:blue"
         self.estimated_backprojection_set_zorder: int = 2
-        self.estimated_backprojection_set_linestyle: str = "-"
-        self.estimated_backprojection_set_linewidth: int = 2
+        self.estimated_backprojection_set_ls: str = "-"
+        self.estimated_backprojection_set_lw: int = 2
+
+        self.estimated_backprojection_set_cell_color: str = "tab:gray"
+        self.estimated_backprojection_set_cell_zorder: int = 2
+        self.estimated_backprojection_set_cell_ls: str = "-"
+        self.estimated_backprojection_set_cell_lw: int = 1
 
         self.estimated_one_step_backprojection_set_color: str = "tab:orange"
         self.estimated_one_step_backprojection_set_zorder: int = -1
-        self.estimated_one_step_backprojection_set_linestyle: str = "-"
-        self.estimated_one_step_backprojection_set_linewidth: int = 1
+        self.estimated_one_step_backprojection_set_ls: str = "-"
+        self.estimated_one_step_backprojection_set_lw: int = 1
 
         self.estimated_backprojection_partitioned_set_color: str = "tab:gray"
         self.estimated_backprojection_partitioned_set_zorder: int = 5
-        self.estimated_backprojection_partitioned_set_linestyle: str = "-"
-        self.estimated_backprojection_partitioned_set_linewidth: int = 1
+        self.estimated_backprojection_partitioned_set_ls: str = "-"
+        self.estimated_backprojection_partitioned_set_lw: int = 1
 
         self.backreachable_set_color: str = "tab:cyan"
         self.backreachable_set_zorder: int = -1
-        self.backreachable_set_linestyle: str = "--"
-        self.backreachable_set_linewidth: int = 1
+        self.backreachable_set_ls: str = "--"
+        self.backreachable_set_lw: int = 1
 
         self.target_set_color: str = "tab:red"
         self.target_set_zorder: int = 1
-        self.target_set_linestyle: str = "-"
-        self.target_set_linewidth: int = 2
+        self.target_set_ls: str = "-"
+        self.target_set_lw: int = 2
 
         self.initial_set_color: str = "k"
         self.initial_set_zorder: int = 1
-        self.initial_set_linestyle: str = "-"
-        self.initial_set_linewidth: int = 1
+        self.initial_set_ls: str = "-"
+        self.initial_set_lw: int = 1
 
     @property
     def plot_dims(self):
@@ -191,8 +196,8 @@ class BackwardVisualizer:
                 fc_color="None",
                 zorder=self.target_set_zorder,
                 plot_2d=self.plot_2d,
-                linewidth=self.target_set_linewidth,
-                ls=self.target_set_linestyle,
+                linewidth=self.target_set_lw,
+                ls=self.target_set_ls,
             )
 
         if self.show_backreachable_sets:
@@ -203,8 +208,8 @@ class BackwardVisualizer:
                 fc_color="None",
                 zorder=self.backreachable_set_zorder,
                 plot_2d=self.plot_2d,
-                linewidth=self.backreachable_set_linewidth,
-                ls=self.backreachable_set_linestyle,
+                linewidth=self.backreachable_set_lw,
+                ls=self.backreachable_set_ls,
             )
 
         if self.show_true_backprojection_sets:
@@ -253,22 +258,34 @@ class BackwardVisualizer:
                 self.plot_dims,
                 self.estimated_backprojection_set_color,
                 zorder=self.estimated_backprojection_set_zorder,
-                linewidth=self.estimated_backprojection_set_linewidth,
+                linewidth=self.estimated_backprojection_set_lw,
                 plot_2d=self.plot_2d,
             )
             self.default_patches += rects
 
         if self.show_backprojection_set_cells:
-            for cell in backprojection_sets.cells:
-                rects = cell.plot(
-                    self.animate_axes,
-                    self.plot_dims,
-                    self.estimated_backprojection_set_color,
-                    zorder=self.estimated_backprojection_set_zorder,
-                    linewidth=self.estimated_backprojection_set_linewidth,
-                    plot_2d=self.plot_2d,
-                )
-                self.default_patches += rects
+            for backprojection_set in backprojection_sets.constraints:
+                for cell in backprojection_set.cells:
+                    rects = cell.plot(
+                        self.animate_axes,
+                        self.plot_dims,
+                        self.estimated_backprojection_set_cell_color,
+                        zorder=self.estimated_backprojection_set_cell_zorder,
+                        linewidth=self.estimated_backprojection_set_cell_lw,
+                        plot_2d=self.plot_2d,
+                    )
+                    self.default_patches += rects
+
+        if self.show_samples_from_cells:
+            for backprojection_set in backprojection_sets.constraints:
+                for cell in backprojection_set.cells:
+                    self.dynamics.show_samples(
+                        backprojection_sets.get_t_max() * self.dynamics.dt,
+                        cell,
+                        ax=self.animate_axes,
+                        controller=self.network,
+                        input_dims=self.plot_dims,
+                    )
 
         # # Do auxiliary stuff to make sure animations look nice
         # if title is not None:
@@ -340,8 +357,8 @@ class BackwardVisualizer:
                 x_samples_inside_backprojection_set[:, t, :],
                 dims=self.plot_dims,
                 color=self.true_backprojection_set_color,
-                linewidth=self.true_backprojection_set_linewidth,
-                linestyle=self.true_backprojection_set_linestyle,
+                linewidth=self.true_backprojection_set_lw,
+                linestyle=self.true_backprojection_set_ls,
                 zorder=self.true_backprojection_set_zorder,
                 label="Backprojection Set (True)",
                 axes=self.animate_axes,
