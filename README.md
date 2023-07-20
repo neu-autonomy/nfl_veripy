@@ -25,8 +25,8 @@ For more info, please see [this README](/docs/_static/access21/access21.md) and 
 If you just want to run the code, you can simply install our package via pip:
 ```bash
 pip install \
-    "jax_verify @ git+https://gitlab.com/neu-autonomy/jax_verify.git" \
-    "crown_ibp @ git+https://gitlab.com/neu-autonomy/crown_ibp.git" \
+    "jax_verify @ git+https://gitlab.com/neu-autonomy/certifiable-learning/jax_verify.git" \
+    "crown_ibp @ git+https://gitlab.com/neu-autonomy/certifiable-learning/crown_ibp.git" \
     nfl_veripy
 ```
 
