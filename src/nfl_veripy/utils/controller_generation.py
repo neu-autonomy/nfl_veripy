@@ -2,10 +2,12 @@ import os
 import pickle
 
 import matplotlib.pyplot as plt
-import nfl_veripy.constraints as constraints
-import nfl_veripy.dynamics as dynamics
 import numpy as np
 import scipy.io
+import torch
+
+import nfl_veripy.constraints as constraints
+import nfl_veripy.dynamics as dynamics
 from nfl_veripy.utils.nn import (
     create_and_train_model,
     create_model,
@@ -327,17 +329,14 @@ def buggy_complex_potential_field_controller3():
 
 
 def display_ground_robot_control_field(
-    name="avoid_origin_controller_simple", ax=None
-):
-    controller = load_controller(
-        system="GroundRobotSI", model_name=name, model_type="keras"
-    )
+    controller: torch.nn.Sequential, ax=None
+) -> None:
     x, y = np.meshgrid(np.linspace(-7.5, 4, 20), np.linspace(-7.2, 7.2, 20))
     # import pdb; pdb.set_trace()
     inputs = np.hstack(
         (x.reshape(len(x) * len(x[0]), 1), y.reshape(len(y) * len(y[0]), 1))
     )
-    us = controller.predict(inputs)
+    us = controller.forward(torch.Tensor(inputs)).detach().numpy()
 
     if ax is None:
         # import pdb; pdb.set_trace()

@@ -31,7 +31,12 @@ def suppress_unecessary_logs():
 
 def get_plot_filename(params):
     this_file_dir = os.path.dirname(os.path.abspath(__file__))
-    save_dir = f"{this_file_dir}/results/examples/"
+
+    if params["analysis"]["reachability_direction"] == "forward":
+        examples_dir = "examples"
+    else:
+        examples_dir = "examples_backward"
+    save_dir = f"{this_file_dir}/../../../results/{examples_dir}/"
     os.makedirs(save_dir, exist_ok=True)
 
     # Ugly logic to embed parameters in filename:

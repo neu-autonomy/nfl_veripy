@@ -158,6 +158,7 @@ def main_backward(params: dict) -> tuple[dict, dict]:
     analyzer = analyzers.ClosedLoopBackwardAnalyzer(controller, dyn)
     analyzer.partitioner = params["analysis"]["partitioner"]
     analyzer.propagator = params["analysis"]["propagator"]
+    analyzer.visualizer = params["visualization"]
 
     final_state_range = np.array(
         ast.literal_eval(params["analysis"]["final_state_range"])
@@ -234,99 +235,21 @@ def main_backward(params: dict) -> tuple[dict, dict]:
         )
         stats["backprojection_sets"] = backprojection_sets
 
-    controller_name = None
-    if params["visualization"]["show_policy"]:
-        controller_name = params["system"]["controller"]
-
-    if params["visualization"]["save_plot"]:
-        this_file_dir = os.path.dirname(os.path.abspath(__file__))
-        save_dir = f"{this_file_dir}/results/examples_backward/"
-        os.makedirs(save_dir, exist_ok=True)
-
-        # Ugly logic to embed parameters in filename:
-        pars = "_".join(
-            [
-                str(key) + "_" + str(value)
-                for key, value in sorted(
-                    params["analysis"]["partitioner"].items(),
-                    key=lambda kv: kv[0],
-                )
-                if key
-                not in [
-                    "make_animation",
-                    "show_animation",
-                    "type",
-                    "num_partitions",
-                ]
-            ]
-        )
-        pars2 = "_".join(
-            [
-                str(key) + "_" + str(value)
-                for key, value in sorted(
-                    params["analysis"]["propagator"].items(),
-                    key=lambda kv: kv[0],
-                )
-                if key not in ["input_shape", "type"]
-            ]
-        )
-        analyzer_info["save_name"] = (
-            save_dir
-            + params["system"]["type"]
-            + pars
-            + "_"
-            + params["analysis"]["partitioner"]["type"]
-            + "_"
-            + params["analysis"]["propagator"]["type"]
-            + "_"
-            # + "tmax"
-            # + "_"
-            # + str(round(params["analysis"]["t_max"], 1))
-            # + "_"
-            + params["analysis"]["propagator"]["boundary_type"]
-            + "_"
-            # + str(params["analysis"]["propagator"]["num_polytope_facets"])
-            # + "_"
-            + "partitions"
-            + "_"
-            # + np.array2string(num_partitions, separator='_')[1:-1]
-        )
-        if len(pars2) > 0:
-            analyzer_info["save_name"] = (
-                analyzer_info["save_name"] + "_" + pars2
-            )
-        analyzer_info["save_name"] = analyzer_info["save_name"] + ".png"
-
-    if params["analysis"].get("initial_state_range", None) is None:
-        initial_state_set = None
-    else:
-        initial_state_range = np.array(
-            ast.literal_eval(params["analysis"]["initial_state_range"])
-        )
-        initial_state_set = constraints.LpConstraint(initial_state_range)
-
+    # Visualize the reachable sets and MC samples
     if (
         params["visualization"]["show_plot"]
         or params["visualization"]["save_plot"]
     ):
+        analyzer.visualizer.plot_filename = get_plot_filename(params)
+        # print(params["analysis"].get("initial_state_range", None))
+        # analyzer.visualizer.initial_state_set = params["analysis"].get(
+        # "initial_state_range", None
+        # )
         analyzer.visualize(
-            backprojection_sets,
             target_set,
-            analyzer_info,
-            show=params["visualization"]["show_plot"],
-            show_samples=params["visualization"]["show_samples"],
-            show_samples_from_cells=params["visualization"][
-                "show_samples_from_cells"
-            ],
-            show_trajectories=params["visualization"]["show_trajectories"],
-            show_convex_hulls=params["visualization"]["show_convex_hulls"],
-            axis_dims=params["visualization"]["plot_dims"],
-            axis_labels=params["visualization"]["plot_axis_labels"],
-            aspect=params["visualization"]["plot_aspect"],
-            plot_lims=params["visualization"]["plot_lims"],
-            initial_constraint=initial_state_set,
-            controller_name=controller_name,
-            show_BReach=params["visualization"]["show_BReach"],
+            backprojection_sets,
+            analyzer.propagator.network,
+            **analyzer_info,
         )
 
     return stats, analyzer_info

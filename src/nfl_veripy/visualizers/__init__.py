@@ -1,1 +1,2 @@
-from .Visualizer import Visualizer  # noqa
+from .BackwardVisualizer import BackwardVisualizer  # noqa
+from .ForwardVisualizer import ForwardVisualizer  # noqa

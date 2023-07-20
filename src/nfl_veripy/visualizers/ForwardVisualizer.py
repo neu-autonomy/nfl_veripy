@@ -17,7 +17,7 @@ from nfl_veripy.utils.controller_generation import (
 )
 
 
-class Visualizer:
+class ForwardVisualizer:
     def __init__(
         self,
         dynamics: dynamics.Dynamics,

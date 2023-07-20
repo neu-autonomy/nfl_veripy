@@ -22,13 +22,17 @@ visualization:
   show_plot: false
   make_animation: false
   show_animation: false
-  show_samples: false
-  show_trajectories: false
   plot_dims: [0, 1]
   plot_axis_labels: ["$x_0$", "$x_1$"]
   plot_aspect: auto
   plot_lims: "[[1.8,3.2],[-0.3,1.3]]"
   show_policy: false
   show_samples_from_cells: true
-  show_convex_hulls: true
-  show_BReach: false
+  show_trajectories: false
+  show_backreachable_sets: false
+  show_true_backprojection_sets: true
+  show_target_set: true
+  show_true_backprojection_set_samples: false
+  show_policy: false
+  show_backprojection_sets: true
+  show_backprojection_set_cells: true

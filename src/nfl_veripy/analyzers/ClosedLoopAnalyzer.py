@@ -12,9 +12,6 @@ from nfl_veripy.utils.utils import get_sampled_outputs, samples_to_range
 
 from .Analyzer import Analyzer
 
-# plt.rcParams['mathtext.fontset'] = 'stix'
-# plt.rcParams['font.family'] = 'STIXGeneral'
-
 
 class ClosedLoopAnalyzer(Analyzer):
     def __init__(
@@ -56,8 +53,8 @@ class ClosedLoopAnalyzer(Analyzer):
 
     def instantiate_visualizer(
         self, visualizer_name: str, hyperparams: dict[str, Any]
-    ) -> visualizers.Visualizer:
-        visualizer = visualizers.Visualizer(self.dynamics)
+    ) -> visualizers.ForwardVisualizer:
+        visualizer = visualizers.ForwardVisualizer(self.dynamics)
         for key, value in hyperparams.items():
             if hasattr(visualizer, key):
                 setattr(visualizer, key, value)
@@ -66,8 +63,6 @@ class ClosedLoopAnalyzer(Analyzer):
     def get_one_step_reachable_set(
         self, initial_set: constraints.SingleTimestepConstraint
     ) -> tuple[constraints.SingleTimestepConstraint, dict]:
-        # initial_set: constraints.LpConstraint(range=(num_states, 2))
-        # reachable_set: constraints.LpConstraint(range=(num_states, 2))
         reachable_set, info = self.partitioner.get_one_step_reachable_set(
             initial_set, self.propagator
         )
@@ -76,24 +71,10 @@ class ClosedLoopAnalyzer(Analyzer):
     def get_reachable_set(
         self, initial_set: constraints.SingleTimestepConstraint, t_max: float
     ) -> tuple[constraints.MultiTimestepConstraint, dict]:
-        # initial_set: constraints.LpConstraint(range=(num_states, 2))
-        # reachable_set: constraints.LpConstraint(
-        #       range=(num_timesteps, num_states, 2))
         reachable_set, info = self.partitioner.get_reachable_set(
             initial_set, self.propagator, t_max
         )
         return reachable_set, info
-
-    def visualize(
-        self,
-        initial_set: constraints.SingleTimestepConstraint,
-        reachable_sets: constraints.MultiTimestepConstraint,
-        network: torch.nn.Sequential,
-        **kwargs,
-    ) -> None:
-        self.visualizer.visualize(
-            initial_set, reachable_sets, network, **kwargs
-        )
 
     def get_sampled_outputs(
         self, input_range: np.ndarray, num_samples: int = 1000
@@ -131,4 +112,15 @@ class ClosedLoopAnalyzer(Analyzer):
     ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
         return self.partitioner.get_error(
             initial_set, reachable_sets, self.propagator, t_max
+        )
+
+    def visualize(
+        self,
+        initial_set: constraints.SingleTimestepConstraint,
+        reachable_sets: constraints.MultiTimestepConstraint,
+        network: torch.nn.Sequential,
+        **kwargs,
+    ) -> None:
+        self.visualizer.visualize(
+            initial_set, reachable_sets, network, **kwargs
         )
