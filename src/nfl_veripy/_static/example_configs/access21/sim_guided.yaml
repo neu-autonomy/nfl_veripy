@@ -22,6 +22,7 @@ visualization:
   show_animation: false
   show_samples: true
   show_trajectories: false
+  show_reachable_set_cells: false
   plot_dims: [0, 1]
   plot_axis_labels: ["$x_0$", "$x_1$"]
   plot_aspect: auto

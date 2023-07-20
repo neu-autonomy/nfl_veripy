@@ -23,12 +23,6 @@ class ClosedLoopSimGuidedPartitioner(ClosedLoopPartitioner):
         self.termination_condition_type: str = "num_propagator_calls"
         self.termination_condition_value: int = 200
 
-        self.reachable_set_color: str = "tab:blue"
-        self.reachable_set_zorder: int = 2
-        self.initial_set_color: str = "tab:red"
-        self.initial_set_zorder: int = 2
-        self.sample_zorder: int = 1
-
     def check_termination(  # type: ignore
         self,
         num_propagator_calls: float,
@@ -115,6 +109,9 @@ class ClosedLoopSimGuidedPartitioner(ClosedLoopPartitioner):
             ]
         )
 
+        # store the cells in the constraints - only for plotting
+        reachable_sets.cells = [x[1] for x in M + interior_M]
+
         return reachable_sets, info
 
     def partition_loop(
@@ -183,7 +180,7 @@ class ClosedLoopSimGuidedPartitioner(ClosedLoopPartitioner):
                                 range=sected_initial_set_range
                             )
                         )
-                        reachable_set_this_sected_cell, info = (
+                        reachable_set_this_sected_cell, this_info = (
                             propagator.get_reachable_set(
                                 initial_set_this_sected_cell, t_max
                             )

@@ -38,14 +38,24 @@ class ForwardVisualizer:
         self.reachable_set_zorder: int = 2
         self.reachable_set_ls: str = "-"
         self.reachable_set_lw: int = 1
+
+        self.reachable_set_cell_color: str = "tab:gray"
+        self.reachable_set_cell_zorder: int = 2
+        self.reachable_set_cell_ls: str = "-"
+        self.reachable_set_cell_lw: int = 1
+
         self.initial_set_color: str = "k"
         self.initial_set_zorder: int = 2
+        self.initial_set_ls: str = "-"
+        self.initial_set_lw: int = 1
+
         self.target_set_color: str = "tab:red"
         self.target_set_zorder: int = 2
         self.sample_zorder: int = 1
         self.sample_colors: Optional[str] = None
 
         self.show_samples: bool = True
+        self.show_reachable_set_cells: bool = False
         self.show_samples_from_cells: bool = False
         self.show_trajectories: bool = False
         self.show: bool = False
@@ -136,6 +146,17 @@ class ForwardVisualizer:
 
         self.animate_axes.set_aspect(self.aspect)
 
+        rect = initial_set.plot(
+            self.animate_axes,
+            self.plot_dims,
+            self.initial_set_color,
+            zorder=self.initial_set_zorder,
+            linewidth=self.initial_set_lw,
+            ls=self.initial_set_ls,
+            plot_2d=self.plot_2d,
+        )
+        self.default_patches += rect
+
         if self.show_samples:
             self.dynamics.show_samples(
                 t_max * self.dynamics.dt,
@@ -175,18 +196,6 @@ class ForwardVisualizer:
         if not self.plot_2d:
             self.animate_axes.set_zlabel(self.axis_labels[2])
 
-        if self.show_samples_from_cells:
-            for cell in initial_set.cells:
-                rect = initial_set_cell.plot(
-                    self.animate_axes,
-                    self.plot_dims,
-                    self.initial_set_color,
-                    zorder=self.initial_set_zorder,
-                    linewidth=self.linewidth,
-                    plot_2d=self.plot_2d,
-                )
-                self.default_patches += rect
-
     def visualize_estimates(
         self,
         reachable_sets: constraints.MultiTimestepConstraint,
@@ -199,37 +208,7 @@ class ForwardVisualizer:
             elif isinstance(item, Line2D):
                 self.animate_axes.add_line(item)
 
-        self.plot_reachable_sets(reachable_sets)
-
-        # # Do auxiliary stuff to make sure animations look nice
-        # if title is not None:
-        #     plt.suptitle(title)
-
-        # if (iteration == 0 or iteration == -1) and not dont_tighten_layout:
-        #     plt.tight_layout()
-
-        # if self.show_animation:
-        #     plt.pause(0.01)
-
-        # if self.make_animation and iteration is not None:
-        #     os.makedirs(self.tmp_animation_save_dir, exist_ok=True)
-        #     filename = self.get_tmp_animation_filename(iteration)
-        #     plt.savefig(filename)
-
-        # if self.make_animation and not self.plot_2d:
-        #     # Make an animated 3d view
-        #     os.makedirs(self.tmp_animation_save_dir, exist_ok=True)
-        #     for i, angle in enumerate(range(-100, 0, 2)):
-        #         self.animate_axes.view_init(30, angle)
-        #         filename = self.get_tmp_animation_filename(i)
-        #         plt.savefig(filename)
-        #     self.compile_animation(i, delete_files=True, duration=0.2)
-
-    def plot_reachable_sets(
-        self,
-        constraint: constraints.MultiTimestepConstraint,
-    ):
-        constraint.plot(
+        reachable_sets.plot(
             self.animate_axes,
             self.plot_dims,
             self.reachable_set_color,
@@ -240,30 +219,38 @@ class ForwardVisualizer:
             ls=self.reachable_set_ls,
         )
 
-    def plot_partition(self, constraint, dims, color):
-        # This if shouldn't really be necessary -- someone is calling
-        # self.plot_partitions with something other than a
-        # (constraint, ___) element in M?
-        if isinstance(constraint, np.ndarray):
-            constraint = constraints.LpConstraint(range=constraint)
+        if self.show_reachable_set_cells:
+            for cell in reachable_sets.cells:
+                cell.plot(
+                    self.animate_axes,
+                    self.plot_dims,
+                    self.reachable_set_cell_color,
+                    fc_color="None",
+                    zorder=self.reachable_set_cell_zorder,
+                    plot_2d=self.plot_2d,
+                    linewidth=self.reachable_set_cell_lw,
+                    ls=self.reachable_set_cell_ls,
+                )
 
-        constraint.plot(
-            self.animate_axes, dims, color, linewidth=1, plot_2d=self.plot_2d
-        )
-
-    def plot_partitions(
-        self,
-        M: list[tuple[constraints.SingleTimestepConstraint, np.ndarray]],
-        dims: list,
-    ) -> None:
-        # first = True
-        for input_constraint, output_range in M:
-            # Next state constraint of that cell
-            output_constraint_ = constraints.LpConstraint(range=output_range)
-            self.plot_partition(output_constraint_, dims, "grey")
-
-            # Initial state constraint of that cell
-            self.plot_partition(input_constraint, dims, "tab:red")
+        # # Do auxiliary stuff to make sure animations look nice
+        # if title is not None:
+        #     plt.suptitle(title)
+        # if (iteration == 0 or iteration == -1) and not dont_tighten_layout:
+        #     plt.tight_layout()
+        # if self.show_animation:
+        #     plt.pause(0.01)
+        # if self.make_animation and iteration is not None:
+        #     os.makedirs(self.tmp_animation_save_dir, exist_ok=True)
+        #     filename = self.get_tmp_animation_filename(iteration)
+        #     plt.savefig(filename)
+        # if self.make_animation and not self.plot_2d:
+        #     # Make an animated 3d view
+        #     os.makedirs(self.tmp_animation_save_dir, exist_ok=True)
+        #     for i, angle in enumerate(range(-100, 0, 2)):
+        #         self.animate_axes.view_init(30, angle)
+        #         filename = self.get_tmp_animation_filename(i)
+        #         plt.savefig(filename)
+        #     self.compile_animation(i, delete_files=True, duration=0.2)
 
     def compile_animation(
         self, iteration, delete_files=False, start_iteration=0, duration=0.1
