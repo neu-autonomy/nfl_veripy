@@ -14,7 +14,6 @@ variables:
   DOCKER_TLS_CERTDIR: "/certs"
   CONTAINER_TEST_IMAGE: $CI_REGISTRY_IMAGE:$CI_COMMIT_REF_SLUG
   CONTAINER_RELEASE_IMAGE: $CI_REGISTRY_IMAGE:latest
-  # MOUNT_POINT: /builds/$CI_PROJECT_PATH/jackal_ws
   GIT_SUBMODULE_STRATEGY: recursive
 
 build_container:
@@ -22,36 +21,21 @@ build_container:
   only:
     changes:
       - docker/Dockerfile
-      - nn_closed_loop/setup.py
-      - nn_partition/setup.py
+      - pyproject.toml
+      - third_party
+      - .gitlab-ci.yml
+      - .gitmodules
   script:
     - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
     - docker build --pull -t $CONTAINER_TEST_IMAGE -f docker/Dockerfile .
     - docker push $CONTAINER_TEST_IMAGE
 
-test_partition:
-  stage: test
-  # only:
-  #   changes:
-  #     - docker/Dockerfile
-  #     - nn_partition
-  script:
-    - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
-    - docker pull $CONTAINER_TEST_IMAGE
-    - docker run -v /builds/mit-acl/ford_ugvs/nn_robustness_analysis:/home/nn_robustness_analysis $CONTAINER_TEST_IMAGE python -m nn_partition.tests.test
-    # - python -m nn_partition.tests.test
-
 test_closed_loop:
   stage: test
-  # only:
-  #   changes:
-  #     - docker/Dockerfile
-  #     - nn_closed_loop
   script:
     - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
     - docker pull $CONTAINER_TEST_IMAGE
-    - docker run -v /builds/mit-acl/ford_ugvs/nn_robustness_analysis:/home/nn_robustness_analysis $CONTAINER_TEST_IMAGE python -m nn_closed_loop.tests.test
-    # - python -m nn_partition.tests.test
+    - docker run -v /builds/neu-autonomy/certifiable-learning/nfl_veripy:/home/nfl_veripy $CONTAINER_TEST_IMAGE python tests/test.py
 
 # release-image:
 #   stage: release
@@ -62,7 +46,7 @@ test_closed_loop:
 #   only:
 #     changes:
 #       - docker/Dockerfile
-#       - nn_closed_loop/setup.py
+#       - nfl_veripy/setup.py
 #       - nn_partition/setup.py
 #     refs:
 #       - merge_requests

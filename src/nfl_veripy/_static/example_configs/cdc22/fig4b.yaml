@@ -1,0 +1,31 @@
+system:
+  type: GroundRobot
+  feedback: FullState
+  controller: complex_potential_field
+
+analysis:
+  reachability_direction: forward
+  partitioner:
+    type: Uniform
+    num_partitions: "[4, 4]"
+  propagator:
+    type: CROWN
+    boundary_type: rectangle
+  initial_state_range: "[[-5.5,-4.5],[-0.5,0.5]]"
+  t_max: 9
+  estimate_runtime: false
+  estimate_error: false
+
+visualization:
+  save_plot: true
+  show_plot: false
+  make_animation: false
+  show_animation: false
+  show_samples: false
+  show_trajectories: true
+  plot_dims: [0, 1]
+  plot_axis_labels: ["$p_x$", "$p_y$"]
+  plot_aspect: auto
+  plot_lims: "[[-7.2,3],[-7.2,7.2]]"
+  show_policy: true
+  final_state_range: "[[-1,1],[-1,1]]"

@@ -1,8 +1,0 @@
-python -m nn_closed_loop.example \
-	--partitioner None \
-	--propagator CROWN \
-	--system iss \
-	--state_feedback \
-	--t_max 0.06 \
-	--show_samples \
-	--skip_show_plot

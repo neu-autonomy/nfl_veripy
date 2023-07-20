@@ -1,4 +1,4 @@
-# `nn_closed_loop`
+# `nfl_veripy`
 
 ## About
 
@@ -6,7 +6,7 @@
 * Michael Everett, Golnaz Habibi, Jonathan P. How, ["Efficient Reachability Analysis for Closed-Loop Systems with Neural Network Controllers"](https://arxiv.org/pdf/2101.01815.pdf), ICRA 2021.
 
 Since NNs are rarely deployed in isolation, we developed a framework for analyzing closed-loop systems that employ NN control policies.
-The `nn_closed_loop` codebase follows a similar API as the `nn_partition` package, leveraging analogous `ClosedLoopAnalyzer`, `ClosedLoopPropagator` and `ClosedLoopPartitioner` concepts.
+The `nfl_veripy` codebase follows a similar API as the `nn_partition` package, leveraging analogous `ClosedLoopAnalyzer`, `ClosedLoopPropagator` and `ClosedLoopPartitioner` concepts.
 The typical problem statement is: given a known initial state set (and a known dynamics model), compute bounds on the reachable sets for N steps into the future.
 These bounds provide a safety guarantee for autonomous systems employing NN controllers, as they guarantee that the system will never enter parts of the state space outside of the reachable set bounds.
 
@@ -15,7 +15,7 @@ Reach-LP-Partition | Reach-LP w/ Polytopes
 ![nn_partition_polytope](/docs/_static/icra21/other/double_integrator_Uniform_CROWN_tmax_5.0_lp_8.png) | ![nn_partition_polytope](/docs/_static/icra21/other/double_integrator_None_CROWN_tmax_4.0_polytope_35.png)
 
 
-![nn_closed_loop](/docs/_static/access21/partitions/ClosedLoopGreedySimGuidedPartitioner4.gif)
+![nfl_veripy](/docs/_static/access21/partitions/ClosedLoopGreedySimGuidedPartitioner4.gif)
 
 
 ## Reproduce Figures from IEEE Access '21 paper (extending ICRA '21 paper)
@@ -23,7 +23,7 @@ Reach-LP-Partition | Reach-LP w/ Polytopes
 ### Backprojection
 
 ```bash
-python -m nn_closed_loop.example_backward \
+python -m nfl_veripy.example_backward \
 	--partitioner None \
 	--propagator CROWN \
 	--system double_integrator \
@@ -48,7 +48,7 @@ You can change `--num_partitions` to get the various fidelities.
 
 Within `example.py`, we set `inputs_to_highlight` to have 3 components by default for the quadrotor system, which tells the plotting scripts to make a 3D plot (rather than the 2D plots for the double integrator):
 ```bash
-python -m nn_closed_loop.example \
+python -m nfl_veripy.example \
 	--partitioner None \
 	--propagator CROWN \
 	--system quadrotor \
@@ -74,7 +74,7 @@ If you want to get an animated 3D plot, add the `--make_animation` flag:
 
 You can change the `--partitioner` flag to get various reachable set estimates:
 ```bash
-python -m nn_closed_loop.example \
+python -m nfl_veripy.example \
 	--partitioner GreedySimGuided \
 	--propagator CROWN \
 	--system double_integrator \
@@ -92,7 +92,7 @@ UnGuided | SimGuided | GreedySimGuided-0 | GreedySimGuided-4
 
 ### Compare Reach-LP and Reach-SDP
 
-In `nn_closed_loop/experiments.py`, at the bottom check that these are uncommented:
+In `nfl_veripy/experiments.py`, at the bottom check that these are uncommented:
 
 ```python
 # Like Fig 3 in ICRA21 paper
@@ -103,8 +103,8 @@ c.plot_reachable_sets()  # 3B: overlay reachable sets
 c.plot_error_vs_timestep()  # 3C: error vs timestep
 ```
 
-Running `python -m nn_closed_loop.experiments` will generate:
-- a `.pkl` file in `nn_closed_loop/results/logs`, which will then be loaded to generate...
+Running `python -m nfl_veripy.experiments` will generate:
+- a `.pkl` file in `nfl_veripy/results/logs`, which will then be loaded to generate...
 - this table output (and the latex version of the table)
 ```txt
 Algorithm                     Runtime [s]            Error
@@ -123,7 +123,7 @@ Reachable Sets | Error per Timestep
 
 ### Compare Linear Program and Closed-Form solution timings
 
-In `nn_closed_loop/experiments.py`, at the bottom check that these are uncommented:
+In `nfl_veripy/experiments.py`, at the bottom check that these are uncommented:
 
 ```python
 c = CompareLPvsCF(system="double_integrator")
@@ -131,8 +131,8 @@ c.run()
 c.plot()
 ```
 
-Running `python -m nn_closed_loop.experiments` will generate:
-- a `.pkl` file in `nn_closed_loop/results/logs`, which will then be loaded to generate...
+Running `python -m nfl_veripy.experiments` will generate:
+- a `.pkl` file in `nfl_veripy/results/logs`, which will then be loaded to generate...
 - this table output (and the latex version of the table)
 ```txt
       1                  4                  16
@@ -148,14 +148,14 @@ You can change `system="quadrotor"` to see the corresponding table for the 6D qu
 #### Duffing
 
 ```bash
-python -m nn_closed_loop.example --partitioner None --propagator CROWN --system duffing --state_feedback --t_max 0.3
+python -m nfl_veripy.example --partitioner None --propagator CROWN --system duffing --state_feedback --t_max 0.3
 ```
 will output this plot:
 ![duffing](/docs/_static/access21/systems/duffing_None_CROWN_tmax_0.3_lp_8.png)
 
 #### ISS
 ```bash
-python -m nn_closed_loop.example --partitioner None --propagator CROWN --system iss --state_feedback --t_max 0.21
+python -m nfl_veripy.example --partitioner None --propagator CROWN --system iss --state_feedback --t_max 0.21
 ```
 will output this plot:
 ![iss](/docs/_static/access21/systems/iss_None_CROWN_tmax_0.2_lp_8.png)

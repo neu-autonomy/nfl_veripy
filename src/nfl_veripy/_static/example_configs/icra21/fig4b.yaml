@@ -1,0 +1,29 @@
+system:
+  type: DoubleIntegrator
+  feedback: FullState
+  controller: default
+
+analysis:
+  reachability_direction: forward
+  partitioner:
+    type: None
+  propagator:
+    type: CROWN
+    boundary_type: polytope
+    num_polytope_facets: 8
+  initial_state_range: "[[-2., -1.5], [0.4, 0.8]]"
+  t_max: 2
+  estimate_runtime: false
+  estimate_error: false
+
+visualization:
+  save_plot: true
+  show_plot: false
+  make_animation: false
+  show_animation: false
+  show_samples: true
+  show_trajectories: false
+  plot_dims: [0, 1]
+  plot_axis_labels: ["$x_0$", "$x_1$"]
+  plot_aspect: auto
+  plot_lims: null

@@ -1,9 +1,0 @@
-python -m nn_closed_loop.example \
-	--partitioner Uniform \
-	--propagator CROWN \
-	--system double_integrator \
-	--state_feedback \
-	--t_max 2 \
-	--show_samples \
-	--save_plot --skip_show_plot \
-	--num_partitions "[2, 2]"

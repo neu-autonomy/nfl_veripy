@@ -1,0 +1,38 @@
+system:
+  type: GroundRobot
+  feedback: FullState
+  controller: buggy_complex_potential_field
+
+analysis:
+  reachability_direction: backward
+  partitioner:
+    type: Uniform
+    num_partitions: "[8, 8]"
+  propagator:
+    type: CROWNNStep
+    boundary_type: rectangle
+  final_state_range: "[[-1,1],[-1,1]]"
+  overapprox: true
+  t_max: 6
+  estimate_runtime: false
+  estimate_error: false
+
+visualization:
+  save_plot: true
+  show_plot: false
+  make_animation: false
+  show_animation: false
+  plot_dims: [0, 1]
+  plot_axis_labels: ["$p_x$", "$p_y$"]
+  plot_aspect: auto
+  plot_lims: "[[-7.2,3],[-7.2,7.2]]"
+  initial_state_range: "[[-5.5,-4.5],[.5,1.5]]"
+  show_trajectories: true
+  show_samples_from_cells: false
+  show_backreachable_sets: false
+  show_true_backprojection_sets: false
+  show_target_set: true
+  show_true_backprojection_set_samples: false
+  show_policy: true
+  show_backprojection_sets: true
+  show_backprojection_set_cells: false

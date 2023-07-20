@@ -9,6 +9,8 @@ data
 *.egg-info
 *.DS_Store
 *.ipynb_checkpoints/
+dist/
+.mypy_cache
 
 torch_model
 tmp_model
@@ -20,20 +22,22 @@ partition/results
 
 results/
 
-/models
+# /models
 
 /venv
 
-nn_closed_loop/models/double_integrator_mpc
-nn_closed_loop/models/quadrotor
-nn_closed_loop/models/quadrotor_small
-nn_closed_loop/datasets/double_integrator.zip
-nn_closed_loop/nn_closed_loop/utils/leftover_ipynb.py
-nn_closed_loop/models/unity/model_*
-nn_closed_loop/models/nnet/
-nn_closed_loop/models/unity/
-nn_closed_loop/datasets/DoubleIntegrator/
-nn_closed_loop/datasets/Unity/
+models/double_integrator_mpc
+models/quadrotor
+models/quadrotor_small
+datasets/double_integrator.zip
+nfl_veripy/utils/leftover_ipynb.py
+models/unity/model_*
+models/nnet/
+models/unity/
+datasets/DoubleIntegrator/
+datasets/Unity/
 
 nn_partition/models/nnet/
 
+venv*
+.vscode
