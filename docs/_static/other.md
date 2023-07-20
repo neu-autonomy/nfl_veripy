@@ -8,12 +8,24 @@ Please see the `jupyter_notebooks` folder for an interactive version of the abov
 ## packaging info
 
 ```bash
+python -m pip install build twine
+
+# update version number in pyproject.toml (e.g., 0.0.2a0 to test out a candidate 0.0.2 release)
 cd nfl_veripy
 python -m build
-python -m twine upload --repository testpypi dist/nfl_veripy-0.0.1a0*
+python -m twine upload --repository testpypi dist/nfl_veripy-0.0.2a0*
 
-python -m pip install "jax_verify @ git+https://gitlab.com/mit-acl/ford_ugvs/jax_verify.git" "crown_ibp @ git+https://gitlab.com/mit-acl/ford_ugvs/crown_ibp.git"
-python -m pip install --extra-index-url https://test.pypi.org/simple/ nfl-veripy==0.0.1.a4
+# in a separate terminal...
+python -m virtualenv nfl_veripy_pypi_venv
+source nfl_veripy_pypi_venv/bin/activate
+python -m pip install "jax_verify @ git+https://gitlab.com/neu-autonomy/certifiable-learning/jax_verify.git" "crown_ibp @ git+https://gitlab.com/neu-autonomy/certifiable-learning/crown_ibp.git"
+python -m pip install --extra-index-url https://test.pypi.org/simple/ nfl-veripy==0.0.2a0
+python -m nfl_veripy.example --config example_configs/icra21/fig3_reach_lp.yaml
+
+# if that works, build & release the pkg to the real pypi:
+# - update version number in pyproject.toml (e.g., 0.0.2)
+python -m build
+python -m twine upload dist/nfl_veripy-0.0.2*
 
 ```
 
