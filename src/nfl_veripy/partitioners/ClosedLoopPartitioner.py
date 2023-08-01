@@ -182,19 +182,10 @@ class ClosedLoopPartitioner:
         # Included state limits to reduce size of backreachable sets by
         # eliminating states that are not physically possible
         # (e.g., maximum velocities)
-        # if self.dynamics.x_limits is not None:
-        #     x_llim = self.dynamics.x_limits[:, 0]
-        #     x_ulim = self.dynamics.x_limits[:, 1]
-        #     constrs += [x_llim <= xt]
-        #     constrs += [xt <= x_ulim]
-        #     # Also constrain the future state to be within the state limits
-        #     constrs += [self.dynamics.dynamics_step(xt,ut) <= x_ulim]
-        #     constrs += [self.dynamics.dynamics_step(xt,ut) >= x_llim]
-
-        # if self.dynamics.x_limits is not None:
-        #     for state in self.dynamics.x_limits:
-        #         constrs += [self.dynamics.x_limits[state][0] <= xt[state]]
-        #         constrs += [xt[state] <= self.dynamics.x_limits[state][1]]
+        if self.dynamics.x_limits is not None:
+            for state in self.dynamics.x_limits:
+                constrs += [self.dynamics.x_limits[state][0] <= xt[state]]
+                constrs += [xt[state] <= self.dynamics.x_limits[state][1]]
 
         constrs += [A_target @ self.dynamics.dynamics_step(xt, ut) <= b_target]
 
