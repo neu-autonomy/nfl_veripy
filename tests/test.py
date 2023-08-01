@@ -22,6 +22,7 @@ def enumerate_tests():
     tests_to_skip = [
         "/icra21/fig3_reach_sdp.yaml",
         "/icra21/fig3_reach_sdp_partition.yaml",
+        "/ojcsys23/quadrotor_breach.yaml",
     ]
     print(tests)
     for test in tests_to_skip:

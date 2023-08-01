@@ -1,0 +1,40 @@
+system:
+  type: discrete_quadrotor
+  feedback: FullState
+  controller: discrete_quad_avoid_origin_maneuver_2
+
+analysis:
+  reachability_direction: backward
+  partitioner:
+    type: Uniform
+    num_partitions: "[5, 5, 5, 5, 5, 5]"
+  propagator:
+    type: CROWN
+    boundary_type: rectangle
+    num_iterations: 1
+  final_state_range: "[[-1,1],[-1,1],[1.5,3.5],[-1,1],[-1,1],[-1,1]]"
+  overapprox: true
+  t_max: 1
+  estimate_runtime: false
+  estimate_error: false
+
+visualization:
+  save_plot: true
+  show_plot: false
+  make_animation: false
+  show_animation: false
+  plot_dims: [0, 1, 2]
+  plot_axis_labels: ["$p_x$", "$p_y$", "$p_z$"]
+  plot_aspect: auto
+  plot_lims: "[[-6, 2], [-5, 5], [1.5, 3.5]]"
+  show_policy: false
+  show_trajectories: true
+  show_samples_from_cells: false
+  show_backreachable_sets: false
+  show_true_backprojection_sets: false
+  show_target_set: true
+  show_true_backprojection_set_samples: false
+  show_backprojection_sets: true
+  show_backprojection_set_cells: false
+  initial_state_range: "[[-5.25,-4.75],[-.25,.25],[2.25,2.75],[0.95,0.99],[-0.01,0.01],[-0.01,0.01]]"
+  show_initial_state_set: true

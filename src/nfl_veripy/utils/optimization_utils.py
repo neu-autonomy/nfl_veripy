@@ -1,6 +1,7 @@
 import cvxpy as cp
-import nfl_veripy.constraints as constraints
 import numpy as np
+
+import nfl_veripy.constraints as constraints
 
 
 def optimize_over_all_states(xt, constrs, facet_inds_to_optimize=None):
@@ -12,14 +13,20 @@ def optimize_over_all_states(xt, constrs, facet_inds_to_optimize=None):
     b = np.hstack(
         [np.inf * np.ones((num_states,)), -np.inf * np.ones((num_states,))]
     )
-    # b = np.empty((2*num_states,))
     if facet_inds_to_optimize is None:
         num_facets = obj_facets.shape[0]
         facet_inds_to_optimize = range(num_facets)
     for i in facet_inds_to_optimize:
         obj_facets_i.value = obj_facets[i, :]
-        prob.solve()
-        b[i] = prob.value
+        try:
+            prob.solve()
+            b[i] = prob.value
+        except cp.error.SolverError:
+            # this normally happens if the backreachable set is empty (?)
+            import pdb
+
+            pdb.set_trace()
+
     return b, prob.status
 
 

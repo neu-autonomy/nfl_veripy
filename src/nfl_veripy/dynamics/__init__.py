@@ -29,6 +29,7 @@ def get_dynamics_instance(system, state_feedback):
             "Duffing": Duffing,
             "ISS": ISS,
             "GroundRobot": GroundRobotSI,
+            "discrete_quadrotor": DiscreteQuadrotor,
         }
     else:
         dynamics_dict = {

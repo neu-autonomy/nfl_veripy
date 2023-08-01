@@ -11,10 +11,11 @@ import pickle
 
 import jax.numpy as jnp
 import matplotlib.pyplot as plt
-import nfl_veripy.constraints as constraints
 import torch
 from colour import Color
 from matplotlib import colormaps
+
+import nfl_veripy.constraints as constraints
 from nfl_veripy.utils.nn_bounds import BoundClosedLoopController
 
 dir_path = os.path.dirname(os.path.realpath(__file__))
@@ -335,25 +336,16 @@ class Dynamics:
 
         orange = Color("orange")
         colors = list(orange.range_to(Color("purple"), num_timesteps - 1))
-        # import pdb; pdb.set_trace()
         for traj in range(num_runs):
-            if len(input_dims) == 2:
-                for seg in range(num_timesteps - 1):
-                    ax.plot(
-                        xs[traj, seg : seg + 2, 0],
-                        xs[traj, seg : seg + 2, 1],
-                        color=colors[seg].hex_l,
-                        zorder=zorder,
-                    )
-            elif len(input_dims) == 3:
-                for seg in range(num_timesteps - 1):
-                    ax.plot(
-                        xs[traj, seg : seg + 2, 0],
-                        xs[traj, seg : seg + 2, 1],
-                        xs[traj, seg : seg + 2, 2],
-                        color=colors[seg].hex_l,
-                        zorder=zorder,
-                    )
+            for seg in range(num_timesteps - 1):
+                ax.plot(
+                    *[
+                        xs[traj, seg : seg + 2, input_dim[0]]
+                        for input_dim in input_dims
+                    ],
+                    color=colors[seg].hex_l,
+                    zorder=zorder,
+                )
 
     def collect_data(
         self,

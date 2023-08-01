@@ -49,10 +49,11 @@ class BackwardVisualizer:
         self.show_backreachable_sets: bool = True
         self.show_backprojection_sets: bool = True
         self.show_backprojection_set_cells: bool = True
+        self.show_initial_state_set: bool = False
 
         self.show: bool = False
         self.save_plot: bool = True
-        self.axis_labels: list = ["$x_0$", "$x_1$"]
+        self.plot_axis_labels: list = ["$x_0$", "$x_1$"]
         self.plot_dims: list = [0, 1]
         self.aspect: str = "auto"
         self.plot_lims: Optional[list] = None
@@ -162,6 +163,8 @@ class BackwardVisualizer:
             plot_lims_arr = np.array(ast.literal_eval(self.plot_lims))
             self.animate_axes.set_xlim(plot_lims_arr[0])
             self.animate_axes.set_ylim(plot_lims_arr[1])
+            if not self.plot_2d:
+                self.animate_axes.set_zlim(plot_lims_arr[2])
 
         if self.save_plot:
             plt.savefig(self.plot_filename)
@@ -231,14 +234,27 @@ class BackwardVisualizer:
                 self.initial_state_set,
                 ax=self.animate_axes,
                 controller=self.network,
+                input_dims=self.plot_dims,
+            )
+
+        if self.show_initial_state_set and self.initial_state_set is not None:
+            self.initial_state_set.plot(
+                self.animate_axes,
+                self.plot_dims,
+                self.initial_set_color,
+                fc_color="None",
+                zorder=self.initial_set_zorder,
+                plot_2d=self.plot_2d,
+                linewidth=self.initial_set_lw,
+                ls=self.initial_set_ls,
             )
 
         self.animate_axes.set_aspect(self.aspect)
 
-        self.animate_axes.set_xlabel(self.axis_labels[0])
-        self.animate_axes.set_ylabel(self.axis_labels[1])
+        self.animate_axes.set_xlabel(self.plot_axis_labels[0])
+        self.animate_axes.set_ylabel(self.plot_axis_labels[1])
         if not self.plot_2d:
-            self.animate_axes.set_zlabel(self.axis_labels[2])
+            self.animate_axes.set_zlabel(self.plot_axis_labels[2])
 
     def visualize_estimates(
         self,
