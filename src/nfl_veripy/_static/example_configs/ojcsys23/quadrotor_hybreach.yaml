@@ -9,12 +9,12 @@ analysis:
     type: Uniform
     num_partitions: "[5, 5, 5, 5, 5, 5]"
   propagator:
-    type: CROWN
+    type: CROWNNStep
     boundary_type: rectangle
     num_iterations: 1
   final_state_range: "[[-1,1],[-1,1],[1.5,3.5],[-1,1],[-1,1],[-1,1]]"
   overapprox: true
-  t_max: 1
+  t_max: 2
   estimate_runtime: false
   estimate_error: false
 
